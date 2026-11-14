@@ -448,14 +448,18 @@ export function GlobeViewport({
     return rings;
   }, [lat, lon, activeLayer, activeSatelliteConfig, reading, hazards]);
 
-  // 3D Spherical Overlay Mesh Object Data (AdditiveBlending canvas texture shell)
+  // 3D Spherical Overlay Mesh Object Data (semi-transparent telemetry aura shell)
   const customOverlayData = useMemo(() => {
     return [
       {
         id: `overlay-${activeLayer}`,
         layer: activeLayer,
         color: activeSatelliteConfig.primaryColor,
-        opacity: (opacity / 100) * 0.78,
+        secondaryColor:
+          activeSatelliteConfig.colorRamp.colors[
+            Math.floor(activeSatelliteConfig.colorRamp.colors.length / 2)
+          ] || activeSatelliteConfig.primaryColor,
+        opacity: (opacity / 100) * 0.65,
         colors: activeSatelliteConfig.colorRamp.colors,
         lat,
         lon,
@@ -538,17 +542,21 @@ export function GlobeViewport({
     return points;
   }, [lat, lon, activeLayer, activeSatelliteConfig, reading]);
 
-  // 3D HTML Status Badges for react-globe.gl
+  // 3D HTML Status Badges for react-globe.gl (screen-space vertical offset to prevent collision)
   const dynamicGlobeHtmlMarkers = useMemo(() => {
     const list = [
       {
         lat,
         lng: lon,
         html: `
-          <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#0D1322f2;border:1px solid ${activeSatelliteConfig.primaryColor};color:#ffffff;font-family:monospace;font-size:10px;font-weight:600;box-shadow:0 0 12px ${activeSatelliteConfig.primaryColor}80;pointer-events:none;white-space:nowrap;">
-            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${activeSatelliteConfig.primaryColor};animation:ping 1.5s infinite;"></span>
-            <span style="color:${activeSatelliteConfig.primaryColor}">${activeLayer}:</span>
-            <span style="font-weight:bold;">${reading.value} ${reading.unit}</span>
+          <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-14px);pointer-events:none;white-space:nowrap;z-index:50;">
+            <div style="display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:7px;background:#070C18f2;border:1.5px solid ${activeSatelliteConfig.primaryColor};color:#ffffff;font-family:monospace;font-size:10px;font-weight:700;box-shadow:0 0 16px ${activeSatelliteConfig.primaryColor}99, 0 4px 12px rgba(0,0,0,0.85);backdrop-filter:blur(8px);">
+              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${activeSatelliteConfig.primaryColor};box-shadow:0 0 8px ${activeSatelliteConfig.primaryColor};"></span>
+              <span style="color:${activeSatelliteConfig.primaryColor};text-transform:uppercase;letter-spacing:0.5px;">${activeLayer}:</span>
+              <span style="font-weight:800;color:#ffffff;">${reading.value} <span style="font-weight:500;color:#94a3b8;font-size:9px;">${reading.unit}</span></span>
+            </div>
+            <div style="width:1.5px;height:12px;background:linear-gradient(to bottom, ${activeSatelliteConfig.primaryColor}, transparent);"></div>
+            <div style="width:4px;height:4px;border-radius:50%;background:${activeSatelliteConfig.primaryColor};"></div>
           </div>
         `,
       },
@@ -557,34 +565,43 @@ export function GlobeViewport({
     for (const h of hazards) {
       if (h.type === "cyclone") {
         list.push({
-          lat: lat + 3.2,
-          lng: lon + 4.5,
+          lat: lat + 4.2,
+          lng: lon + 5.5,
           html: `
-            <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px;background:#0D1322f0;border:1px solid #ef4444;color:#ef4444;font-family:monospace;font-size:9px;font-weight:bold;box-shadow:0 0 10px rgba(239,68,68,0.4);">
-              <span>🌀</span>
-              <span>CYCLONE TRACK</span>
+            <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
+              <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #ef4444;color:#ef4444;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(239,68,68,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
+                <span style="font-size:11px;">🌀</span>
+                <span>CYCLONE TRACK</span>
+              </div>
+              <div style="width:1px;height:8px;background:#ef4444;"></div>
             </div>
           `,
         });
       } else if (h.type === "fire") {
         list.push({
-          lat: lat + 0.08,
-          lng: lon - 0.06,
+          lat: lat + 1.2,
+          lng: lon - 1.8,
           html: `
-            <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px;background:#0D1322f0;border:1px solid #f59e0b;color:#f59e0b;font-family:monospace;font-size:9px;font-weight:bold;box-shadow:0 0 10px rgba(245,158,11,0.4);">
-              <span>🔥</span>
-              <span>FIRMS HOTSPOT</span>
+            <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
+              <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #f59e0b;color:#f59e0b;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(245,158,11,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
+                <span style="font-size:11px;">🔥</span>
+                <span>FIRMS HOTSPOT</span>
+              </div>
+              <div style="width:1px;height:8px;background:#f59e0b;"></div>
             </div>
           `,
         });
       } else if (h.type === "earthquake") {
         list.push({
-          lat: lat - 0.75,
-          lng: lon - 0.85,
+          lat: lat - 2.8,
+          lng: lon - 3.2,
           html: `
-            <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px;background:#0D1322f0;border:1px solid #10b981;color:#10b981;font-family:monospace;font-size:9px;font-weight:bold;box-shadow:0 0 10px rgba(16,185,129,0.4);">
-              <span>⚡</span>
-              <span>USGS EPICENTER</span>
+            <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
+              <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #10b981;color:#10b981;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(16,185,129,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
+                <span style="font-size:11px;">⚡</span>
+                <span>USGS EPICENTER</span>
+              </div>
+              <div style="width:1px;height:8px;background:#10b981;"></div>
             </div>
           `,
         });
@@ -905,16 +922,11 @@ export function GlobeViewport({
               width={containerDimensions.width}
               height={containerDimensions.height}
               backgroundColor="#050811"
-              globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+              globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
               bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-              globeTileEngineUrl={(x: number, y: number, l: number) => {
-                // If zoom is within layer maxZoom, project NASA GIBS WMTS tiles
-                if (l <= activeSatelliteConfig.maxZoom) {
-                  return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/${l}/${y}/${x}.${activeSatelliteConfig.format}`;
-                }
-                // When zoomed closer, seamlessly switch to ArcGIS World Imagery tiles
-                return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
-              }}
+              globeTileEngineUrl={(x: number, y: number, l: number) =>
+                `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`
+              }
               rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
               atmosphereColor="#00e5ff"
               atmosphereAltitude={0.22}
@@ -939,13 +951,14 @@ export function GlobeViewport({
               customThreeObject={(d: unknown) => {
                 const item = d as {
                   color: string;
+                  secondaryColor: string;
                   opacity: number;
                   colors: string[];
                   lat: number;
                   lon: number;
                 };
                 const group = new THREE.Group();
-                const geom = new THREE.SphereGeometry(100.4, 64, 32);
+                const geom = new THREE.SphereGeometry(100.3, 64, 32);
 
                 if (typeof document !== "undefined") {
                   const canvas = document.createElement("canvas");
@@ -953,28 +966,21 @@ export function GlobeViewport({
                   canvas.height = 256;
                   const ctx = canvas.getContext("2d");
                   if (ctx) {
-                    const grad = ctx.createLinearGradient(0, 0, 512, 0);
-                    item.colors.forEach((c: string, idx: number) => {
-                      grad.addColorStop(idx / Math.max(1, item.colors.length - 1), c);
-                    });
-                    ctx.fillStyle = grad;
-                    ctx.globalAlpha = 0.35;
-                    ctx.fillRect(0, 0, 512, 256);
+                    // 100% transparent base: NEVER fill entire sphere with dark/opaque color!
+                    ctx.clearRect(0, 0, 512, 256);
 
-                    // Intense radiant telemetry glow over the target field
+                    // Draw radiant localized scientific telemetry heatmap aura directly over the target field
                     const cx = ((item.lon + 180) / 360) * 512;
                     const cy = ((90 - item.lat) / 180) * 256;
-                    const radGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 80);
+                    const radGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 60);
                     radGrad.addColorStop(0, item.color);
-                    radGrad.addColorStop(
-                      0.5,
-                      item.colors[Math.floor(item.colors.length / 2)] || item.color,
-                    );
-                    radGrad.addColorStop(1, "transparent");
-                    ctx.globalAlpha = 0.85;
+                    radGrad.addColorStop(0.35, item.secondaryColor);
+                    radGrad.addColorStop(0.7, item.colors[0] || item.color);
+                    radGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+
                     ctx.fillStyle = radGrad;
                     ctx.beginPath();
-                    ctx.arc(cx, cy, 80, 0, Math.PI * 2);
+                    ctx.arc(cx, cy, 60, 0, Math.PI * 2);
                     ctx.fill();
                   }
 
@@ -989,6 +995,7 @@ export function GlobeViewport({
                   });
 
                   const mesh = new THREE.Mesh(geom, mat);
+                  mesh.visible = item.opacity > 0.01;
                   group.add(mesh);
                 }
                 return group;
@@ -1002,6 +1009,7 @@ export function GlobeViewport({
                 >;
                 if (mesh?.material) {
                   mesh.material.opacity = item.opacity;
+                  mesh.visible = item.opacity > 0.01;
                 }
               }}
               htmlElementsData={dynamicGlobeHtmlMarkers}
@@ -1556,7 +1564,7 @@ export function GlobeViewport({
               <Slider
                 aria-label="Layer opacity"
                 className="w-20 sm:w-24"
-                min={20}
+                min={0}
                 max={100}
                 step={1}
                 value={[opacity]}
