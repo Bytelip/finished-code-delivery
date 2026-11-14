@@ -63,7 +63,14 @@ import { toast } from "sonner";
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 
 interface GlobeMethods {
-  pointOfView: (pov: { lat?: number; lng?: number; altitude?: number }, ms?: number) => void;
+  pointOfView: (
+    pov?: { lat?: number; lng?: number; altitude?: number },
+    ms?: number,
+  ) => { lat: number; lng: number; altitude: number } | void;
+  controls?: () => {
+    addEventListener?: (event: string, cb: () => void) => void;
+    removeEventListener?: (event: string, cb: () => void) => void;
+  };
 }
 
 interface LeafletMapInstance {
@@ -214,535 +221,133 @@ const LAT_TICKS = [60, 30, 0, -30, -60];
 const toX = (lon: number) => ((lon + 180) / 360) * 100;
 const toY = (lat: number) => ((90 - lat) / 180) * 100;
 
-interface GlobeLabelItem {
+interface PlaceLabelEntry {
   id: string;
   lat: number;
   lng: number;
   text: string;
-  color: string;
-  size: number;
-  dotRadius: number;
 }
 
-const GLOBAL_OCEANS: GlobeLabelItem[] = [
-  {
-    id: "oc-ind",
-    lat: -12.0,
-    lng: 78.0,
-    text: "INDIAN OCEAN",
-    color: "#67e8f9",
-    size: 1.5,
-    dotRadius: 0,
-  },
-  {
-    id: "oc-arb",
-    lat: 15.5,
-    lng: 65.0,
-    text: "ARABIAN SEA",
-    color: "#67e8f9",
-    size: 1.2,
-    dotRadius: 0,
-  },
-  {
-    id: "oc-bob",
-    lat: 14.5,
-    lng: 88.0,
-    text: "BAY OF BENGAL",
-    color: "#67e8f9",
-    size: 1.2,
-    dotRadius: 0,
-  },
-  {
-    id: "oc-pac",
-    lat: 8.0,
-    lng: 160.0,
-    text: "PACIFIC OCEAN",
-    color: "#67e8f9",
-    size: 1.7,
-    dotRadius: 0,
-  },
-  {
-    id: "oc-atl",
-    lat: 12.0,
-    lng: -35.0,
-    text: "ATLANTIC OCEAN",
-    color: "#67e8f9",
-    size: 1.7,
-    dotRadius: 0,
-  },
-  {
-    id: "oc-sou",
-    lat: -60.0,
-    lng: 70.0,
-    text: "SOUTHERN OCEAN",
-    color: "#67e8f9",
-    size: 1.4,
-    dotRadius: 0,
-  },
+const GLOBAL_COUNTRIES: PlaceLabelEntry[] = [
+  { id: "cnt-ind", lat: 22.5, lng: 79.5, text: "INDIA" },
+  { id: "cnt-aus", lat: -25.0, lng: 134.0, text: "AUSTRALIA" },
+  { id: "cnt-afr", lat: 4.0, lng: 21.0, text: "AFRICA" },
+  { id: "cnt-chn", lat: 35.0, lng: 104.0, text: "CHINA" },
+  { id: "cnt-usa", lat: 38.0, lng: -97.0, text: "UNITED STATES" },
+  { id: "cnt-rus", lat: 60.0, lng: 100.0, text: "RUSSIA" },
+  { id: "cnt-bra", lat: -12.0, lng: -52.0, text: "BRAZIL" },
+  { id: "cnt-eur", lat: 50.0, lng: 15.0, text: "EUROPE" },
+  { id: "cnt-gbr", lat: 54.0, lng: -2.0, text: "UNITED KINGDOM" },
+  { id: "cnt-jpn", lat: 36.0, lng: 138.0, text: "JAPAN" },
+  { id: "cnt-can", lat: 56.0, lng: -106.0, text: "CANADA" },
 ];
 
-const GLOBAL_COUNTRIES: GlobeLabelItem[] = [
-  {
-    id: "cnt-ind",
-    lat: 23.0,
-    lng: 79.5,
-    text: "INDIA",
-    color: "#ffffff",
-    size: 1.8,
-    dotRadius: 0.35,
-  },
-  {
-    id: "cnt-aus",
-    lat: -25.0,
-    lng: 134.0,
-    text: "AUSTRALIA",
-    color: "#ffffff",
-    size: 1.6,
-    dotRadius: 0.3,
-  },
-  { id: "cnt-afr", lat: 4.0, lng: 21.0, text: "AFRICA", color: "#ffffff", size: 1.7, dotRadius: 0 },
-  {
-    id: "cnt-chn",
-    lat: 35.0,
-    lng: 104.0,
-    text: "CHINA",
-    color: "#ffffff",
-    size: 1.6,
-    dotRadius: 0.3,
-  },
-  {
-    id: "cnt-usa",
-    lat: 38.0,
-    lng: -97.0,
-    text: "UNITED STATES",
-    color: "#ffffff",
-    size: 1.6,
-    dotRadius: 0.3,
-  },
-  {
-    id: "cnt-rus",
-    lat: 60.0,
-    lng: 100.0,
-    text: "RUSSIA",
-    color: "#ffffff",
-    size: 1.7,
-    dotRadius: 0.3,
-  },
-  {
-    id: "cnt-bra",
-    lat: -12.0,
-    lng: -52.0,
-    text: "BRAZIL",
-    color: "#ffffff",
-    size: 1.6,
-    dotRadius: 0.3,
-  },
-  {
-    id: "cnt-eur",
-    lat: 50.0,
-    lng: 15.0,
-    text: "EUROPE",
-    color: "#ffffff",
-    size: 1.6,
-    dotRadius: 0,
-  },
-  {
-    id: "cnt-gbr",
-    lat: 54.0,
-    lng: -2.0,
-    text: "UNITED KINGDOM",
-    color: "#ffffff",
-    size: 1.45,
-    dotRadius: 0.25,
-  },
-  {
-    id: "cnt-jpn",
-    lat: 36.0,
-    lng: 138.0,
-    text: "JAPAN",
-    color: "#ffffff",
-    size: 1.45,
-    dotRadius: 0.25,
-  },
-  {
-    id: "cnt-can",
-    lat: 56.0,
-    lng: -106.0,
-    text: "CANADA",
-    color: "#ffffff",
-    size: 1.6,
-    dotRadius: 0.3,
-  },
+const GLOBAL_OCEANS: PlaceLabelEntry[] = [
+  { id: "oc-ind", lat: -12.0, lng: 78.0, text: "INDIAN OCEAN" },
+  { id: "oc-bob", lat: 14.5, lng: 88.0, text: "BAY OF BENGAL" },
+  { id: "oc-arb", lat: 15.5, lng: 65.0, text: "ARABIAN SEA" },
+  { id: "oc-pac", lat: 8.0, lng: 160.0, text: "PACIFIC OCEAN" },
+  { id: "oc-atl", lat: 12.0, lng: -35.0, text: "ATLANTIC OCEAN" },
+  { id: "oc-sou", lat: -60.0, lng: 70.0, text: "SOUTHERN OCEAN" },
 ];
 
-const REGIONAL_STATES: GlobeLabelItem[] = [
-  {
-    id: "st-ka",
-    lat: 14.5,
-    lng: 75.8,
-    text: "Karnataka",
-    color: "#fef08a",
-    size: 1.35,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-tn",
-    lat: 11.1,
-    lng: 78.6,
-    text: "Tamil Nadu",
-    color: "#fef08a",
-    size: 1.3,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-ap",
-    lat: 15.9,
-    lng: 79.7,
-    text: "Andhra Pradesh",
-    color: "#fef08a",
-    size: 1.3,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-kl",
-    lat: 10.5,
-    lng: 76.5,
-    text: "Kerala",
-    color: "#fef08a",
-    size: 1.25,
-    dotRadius: 0.2,
-  },
-  {
-    id: "st-tg",
-    lat: 17.8,
-    lng: 79.1,
-    text: "Telangana",
-    color: "#fef08a",
-    size: 1.3,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-mh",
-    lat: 19.5,
-    lng: 75.8,
-    text: "Maharashtra",
-    color: "#fef08a",
-    size: 1.35,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-gj",
-    lat: 22.3,
-    lng: 71.8,
-    text: "Gujarat",
-    color: "#fef08a",
-    size: 1.3,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-pb",
-    lat: 31.1,
-    lng: 75.3,
-    text: "Punjab",
-    color: "#fef08a",
-    size: 1.3,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-rj",
-    lat: 26.5,
-    lng: 73.8,
-    text: "Rajasthan",
-    color: "#fef08a",
-    size: 1.35,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-mp",
-    lat: 23.5,
-    lng: 77.5,
-    text: "Madhya Pradesh",
-    color: "#fef08a",
-    size: 1.35,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-up",
-    lat: 27.2,
-    lng: 80.9,
-    text: "Uttar Pradesh",
-    color: "#fef08a",
-    size: 1.35,
-    dotRadius: 0.25,
-  },
-  {
-    id: "st-wb",
-    lat: 23.8,
-    lng: 87.8,
-    text: "West Bengal",
-    color: "#fef08a",
-    size: 1.3,
-    dotRadius: 0.25,
-  },
+const REGIONAL_STATES: PlaceLabelEntry[] = [
+  { id: "st-pb", lat: 31.1, lng: 75.3, text: "Punjab" },
+  { id: "st-rj", lat: 26.5, lng: 73.8, text: "Rajasthan" },
+  { id: "st-up", lat: 27.2, lng: 80.9, text: "Uttar Pradesh" },
+  { id: "st-wb", lat: 23.8, lng: 87.8, text: "West Bengal" },
+  { id: "st-mh", lat: 19.5, lng: 75.8, text: "Maharashtra" },
+  { id: "st-ka", lat: 14.5, lng: 75.8, text: "Karnataka" },
+  { id: "st-ap", lat: 15.9, lng: 79.7, text: "Andhra Pradesh" },
+  { id: "st-tn", lat: 11.1, lng: 78.6, text: "Tamil Nadu" },
+  { id: "st-kl", lat: 10.5, lng: 76.5, text: "Kerala" },
+  { id: "st-tg", lat: 17.8, lng: 79.1, text: "Telangana" },
+  { id: "st-gj", lat: 22.3, lng: 71.8, text: "Gujarat" },
+  { id: "st-mp", lat: 23.5, lng: 77.5, text: "Madhya Pradesh" },
 ];
 
-const REGIONAL_CITIES: GlobeLabelItem[] = [
-  {
-    id: "ct-blr",
-    lat: 12.9716,
-    lng: 77.5946,
-    text: "Bengaluru",
-    color: "#00f0ff",
-    size: 1.45,
-    dotRadius: 0.35,
-  },
-  {
-    id: "ct-maa",
-    lat: 13.0827,
-    lng: 80.2707,
-    text: "Chennai",
-    color: "#00f0ff",
-    size: 1.35,
-    dotRadius: 0.3,
-  },
-  {
-    id: "ct-hyd",
-    lat: 17.385,
-    lng: 78.4867,
-    text: "Hyderabad",
-    color: "#00f0ff",
-    size: 1.35,
-    dotRadius: 0.3,
-  },
-  {
-    id: "ct-bom",
-    lat: 19.076,
-    lng: 72.8777,
-    text: "Mumbai",
-    color: "#00f0ff",
-    size: 1.4,
-    dotRadius: 0.35,
-  },
-  {
-    id: "ct-del",
-    lat: 28.6139,
-    lng: 77.209,
-    text: "New Delhi",
-    color: "#00f0ff",
-    size: 1.4,
-    dotRadius: 0.35,
-  },
-  {
-    id: "ct-ccu",
-    lat: 22.5726,
-    lng: 88.3639,
-    text: "Kolkata",
-    color: "#00f0ff",
-    size: 1.3,
-    dotRadius: 0.3,
-  },
-  {
-    id: "ct-pnq",
-    lat: 18.5204,
-    lng: 73.8567,
-    text: "Pune",
-    color: "#00f0ff",
-    size: 1.25,
-    dotRadius: 0.25,
-  },
-  {
-    id: "ct-myq",
-    lat: 12.2958,
-    lng: 76.6394,
-    text: "Mysuru",
-    color: "#00f0ff",
-    size: 1.2,
-    dotRadius: 0.25,
-  },
-  {
-    id: "ct-ixe",
-    lat: 12.9141,
-    lng: 74.856,
-    text: "Mangaluru",
-    color: "#00f0ff",
-    size: 1.2,
-    dotRadius: 0.25,
-  },
-  {
-    id: "ct-cjb",
-    lat: 11.0168,
-    lng: 76.9558,
-    text: "Coimbatore",
-    color: "#00f0ff",
-    size: 1.2,
-    dotRadius: 0.25,
-  },
-  {
-    id: "ct-vtg",
-    lat: 13.8,
-    lng: 75.3,
-    text: "Western Ghats",
-    color: "#86efac",
-    size: 1.2,
-    dotRadius: 0,
-  },
-  {
-    id: "ct-dcn",
-    lat: 16.5,
-    lng: 76.8,
-    text: "Deccan Plateau",
-    color: "#fde047",
-    size: 1.25,
-    dotRadius: 0,
-  },
-  {
-    id: "ct-klp",
-    lat: 13.13,
-    lng: 78.13,
-    text: "Kolar Plateau",
-    color: "#00f0ff",
-    size: 1.3,
-    dotRadius: 0.3,
-  },
+const MEGA_CAPITALS: PlaceLabelEntry[] = [
+  { id: "ct-del", lat: 28.6139, lng: 77.209, text: "New Delhi" },
+  { id: "ct-bom", lat: 19.076, lng: 72.8777, text: "Mumbai" },
+  { id: "ct-blr", lat: 12.9716, lng: 77.5946, text: "Bengaluru" },
+  { id: "ct-ccu", lat: 22.5726, lng: 88.3639, text: "Kolkata" },
 ];
 
-const LOCAL_TOWNS: GlobeLabelItem[] = [
-  {
-    id: "tn-klr",
-    lat: 13.1367,
-    lng: 78.1292,
-    text: "Kolar",
-    color: "#38bdf8",
-    size: 1.15,
-    dotRadius: 0.25,
-  },
-  {
-    id: "tn-ckb",
-    lat: 13.4325,
-    lng: 77.7275,
-    text: "Chikkaballapur",
-    color: "#38bdf8",
-    size: 1.05,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-hsk",
-    lat: 13.07,
-    lng: 77.7981,
-    text: "Hoskote",
-    color: "#38bdf8",
-    size: 1.05,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-mlr",
-    lat: 13.0044,
-    lng: 77.9392,
-    text: "Malur",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-bpt",
-    lat: 12.9961,
-    lng: 78.1994,
-    text: "Bangarapet",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-mbl",
-    lat: 13.1633,
-    lng: 78.3967,
-    text: "Mulbagal",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-snp",
-    lat: 13.3378,
-    lng: 78.2167,
-    text: "Srinivaspur",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-kgf",
-    lat: 12.9583,
-    lng: 78.2711,
-    text: "KGF (Kolar Gold Fields)",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-dvh",
-    lat: 13.2483,
-    lng: 77.7128,
-    text: "Devenahalli",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-ddb",
-    lat: 13.2925,
-    lng: 77.5428,
-    text: "Doddaballapur",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-wtf",
-    lat: 12.9698,
-    lng: 77.75,
-    text: "Whitefield",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-tmk",
-    lat: 13.3409,
-    lng: 77.101,
-    text: "Tumakuru",
-    color: "#38bdf8",
-    size: 1.1,
-    dotRadius: 0.25,
-  },
-  {
-    id: "tn-ank",
-    lat: 12.71,
-    lng: 77.6978,
-    text: "Anekal",
-    color: "#38bdf8",
-    size: 1.0,
-    dotRadius: 0.2,
-  },
-  {
-    id: "tn-nh75",
-    lat: 13.11,
-    lng: 78.02,
-    text: "NH 75 Corridor",
-    color: "#94a3b8",
-    size: 0.9,
-    dotRadius: 0,
-  },
-  {
-    id: "tn-plr",
-    lat: 13.05,
-    lng: 78.25,
-    text: "Palar River Basin",
-    color: "#67e8f9",
-    size: 0.9,
-    dotRadius: 0,
-  },
+const REGIONAL_WATER_BODIES: PlaceLabelEntry[] = [
+  { id: "rw-bob", lat: 14.5, lng: 88.0, text: "BAY OF BENGAL" },
+  { id: "rw-arb", lat: 15.5, lng: 65.0, text: "ARABIAN SEA" },
+  { id: "rw-ind", lat: -10.0, lng: 78.0, text: "INDIAN OCEAN" },
 ];
+
+const ALL_CITIES_AND_TOWNS: PlaceLabelEntry[] = [
+  { id: "ct-hyd", lat: 17.385, lng: 78.4867, text: "Hyderabad" },
+  { id: "ct-maa", lat: 13.0827, lng: 80.2707, text: "Chennai" },
+  { id: "ct-pnq", lat: 18.5204, lng: 73.8567, text: "Pune" },
+  { id: "ct-myq", lat: 12.2958, lng: 76.6394, text: "Mysuru" },
+  { id: "ct-ixe", lat: 12.9141, lng: 74.856, text: "Mangaluru" },
+  { id: "ct-cjb", lat: 11.0168, lng: 76.9558, text: "Coimbatore" },
+  { id: "tn-klr", lat: 13.1367, lng: 78.1292, text: "Kolar" },
+  { id: "tn-ckb", lat: 13.4325, lng: 77.7275, text: "Chikkaballapur" },
+  { id: "tn-hsk", lat: 13.07, lng: 77.7981, text: "Hoskote" },
+  { id: "tn-mlr", lat: 13.0044, lng: 77.9392, text: "Malur" },
+  { id: "tn-bpt", lat: 12.9961, lng: 78.1994, text: "Bangarapet" },
+  { id: "tn-mbl", lat: 13.1633, lng: 78.3967, text: "Mulbagal" },
+  { id: "tn-snp", lat: 13.3378, lng: 78.2167, text: "Srinivaspur" },
+  { id: "tn-kgf", lat: 12.9583, lng: 78.2711, text: "KGF" },
+  { id: "tn-dvh", lat: 13.2483, lng: 77.7128, text: "Devenahalli" },
+  { id: "tn-wtf", lat: 12.9698, lng: 77.75, text: "Whitefield" },
+  { id: "tn-tmk", lat: 13.3409, lng: 77.101, text: "Tumakuru" },
+  { id: "tn-ank", lat: 12.71, lng: 77.6978, text: "Anekal" },
+  { id: "tn-nh75", lat: 13.11, lng: 78.02, text: "NH 75 Corridor" },
+];
+
+const TERRAIN_FEATURES: PlaceLabelEntry[] = [
+  { id: "tr-dcn", lat: 16.5, lng: 76.8, text: "Deccan Plateau" },
+  { id: "tr-vtg", lat: 13.8, lng: 75.3, text: "Western Ghats" },
+  { id: "tr-klp", lat: 13.13, lng: 78.13, text: "Kolar Plateau" },
+  { id: "tr-plr", lat: 13.05, lng: 78.25, text: "Palar River Basin" },
+];
+
+interface GlobeHtmlMarkerItem {
+  id: string;
+  lat: number;
+  lng: number;
+  priority: number;
+  html: string;
+}
+
+function renderCountryHtml(text: string): string {
+  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;color:#F8FAFC;text-transform:uppercase;letter-spacing:0.18em;text-shadow:0 0 2px #020617, 0 1px 3px #020617, 0 0 6px #020617;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
+}
+
+function renderOceanHtml(text: string): string {
+  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-style:italic;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:0.15em;text-shadow:0 0 2px #020617, 0 1px 3px #020617;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
+}
+
+function renderStateHtml(text: string): string {
+  return `<div style="display:flex;align-items:center;gap:4px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
+    <div style="width:3px;height:3px;border-radius:50%;background:#94A3B8;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10.5px;font-weight:600;color:#CBD5E1;text-shadow:0 0 2px #020617, 0 1px 2px #020617;letter-spacing:0.04em;">${text}</span>
+  </div>`;
+}
+
+function renderMegaCapitalHtml(text: string): string {
+  return `<div style="display:flex;align-items:center;gap:4px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
+    <div style="width:3.5px;height:3.5px;border-radius:50%;background:#FFFFFF;border:0.75px solid #020617;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;font-weight:600;color:#F1F5F9;text-shadow:0 0 2px #020617, 0 1px 2px #020617;">${text}</span>
+  </div>`;
+}
+
+function renderCityTownHtml(text: string): string {
+  return `<div style="display:flex;align-items:center;gap:3.5px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
+    <div style="width:2.5px;height:2.5px;border-radius:50%;background:#94A3B8;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9.5px;font-weight:500;color:#E2E8F0;text-shadow:0 0 2px #020617, 0 1px 2px #020617;">${text}</span>
+  </div>`;
+}
+
+function renderTerrainHtml(text: string): string {
+  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9px;font-style:italic;font-weight:500;color:#A1A1AA;letter-spacing:0.06em;text-shadow:0 0 2px #020617, 0 1px 2px #020617;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
+}
 
 export interface GlobeViewportProps {
   telemetry: AgroTelemetry;
@@ -999,38 +604,133 @@ export function GlobeViewport({
     ];
   }, [activeLayer, activeSatelliteConfig, opacity, lat, lon]);
 
-  // Multi-zoom dynamic place names on 3D Orbital Globe (like 2D maps)
-  const visibleGlobeLabels = useMemo(() => {
-    const list: GlobeLabelItem[] = [];
+  // Multi-zoom Google Maps-style dynamic LOD place labels on 3D Orbital Globe
+  const activePlaceLabels = useMemo(() => {
+    const labels: GlobeHtmlMarkerItem[] = [];
 
-    // Far Orbital Zoom (alt >= 0.75): Continents, oceans, major countries
-    if (orbitalAltitude >= 0.75) {
-      list.push(...GLOBAL_OCEANS);
-      list.push(...GLOBAL_COUNTRIES);
+    // Tier 1 — Far Orbital View (altitude > 1.6):
+    // Show ONLY country names and major oceans.
+    // Completely HIDE all states, cities, and terrain features.
+    if (orbitalAltitude > 1.6) {
+      for (const c of GLOBAL_COUNTRIES) {
+        labels.push({
+          id: c.id,
+          lat: c.lat,
+          lng: c.lng,
+          priority: 3,
+          html: renderCountryHtml(c.text),
+        });
+      }
+      for (const o of GLOBAL_OCEANS) {
+        labels.push({
+          id: o.id,
+          lat: o.lat,
+          lng: o.lng,
+          priority: 3,
+          html: renderOceanHtml(o.text),
+        });
+      }
+      return labels;
     }
 
-    // Medium / Regional Zoom (0.25 <= alt < 1.6): States, provinces, major metros & terrain
-    if (orbitalAltitude >= 0.25 && orbitalAltitude < 1.6) {
-      list.push(...REGIONAL_STATES);
-      list.push(...REGIONAL_CITIES);
+    // Tier 2 — Medium Regional Zoom (0.7 < altitude <= 1.6):
+    // Smoothly fade in State names and top-tier national/mega capitals.
+    // Keep smaller cities, districts, and terrain features hidden so they never overlap states.
+    if (orbitalAltitude > 0.7 && orbitalAltitude <= 1.6) {
+      for (const c of GLOBAL_COUNTRIES) {
+        labels.push({
+          id: c.id,
+          lat: c.lat,
+          lng: c.lng,
+          priority: 3,
+          html: renderCountryHtml(c.text),
+        });
+      }
+      for (const o of REGIONAL_WATER_BODIES) {
+        labels.push({
+          id: o.id,
+          lat: o.lat,
+          lng: o.lng,
+          priority: 3,
+          html: renderOceanHtml(o.text),
+        });
+      }
+      for (const s of REGIONAL_STATES) {
+        labels.push({
+          id: s.id,
+          lat: s.lat,
+          lng: s.lng,
+          priority: 4,
+          html: renderStateHtml(s.text),
+        });
+      }
+      for (const m of MEGA_CAPITALS) {
+        labels.push({
+          id: m.id,
+          lat: m.lat,
+          lng: m.lng,
+          priority: 5,
+          html: renderMegaCapitalHtml(m.text),
+        });
+      }
+      return labels;
     }
 
-    // Close Orbital Zoom (alt < 0.65): District/town labels, local corridors
-    if (orbitalAltitude < 0.65) {
-      list.push(...LOCAL_TOWNS);
-      // Active searched/GPS coordinate pin label
-      list.push({
-        id: "active-field-target-label",
-        lat,
-        lng: lon,
-        text: `★ ${meta.regionLabel || "Target Field"}`,
-        color: "#00f0ff",
-        size: 1.35,
-        dotRadius: 0.35,
+    // Tier 3 — Close Local Zoom (altitude <= 0.7):
+    // Fade out giant country label.
+    // Reveal regional cities, districts, towns, terrain features, and active field label.
+    for (const s of REGIONAL_STATES) {
+      labels.push({
+        id: s.id,
+        lat: s.lat,
+        lng: s.lng,
+        priority: 4,
+        html: renderStateHtml(s.text),
+      });
+    }
+    for (const m of MEGA_CAPITALS) {
+      labels.push({
+        id: m.id,
+        lat: m.lat,
+        lng: m.lng,
+        priority: 5,
+        html: renderMegaCapitalHtml(m.text),
+      });
+    }
+    for (const ct of ALL_CITIES_AND_TOWNS) {
+      labels.push({
+        id: ct.id,
+        lat: ct.lat,
+        lng: ct.lng,
+        priority: 6,
+        html: renderCityTownHtml(ct.text),
+      });
+    }
+    for (const tr of TERRAIN_FEATURES) {
+      labels.push({
+        id: tr.id,
+        lat: tr.lat,
+        lng: tr.lng,
+        priority: 7,
+        html: renderTerrainHtml(tr.text),
       });
     }
 
-    return list;
+    // Active searched/GPS location label (Priority 1)
+    labels.push({
+      id: "active-field-target-label",
+      lat,
+      lng: lon,
+      priority: 1,
+      html: `
+        <div style="display:flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;background:#030712dd;border:1px solid #38BDF8;pointer-events:none;white-space:nowrap;box-shadow:0 0 10px rgba(56,189,248,0.4);transform:translate(-50%,-50%);">
+          <span style="font-size:10px;color:#38BDF8;">★</span>
+          <span style="font-family:system-ui,-apple-system,sans-serif;font-size:10px;font-weight:700;color:#7DD3FC;letter-spacing:0.04em;">${meta.regionLabel || "Target Field"}</span>
+        </div>
+      `,
+    });
+
+    return labels;
   }, [orbitalAltitude, lat, lon, meta.regionLabel]);
 
   // 3D Regional Telemetry Grid Micro-Points (Sleek surface micro-markers flush with Earth curvature)
@@ -1108,12 +808,14 @@ export function GlobeViewport({
     return points;
   }, [lat, lon, activeLayer, activeSatelliteConfig, reading]);
 
-  // 3D HTML Status Badges for react-globe.gl (screen-space vertical offset to prevent collision)
+  // 3D HTML Status Badges & Place Labels for react-globe.gl
   const dynamicGlobeHtmlMarkers = useMemo(() => {
-    const list = [
+    const list: GlobeHtmlMarkerItem[] = [
       {
+        id: "field-reticle-badge",
         lat,
         lng: lon,
+        priority: 1,
         html: `
           <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-14px);pointer-events:none;white-space:nowrap;z-index:50;">
             <div style="display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:7px;background:#070C18f2;border:1.5px solid ${activeSatelliteConfig.primaryColor};color:#ffffff;font-family:monospace;font-size:10px;font-weight:700;box-shadow:0 0 16px ${activeSatelliteConfig.primaryColor}99, 0 4px 12px rgba(0,0,0,0.85);backdrop-filter:blur(8px);">
@@ -1131,8 +833,10 @@ export function GlobeViewport({
     for (const h of hazards) {
       if (h.type === "cyclone") {
         list.push({
+          id: `hazard-${h.id || "cyclone"}`,
           lat: lat + 4.2,
           lng: lon + 5.5,
+          priority: 2,
           html: `
             <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
               <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #ef4444;color:#ef4444;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(239,68,68,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
@@ -1145,8 +849,10 @@ export function GlobeViewport({
         });
       } else if (h.type === "fire") {
         list.push({
+          id: `hazard-${h.id || "fire"}`,
           lat: lat + 1.2,
           lng: lon - 1.8,
+          priority: 2,
           html: `
             <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
               <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #f59e0b;color:#f59e0b;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(245,158,11,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
@@ -1159,8 +865,10 @@ export function GlobeViewport({
         });
       } else if (h.type === "earthquake") {
         list.push({
+          id: `hazard-${h.id || "quake"}`,
           lat: lat - 2.8,
           lng: lon - 3.2,
+          priority: 2,
           html: `
             <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
               <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #10b981;color:#10b981;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(16,185,129,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
@@ -1174,8 +882,128 @@ export function GlobeViewport({
       }
     }
 
+    list.push(...activePlaceLabels);
+
     return list;
-  }, [lat, lon, activeLayer, activeSatelliteConfig, reading, hazards]);
+  }, [lat, lon, activeLayer, activeSatelliteConfig, reading, hazards, activePlaceLabels]);
+
+  // Screen-space bounding-box collision culling for 3D Globe place labels & badges
+  const runCollisionCull = useCallback(() => {
+    if (!containerRef.current) return;
+    const domLabels = Array.from(
+      containerRef.current.querySelectorAll<HTMLElement>(".globe-lod-label"),
+    );
+    if (domLabels.length === 0) return;
+
+    // Sort candidates by priority ascending: 1 (highest) to 7 (lowest)
+    domLabels.sort((a, b) => {
+      const pA = Number(a.dataset.priority || 99);
+      const pB = Number(b.dataset.priority || 99);
+      return pA - pB;
+    });
+
+    const acceptedBoxes: DOMRect[] = [];
+
+    for (const label of domLabels) {
+      const priority = Number(label.dataset.priority || 99);
+      const rect = label.getBoundingClientRect();
+
+      // If element is not rendered or has 0 dimensions, skip
+      if (rect.width === 0 && rect.height === 0) {
+        continue;
+      }
+
+      // Priority 1 (Active reticle / searched pin) is NEVER culled
+      if (priority === 1) {
+        label.style.opacity = "1";
+        label.style.pointerEvents = "auto";
+        acceptedBoxes.push(rect);
+        continue;
+      }
+
+      // Check collision against accepted higher-priority bounding boxes
+      // Vertical margin: 18px, Horizontal margin: 35px
+      let collides = false;
+      for (const box of acceptedBoxes) {
+        const hCollision = !(rect.right + 35 < box.left || rect.left - 35 > box.right);
+        const vCollision = !(rect.bottom + 18 < box.top || rect.top - 18 > box.bottom);
+        if (hCollision && vCollision) {
+          collides = true;
+          break;
+        }
+      }
+
+      if (collides) {
+        label.style.opacity = "0";
+        label.style.pointerEvents = "none";
+      } else {
+        label.style.opacity = "1";
+        label.style.pointerEvents = "auto";
+        acceptedBoxes.push(rect);
+      }
+    }
+  }, []);
+
+  // Run collision culling whenever dynamic HTML markers change
+  useEffect(() => {
+    if (viewMode !== "3d") return;
+    const timer = setTimeout(() => {
+      runCollisionCull();
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [viewMode, dynamicGlobeHtmlMarkers, runCollisionCull]);
+
+  // Attach collision culling and altitude tracking to OrbitControls
+  useEffect(() => {
+    if (viewMode !== "3d" || !globeRef.current) return;
+    let controlsInstance: {
+      addEventListener?: (e: string, cb: () => void) => void;
+      removeEventListener?: (e: string, cb: () => void) => void;
+    } | null = null;
+
+    const handleControlsChange = () => {
+      if (globeRef.current && typeof globeRef.current.pointOfView === "function") {
+        try {
+          const pov = globeRef.current.pointOfView();
+          if (pov && typeof pov.altitude === "number") {
+            setOrbitalAltitude((prev) => {
+              if (Math.abs(prev - pov.altitude) > 0.04) {
+                return pov.altitude;
+              }
+              return prev;
+            });
+          }
+        } catch {
+          // ignore
+        }
+      }
+      runCollisionCull();
+    };
+
+    try {
+      if (typeof globeRef.current.controls === "function") {
+        controlsInstance = globeRef.current.controls() as {
+          addEventListener?: (e: string, cb: () => void) => void;
+          removeEventListener?: (e: string, cb: () => void) => void;
+        };
+      }
+    } catch {
+      // controls not ready yet
+    }
+
+    if (controlsInstance && typeof controlsInstance.addEventListener === "function") {
+      controlsInstance.addEventListener("change", handleControlsChange);
+    }
+
+    const interval = setInterval(runCollisionCull, 350);
+
+    return () => {
+      clearInterval(interval);
+      if (controlsInstance && typeof controlsInstance.removeEventListener === "function") {
+        controlsInstance.removeEventListener("change", handleControlsChange);
+      }
+    };
+  }, [viewMode, globeModule, runCollisionCull]);
 
   // 2D Field GIS Hazard Features List
   const mapHazardsList = useMemo(() => {
@@ -1563,18 +1391,6 @@ export function GlobeViewport({
               pointRadius="size"
               pointResolution={16}
               pointsMerge={true}
-              labelsData={visibleGlobeLabels}
-              labelLat={(d: unknown) => (d as GlobeLabelItem).lat}
-              labelLng={(d: unknown) => (d as GlobeLabelItem).lng}
-              labelText={(d: unknown) => (d as GlobeLabelItem).text}
-              labelColor={(d: unknown) => (d as GlobeLabelItem).color || "#ffffff"}
-              labelSize={(d: unknown) => (d as GlobeLabelItem).size || 1.2}
-              labelAltitude={0.005}
-              labelResolution={3}
-              labelIncludeDot={(d: unknown) => ((d as GlobeLabelItem).dotRadius || 0) > 0}
-              labelDotRadius={(d: unknown) => (d as GlobeLabelItem).dotRadius || 0.25}
-              labelDotOrientation={() => "bottom" as const}
-              labelsTransitionDuration={300}
               customLayerData={customOverlayData}
               customThreeObject={(d: unknown) => {
                 const item = d as {
@@ -1643,10 +1459,16 @@ export function GlobeViewport({
               htmlElementsData={dynamicGlobeHtmlMarkers}
               htmlLat="lat"
               htmlLng="lng"
-              htmlAltitude={0.03}
+              htmlAltitude={0.015}
               htmlElement={(d: unknown) => {
-                const item = d as { html?: string };
+                const item = d as { id?: string; priority?: number; html?: string };
                 const el = document.createElement("div");
+                el.className = "globe-lod-label";
+                if (item.id) el.dataset.labelId = item.id;
+                el.dataset.priority = String(item.priority ?? 99);
+                el.style.transition = "opacity 200ms ease-out, transform 200ms ease-out";
+                el.style.opacity = "1";
+                el.style.willChange = "opacity";
                 if (item.html) el.innerHTML = item.html;
                 return el;
               }}
@@ -1660,6 +1482,7 @@ export function GlobeViewport({
                   } else {
                     setAutoLodNotice(false);
                   }
+                  setTimeout(runCollisionCull, 50);
                 }
               }}
               onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
