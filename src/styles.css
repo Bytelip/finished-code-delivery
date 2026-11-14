@@ -483,6 +483,29 @@
   animation: dashFlow 1.2s linear infinite;
 }
 
+/* Globe & Map Tactical Marker Hover Tooltips */
+.globe-hazard-marker {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
+
+.globe-hazard-marker .hazard-tooltip {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+.globe-hazard-marker:hover .hazard-tooltip,
+.globe-hazard-marker:focus-within .hazard-tooltip,
+.globe-hazard-marker.active .hazard-tooltip {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translate(-50%, 0) !important;
+}
+
 /* ==========================================================================
    Print Optimization for Farmer Advisory Bulletin & Official PDF Reports
    ========================================================================== */

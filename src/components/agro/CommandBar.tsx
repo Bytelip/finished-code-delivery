@@ -553,6 +553,7 @@ export function CommandBar({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
+              https://tel-packet-tokyo-participant.trycloudflare.com/
               {SCENARIOS.map((s) => (
                 <SelectItem key={s} value={s} className="text-xs font-mono">
                   {s}
