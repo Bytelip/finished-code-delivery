@@ -122,11 +122,13 @@ function earthquake(s: HazardSignals): HazardAlert {
 
 function solarStorm(s: HazardSignals): HazardAlert {
   const kp = s.kpIndex;
-  let severity: Severity = kp >= 7 ? "critical" : kp >= 5 ? "warning" : kp >= 4 ? "watch" : "nominal";
+  let severity: Severity =
+    kp >= 7 ? "critical" : kp >= 5 ? "warning" : kp >= 4 ? "watch" : "nominal";
   const flare = s.flareClass?.toUpperCase() ?? "";
   if (flare.startsWith("X")) severity = atLeast(severity, "warning");
   else if (flare.startsWith("M")) severity = atLeast(severity, "watch");
-  const gScale = kp >= 9 ? "G5" : kp >= 8 ? "G4" : kp >= 7 ? "G3" : kp >= 6 ? "G2" : kp >= 5 ? "G1" : "";
+  const gScale =
+    kp >= 9 ? "G5" : kp >= 8 ? "G4" : kp >= 7 ? "G3" : kp >= 6 ? "G2" : kp >= 5 ? "G1" : "";
   return alert("solar-storm", s, {
     title: "Solar Winds, CME & Geomagnetic Storm",
     source: "NASA DONKI GST/FLR · NOAA SWPC Kp",
@@ -248,7 +250,11 @@ function thermalBlight(s: HazardSignals): HazardAlert {
     metric: `ΔT ${fmt(s.canopyDeltaC)}°C · Tmin ${fmt(s.minTempC)}°C · RH ${Math.round(s.rh2m)}%`,
     detail: causes.length ? `Active: ${causes.join(", ")}.` : "Temperature and humidity safe.",
     readings: [
-      { id: "canopyDelta", value: `${s.canopyDeltaC >= 0 ? "+" : ""}${fmt(s.canopyDeltaC)} °C`, breached: heat },
+      {
+        id: "canopyDelta",
+        value: `${s.canopyDeltaC >= 0 ? "+" : ""}${fmt(s.canopyDeltaC)} °C`,
+        breached: heat,
+      },
       { id: "minTemp", value: `${fmt(s.minTempC)} °C`, breached: frost },
       { id: "humidity", value: `${Math.round(s.rh2m)}%`, breached: blight },
     ],
@@ -265,7 +271,9 @@ function sprayDrift(s: HazardSignals): HazardAlert {
     source: "NASA POWER WS2M",
     severity,
     metric: `WS2M ${fmt(w)} m/s`,
-    detail: isActive(severity) ? "Halt pesticide spraying: drift risk." : "Wind calm enough to spray.",
+    detail: isActive(severity)
+      ? "Halt pesticide spraying: drift risk."
+      : "Wind calm enough to spray.",
     readings: [{ id: "windSpeed", value: `${fmt(w)} m/s`, breached: w > T.sprayDriftWs2m }],
     actions: ["spray.halt", "spray.window", "spray.nozzle", "spray.buffer"],
   });
