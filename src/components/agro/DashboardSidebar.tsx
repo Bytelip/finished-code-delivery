@@ -40,8 +40,9 @@ export function DashboardSidebar({
   lon: number;
   onPreset: (p: FarmPreset) => void;
   activeHazards: number;
-  operator?: { email: string } | null;
+  operator?: { email: string; fullName?: string } | null;
   onOpenAuth?: () => void;
+  onOpenSettings?: () => void;
 }) {
   return (
     <aside
@@ -191,7 +192,9 @@ export function DashboardSidebar({
             <div className="flex items-center gap-1.5 truncate">
               <span className="size-1.5 rounded-full bg-emerald shadow-[0_0_6px_#00ff9d] animate-pulse shrink-0" />
               <span className="truncate font-semibold">
-                {operator ? `Operator: ${operator.email.split("@")[0]}` : "Mission Control Auth"}
+                {operator
+                  ? `Operator: ${operator.fullName || operator.email.split("@")[0]}`
+                  : "Mission Control Auth"}
               </span>
             </div>
             <span className="text-[9px] uppercase tracking-wider text-cyan/70 font-bold">AUTH</span>

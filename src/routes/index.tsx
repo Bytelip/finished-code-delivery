@@ -6,6 +6,14 @@ import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
 import { CommandBar } from "@/components/agro/CommandBar";
 import { GlobeContainer } from "@/components/agro/GlobeContainer";
 import { CosmicAuthPage } from "@/components/CosmicAuthPage";
+import { UserProfileModal } from "@/components/UserProfileModal";
+import { OperatorProfileDropdown } from "@/components/OperatorProfileDropdown";
+import {
+  clearStoredProfile,
+  loadStoredProfile,
+  saveStoredProfile,
+  type UserProfile,
+} from "@/types/userProfile";
 import { toast } from "sonner";
 import {
   PlantHealthRadar,
@@ -79,18 +87,13 @@ function AgroSpaceDashboard() {
     elevationM: number;
   } | null>(null);
 
-  const [operator, setOperator] = useState<{ email: string; provider: string } | null>(null);
+  const [operator, setOperator] = useState<UserProfile | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("agro_operator");
-        if (stored) setOperator(JSON.parse(stored));
-      } catch {
-        // ignore storage parse
-      }
-    }
+    const stored = loadStoredProfile();
+    if (stored) setOperator(stored);
   }, []);
 
   useEffect(() => {
@@ -226,7 +229,8 @@ function AgroSpaceDashboard() {
         onPreset={(p) => setLocation(p.lat, p.lon, p.name)}
         activeHazards={activeHazards}
         operator={operator}
-        onOpenAuth={() => setShowAuthModal(true)}
+        onOpenAuth={() => (operator ? setShowSettingsModal(true) : setShowAuthModal(true))}
+        onOpenSettings={() => setShowSettingsModal(true)}
       />
 
       <main className="min-w-0 flex-1">
@@ -243,6 +247,17 @@ function AgroSpaceDashboard() {
           onIrrigation={setIrrigation}
           onSeason={setSeason}
           onScenario={setScenario}
+          profile={operator}
+          onOpenAuth={() => setShowAuthModal(true)}
+          onOpenSettings={() => setShowSettingsModal(true)}
+          onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
+          onSignOut={() => {
+            clearStoredProfile();
+            setOperator(null);
+            toast.info("Operator Signed Out", {
+              description: "Mission Control session terminated.",
+            });
+          }}
         />
 
         <div className="space-y-4 p-4 lg:p-5">
@@ -312,21 +327,20 @@ function AgroSpaceDashboard() {
                   </div>
                 </div>
 
-                {/* Operator Clearance Sign In Button */}
-                <button
-                  type="button"
-                  onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 rounded-lg border border-cyan/40 bg-cyan/15 px-3.5 py-3 font-mono text-xs text-cyan hover:bg-cyan/25 transition-all shadow-[0_0_14px_rgba(0,240,255,0.25)] cursor-pointer"
-                  title="Open Mission Control Authentication"
-                >
-                  <UserCheck className="size-4 text-cyan" />
-                  <span className="font-semibold">
-                    {operator
-                      ? `Operator: ${operator.email.split("@")[0]}`
-                      : "Mission Control Auth"}
-                  </span>
-                  <span className="size-2 rounded-full bg-emerald animate-pulse shadow-[0_0_6px_#00ff9d]" />
-                </button>
+                {/* Operator Profile Dropdown in Top Deck */}
+                <OperatorProfileDropdown
+                  profile={operator}
+                  onOpenAuth={() => setShowAuthModal(true)}
+                  onOpenSettings={() => setShowSettingsModal(true)}
+                  onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
+                  onSignOut={() => {
+                    clearStoredProfile();
+                    setOperator(null);
+                    toast.info("Operator Signed Out", {
+                      description: "Mission Control session terminated.",
+                    });
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -393,17 +407,40 @@ function AgroSpaceDashboard() {
           <CosmicAuthPage
             onSuccess={(u) => {
               setOperator(u);
-              if (typeof window !== "undefined") {
-                localStorage.setItem("agro_operator", JSON.stringify(u));
-              }
+              saveStoredProfile(u);
               setShowAuthModal(false);
-              toast.success(`Welcome, Operator (${u.email})`, {
-                description: `Authenticated via ${u.provider}. Clearance Granted.`,
+              toast.success(`Welcome, ${u.fullName}`, {
+                description: `Authenticated via ${u.provider}. Clearance Level: ${u.role}.`,
               });
             }}
             onClose={() => setShowAuthModal(false)}
           />
         </div>
+      )}
+
+      {/* User Profile & Account Settings Modal */}
+      {showSettingsModal && operator && (
+        <UserProfileModal
+          profile={operator}
+          currentLat={lat}
+          currentLon={lon}
+          onSave={(updated) => {
+            setOperator(updated);
+            saveStoredProfile(updated);
+          }}
+          onSignOut={() => {
+            clearStoredProfile();
+            setOperator(null);
+            setShowSettingsModal(false);
+            toast.info("Operator Signed Out", {
+              description: "Mission Control session terminated.",
+            });
+          }}
+          onNavigateHome={(hLat, hLon, hLabel) => {
+            setLocation(hLat, hLon, hLabel);
+          }}
+          onClose={() => setShowSettingsModal(false)}
+        />
       )}
     </div>
   );

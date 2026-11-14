@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { OperatorProfileDropdown } from "@/components/OperatorProfileDropdown";
+import type { UserProfile } from "@/types/userProfile";
 import {
   BOREWELL_DEPTH_RANGE,
   IRRIGATION_TYPES,
@@ -100,6 +102,11 @@ export function CommandBar({
   onIrrigation,
   onSeason,
   onScenario,
+  profile,
+  onOpenAuth,
+  onOpenSettings,
+  onNavigateHome,
+  onSignOut,
 }: {
   lat: number;
   lon: number;
@@ -113,6 +120,11 @@ export function CommandBar({
   onIrrigation: (i: Irrigation) => void;
   onSeason: (s: Season) => void;
   onScenario: (s: Scenario) => void;
+  profile?: UserProfile | null;
+  onOpenAuth?: () => void;
+  onOpenSettings?: () => void;
+  onNavigateHome?: (lat: number, lon: number, label: string) => void;
+  onSignOut?: () => void;
 }) {
   const [locating, setLocating] = useState(false);
   const [accuracyBadge, setAccuracyBadge] = useState<{
@@ -552,6 +564,17 @@ export function CommandBar({
             />
           )}
         </Field>
+
+        {/* ---------------- OPERATOR PROFILE ICON & QUICK MENU (TOP-RIGHT NAVBAR) ---------------- */}
+        <div className="ml-auto flex items-center pl-1 shrink-0">
+          <OperatorProfileDropdown
+            profile={profile || null}
+            onOpenAuth={onOpenAuth || (() => {})}
+            onOpenSettings={onOpenSettings || (() => {})}
+            onNavigateHome={onNavigateHome}
+            onSignOut={onSignOut || (() => {})}
+          />
+        </div>
       </div>
     </div>
   );

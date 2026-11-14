@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CosmicAuthPage } from "@/components/CosmicAuthPage";
+import { saveStoredProfile, type UserProfile } from "@/types/userProfile";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -19,12 +20,10 @@ export const Route = createFileRoute("/auth")({
 function AuthRouteComponent() {
   const navigate = useNavigate();
 
-  const handleSuccess = (user: { email: string; provider: string }) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("agro_operator", JSON.stringify(user));
-    }
-    toast.success(`Welcome, Operator (${user.email})`, {
-      description: `Authenticated via ${user.provider}. Mission Control Clearance Granted.`,
+  const handleSuccess = (profile: UserProfile) => {
+    saveStoredProfile(profile);
+    toast.success(`Welcome, ${profile.fullName}`, {
+      description: `Authenticated via ${profile.provider}. Clearance Level: ${profile.role}.`,
     });
     navigate({ to: "/" });
   };
