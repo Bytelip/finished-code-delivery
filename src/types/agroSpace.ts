@@ -126,8 +126,91 @@ export interface WaterBudgetStage {
   available: number;
 }
 
-export type HazardType =
-  "cyclone" | "earthquake" | "solar-storm" | "eclipse" | "flood" | "drought" | "wildfire" | "smoke";
+/** The 8 tactical hazard feeds, in display order. */
+export const HAZARD_TYPES = [
+  "cyclone",
+  "earthquake",
+  "solar-storm",
+  "eclipse",
+  "fire-smoke",
+  "flood",
+  "thermal-blight",
+  "spray-drift",
+] as const;
+export type HazardType = (typeof HAZARD_TYPES)[number];
+
+/** Measured values shown on a hazard card; ids double as translation keys. */
+export const HAZARD_READINGS = [
+  "stormDistance",
+  "windShear",
+  "gust",
+  "quakeMagnitude",
+  "quakeDepth",
+  "quakeDistance",
+  "kpIndex",
+  "solarFlare",
+  "geomagStorm",
+  "uvIndex",
+  "obscuration",
+  "parDrop",
+  "firmsHotspots",
+  "frp",
+  "aod",
+  "rain24h",
+  "gwetroot",
+  "canopyDelta",
+  "minTemp",
+  "humidity",
+  "windSpeed",
+] as const;
+export type HazardReadingId = (typeof HAZARD_READINGS)[number];
+
+/** Farmer mitigation steps; ids double as translation keys. */
+export const HAZARD_ACTIONS = [
+  "cyclone.harvest",
+  "cyclone.stake",
+  "cyclone.drain",
+  "cyclone.secure",
+  "quake.casing",
+  "quake.canal",
+  "quake.pipes",
+  "quake.structures",
+  "solar.rtk",
+  "solar.lora",
+  "solar.uvb",
+  "solar.drones",
+  "eclipse.irrigation",
+  "eclipse.spray",
+  "eclipse.pollinators",
+  "eclipse.livestock",
+  "fire.noburn",
+  "fire.firebreak",
+  "fire.mask",
+  "fire.light",
+  "flood.drain",
+  "flood.fertilizer",
+  "flood.rootrot",
+  "flood.electric",
+  "thermal.heatIrrigate",
+  "thermal.heatSpray",
+  "thermal.frostIrrigate",
+  "thermal.frostCover",
+  "thermal.blightScout",
+  "thermal.blightSpray",
+  "spray.halt",
+  "spray.window",
+  "spray.nozzle",
+  "spray.buffer",
+] as const;
+export type HazardActionId = (typeof HAZARD_ACTIONS)[number];
+
+export interface HazardReading {
+  id: HazardReadingId;
+  /** Pre-formatted value with unit, language-neutral (numbers, units, codes). */
+  value: string;
+  /** True when this value crosses its alert threshold. */
+  breached: boolean;
+}
 
 export interface HazardAlert {
   id: string;
@@ -137,6 +220,38 @@ export interface HazardAlert {
   severity: Severity;
   metric: string;
   detail: string;
+  readings: HazardReading[];
+  actions: HazardActionId[];
+  /** "live" when at least one input came from a real feed. */
+  origin: "live" | "simulated";
+}
+
+/** Raw numbers the hazard rules evaluate. Mock and live services both produce this. */
+export interface HazardSignals {
+  stormDistKm: number | null;
+  stormName: string;
+  windShearMs: number;
+  gustKmh: number;
+  quakeMag: number;
+  quakeDepthKm: number;
+  quakeDistKm: number | null;
+  kpIndex: number;
+  flareClass: string | null;
+  geomagStorm: string | null;
+  uvIndex: number;
+  obscurationPct: number;
+  parDropPct: number;
+  firmsHotspots50km: number;
+  frpMw: number;
+  aod: number;
+  rain24hMm: number;
+  gwetroot: number;
+  canopyDeltaC: number;
+  minTempC: number;
+  rh2m: number;
+  ws2m: number;
+  /** Hazards whose inputs came from a live feed. */
+  live: HazardType[];
 }
 
 export interface NasaGranule {
@@ -177,6 +292,7 @@ export interface AgroTelemetry {
   plantHealth: PlantHealth;
   waterBudget: WaterBudgetStage[];
   hazards: HazardAlert[];
+  hazardSignals: HazardSignals;
   granules: NasaGranule[];
   layers: Record<MapLayer, LayerReading>;
   crop: CropRecommendation;
