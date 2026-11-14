@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Activity } from "lucide-react";
+import { Activity, Radio, Satellite, RefreshCw } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
 import { CommandBar } from "@/components/agro/CommandBar";
@@ -17,7 +17,15 @@ import { GranuleInspector } from "@/components/agro/GranuleInspector";
 import { PlantPillarList } from "@/components/agro/PlantPillarList";
 import { SeverityChip } from "@/components/agro/hud";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
-import type { DashboardTab, Irrigation, MapLayer, Scenario, Season } from "@/types/agroSpace";
+import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiService";
+import type {
+  AgroTelemetry,
+  DashboardTab,
+  Irrigation,
+  MapLayer,
+  Scenario,
+  Season,
+} from "@/types/agroSpace";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -59,10 +67,43 @@ function AgroSpaceDashboard() {
     if (isMobile) setCollapsed(true);
   }, [isMobile]);
 
-  const telemetry = useMemo(
+  const fallbackTelemetry = useMemo(
     () => generateTelemetry({ lat, lon, borewellDepth, season, scenario, irrigation }),
     [lat, lon, borewellDepth, season, scenario, irrigation],
   );
+
+  const [liveTelemetry, setLiveTelemetry] = useState<AgroTelemetry | null>(null);
+  const [liveStatus, setLiveStatus] = useState<LiveApiStatus | null>(null);
+  const [isLoadingLive, setIsLoadingLive] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setIsLoadingLive(true);
+
+    fetchLiveTelemetry(
+      { lat, lon, borewellDepth, season, scenario, irrigation },
+      { signal: controller.signal },
+    )
+      .then((res) => {
+        if (!active) return;
+        setLiveTelemetry(res.telemetry);
+        setLiveStatus(res.status);
+        setIsLoadingLive(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setLiveTelemetry(null);
+        setIsLoadingLive(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [lat, lon, borewellDepth, season, scenario, irrigation]);
+
+  const telemetry = liveTelemetry ?? fallbackTelemetry;
 
   const setLocation = (la: number, lo: number) => {
     setLat(la);
@@ -104,7 +145,24 @@ function AgroSpaceDashboard() {
         <div className="space-y-4 p-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="hud-label">{tabLabel}</div>
+              <div className="flex items-center gap-2">
+                <div className="hud-label">{tabLabel}</div>
+                {liveStatus?.isLive ? (
+                  <span className="inline-flex items-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] text-emerald">
+                    <Radio className="size-2.5 animate-pulse text-emerald" /> LIVE SATELLITE (
+                    {liveStatus.activeFeeds.length}/9 FEEDS)
+                  </span>
+                ) : isLoadingLive ? (
+                  <span className="inline-flex items-center gap-1 rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
+                    <RefreshCw className="size-2.5 animate-spin text-cyan" /> SYNCING LIVE
+                    TELEMETRY...
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded border border-muted/50 bg-muted/30 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                    <Satellite className="size-2.5 text-muted-foreground" /> MOCK FALLBACK (OFFLINE)
+                  </span>
+                )}
+              </div>
               <h1 className="mt-1 text-xl font-semibold tracking-tight">
                 {telemetry.meta.regionLabel}
               </h1>
