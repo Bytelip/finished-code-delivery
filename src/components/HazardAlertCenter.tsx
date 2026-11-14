@@ -335,23 +335,23 @@ export function HazardAlertCenter({
   return (
     <section id="hazard-matrix-slot" aria-label="Hazard matrix" className="space-y-4">
       {/* ---------------- CARD CONTAINER ---------------- */}
-      <div className="hud-card p-4 sm:p-5">
+      <div className="hud-card p-4 sm:p-5 border border-cyan/40 shadow-[0_0_30px_rgba(0,0,0,0.7)] backdrop-blur-2xl">
         {/* Top Header: Title, Feeds, Language Selector & Bulletin Button */}
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-cyan/50 bg-cyan/10 text-cyan glow-cyan">
-              <ShieldAlert className="size-5" />
+            <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-cyan/60 bg-cyan/15 text-cyan shadow-[0_0_15px_rgba(0,240,255,0.35)]">
+              <ShieldAlert className="size-5 drop-shadow-[0_0_6px_#00f0ff]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold tracking-tight text-foreground">
+                <h3 className="text-base font-bold tracking-tight text-foreground">
                   {t.hazards.matrixTitle}
                 </h3>
-                <span className="hidden items-center gap-1 rounded border border-cyan/40 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan sm:inline-flex">
+                <span className="hidden items-center gap-1.5 rounded border border-cyan/50 bg-cyan/15 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan sm:inline-flex shadow-[0_0_8px_rgba(0,240,255,0.2)]">
                   <Radio className="size-2.5 animate-pulse text-cyan" /> 8 FEEDS LIVE
                 </span>
               </div>
-              <p className="hud-label mt-0.5 text-xs text-muted-foreground">
+              <p className="hud-label mt-0.5 text-xs text-cyan/70 tracking-wider">
                 {t.hazards.tacticalSubtitle}
               </p>
             </div>
@@ -463,14 +463,30 @@ export function HazardAlertCenter({
                 key={item.key}
                 data-severity={item.severity}
                 className={cn(
-                  "flex flex-col justify-between rounded-lg border bg-background/50 p-4 transition-all duration-200",
+                  "relative flex flex-col justify-between rounded-lg border bg-background/60 p-4 transition-all duration-200 backdrop-blur-md overflow-hidden",
                   style.ring,
                   item.severity === "critical" &&
-                    "bg-crimson/5 shadow-[0_0_15px_rgba(244,63,94,0.15)]",
+                    "border-crimson/70 bg-crimson/10 shadow-[0_0_20px_rgba(255,46,86,0.22)]",
                   item.severity === "warning" &&
-                    "bg-amber/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]",
+                    "border-amber/70 bg-amber/10 shadow-[0_0_18px_rgba(255,183,0,0.18)]",
+                  item.severity === "watch" &&
+                    "border-cyan/40 bg-cyan/5 shadow-[0_0_14px_rgba(0,240,255,0.12)]",
+                  item.severity === "nominal" && "border-border/40 hover:border-border/70",
                 )}
               >
+                {/* Tactical Corner Hazard Accent Bar */}
+                <div
+                  className={cn(
+                    "absolute top-0 left-0 right-0 h-0.5",
+                    item.severity === "critical"
+                      ? "bg-crimson shadow-[0_0_8px_#ff2e56]"
+                      : item.severity === "warning"
+                        ? "bg-amber shadow-[0_0_8px_#ffb700]"
+                        : item.severity === "watch"
+                          ? "bg-cyan shadow-[0_0_8px_#00f0ff]"
+                          : "bg-emerald/40",
+                  )}
+                />
                 {/* Card Header: Icon, Titles & Severity Badge */}
                 <div>
                   <div className="flex items-start justify-between gap-3">

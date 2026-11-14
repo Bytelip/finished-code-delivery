@@ -13,14 +13,18 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * AgroSpace Nexus — dark aerospace HUD design system.
- * Semantic accents: emerald (plant health / NDVI), cyan (moisture / groundwater),
- * amber (watch states), crimson (critical hazards).
+ * AgroSpace Nexus — Award-Winning Orbital HUD & Telemetry Dashboard Design System.
+ * Semantic high-contrast neon accents:
+ * - Electric Cyan (#00F0FF / oklch(0.79 0.17 210)): telemetry, target lock, orbital track, primary signals.
+ * - Laser Emerald (#00FF9D / oklch(0.82 0.22 152)): bio-telemetry, nominal status, NDVI vegetation health.
+ * - Solar Amber (#FFB700 / oklch(0.80 0.18 75)): warnings, thresholds, thermal and solar radiation.
+ * - Reactor Crimson (#FF2E56 / oklch(0.67 0.25 25)): critical hazards, severe risk, emergency alarms.
+ * - Deep Space Violet (#A855F7 / oklch(0.70 0.21 300)): spatial reference, orbital passes.
  */
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -72,57 +76,70 @@
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 
-  /* #060911 */
-  --background: oklch(0.13 0.016 262);
-  --foreground: oklch(0.94 0.012 225);
-  /* #0D1322 @ 85% */
-  --card: oklch(0.185 0.03 266 / 0.85);
-  --card-foreground: oklch(0.94 0.012 225);
-  --popover: oklch(0.185 0.03 266);
-  --popover-foreground: oklch(0.94 0.012 225);
-  --primary: oklch(0.715 0.126 215.2);
-  --primary-foreground: oklch(0.13 0.016 262);
-  --secondary: oklch(0.22 0.03 262);
-  --secondary-foreground: oklch(0.9 0.015 225);
-  --muted: oklch(0.2 0.025 262);
-  --muted-foreground: oklch(0.66 0.03 240);
-  --accent: oklch(0.26 0.05 228);
-  --accent-foreground: oklch(0.96 0.01 220);
-  --destructive: oklch(0.637 0.237 25.33);
+  /* Deep Space Mission Control Canvas #04070D */
+  --background: oklch(0.105 0.022 260);
+  --foreground: oklch(0.96 0.012 210);
+
+  /* Aerospace Frosted Acrylic Panels */
+  --card: oklch(0.145 0.03 262 / 0.88);
+  --card-foreground: oklch(0.96 0.012 210);
+  --popover: oklch(0.14 0.03 262 / 0.95);
+  --popover-foreground: oklch(0.96 0.012 210);
+
+  /* High-Contrast Electric Cyan Primary */
+  --primary: oklch(0.79 0.17 210);
+  --primary-foreground: oklch(0.09 0.02 260);
+  --secondary: oklch(0.2 0.035 260);
+  --secondary-foreground: oklch(0.92 0.015 220);
+  --muted: oklch(0.18 0.025 260);
+  --muted-foreground: oklch(0.68 0.035 235);
+  --accent: oklch(0.24 0.05 230);
+  --accent-foreground: oklch(0.98 0.01 210);
+  --destructive: oklch(0.67 0.25 25);
   --destructive-foreground: oklch(0.98 0.005 20);
-  /* rgba(6,182,212,0.22) */
-  --border: oklch(0.715 0.126 215.2 / 0.22);
-  --input: oklch(0.715 0.126 215.2 / 0.28);
-  --ring: oklch(0.715 0.126 215.2);
 
-  /* Semantic accents */
-  --emerald: oklch(0.696 0.17 162.48); /* #10B981 */
-  --cyan: oklch(0.715 0.126 215.2); /* #06B6D4 */
-  --amber: oklch(0.769 0.165 70.08); /* #F59E0B */
-  --crimson: oklch(0.637 0.237 25.33); /* #EF4444 */
-  --globe: oklch(0.12 0.018 265); /* #050811 */
-  --hud-line: oklch(0.715 0.126 215.2 / 0.12);
+  /* Precision Dual Glow Borders */
+  --border: oklch(0.79 0.17 210 / 0.24);
+  --input: oklch(0.79 0.17 210 / 0.32);
+  --ring: oklch(0.79 0.17 210);
+
+  /* High-Voltage Semantic Accents */
+  --emerald: oklch(0.82 0.22 152); /* #00FF9D Laser Emerald */
+  --cyan: oklch(0.79 0.17 210); /* #00F0FF Electric Cyan */
+  --amber: oklch(0.8 0.18 75); /* #FFB700 Solar Amber */
+  --crimson: oklch(0.67 0.25 25); /* #FF2E56 Hyperion Crimson */
+  --globe: oklch(0.09 0.022 260); /* #03060c Deep Space Void */
+  --hud-line: oklch(0.79 0.17 210 / 0.15);
 
   --chart-1: var(--emerald);
   --chart-2: var(--cyan);
   --chart-3: var(--amber);
   --chart-4: var(--crimson);
-  --chart-5: oklch(0.82 0.09 195);
+  --chart-5: oklch(0.8 0.14 285);
 
-  --sidebar: oklch(0.155 0.022 264 / 0.92);
-  --sidebar-foreground: oklch(0.9 0.015 225);
+  /* Tactical Sidebar Dock */
+  --sidebar: oklch(0.125 0.028 260 / 0.94);
+  --sidebar-foreground: oklch(0.92 0.015 220);
   --sidebar-primary: var(--cyan);
   --sidebar-primary-foreground: var(--background);
-  --sidebar-accent: oklch(0.715 0.126 215.2 / 0.12);
-  --sidebar-accent-foreground: oklch(0.96 0.01 220);
-  --sidebar-border: var(--border);
+  --sidebar-accent: oklch(0.79 0.17 210 / 0.14);
+  --sidebar-accent-foreground: oklch(0.98 0.01 210);
+  --sidebar-border: oklch(0.79 0.17 210 / 0.2);
   --sidebar-ring: var(--cyan);
 
-  --shadow-hud: 0 0 0 1px oklch(0.715 0.126 215.2 / 0.06), 0 20px 50px -24px oklch(0 0 0 / 0.8);
-  --glow-cyan: 0 0 18px oklch(0.715 0.126 215.2 / 0.45);
-  --bracket: oklch(0.715 0.126 215.2 / 0.85);
+  /* Luminous Aerospace Shadows & Reticle Brackets */
+  --shadow-hud:
+    0 0 0 1px oklch(0.79 0.17 210 / 0.12), inset 0 1px 0 0 oklch(1 0 0 / 0.08),
+    0 20px 45px -18px oklch(0 0 0 / 0.85);
+  --shadow-hud-glow:
+    0 0 20px -3px oklch(0.79 0.17 210 / 0.25), 0 0 0 1px oklch(0.79 0.17 210 / 0.35);
+  --glow-cyan: 0 0 20px oklch(0.79 0.17 210 / 0.5);
+  --glow-emerald: 0 0 20px oklch(0.82 0.22 152 / 0.5);
+  --glow-amber: 0 0 20px oklch(0.8 0.18 75 / 0.5);
+  --glow-crimson: 0 0 24px oklch(0.67 0.25 25 / 0.6);
+  --bracket: oklch(0.79 0.17 210 / 0.92);
 }
 
 @layer base {
@@ -137,27 +154,54 @@
   body {
     background-color: var(--color-background);
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, oklch(0.715 0.126 215.2 / 0.1), transparent 70%),
-      radial-gradient(
-        ellipse 60% 40% at 100% 100%,
-        oklch(0.696 0.17 162.48 / 0.06),
-        transparent 70%
-      );
+      /* Radial deep nebula lights */
+      radial-gradient(circle 900px at 50% -20%, oklch(0.79 0.17 210 / 0.12), transparent 70%),
+      radial-gradient(circle 600px at 100% 100%, oklch(0.82 0.22 152 / 0.07), transparent 70%),
+      radial-gradient(circle 500px at 0% 50%, oklch(0.67 0.25 25 / 0.04), transparent 60%),
+      /* Micro telemetry matrix grid dots */
+        radial-gradient(oklch(0.79 0.17 210 / 0.12) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      32px 32px;
     background-attachment: fixed;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Futuristic aerospace scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: oklch(0.11 0.02 260);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.79 0.17 210 / 0.35);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.79 0.17 210 / 0.65);
+    box-shadow: 0 0 10px oklch(0.79 0.17 210 / 0.6);
   }
 }
 
-/* Glassmorphic HUD card with cyan corner brackets */
+/* Glassmorphic High-Precision HUD Card with Cyber Corner Brackets */
 @utility hud-card {
   position: relative;
   background-color: var(--card);
   border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 4px);
-  backdrop-filter: blur(14px);
+  border-radius: var(--radius);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--shadow-hud);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 
   &::before {
     content: "";
@@ -166,18 +210,60 @@
     pointer-events: none;
     border-radius: inherit;
     background:
-      linear-gradient(var(--bracket), var(--bracket)) top left / 14px 2px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) top left / 2px 14px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) top right / 14px 2px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) top right / 2px 14px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) bottom left / 14px 2px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) bottom left / 2px 14px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) bottom right / 14px 2px no-repeat,
-      linear-gradient(var(--bracket), var(--bracket)) bottom right / 2px 14px no-repeat;
+      linear-gradient(var(--bracket), var(--bracket)) top left / 16px 2px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) top left / 2px 16px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) top right / 16px 2px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) top right / 2px 16px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) bottom left / 16px 2px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) bottom left / 2px 16px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) bottom right / 16px 2px no-repeat,
+      linear-gradient(var(--bracket), var(--bracket)) bottom right / 2px 16px no-repeat;
+    z-index: 2;
+  }
+
+  &:hover {
+    border-color: oklch(0.79 0.17 210 / 0.45);
+    box-shadow:
+      0 0 25px -5px oklch(0.79 0.17 210 / 0.22),
+      var(--shadow-hud);
   }
 }
 
-/* Lat/lon graticule for the globe placeholder */
+/* Tactical HUD Card Variants */
+@utility hud-card-emerald {
+  border-color: oklch(0.82 0.22 152 / 0.35);
+  &::before {
+    background:
+      linear-gradient(var(--emerald), var(--emerald)) top left / 16px 2px no-repeat,
+      linear-gradient(var(--emerald), var(--emerald)) top left / 2px 16px no-repeat,
+      linear-gradient(var(--emerald), var(--emerald)) top right / 16px 2px no-repeat,
+      linear-gradient(var(--emerald), var(--emerald)) top right / 2px 16px no-repeat,
+      linear-gradient(var(--emerald), var(--emerald)) bottom left / 16px 2px no-repeat,
+      linear-gradient(var(--emerald), var(--emerald)) bottom left / 2px 16px no-repeat,
+      linear-gradient(var(--emerald), var(--emerald)) bottom right / 16px 2px no-repeat,
+      linear-gradient(var(--emerald), var(--emerald)) bottom right / 2px 16px no-repeat;
+  }
+}
+
+@utility hud-card-crimson {
+  border-color: oklch(0.67 0.25 25 / 0.45);
+  box-shadow:
+    0 0 25px -4px oklch(0.67 0.25 25 / 0.28),
+    var(--shadow-hud);
+  &::before {
+    background:
+      linear-gradient(var(--crimson), var(--crimson)) top left / 16px 2px no-repeat,
+      linear-gradient(var(--crimson), var(--crimson)) top left / 2px 16px no-repeat,
+      linear-gradient(var(--crimson), var(--crimson)) top right / 16px 2px no-repeat,
+      linear-gradient(var(--crimson), var(--crimson)) top right / 2px 16px no-repeat,
+      linear-gradient(var(--crimson), var(--crimson)) bottom left / 16px 2px no-repeat,
+      linear-gradient(var(--crimson), var(--crimson)) bottom left / 2px 16px no-repeat,
+      linear-gradient(var(--crimson), var(--crimson)) bottom right / 16px 2px no-repeat,
+      linear-gradient(var(--crimson), var(--crimson)) bottom right / 2px 16px no-repeat;
+  }
+}
+
+/* Aerospace Tactical Graticule & HUD Grid */
 @utility hud-graticule {
   background-image:
     linear-gradient(var(--hud-line) 1px, transparent 1px),
@@ -186,48 +272,132 @@
   background-position: -1px -1px;
 }
 
+@utility hud-grid-fine {
+  background-image:
+    linear-gradient(oklch(0.79 0.17 210 / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.79 0.17 210 / 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* HUD Typography & Readouts */
 @utility hud-label {
   font-family: var(--font-mono);
   font-size: 0.625rem;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--muted-foreground);
+  color: oklch(0.72 0.05 220);
 }
 
+@utility hud-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: oklch(0.79 0.17 210 / 0.08);
+  color: var(--cyan);
+}
+
+/* Precision Glow Effects */
 @utility glow-cyan {
   box-shadow: var(--glow-cyan);
 }
 
-@utility text-glow {
-  text-shadow: 0 0 12px oklch(0.715 0.126 215.2 / 0.55);
+@utility glow-emerald {
+  box-shadow: var(--glow-emerald);
 }
 
+@utility glow-amber {
+  box-shadow: var(--glow-amber);
+}
+
+@utility glow-crimson {
+  box-shadow: var(--glow-crimson);
+}
+
+@utility text-glow-cyan {
+  text-shadow:
+    0 0 14px oklch(0.79 0.17 210 / 0.75),
+    0 0 28px oklch(0.79 0.17 210 / 0.4);
+}
+
+@utility text-glow-emerald {
+  text-shadow: 0 0 14px oklch(0.82 0.22 152 / 0.75);
+}
+
+@utility text-glow-crimson {
+  text-shadow: 0 0 16px oklch(0.67 0.25 25 / 0.85);
+}
+
+/* Tactical Animations */
 @utility animate-scan {
-  animation: hud-scan 5s linear infinite;
+  animation: hud-scan 4s linear infinite;
 }
 
 @utility animate-ping-slow {
-  animation: hud-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  animation: hud-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@utility animate-radar-sweep {
+  animation: radar-sweep 4s linear infinite;
+}
+
+@utility animate-beacon {
+  animation: beacon-strobe 1.5s ease-in-out infinite;
 }
 
 @keyframes hud-scan {
   0% {
     transform: translateY(-100%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  85% {
+    opacity: 0.8;
   }
   100% {
-    transform: translateY(440px);
+    transform: translateY(480px);
+    opacity: 0;
   }
 }
 
 @keyframes hud-ping {
   0% {
     transform: scale(1);
-    opacity: 0.8;
+    opacity: 0.9;
   }
   80%,
   100% {
-    transform: scale(3);
+    transform: scale(2.8);
     opacity: 0;
+  }
+}
+
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes beacon-strobe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.92);
   }
 }
 
@@ -272,7 +442,6 @@
     print-color-adjust: exact !important;
   }
 
-  /* Hide app dashboard shell, sidebars, interactive controls, and buttons */
   aside,
   header.sticky,
   .no-print,
@@ -280,7 +449,6 @@
     display: none !important;
   }
 
-  /* Make bulletin fill the page cleanly */
   .printable-bulletin {
     position: static !important;
     width: 100% !important;
@@ -305,7 +473,6 @@
     box-shadow: none !important;
   }
 
-  /* Maintain distinct contrast on alert cards during print */
   .printable-paper [data-severity="critical"],
   .printable-paper .bg-crimson\/5 {
     background: #fff1f2 !important;

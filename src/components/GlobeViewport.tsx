@@ -879,8 +879,20 @@ export function GlobeViewport({
       data-lat={lat}
       data-lon={lon}
       data-layer={activeLayer}
-      className="relative w-full h-[540px] rounded-xl border border-cyan-500/30 bg-[#050811] overflow-hidden select-none"
+      className="relative w-full h-[540px] rounded-xl border border-cyan/40 bg-[#03060d] overflow-hidden select-none shadow-[0_0_35px_rgba(0,0,0,0.8),inset_0_0_50px_rgba(0,240,255,0.05)]"
     >
+      {/* Aerospace Tactical Corner Frame Ticks */}
+      <div className="pointer-events-none absolute inset-0 z-10 border border-cyan/20">
+        <span className="absolute top-2 left-2 size-3 border-t-2 border-l-2 border-cyan/80" />
+        <span className="absolute top-2 right-2 size-3 border-t-2 border-r-2 border-cyan/80" />
+        <span className="absolute bottom-2 left-2 size-3 border-b-2 border-l-2 border-cyan/80" />
+        <span className="absolute bottom-2 right-2 size-3 border-b-2 border-r-2 border-cyan/80" />
+        {/* Subtle center crosshair watermark */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-8 pointer-events-none opacity-20">
+          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-cyan" />
+          <div className="absolute left-0 right-0 top-1/2 h-px bg-cyan" />
+        </div>
+      </div>
       {/* ---------------- 3D ORBITAL GLOBE MODE (NASA GIBS WMTS + THREE.JS OVERLAYS) ---------------- */}
       {viewMode === "3d" && GlobeComponent && mounted && webGLSupported ? (
         <SafeGlobeErrorBoundary
@@ -1230,35 +1242,39 @@ export function GlobeViewport({
       {/* ---------------- TOP-LEFT RETICLE BADGE ---------------- */}
       <div
         data-hud-overlay="reticle"
-        className="hud-card pointer-events-none absolute left-3 top-3 w-64 p-3 z-20 backdrop-blur-md bg-background/80"
+        className="hud-card pointer-events-none absolute left-3.5 top-3.5 w-68 p-3.5 z-20 backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)]"
       >
-        <div className="flex items-center gap-2">
-          <Radar className="size-3.5 text-cyan" />
-          <span className="hud-label">Target Reticle</span>
-          <span className="ml-auto size-1.5 animate-pulse rounded-full bg-emerald" />
+        <div className="flex items-center gap-2 border-b border-cyan/20 pb-2">
+          <Radar className="size-3.5 text-cyan animate-spin" style={{ animationDuration: "8s" }} />
+          <span className="hud-label font-bold text-cyan/90 text-[10px]">Target Reticle Lock</span>
+          <span className="ml-auto size-2 rounded-full bg-emerald shadow-[0_0_8px_#00ff9d] animate-pulse" />
         </div>
-        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 font-mono text-[11px]">
-          <span className="text-muted-foreground">LAT</span>
-          <span className="text-right tabular-nums text-cyan text-glow">
+        <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5 font-mono text-[11px]">
+          <span className="text-muted-foreground/80 font-medium">LATITUDE</span>
+          <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
             {formatCoord(lat, "lat")}
           </span>
-          <span className="text-muted-foreground">LON</span>
-          <span className="text-right tabular-nums text-cyan text-glow">
+          <span className="text-muted-foreground/80 font-medium">LONGITUDE</span>
+          <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
             {formatCoord(lon, "lon")}
           </span>
-          <span className="text-muted-foreground">ELEV</span>
-          <span className="text-right tabular-nums">{meta.elevationM} m ASL</span>
-          <span className="text-muted-foreground">PASS</span>
-          <span className="text-right text-emerald truncate">{meta.satellitePass}</span>
-          <span className="text-muted-foreground">NEXT</span>
-          <span className="text-right tabular-nums">T-{meta.nextPassMin} min</span>
+          <span className="text-muted-foreground/80 font-medium">ELEVATION</span>
+          <span className="text-right tabular-nums font-semibold">{meta.elevationM} m ASL</span>
+          <span className="text-muted-foreground/80 font-medium">PASS</span>
+          <span className="text-right text-emerald font-semibold truncate">
+            {meta.satellitePass}
+          </span>
+          <span className="text-muted-foreground/80 font-medium">NEXT WINDOW</span>
+          <span className="text-right tabular-nums text-amber font-semibold">
+            T-{meta.nextPassMin} min
+          </span>
         </div>
       </div>
 
       {/* ---------------- TOP-RIGHT CONTROLS & LAYER READOUT ---------------- */}
-      <div className="absolute right-3 top-3 flex flex-col items-end gap-2 z-20">
+      <div className="absolute right-3.5 top-3.5 flex flex-col items-end gap-2.5 z-20">
         {/* 3D WebGL vs 2D Leaflet GIS Mode Switcher Toggle */}
-        <div className="flex items-center gap-1 rounded-lg border border-cyan-500/40 bg-background/85 p-1 backdrop-blur-md shadow-lg">
+        <div className="flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)]">
           <Button
             type="button"
             size="sm"
@@ -1270,54 +1286,58 @@ export function GlobeViewport({
                 : "3D WebGL is unavailable in your browser environment"
             }
             className={cn(
-              "h-7 px-2.5 font-mono text-xs transition-all",
+              "h-7 px-3 font-mono text-xs transition-all",
               viewMode === "3d"
-                ? "bg-cyan/25 text-cyan border border-cyan/60 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)]"
+                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
                 : "text-muted-foreground hover:text-foreground",
               !webGLSupported && "opacity-50 cursor-not-allowed",
             )}
             onClick={() => webGLSupported && setViewMode("3d")}
           >
-            <GlobeIcon className="mr-1.5 size-3.5 text-cyan" /> 3D Orbital
+            <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 3D
+            Orbital
           </Button>
           <Button
             type="button"
             size="sm"
             variant="ghost"
             className={cn(
-              "h-7 px-2.5 font-mono text-xs transition-all",
+              "h-7 px-3 font-mono text-xs transition-all",
               viewMode === "2d"
-                ? "bg-cyan/25 text-cyan border border-cyan/60 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)]"
+                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
                 : "text-muted-foreground hover:text-foreground",
             )}
             onClick={() => setViewMode("2d")}
           >
-            <MapIcon className="mr-1.5 size-3.5 text-cyan" /> 2D Field GIS
+            <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 2D Field
+            GIS
           </Button>
         </div>
 
         {/* Layer Readout Card */}
         <div
           data-hud-overlay="layer-readout"
-          className="hud-card pointer-events-none p-3 text-right backdrop-blur-md bg-background/80 min-w-36"
+          className="hud-card pointer-events-none p-3.5 text-right backdrop-blur-xl bg-background/90 border border-cyan/40 min-w-40 shadow-[0_0_20px_rgba(0,0,0,0.7)]"
         >
-          <div className="flex items-center justify-end gap-1.5">
-            <Radio className="size-3 text-emerald animate-pulse" />
-            <span className="hud-label">{activeLayer}</span>
+          <div className="flex items-center justify-end gap-1.5 border-b border-cyan/20 pb-1.5">
+            <Radio className="size-3 text-emerald animate-pulse drop-shadow-[0_0_6px_#00ff9d]" />
+            <span className="hud-label font-bold text-foreground">{activeLayer}</span>
           </div>
           <div
-            className="mt-1 font-mono text-2xl font-semibold tabular-nums"
-            style={{ color: tone }}
+            className="mt-1.5 font-mono text-3xl font-extrabold tabular-nums tracking-tight"
+            style={{ color: tone, textShadow: `0 0 14px ${tone}` }}
           >
             {reading.value}
           </div>
-          <div className="font-mono text-[10px] text-muted-foreground">{reading.unit}</div>
-          <div className="mt-1 font-mono text-[9px] text-cyan/70 truncate max-w-44">
+          <div className="font-mono text-[10px] text-muted-foreground/80 font-medium">
+            {reading.unit}
+          </div>
+          <div className="mt-1 font-mono text-[9px] text-cyan/80 truncate max-w-48">
             GIBS: {activeSatelliteConfig.gibsLayerName}
           </div>
           {hover && (
-            <div className="mt-2 border-t border-border pt-1 font-mono text-[10px] text-muted-foreground">
-              cursor {hover.lat.toFixed(2)}, {hover.lon.toFixed(2)}
+            <div className="mt-2 border-t border-border/50 pt-1 font-mono text-[10px] text-muted-foreground">
+              cursor {hover.lat.toFixed(2)}°, {hover.lon.toFixed(2)}°
             </div>
           )}
         </div>
@@ -1517,7 +1537,7 @@ export function GlobeViewport({
       {/* ---------------- BOTTOM-CENTER SCIENTIFIC LAYER LEGEND + SWITCHER ---------------- */}
       <div
         data-hud-overlay="layer-switcher"
-        className="absolute inset-x-3 bottom-2.5 mx-auto flex max-w-3xl flex-col items-center gap-1.5 z-20 pointer-events-auto"
+        className="absolute inset-x-3 bottom-3 mx-auto flex max-w-3xl flex-col items-center gap-2 z-20 pointer-events-auto"
       >
         {/* Floating Glassmorphic Color-Scale Legend Pill */}
         <div className="w-full max-w-xl rounded-xl border border-cyan-500/40 bg-[#0D1322]/95 p-2 backdrop-blur-md shadow-2xl">
@@ -1566,7 +1586,7 @@ export function GlobeViewport({
 
         {/* Layer Switcher Buttons Pill Bar */}
         <div
-          className="flex flex-wrap justify-center gap-1.5 bg-background/90 px-3 py-1.5 rounded-xl border border-cyan-500/30 backdrop-blur-md shadow-xl"
+          className="flex flex-wrap justify-center gap-1.5 bg-background/90 px-3.5 py-1.5 rounded-xl border border-cyan/40 backdrop-blur-xl shadow-[0_0_25px_rgba(0,0,0,0.8)]"
           role="radiogroup"
           aria-label="Map layer"
         >
@@ -1583,9 +1603,9 @@ export function GlobeViewport({
                 data-active={isAct}
                 onClick={() => onLayer(l)}
                 className={cn(
-                  "transition-all text-xs flex items-center gap-1",
+                  "transition-all text-xs font-semibold flex items-center gap-1.5",
                   isAct &&
-                    "border-cyan/80 bg-cyan/20 text-cyan text-glow shadow-[0_0_12px_rgba(6,182,212,0.4)]",
+                    "border-cyan bg-cyan/25 text-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.7)] shadow-[0_0_12px_rgba(0,240,255,0.35)]",
                 )}
               >
                 {isAct && <span className="size-1.5 rounded-full bg-cyan animate-pulse" />}
