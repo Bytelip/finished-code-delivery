@@ -11,6 +11,11 @@ Object.defineProperty(window, "scrollTo", {
   value: () => {},
 });
 
+Object.defineProperty(window, "print", {
+  writable: true,
+  value: () => {},
+});
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: (query: string) => ({

@@ -205,7 +205,11 @@ function AgroSpaceDashboard() {
                 <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
-                <HazardMatrixSlot hazards={telemetry.hazards} variant="summary" />
+                <HazardMatrixSlot
+                  hazards={telemetry.hazards}
+                  telemetry={telemetry}
+                  variant="summary"
+                />
                 <CropEngineSlot crop={telemetry.crop} />
               </div>
             </>
@@ -231,7 +235,9 @@ function AgroSpaceDashboard() {
             </div>
           )}
 
-          {tab === "hazards" && <HazardMatrixSlot hazards={telemetry.hazards} variant="full" />}
+          {tab === "hazards" && (
+            <HazardMatrixSlot hazards={telemetry.hazards} telemetry={telemetry} variant="full" />
+          )}
 
           {tab === "granules" && <GranuleInspector telemetry={telemetry} />}
         </div>

@@ -230,3 +230,66 @@
     opacity: 0;
   }
 }
+
+/* ==========================================================================
+   Print Optimization for Farmer Advisory Bulletin & Official PDF Reports
+   ========================================================================== */
+@media print {
+  @page {
+    margin: 12mm 15mm;
+    size: A4 portrait;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app dashboard shell, sidebars, interactive controls, and buttons */
+  aside,
+  header.sticky,
+  .no-print,
+  button:not(.printable-keep) {
+    display: none !important;
+  }
+
+  /* Make bulletin fill the page cleanly */
+  .printable-bulletin {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .printable-paper {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .printable-paper * {
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Maintain distinct contrast on alert cards during print */
+  .printable-paper [data-severity="critical"],
+  .printable-paper .bg-crimson\/5 {
+    background: #fff1f2 !important;
+    border: 1px solid #f43f5e !important;
+  }
+
+  .printable-paper [data-severity="warning"],
+  .printable-paper .bg-amber\/5 {
+    background: #fffbeb !important;
+    border: 1px solid #f59e0b !important;
+  }
+}
