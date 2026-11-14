@@ -313,13 +313,16 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setOtpDigits(["", "", "", "", "", ""]);
     setSelectedProvider(providerName);
 
-    // Optional: If EmailJS environment variables are configured, send real email to Gmail
+    // Optional: If EmailJS environment variables are configured with real keys, send real email to Gmail
     const envObj = (import.meta as unknown as { env?: Record<string, string> }).env;
     const serviceId = envObj?.VITE_EMAILJS_SERVICE_ID;
     const templateId = envObj?.VITE_EMAILJS_TEMPLATE_ID;
     const publicKey = envObj?.VITE_EMAILJS_PUBLIC_KEY;
 
-    if (serviceId && templateId && publicKey) {
+    const isRealKey = (val?: string) =>
+      Boolean(val && val.trim() && !val.toLowerCase().includes("your_"));
+
+    if (isRealKey(serviceId) && isRealKey(templateId) && isRealKey(publicKey)) {
       try {
         await fetch("https://api.emailjs.com/api/v1.0/email/send", {
           method: "POST",
