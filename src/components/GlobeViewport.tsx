@@ -286,6 +286,9 @@ const ALL_CITIES_AND_TOWNS: PlaceLabelEntry[] = [
   { id: "ct-myq", lat: 12.2958, lng: 76.6394, text: "Mysuru" },
   { id: "ct-ixe", lat: 12.9141, lng: 74.856, text: "Mangaluru" },
   { id: "ct-cjb", lat: 11.0168, lng: 76.9558, text: "Coimbatore" },
+  { id: "ct-hbl", lat: 15.3647, lng: 75.124, text: "Hubballi" },
+  { id: "ct-vja", lat: 16.5062, lng: 80.648, text: "Vijayawada" },
+  { id: "ct-mdu", lat: 9.9252, lng: 78.1198, text: "Madurai" },
   { id: "tn-klr", lat: 13.1367, lng: 78.1292, text: "Kolar" },
   { id: "tn-ckb", lat: 13.4325, lng: 77.7275, text: "Chikkaballapur" },
   { id: "tn-hsk", lat: 13.07, lng: 77.7981, text: "Hoskote" },
@@ -325,28 +328,124 @@ function renderOceanHtml(text: string): string {
 }
 
 function renderStateHtml(text: string): string {
-  return `<div style="display:flex;align-items:center;gap:4px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
-    <div style="width:3px;height:3px;border-radius:50%;background:#94A3B8;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
-    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10.5px;font-weight:600;color:#CBD5E1;text-shadow:0 0 2px #020617, 0 1px 2px #020617;letter-spacing:0.04em;">${text}</span>
+  return `<div style="display:flex;align-items:center;gap:3.5px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
+    <div style="width:2.5px;height:2.5px;border-radius:50%;background:#94A3B8;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9.5px;font-weight:600;color:#CBD5E1;text-shadow:0 0 2px #020617, 0 1px 2px #020617;letter-spacing:0.04em;">${text}</span>
   </div>`;
 }
 
 function renderMegaCapitalHtml(text: string): string {
-  return `<div style="display:flex;align-items:center;gap:4px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
-    <div style="width:3.5px;height:3.5px;border-radius:50%;background:#FFFFFF;border:0.75px solid #020617;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
-    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;font-weight:600;color:#F1F5F9;text-shadow:0 0 2px #020617, 0 1px 2px #020617;">${text}</span>
+  return `<div style="display:flex;align-items:center;gap:3.5px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
+    <div style="width:3px;height:3px;border-radius:50%;background:#FFFFFF;border:0.75px solid #020617;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9.5px;font-weight:600;color:#F1F5F9;text-shadow:0 0 2px #020617, 0 1px 2px #020617;">${text}</span>
   </div>`;
 }
 
 function renderCityTownHtml(text: string): string {
-  return `<div style="display:flex;align-items:center;gap:3.5px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
-    <div style="width:2.5px;height:2.5px;border-radius:50%;background:#94A3B8;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
-    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9.5px;font-weight:500;color:#E2E8F0;text-shadow:0 0 2px #020617, 0 1px 2px #020617;">${text}</span>
+  return `<div style="display:flex;align-items:center;gap:3px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
+    <div style="width:2.5px;height:2.5px;border-radius:50%;background:#FFFFFF;border:0.5px solid #020617;box-shadow:0 0 3px rgba(255,255,255,0.8);flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9px;font-weight:500;color:#F1F5F9;text-shadow:0 0 2px #020617, 0 1px 2px #020617;letter-spacing:0.02em;">${text}</span>
   </div>`;
 }
 
 function renderTerrainHtml(text: string): string {
-  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9px;font-style:italic;font-weight:500;color:#A1A1AA;letter-spacing:0.06em;text-shadow:0 0 2px #020617, 0 1px 2px #020617;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
+  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:8.5px;font-style:italic;font-weight:500;color:#A1A1AA;letter-spacing:0.06em;text-shadow:0 0 2px #020617, 0 1px 2px #020617;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
+}
+
+/* ---------------- 3D SLEEK CIRCULAR HAZARD MARKERS WITH INTERACTIVE HOVER TOOLTIPS ---------------- */
+function renderCyclone3DMarker(metricText = "CYCLONE TRACK • 115 km/h"): string {
+  return `
+    <div class="group relative flex items-center justify-center cursor-pointer select-none" style="transform:translate(-50%,-50%); width:46px; height:46px;">
+      <div style="position:absolute; inset:2px; border-radius:50%; border:1.5px dashed rgba(239,68,68,0.75); box-shadow:0 0 12px rgba(239,68,68,0.3); pointer-events:none;"></div>
+      <div style="position:absolute; inset:5px; border-radius:50%; border:1.5px solid #ef4444; animation:radarPulse 2.4s cubic-bezier(0.2,0.8,0.4,1) infinite; pointer-events:none;"></div>
+      <div style="position:relative; width:28px; height:28px; border-radius:50%; background:#090D16; border:2px solid #EF4444; box-shadow:0 0 16px rgba(239,68,68,0.7), inset 0 0 6px rgba(239,68,68,0.4); display:flex; align-items:center; justify-content:center;">
+        <svg class="animate-spin-slow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="url(#cycloneGrad3D)" stroke-width="2.2" stroke-linecap="round">
+          <defs>
+            <linearGradient id="cycloneGrad3D" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#C084FC"/>
+              <stop offset="100%" stop-color="#38BDF8"/>
+            </linearGradient>
+          </defs>
+          <path d="M12 2a10 10 0 0 1 7.07 17.07M12 22a10 10 0 0 1-7.07-17.07M12 6a6 6 0 0 1 4.24 10.24M12 18a6 6 0 0 1-4.24-10.24M12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/>
+        </svg>
+      </div>
+      <div class="pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200" style="position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); white-space:nowrap; z-index:70;">
+        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #EF4444; color:#F8FAFC; font-family:monospace; font-size:9.5px; font-weight:700; box-shadow:0 0 16px rgba(239,68,68,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
+          <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#EF4444; box-shadow:0 0 6px #EF4444;"></span>
+          <span>${metricText}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFire3DMarker(metricText = "FIRMS FIRE • 42 MW"): string {
+  return `
+    <div class="group relative flex items-center justify-center cursor-pointer select-none" style="transform:translate(-50%,-50%); width:44px; height:44px;">
+      <div style="position:absolute; inset:2px; border-radius:50%; border:1.5px dashed rgba(245,158,11,0.75); box-shadow:0 0 12px rgba(245,158,11,0.3); pointer-events:none;"></div>
+      <div style="position:absolute; inset:5px; border-radius:50%; border:1.5px solid #F59E0B; animation:radarPulse 2.4s cubic-bezier(0.2,0.8,0.4,1) infinite; pointer-events:none;"></div>
+      <div style="position:relative; width:26px; height:26px; border-radius:50%; background:#090D16; border:2px solid #F59E0B; box-shadow:0 0 14px rgba(245,158,11,0.7), inset 0 0 6px rgba(245,158,11,0.4); display:flex; align-items:center; justify-content:center;">
+        <svg class="animate-flame-flicker" viewBox="0 0 24 24" width="15" height="15" fill="url(#fireGrad3D)">
+          <defs>
+            <linearGradient id="fireGrad3D" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#FDE047"/>
+              <stop offset="50%" stop-color="#F59E0B"/>
+              <stop offset="100%" stop-color="#EF4444"/>
+            </linearGradient>
+          </defs>
+          <path d="M12 2c.5 2.5 2 4.5 3.5 6 1.8 1.8 2.5 3.6 2.5 5.5A7.5 7.5 0 0 1 10.5 21a7.5 7.5 0 0 1-7.5-7.5c0-3.3 2.5-6.2 5-8 0 2.5 1.5 4 3 5 0-3 1-6.5 1-8.5z"/>
+        </svg>
+      </div>
+      <div class="pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200" style="position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); white-space:nowrap; z-index:70;">
+        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #F59E0B; color:#F8FAFC; font-family:monospace; font-size:9.5px; font-weight:700; box-shadow:0 0 16px rgba(245,158,11,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
+          <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#F59E0B; box-shadow:0 0 6px #F59E0B;"></span>
+          <span>${metricText}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSeismic3DMarker(metricText = "USGS EPICENTER • M4.6"): string {
+  return `
+    <div class="group relative flex items-center justify-center cursor-pointer select-none" style="transform:translate(-50%,-50%); width:44px; height:44px;">
+      <div style="position:absolute; inset:4px; border-radius:50%; border:1.5px solid #10B981; animation:sonarRipple 2s ease-out infinite; pointer-events:none;"></div>
+      <div style="position:relative; width:26px; height:26px; border-radius:50%; background:#090D16; border:2px solid #10B981; box-shadow:0 0 14px rgba(16,185,129,0.7), inset 0 0 6px rgba(16,185,129,0.4); display:flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="#F59E0B" stroke="#F59E0B" stroke-width="0.5">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+      </div>
+      <div class="pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200" style="position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); white-space:nowrap; z-index:70;">
+        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #10B981; color:#F8FAFC; font-family:monospace; font-size:9.5px; font-weight:700; box-shadow:0 0 16px rgba(16,185,129,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
+          <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#10B981; box-shadow:0 0 6px #10B981;"></span>
+          <span>${metricText}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFarmReticle3DMarker(
+  layerName: string,
+  value: string | number,
+  unit: string,
+  regionLabel: string,
+): string {
+  return `
+    <div class="group relative flex items-center justify-center cursor-pointer select-none" style="transform:translate(-50%,-50%); width:38px; height:38px;">
+      <div style="position:absolute; inset:3px; border-radius:50%; border:1.5px solid #00F0FF; animation:radarPulse 2.2s cubic-bezier(0.2,0.8,0.4,1) infinite; pointer-events:none;"></div>
+      <div style="position:relative; width:24px; height:24px; border-radius:50%; background:#090D16; border:2px solid #00F0FF; box-shadow:0 0 16px rgba(0,240,255,0.8), inset 0 0 6px rgba(0,240,255,0.4); display:flex; align-items:center; justify-content:center;">
+        <span style="width:7px; height:7px; border-radius:50%; background:#00F0FF; box-shadow:0 0 8px #00F0FF;"></span>
+      </div>
+      <div class="pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200" style="position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); white-space:nowrap; z-index:70;">
+        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #00F0FF; color:#F8FAFC; font-family:monospace; font-size:9.5px; font-weight:700; box-shadow:0 0 16px rgba(0,240,255,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
+          <span style="color:#00F0FF;">★</span>
+          <span>${regionLabel || "Target Field"}:</span>
+          <span style="color:#38BDF8;">${layerName} ${value} ${unit}</span>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 export interface GlobeViewportProps {
@@ -385,7 +484,6 @@ export function GlobeViewport({
   // Zoom & LOD control state
   const [orbitalAltitude, setOrbitalAltitude] = useState(1.4);
   const [gisZoom, setGisZoom] = useState(12);
-  const [autoLodNotice, setAutoLodNotice] = useState(false);
 
   // 2D Hazard layers visibility & filter
   const [hazardsVisible, setHazardsVisible] = useState(true);
@@ -482,9 +580,18 @@ export function GlobeViewport({
   // NASA GIBS WMTS URL definition for 2D Leaflet
   const gibsTileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/{z}/{y}/{x}.${activeSatelliteConfig.format}`;
 
-  // 3D Orbital Arcs Data (Terra, SMAP, GPM, ISS orbits)
+  // 3D Orbital Arcs Data (Cyclone threat vector + Terra, SMAP, GPM, ISS orbits)
   const orbitArcsData = useMemo(() => {
     return [
+      // Animated dashed red cyclone trajectory arc connecting cyclone to landfall/impact farm zone
+      {
+        startLat: lat + 3.2,
+        startLng: lon + 4.5,
+        endLat: lat,
+        endLng: lon,
+        color: ["#ef4444", "#ef4444"],
+        name: "Cyclone Storm Threat Vector",
+      },
       {
         startLat: 82,
         startLng: lon - 35,
@@ -518,30 +625,20 @@ export function GlobeViewport({
         name: "ISS ECOSTRESS 51.6° Orbit",
       },
     ];
-  }, [lon]);
+  }, [lat, lon]);
 
-  // 3D Dynamic Concentric Hazard & Telemetry Scanning Rings
+  // 3D Dynamic Concentric Hazard Pulse Rings (Low-profile, no cluttering giant radar rings)
   const dynamicHazardRings = useMemo(() => {
     const rings = [
       // Primary field pin target beacon pulsing in active layer color
       {
         lat,
         lng: lon,
-        maxR: 4.5,
-        propagationSpeed: 2.5,
-        repeatPeriod: 1200,
+        maxR: 3.2,
+        propagationSpeed: 2.2,
+        repeatPeriod: 1500,
         color: activeSatelliteConfig.primaryColor,
         name: `Field Reticle • ${activeLayer}: ${reading.value} ${reading.unit}`,
-      },
-      // Regional telemetry coverage scanning halo
-      {
-        lat,
-        lng: lon,
-        maxR: 9.5,
-        propagationSpeed: 1.8,
-        repeatPeriod: 2200,
-        color: activeSatelliteConfig.colorRamp.colors[1] || activeSatelliteConfig.primaryColor,
-        name: `${activeLayer} Sensor Swath Radius`,
       },
     ];
 
@@ -551,9 +648,9 @@ export function GlobeViewport({
         rings.push({
           lat: lat + 3.2,
           lng: lon + 4.5,
-          maxR: 9.0,
-          propagationSpeed: 3,
-          repeatPeriod: 1500,
+          maxR: 7.0,
+          propagationSpeed: 2.5,
+          repeatPeriod: 1600,
           color: "#ef4444",
           name: `Cyclone Track: ${h.metric}`,
         });
@@ -562,9 +659,9 @@ export function GlobeViewport({
         rings.push({
           lat: lat - 0.75,
           lng: lon - 0.85,
-          maxR: 6.5,
-          propagationSpeed: 4,
-          repeatPeriod: 1000,
+          maxR: 5.0,
+          propagationSpeed: 3.0,
+          repeatPeriod: 1200,
           color: "#10b981",
           name: `Seismic Epicenter: ${h.metric}`,
         });
@@ -573,8 +670,8 @@ export function GlobeViewport({
         rings.push({
           lat: lat + 0.08,
           lng: lon - 0.06,
-          maxR: 4.5,
-          propagationSpeed: 2.5,
+          maxR: 3.5,
+          propagationSpeed: 2.0,
           repeatPeriod: 1400,
           color: "#f59e0b",
           name: `FIRMS Hotspot: ${h.metric}`,
@@ -604,14 +701,14 @@ export function GlobeViewport({
     ];
   }, [activeLayer, activeSatelliteConfig, opacity, lat, lon]);
 
-  // Multi-zoom Google Maps-style dynamic LOD place labels on 3D Orbital Globe
+  // Multi-zoom Google Earth-style dynamic 4-Stage LOD place labels on 3D Orbital Globe
   const activePlaceLabels = useMemo(() => {
     const labels: GlobeHtmlMarkerItem[] = [];
 
-    // Tier 1 — Far Orbital View (altitude > 1.6):
+    // Stage 1 — Global / Far Orbital View (altitude > 1.5):
     // Show ONLY country names and major oceans.
-    // Completely HIDE all states, cities, and terrain features.
-    if (orbitalAltitude > 1.6) {
+    // Completely HIDE all states, cities, districts, and terrain features.
+    if (orbitalAltitude > 1.5) {
       for (const c of GLOBAL_COUNTRIES) {
         labels.push({
           id: c.id,
@@ -633,10 +730,10 @@ export function GlobeViewport({
       return labels;
     }
 
-    // Tier 2 — Medium Regional Zoom (0.7 < altitude <= 1.6):
-    // Smoothly fade in State names and top-tier national/mega capitals.
+    // Stage 2 — Country Zoom (0.75 < altitude <= 1.5):
+    // Smoothly fade in State names in clean, small white/slate typography.
     // Keep smaller cities, districts, and terrain features hidden so they never overlap states.
-    if (orbitalAltitude > 0.7 && orbitalAltitude <= 1.6) {
+    if (orbitalAltitude > 0.75 && orbitalAltitude <= 1.5) {
       for (const c of GLOBAL_COUNTRIES) {
         labels.push({
           id: c.id,
@@ -676,9 +773,9 @@ export function GlobeViewport({
       return labels;
     }
 
-    // Tier 3 — Close Local Zoom (altitude <= 0.7):
+    // Stage 3 — State / Regional Zoom (0.28 < altitude <= 0.75):
     // Fade out giant country label.
-    // Reveal regional cities, districts, towns, terrain features, and active field label.
+    // Reveal regional cities, districts, towns with tiny white city dots, terrain features, and state labels.
     for (const s of REGIONAL_STATES) {
       labels.push({
         id: s.id,
@@ -716,117 +813,32 @@ export function GlobeViewport({
       });
     }
 
-    // Active searched/GPS location label (Priority 1)
-    labels.push({
-      id: "active-field-target-label",
-      lat,
-      lng: lon,
-      priority: 1,
-      html: `
-        <div style="display:flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;background:#030712dd;border:1px solid #38BDF8;pointer-events:none;white-space:nowrap;box-shadow:0 0 10px rgba(56,189,248,0.4);transform:translate(-50%,-50%);">
-          <span style="font-size:10px;color:#38BDF8;">★</span>
-          <span style="font-family:system-ui,-apple-system,sans-serif;font-size:10px;font-weight:700;color:#7DD3FC;letter-spacing:0.04em;">${meta.regionLabel || "Target Field"}</span>
-        </div>
-      `,
-    });
-
     return labels;
-  }, [orbitalAltitude, lat, lon, meta.regionLabel]);
+  }, [orbitalAltitude]);
 
-  // 3D Regional Telemetry Grid Micro-Points (Sleek surface micro-markers flush with Earth curvature)
+  // 3D Sleek Target Micro-Marker flush with Earth curvature (cluttering 16 green dots removed)
   const telemetryPointsData = useMemo(() => {
-    const points: {
-      lat: number;
-      lng: number;
-      size: number;
-      altitude: number;
-      color: string;
-      label: string;
-    }[] = [];
-
-    // Sleek primary target marker dot flush to the sphere surface
-    points.push({
-      lat,
-      lng: lon,
-      size: 0.28,
-      altitude: 0.0025,
-      color: activeSatelliteConfig.primaryColor,
-      label: `Field Target Pin • ${activeLayer}: ${reading.value} ${reading.unit}`,
-    });
-
-    // 16 Regional 3D telemetry sensor micro-nodes flush with Earth curvature
-    const gridOffsets = [
-      { dLat: 0.12, dLon: 0.12, weight: 0.85 },
-      { dLat: -0.15, dLon: 0.18, weight: 0.72 },
-      { dLat: 0.22, dLon: -0.16, weight: 0.92 },
-      { dLat: -0.25, dLon: -0.22, weight: 0.65 },
-      { dLat: 0.45, dLon: 0.35, weight: 0.88 },
-      { dLat: -0.42, dLon: 0.52, weight: 0.61 },
-      { dLat: 0.65, dLon: -0.48, weight: 0.79 },
-      { dLat: -0.58, dLon: -0.62, weight: 0.54 },
-      { dLat: 1.2, dLon: 1.1, weight: 0.82 },
-      { dLat: -1.4, dLon: 0.95, weight: 0.7 },
-      { dLat: 1.6, dLon: -1.3, weight: 0.9 },
-      { dLat: -1.8, dLon: -1.5, weight: 0.58 },
-      { dLat: 2.8, dLon: 2.2, weight: 0.75 },
-      { dLat: -3.1, dLon: 2.5, weight: 0.68 },
-      { dLat: 3.5, dLon: -2.9, weight: 0.86 },
-      { dLat: -3.6, dLon: -3.2, weight: 0.62 },
+    return [
+      {
+        lat,
+        lng: lon,
+        size: 0.22,
+        altitude: 0.002,
+        color: activeSatelliteConfig.primaryColor,
+        label: `Field Target Pin • ${activeLayer}: ${reading.value} ${reading.unit}`,
+      },
     ];
-
-    const colorScale = activeSatelliteConfig.colorRamp.colors;
-
-    for (const off of gridOffsets) {
-      const pLat = lat + off.dLat;
-      const pLon = lon + off.dLon;
-      const cIdx = Math.min(colorScale.length - 1, Math.floor(off.weight * colorScale.length));
-      const ptColor = colorScale[cIdx] || activeSatelliteConfig.primaryColor;
-
-      if (activeLayer === "FIRMS Fires") {
-        if (off.weight > 0.68) {
-          points.push({
-            lat: pLat,
-            lng: pLon,
-            size: 0.22 * off.weight + 0.08,
-            altitude: 0.002,
-            color: off.weight > 0.85 ? "#ef4444" : "#f59e0b",
-            label: `FIRMS Hotspot • FRP ${Math.round(off.weight * 50)} MW`,
-          });
-        }
-      } else {
-        points.push({
-          lat: pLat,
-          lng: pLon,
-          size: 0.16 * off.weight + 0.05,
-          altitude: 0.002,
-          color: ptColor,
-          label: `${activeLayer} Sensor Node (${pLat.toFixed(2)}°, ${pLon.toFixed(2)}°) • ${(off.weight * (reading.intensity + 0.3)).toFixed(2)} ${reading.unit}`,
-        });
-      }
-    }
-
-    return points;
   }, [lat, lon, activeLayer, activeSatelliteConfig, reading]);
 
-  // 3D HTML Status Badges & Place Labels for react-globe.gl
+  // 3D HTML Sleek Animated Circular Hazard Markers & Place Labels for react-globe.gl
   const dynamicGlobeHtmlMarkers = useMemo(() => {
     const list: GlobeHtmlMarkerItem[] = [
       {
-        id: "field-reticle-badge",
+        id: "field-reticle-marker",
         lat,
         lng: lon,
         priority: 1,
-        html: `
-          <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-14px);pointer-events:none;white-space:nowrap;z-index:50;">
-            <div style="display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:7px;background:#070C18f2;border:1.5px solid ${activeSatelliteConfig.primaryColor};color:#ffffff;font-family:monospace;font-size:10px;font-weight:700;box-shadow:0 0 16px ${activeSatelliteConfig.primaryColor}99, 0 4px 12px rgba(0,0,0,0.85);backdrop-filter:blur(8px);">
-              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${activeSatelliteConfig.primaryColor};box-shadow:0 0 8px ${activeSatelliteConfig.primaryColor};"></span>
-              <span style="color:${activeSatelliteConfig.primaryColor};text-transform:uppercase;letter-spacing:0.5px;">${activeLayer}:</span>
-              <span style="font-weight:800;color:#ffffff;">${reading.value} <span style="font-weight:500;color:#94a3b8;font-size:9px;">${reading.unit}</span></span>
-            </div>
-            <div style="width:1.5px;height:12px;background:linear-gradient(to bottom, ${activeSatelliteConfig.primaryColor}, transparent);"></div>
-            <div style="width:4px;height:4px;border-radius:50%;background:${activeSatelliteConfig.primaryColor};"></div>
-          </div>
-        `,
+        html: renderFarmReticle3DMarker(activeLayer, reading.value, reading.unit, meta.regionLabel),
       },
     ];
 
@@ -834,50 +846,26 @@ export function GlobeViewport({
       if (h.type === "cyclone") {
         list.push({
           id: `hazard-${h.id || "cyclone"}`,
-          lat: lat + 4.2,
-          lng: lon + 5.5,
-          priority: 2,
-          html: `
-            <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
-              <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #ef4444;color:#ef4444;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(239,68,68,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
-                <span style="font-size:11px;">🌀</span>
-                <span>CYCLONE TRACK</span>
-              </div>
-              <div style="width:1px;height:8px;background:#ef4444;"></div>
-            </div>
-          `,
+          lat: lat + 3.2,
+          lng: lon + 4.5,
+          priority: 1,
+          html: renderCyclone3DMarker(`CYCLONE TRACK • ${h.metric || "115 km/h"}`),
         });
       } else if (h.type === "fire") {
         list.push({
           id: `hazard-${h.id || "fire"}`,
-          lat: lat + 1.2,
-          lng: lon - 1.8,
-          priority: 2,
-          html: `
-            <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
-              <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #f59e0b;color:#f59e0b;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(245,158,11,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
-                <span style="font-size:11px;">🔥</span>
-                <span>FIRMS HOTSPOT</span>
-              </div>
-              <div style="width:1px;height:8px;background:#f59e0b;"></div>
-            </div>
-          `,
+          lat: lat + 0.08,
+          lng: lon - 0.06,
+          priority: 1,
+          html: renderFire3DMarker(`FIRMS FIRE • ${h.metric || "42 MW"}`),
         });
       } else if (h.type === "earthquake") {
         list.push({
           id: `hazard-${h.id || "quake"}`,
-          lat: lat - 2.8,
-          lng: lon - 3.2,
-          priority: 2,
-          html: `
-            <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%) translateY(-12px);pointer-events:none;white-space:nowrap;z-index:40;">
-              <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#070C18ee;border:1px solid #10b981;color:#10b981;font-family:monospace;font-size:9px;font-weight:700;box-shadow:0 0 14px rgba(16,185,129,0.5), 0 3px 8px rgba(0,0,0,0.8);backdrop-filter:blur(6px);">
-                <span style="font-size:11px;">⚡</span>
-                <span>USGS EPICENTER</span>
-              </div>
-              <div style="width:1px;height:8px;background:#10b981;"></div>
-            </div>
-          `,
+          lat: lat - 0.75,
+          lng: lon - 0.85,
+          priority: 1,
+          html: renderSeismic3DMarker(`USGS EPICENTER • ${h.metric || "M4.6"}`),
         });
       }
     }
@@ -885,7 +873,7 @@ export function GlobeViewport({
     list.push(...activePlaceLabels);
 
     return list;
-  }, [lat, lon, activeLayer, activeSatelliteConfig, reading, hazards, activePlaceLabels]);
+  }, [lat, lon, activeLayer, reading, meta.regionLabel, hazards, activePlaceLabels]);
 
   // Screen-space bounding-box collision culling for 3D Globe place labels & badges
   const runCollisionCull = useCallback(() => {
@@ -1133,10 +1121,10 @@ export function GlobeViewport({
 
     if (webGLSupported) {
       setViewMode("3d");
-      setOrbitalAltitude(1.8);
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.8 }, 1000);
+      setOrbitalAltitude(1.6);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.6 }, 1000);
       toast.info("Entering 3D Orbital Overview", {
-        description: "Auto-transitioned from 2D Field GIS to 3D Orbital Globe.",
+        description: "Zoomed out past continental threshold (zoom <= 4). Switched to 3D Globe.",
       });
     }
   }, [webGLSupported, lat, lon]);
@@ -1148,35 +1136,31 @@ export function GlobeViewport({
 
     setViewMode("2d");
     setGisZoom(14);
-    setAutoLodNotice(false);
     toast.info("Entering High-Resolution 2D Field GIS", {
-      description: "Ground proximity reached (<50 km). Switched to 2D Satellite GIS.",
+      description: "Deep zoom reached (altitude <= 0.28). Switched to 2D Satellite GIS.",
     });
   }, []);
 
-  // Zoom In Handler
+  // Zoom In Handler (Strict 4-Stage LOD: triggers 2D Hand-Off when altitude <= 0.28)
   const handleZoomIn = () => {
     if (viewMode === "3d") {
       const newAlt = Math.max(0.06, orbitalAltitude * 0.65);
       setOrbitalAltitude(newAlt);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
-      if (newAlt <= 0.08) {
+      if (newAlt <= 0.28) {
         handleAutoTransitionTo2D();
-      } else if (newAlt < 0.18) {
-        setAutoLodNotice(true);
       }
     } else {
       leafletMapRef.current?.zoomIn?.(1, { animate: true });
     }
   };
 
-  // Zoom Out Handler
+  // Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 4)
   const handleZoomOut = () => {
     if (viewMode === "3d") {
       const newAlt = Math.min(2.5, orbitalAltitude * 1.45);
       setOrbitalAltitude(newAlt);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
-      if (newAlt >= 0.18) setAutoLodNotice(false);
     } else {
       const curZ = leafletMapRef.current?.getZoom?.() ?? gisZoom;
       if (curZ <= 4) {
@@ -1190,18 +1174,16 @@ export function GlobeViewport({
   // Vertical Zoom Slider Handler
   const handleSliderChange = (newZoom: number) => {
     if (viewMode === "3d") {
-      if (newZoom >= 17) {
+      if (newZoom >= 16) {
         handleAutoTransitionTo2D();
         return;
       }
       const newAlt = Math.max(0.06, Math.min(2.5, 2.5 - ((newZoom - 1) / 17) * (2.5 - 0.06)));
       setOrbitalAltitude(newAlt);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 300);
-      if (newAlt <= 0.08) handleAutoTransitionTo2D();
-      else if (newAlt < 0.18) setAutoLodNotice(true);
-      else setAutoLodNotice(false);
+      if (newAlt <= 0.28) handleAutoTransitionTo2D();
     } else {
-      if (newZoom <= 3) {
+      if (newZoom <= 4) {
         handleAutoTransitionTo3D();
         return;
       }
@@ -1213,8 +1195,7 @@ export function GlobeViewport({
   // Quick Action: Target Farm (Z:15)
   const handleTargetFarm = () => {
     if (viewMode === "3d") {
-      setOrbitalAltitude(0.12);
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 0.12 }, 1000);
+      handleAutoTransitionTo2D();
     } else {
       leafletMapRef.current?.flyTo?.([lat, lon], 15, { animate: true, duration: 1.2 });
       setGisZoom(15);
@@ -1226,11 +1207,76 @@ export function GlobeViewport({
     if (viewMode === "3d") {
       setOrbitalAltitude(2.0);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: 2.0 }, 1000);
-      setAutoLodNotice(false);
     } else {
       handleAutoTransitionTo3D();
     }
   };
+
+  // 4-Stage Zoom HUD Status Information
+  const zoomStageInfo = useMemo(() => {
+    if (viewMode === "3d") {
+      if (orbitalAltitude > 1.5) {
+        return {
+          stage: "STAGE 1",
+          label: "ORBITAL VIEW • CONTINENT / GLOBAL",
+          detail: `Alt: ${Math.round(orbitalAltitude * 6371)} km`,
+          color: "#38BDF8",
+          badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
+        };
+      }
+      if (orbitalAltitude > 0.75) {
+        return {
+          stage: "STAGE 2",
+          label: "ORBITAL VIEW • STATE LEVEL",
+          detail: `Alt: ${Math.round(orbitalAltitude * 6371)} km`,
+          color: "#06B6D4",
+          badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
+        };
+      }
+      if (orbitalAltitude > 0.28) {
+        return {
+          stage: "STAGE 3",
+          label: "ORBITAL VIEW • DISTRICT LEVEL",
+          detail: `Alt: ${Math.round(orbitalAltitude * 6371)} km`,
+          color: "#10B981",
+          badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
+        };
+      }
+      return {
+        stage: "STAGE 4",
+        label: "AUTO-HAND-OFF • 2D TACTICAL MAP",
+        detail: `Transitioning...`,
+        color: "#F59E0B",
+        badgeColor: "bg-amber-500/20 text-amber-300 border-amber-400/40",
+      };
+    } else {
+      if (gisZoom >= 13) {
+        return {
+          stage: "STAGE 4",
+          label: "2D TACTICAL MAP • FIELD PARCEL GIS",
+          detail: `Zoom ${gisZoom} • High-Res`,
+          color: "#10B981",
+          badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
+        };
+      }
+      if (gisZoom > 4) {
+        return {
+          stage: "STAGE 4",
+          label: "2D TACTICAL MAP • REGIONAL OVERVIEW",
+          detail: `Zoom ${gisZoom}`,
+          color: "#06B6D4",
+          badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
+        };
+      }
+      return {
+        stage: "STAGE 1",
+        label: "AUTO-HAND-OFF • 3D ORBITAL GLOBE",
+        detail: `Zoom ${gisZoom} <= 4`,
+        color: "#38BDF8",
+        badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
+      };
+    }
+  }, [viewMode, orbitalAltitude, gisZoom]);
 
   // Fit All Hazards in 2D View
   const handleFitAllHazards = () => {
@@ -1475,12 +1521,8 @@ export function GlobeViewport({
               onZoom={(pov: { lat: number; lng: number; altitude: number }) => {
                 if (typeof pov?.altitude === "number") {
                   setOrbitalAltitude(pov.altitude);
-                  if (pov.altitude <= 0.08) {
+                  if (pov.altitude <= 0.28) {
                     handleAutoTransitionTo2D();
-                  } else if (pov.altitude < 0.18) {
-                    setAutoLodNotice(true);
-                  } else {
-                    setAutoLodNotice(false);
                   }
                   setTimeout(runCollisionCull, 50);
                 }
@@ -1493,21 +1535,30 @@ export function GlobeViewport({
         </SafeGlobeErrorBoundary>
       ) : null}
 
-      {/* ---------------- AUTO-LOD NOTICE (HIGH PROXIMITY ALERT) ---------------- */}
-      {viewMode === "3d" && autoLodNotice && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-cyan-400/80 bg-[#0D1322]/95 px-3 py-1.5 font-mono text-xs text-cyan shadow-[0_0_15px_rgba(6,182,212,0.4)] backdrop-blur-md animate-pulse">
-          <Radio className="size-3.5 text-cyan animate-pulse" />
-          <span>Auto-LOD: Ground Proximity (&lt;100 km). Switch to High-Res 2D Field GIS?</span>
-          <Button
-            size="sm"
-            variant="default"
-            className="h-6 bg-cyan text-slate-950 font-bold px-2 text-[10px] hover:bg-cyan-400"
-            onClick={() => setViewMode("2d")}
-          >
-            Switch to 2D GIS
-          </Button>
-        </div>
-      )}
+      {/* ---------------- TOP-CENTER ZOOM STAGE INDICATOR PILL ---------------- */}
+      <div
+        data-hud-overlay="zoom-stage-pill"
+        className="pointer-events-none absolute top-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none transition-all duration-300"
+      >
+        <span
+          className="size-2 rounded-full animate-pulse"
+          style={{ background: zoomStageInfo.color, boxShadow: `0 0 8px ${zoomStageInfo.color}` }}
+        />
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5 text-[9px] font-bold border tracking-wider uppercase",
+            zoomStageInfo.badgeColor,
+          )}
+        >
+          {zoomStageInfo.stage}
+        </span>
+        <span className="font-semibold text-slate-200 tracking-wide text-[11px]">
+          {zoomStageInfo.label}
+        </span>
+        <span className="text-[10px] text-muted-foreground tabular-nums">
+          ({zoomStageInfo.detail})
+        </span>
+      </div>
 
       {/* ---------------- 2D FIELD GIS MODE (LEAFLET + NASA GIBS + HAZARDS) ---------------- */}
       {viewMode === "2d" && LeafletComp && mounted ? (
@@ -1525,21 +1576,18 @@ export function GlobeViewport({
               attribution="Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
             />
 
-            {/* Hybrid Boundaries & Road Labels Layer */}
+            {/* 100% Free Keyless ArcGIS Online Reference Layers (Zero Watermarks) */}
             <LeafletComp.TileLayer
-              url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
               maxZoom={18}
               zIndex={15}
-              opacity={0.65}
+              opacity={0.75}
             />
-
-            {/* CartoDB Dark Matter Only-Labels for high-contrast crisp text */}
             <LeafletComp.TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
-              subdomains="abcd"
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}"
               maxZoom={18}
               zIndex={16}
-              opacity={0.85}
+              opacity={0.8}
             />
 
             {/* NASA GIBS WMTS Raster Tile Layer (Level maxZoom with smooth upscaling up to 18) */}
@@ -1619,35 +1667,45 @@ export function GlobeViewport({
                   />
                 )}
 
-                {/* Threat Vector Polyline (e.g. Cyclone to Farm) */}
+                {/* Threat Vector Polyline (e.g. Cyclone to Farm with animated dashFlow) */}
                 {hazard.polyline && (
                   <LeafletComp.Polyline
                     positions={hazard.polyline}
                     pathOptions={{
                       color: hazard.color,
-                      weight: 2,
+                      weight: 2.5,
                       dashArray: "6 6",
-                      opacity: 0.8,
+                      opacity: 0.85,
+                      className: "leaflet-dash-flow",
                     }}
                   />
                 )}
 
-                {/* Tactical Hazard Marker */}
+                {/* Tactical Animated Hazard Marker */}
                 <LeafletComp.Marker
                   position={[hazard.lat, hazard.lon]}
                   icon={
                     new LeafletComp.L.DivIcon({
                       className: "hazard-marker",
                       html: `
-                        <div style="position:relative; width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
-                          <span style="position:absolute; inset:0; border-radius:50%; background:${hazard.color}; opacity:0.35; animation:ping 2.2s infinite;"></span>
-                          <span style="position:relative; width:24px; height:24px; border-radius:50%; background:#0D1322; border:2px solid ${hazard.color}; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow:0 0 10px ${hazard.color};">
-                            ${hazard.icon}
+                        <div style="position:relative; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                          <span style="position:absolute; inset:0; border-radius:50%; border:1.5px dashed ${hazard.color}; opacity:0.75; box-shadow:0 0 10px ${hazard.color}40;"></span>
+                          <span style="position:absolute; inset:4px; border-radius:50%; border:1.5px solid ${hazard.color}; animation:${hazard.type === "earthquake" ? "sonarRipple 2s ease-out" : "radarPulse 2.4s cubic-bezier(0.2,0.8,0.4,1)"} infinite;"></span>
+                          <span style="position:relative; width:26px; height:26px; border-radius:50%; background:#090D16; border:2px solid ${hazard.color}; display:flex; align-items:center; justify-content:center; box-shadow:0 0 14px ${hazard.color};">
+                            ${
+                              hazard.type === "cyclone"
+                                ? `<svg class="animate-spin-slow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="url(#c2dGrad)" stroke-width="2.2" stroke-linecap="round"><defs><linearGradient id="c2dGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#C084FC"/><stop offset="100%" stop-color="#38BDF8"/></linearGradient></defs><path d="M12 2a10 10 0 0 1 7.07 17.07M12 22a10 10 0 0 1-7.07-17.07M12 6a6 6 0 0 1 4.24 10.24M12 18a6 6 0 0 1-4.24-10.24M12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>`
+                                : hazard.type === "fire"
+                                  ? `<svg class="animate-flame-flicker" viewBox="0 0 24 24" width="15" height="15" fill="url(#f2dGrad)"><defs><linearGradient id="f2dGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FDE047"/><stop offset="50%" stop-color="#F59E0B"/><stop offset="100%" stop-color="#EF4444"/></linearGradient></defs><path d="M12 2c.5 2.5 2 4.5 3.5 6 1.8 1.8 2.5 3.6 2.5 5.5A7.5 7.5 0 0 1 10.5 21a7.5 7.5 0 0 1-7.5-7.5c0-3.3 2.5-6.2 5-8 0 2.5 1.5 4 3 5 0-3 1-6.5 1-8.5z"/></svg>`
+                                  : hazard.type === "earthquake"
+                                    ? `<svg viewBox="0 0 24 24" width="15" height="15" fill="#F59E0B" stroke="#F59E0B" stroke-width="0.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`
+                                    : `<span style="font-size:12px;">${hazard.icon}</span>`
+                            }
                           </span>
                         </div>
                       `,
-                      iconSize: [30, 30],
-                      iconAnchor: [15, 15],
+                      iconSize: [34, 34],
+                      iconAnchor: [17, 17],
                     })
                   }
                 >
@@ -2160,7 +2218,7 @@ function LeafletBridge({
       if (e?.target && typeof e.target.getZoom === "function") {
         const z = e.target.getZoom();
         onZoomChange(z);
-        if (z <= 3 && onAutoSwitchTo3D) {
+        if (z <= 4 && onAutoSwitchTo3D) {
           onAutoSwitchTo3D();
         }
       }
