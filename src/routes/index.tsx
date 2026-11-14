@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Radio, Satellite, RefreshCw } from "lucide-react";
+import { Activity, Radio, Satellite, RefreshCw, UserCheck } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
 import { CommandBar } from "@/components/agro/CommandBar";
 import { GlobeContainer } from "@/components/agro/GlobeContainer";
+import { CosmicAuthPage } from "@/components/CosmicAuthPage";
+import { toast } from "sonner";
 import {
   PlantHealthRadar,
   PowerChart,
@@ -76,6 +78,20 @@ function AgroSpaceDashboard() {
     zone: string;
     elevationM: number;
   } | null>(null);
+
+  const [operator, setOperator] = useState<{ email: string; provider: string } | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("agro_operator");
+        if (stored) setOperator(JSON.parse(stored));
+      } catch {
+        // ignore storage parse
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (isMobile) setCollapsed(true);
@@ -209,6 +225,8 @@ function AgroSpaceDashboard() {
         lon={lon}
         onPreset={(p) => setLocation(p.lat, p.lon, p.name)}
         activeHazards={activeHazards}
+        operator={operator}
+        onOpenAuth={() => setShowAuthModal(true)}
       />
 
       <main className="min-w-0 flex-1">
@@ -274,23 +292,41 @@ function AgroSpaceDashboard() {
                 </p>
               </div>
 
-              {/* Field Health Tactical Readout */}
-              <div className="flex flex-wrap items-center gap-3.5 rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 backdrop-blur-md">
-                <div className="text-right">
-                  <div className="hud-label text-[10px] text-cyan/80">Field Health Index</div>
-                  <div className="font-mono text-3xl font-extrabold tabular-nums text-emerald drop-shadow-[0_0_10px_rgba(0,255,157,0.5)]">
-                    {telemetry.plantHealth.overall}
-                    <span className="text-sm font-normal text-muted-foreground/70">/100</span>
+              {/* Tactical Readout & Mission Control Auth */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3.5 rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 backdrop-blur-md">
+                  <div className="text-right">
+                    <div className="hud-label text-[10px] text-cyan/80">Field Health Index</div>
+                    <div className="font-mono text-3xl font-extrabold tabular-nums text-emerald drop-shadow-[0_0_10px_rgba(0,255,157,0.5)]">
+                      {telemetry.plantHealth.overall}
+                      <span className="text-sm font-normal text-muted-foreground/70">/100</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <SeverityChip severity={telemetry.plantHealth.status} />
+                    {scenario !== "Nominal" && (
+                      <span className="inline-flex items-center gap-1 rounded border border-crimson/60 bg-crimson/20 px-2 py-0.5 font-mono text-[10px] font-bold text-crimson shadow-[0_0_10px_rgba(255,46,86,0.3)] animate-pulse">
+                        <Activity className="size-3" /> SIM · {scenario}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <SeverityChip severity={telemetry.plantHealth.status} />
-                  {scenario !== "Nominal" && (
-                    <span className="inline-flex items-center gap-1 rounded border border-crimson/60 bg-crimson/20 px-2 py-0.5 font-mono text-[10px] font-bold text-crimson shadow-[0_0_10px_rgba(255,46,86,0.3)] animate-pulse">
-                      <Activity className="size-3" /> SIM · {scenario}
-                    </span>
-                  )}
-                </div>
+
+                {/* Operator Clearance Sign In Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex items-center gap-2 rounded-lg border border-cyan/40 bg-cyan/15 px-3.5 py-3 font-mono text-xs text-cyan hover:bg-cyan/25 transition-all shadow-[0_0_14px_rgba(0,240,255,0.25)] cursor-pointer"
+                  title="Open Mission Control Authentication"
+                >
+                  <UserCheck className="size-4 text-cyan" />
+                  <span className="font-semibold">
+                    {operator
+                      ? `Operator: ${operator.email.split("@")[0]}`
+                      : "Mission Control Auth"}
+                  </span>
+                  <span className="size-2 rounded-full bg-emerald animate-pulse shadow-[0_0_6px_#00ff9d]" />
+                </button>
               </div>
             </div>
           </div>
@@ -350,6 +386,25 @@ function AgroSpaceDashboard() {
           {tab === "granules" && <GranuleInspector telemetry={telemetry} />}
         </div>
       </main>
+
+      {/* Cosmic Parallax Auth Modal Overlay */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[9999] overflow-y-auto">
+          <CosmicAuthPage
+            onSuccess={(u) => {
+              setOperator(u);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("agro_operator", JSON.stringify(u));
+              }
+              setShowAuthModal(false);
+              toast.success(`Welcome, Operator (${u.email})`, {
+                description: `Authenticated via ${u.provider}. Clearance Granted.`,
+              });
+            }}
+            onClose={() => setShowAuthModal(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
