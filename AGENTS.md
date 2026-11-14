@@ -28,3 +28,9 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+
+- All AgroSpace UI renders from the `AgroTelemetry` contract in `src/types/agroSpace.ts`, produced by `src/services/mockNasaTelemetry.ts`; real NASA services must return the same contract so panels need no changes.
+- The mock generator stays deterministic (seeded by inputs, fixed reference date, no `Date.now`/`Math.random`) so SSR and the browser render identical numbers.
+- `#globe-container`, `#hazard-matrix-slot` and `#crop-engine-slot` are mount points for later engines; keep their ids and data attributes stable.
