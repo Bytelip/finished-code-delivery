@@ -45,15 +45,15 @@ describe("CommandBar Location & Search", () => {
     expect(screen.getByText(/±24m/i)).toBeInTheDocument();
   });
 
-  it("searches OpenStreetMap Nominatim and updates location on selection", async () => {
-    vi.spyOn(preciseLocationModule, "searchNominatimPlaces").mockResolvedValue([
+  it("searches dual-provider geocoder and updates location on selection", async () => {
+    vi.spyOn(preciseLocationModule, "searchDualProviderPlaces").mockResolvedValue([
       {
-        placeId: "101",
-        displayName: "Kolar, Karnataka, India",
-        shortName: "Kolar",
+        id: "101",
+        name: "Kolar",
+        subtitle: "Karnataka, India",
         lat: 13.1367,
         lon: 78.1292,
-        type: "town",
+        source: "open-meteo",
       },
     ]);
 
@@ -64,14 +64,43 @@ describe("CommandBar Location & Search", () => {
 
     // Wait for dropdown
     await waitFor(() => {
-      expect(screen.getByText("Kolar, Karnataka, India")).toBeInTheDocument();
+      expect(screen.getByText("Kolar")).toBeInTheDocument();
     });
 
     // Click result
-    const placeItem = screen.getByText("Kolar, Karnataka, India");
+    const placeItem = screen.getByText("Kolar");
     fireEvent.click(placeItem);
 
     expect(defaultProps.onLocation).toHaveBeenCalledWith(13.1367, 78.1292, "Kolar");
+    expect(screen.getByText(/PINNED \/ SEARCH/i)).toBeInTheDocument();
+  });
+
+  it("selects top geocoded result when Enter key is pressed in search input", async () => {
+    vi.spyOn(preciseLocationModule, "searchDualProviderPlaces").mockResolvedValue([
+      {
+        id: "102",
+        name: "Bengaluru",
+        subtitle: "Karnataka, India",
+        lat: 12.9719,
+        lon: 77.5937,
+        source: "open-meteo",
+      },
+    ]);
+
+    render(<CommandBar {...defaultProps} />);
+
+    const searchInput = screen.getByPlaceholderText(/Search village, town, pincode/i);
+    fireEvent.change(searchInput, { target: { value: "Bengaluru" } });
+
+    // Wait for dropdown
+    await waitFor(() => {
+      expect(screen.getByText("Bengaluru")).toBeInTheDocument();
+    });
+
+    // Press Enter
+    fireEvent.keyDown(searchInput, { key: "Enter", code: "Enter" });
+
+    expect(defaultProps.onLocation).toHaveBeenCalledWith(12.9719, 77.5937, "Bengaluru");
   });
 
   it("displays insecure LAN warning banner and HTTPS switch link when GPS is blocked on network IP", async () => {

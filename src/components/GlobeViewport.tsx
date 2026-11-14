@@ -63,7 +63,14 @@ interface LeafletBundle {
     className?: string;
     children?: ReactNode;
   }>;
-  useMap: () => { panTo: (coords: [number, number], options?: { animate?: boolean }) => void };
+  useMap: () => {
+    panTo: (coords: [number, number], options?: { animate?: boolean }) => void;
+    flyTo?: (
+      coords: [number, number],
+      zoom?: number,
+      options?: { animate?: boolean; duration?: number },
+    ) => void;
+  };
   useMapEvents: (handlers: {
     click?: (e: { latlng?: { lat: number; lng: number } }) => void;
   }) => void;
@@ -249,7 +256,7 @@ export function GlobeViewport({
       typeof globeRef.current.pointOfView === "function"
     ) {
       try {
-        globeRef.current.pointOfView({ lat, lng: lon, altitude: 2.2 }, 1000);
+        globeRef.current.pointOfView({ lat, lng: lon, altitude: 1.4 }, 1200);
       } catch {
         // ignore pointOfView transition timing
       }
@@ -741,7 +748,7 @@ function LeafletClickHandler({
   return null;
 }
 
-// Leaflet map center updater
+// Leaflet map center updater with smooth flyTo animation
 function LeafletRecenter({
   lat,
   lon,
@@ -754,7 +761,11 @@ function LeafletRecenter({
   const map = useMap();
   useEffect(() => {
     if (map) {
-      map.panTo([lat, lon], { animate: true });
+      if (typeof map.flyTo === "function") {
+        map.flyTo([lat, lon], 13, { animate: true, duration: 1.2 });
+      } else {
+        map.panTo([lat, lon], { animate: true });
+      }
     }
   }, [lat, lon, map]);
   return null;

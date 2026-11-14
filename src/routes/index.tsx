@@ -21,6 +21,7 @@ import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiSe
 import {
   getStoredLocation,
   getUrlCoords,
+  reverseGeocodeAndElevation,
   saveStoredLocation,
   syncUrlCoords,
 } from "@/utils/preciseLocation";
@@ -69,6 +70,12 @@ function AgroSpaceDashboard() {
   const [activeLayer, setActiveLayer] = useState<MapLayer>("NDVI");
   const [opacity, setOpacity] = useState(70);
 
+  const [locationMeta, setLocationMeta] = useState<{
+    label: string;
+    zone: string;
+    elevationM: number;
+  } | null>(null);
+
   useEffect(() => {
     if (isMobile) setCollapsed(true);
   }, [isMobile]);
@@ -85,10 +92,29 @@ function AgroSpaceDashboard() {
       if (stored) {
         setLat(stored.lat);
         setLon(stored.lon);
+        if (stored.label) {
+          setLocationMeta({
+            label: stored.label,
+            zone: "Dynamic Agricultural Zone",
+            elevationM: 500,
+          });
+        }
         syncUrlCoords(stored.lat, stored.lon);
       }
     }
   }, []);
+
+  // Dynamic reverse-geocoding, elevation, and Köppen climate zone calculation on lat/lon changes
+  useEffect(() => {
+    let active = true;
+    reverseGeocodeAndElevation(lat, lon).then((res) => {
+      if (!active) return;
+      setLocationMeta(res);
+    });
+    return () => {
+      active = false;
+    };
+  }, [lat, lon]);
 
   const fallbackTelemetry = useMemo(
     () => generateTelemetry({ lat, lon, borewellDepth, season, scenario, irrigation }),
@@ -126,13 +152,34 @@ function AgroSpaceDashboard() {
     };
   }, [lat, lon, borewellDepth, season, scenario, irrigation]);
 
-  const telemetry = liveTelemetry ?? fallbackTelemetry;
+  const baseTelemetry = liveTelemetry ?? fallbackTelemetry;
+
+  // Augment telemetry with dynamic reverse-geocoded location, climate zone, and elevation
+  const telemetry = useMemo(() => {
+    if (!locationMeta) return baseTelemetry;
+    return {
+      ...baseTelemetry,
+      meta: {
+        ...baseTelemetry.meta,
+        regionLabel: locationMeta.label || baseTelemetry.meta.regionLabel,
+        climateZone: locationMeta.zone || baseTelemetry.meta.climateZone,
+        elevationM: locationMeta.elevationM || baseTelemetry.meta.elevationM,
+      },
+    };
+  }, [baseTelemetry, locationMeta]);
 
   const setLocation = (la: number, lo: number, label?: string) => {
     const fixedLat = Math.round(la * 10000) / 10000;
     const fixedLon = Math.round(lo * 10000) / 10000;
     setLat(fixedLat);
     setLon(fixedLon);
+    if (label) {
+      setLocationMeta((prev) => ({
+        label,
+        zone: prev?.zone ?? "Dynamic Agricultural Zone",
+        elevationM: prev?.elevationM ?? 500,
+      }));
+    }
     saveStoredLocation(fixedLat, fixedLon, label);
     syncUrlCoords(fixedLat, fixedLon);
   };
@@ -162,6 +209,7 @@ function AgroSpaceDashboard() {
           irrigation={irrigation}
           season={season}
           scenario={scenario}
+          locationLabel={telemetry.meta.regionLabel}
           onLocation={setLocation}
           onDepth={setBorewellDepth}
           onIrrigation={setIrrigation}
@@ -180,9 +228,9 @@ function AgroSpaceDashboard() {
                     {liveStatus.activeFeeds.length}/9 FEEDS)
                   </span>
                 ) : isLoadingLive ? (
-                  <span className="inline-flex items-center gap-1 rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
-                    <RefreshCw className="size-2.5 animate-spin text-cyan" /> SYNCING LIVE
-                    TELEMETRY...
+                  <span className="inline-flex items-center gap-1 rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan animate-pulse">
+                    <RefreshCw className="size-2.5 animate-spin text-cyan" /> SYNCING NASA SATELLITE
+                    TELEMETRY FOR {(telemetry.meta.regionLabel || "FIELD").toUpperCase()}...
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded border border-muted/50 bg-muted/30 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
@@ -194,7 +242,8 @@ function AgroSpaceDashboard() {
                 {telemetry.meta.regionLabel}
               </h1>
               <p className="font-mono text-[11px] text-muted-foreground">
-                {telemetry.meta.climateZone} · {season} · {irrigation}
+                {telemetry.meta.climateZone} · ELEV {telemetry.meta.elevationM} m ASL · {season} ·{" "}
+                {irrigation}
               </p>
             </div>
             <div className="flex items-center gap-3">

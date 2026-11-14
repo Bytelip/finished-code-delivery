@@ -94,7 +94,9 @@ const KNOWN_SITES = [
 ];
 
 function describeLocation(lat: number, lon: number, aridity: number) {
-  const site = KNOWN_SITES.find((s) => Math.abs(s.lat - lat) < 0.6 && Math.abs(s.lon - lon) < 0.6);
+  const site = KNOWN_SITES.find(
+    (s) => Math.abs(s.lat - lat) < 0.05 && Math.abs(s.lon - lon) < 0.05,
+  );
   if (site) return { label: site.label, zone: site.zone, elev: site.elev };
   const absLat = Math.abs(lat);
   const zone =

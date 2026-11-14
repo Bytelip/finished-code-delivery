@@ -4,6 +4,9 @@ import {
   fetchIpLocation,
   resolvePreciseLocation,
   searchNominatimPlaces,
+  searchDualProviderPlaces,
+  reverseGeocodeAndElevation,
+  computeKoppenClimateZone,
   getStoredLocation,
   saveStoredLocation,
   getUrlCoords,
@@ -197,6 +200,112 @@ describe("preciseLocation utilities", () => {
       expect(places[0].lat).toBe(13.1367);
       expect(places[0].lon).toBe(78.1292);
       expect(places[0].displayName).toContain("563101");
+    });
+  });
+
+  describe("searchDualProviderPlaces", () => {
+    it("queries Open-Meteo as primary and formats results", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              id: 1277333,
+              name: "Bengaluru",
+              latitude: 12.97194,
+              longitude: 77.59369,
+              elevation: 920,
+              admin1: "Karnataka",
+              country: "India",
+            },
+          ],
+        }),
+      });
+      global.fetch = mockFetch;
+
+      const places = await searchDualProviderPlaces("Bengaluru");
+      expect(places.length).toBe(1);
+      expect(places[0].name).toBe("Bengaluru");
+      expect(places[0].subtitle).toContain("Karnataka, India");
+      expect(places[0].lat).toBe(12.9719);
+      expect(places[0].lon).toBe(77.5937);
+      expect(places[0].source).toBe("open-meteo");
+    });
+
+    it("falls back to Nominatim if Open-Meteo returns no results", async () => {
+      const mockFetch = vi
+        .fn()
+        // Call 1: Open-Meteo returns no results
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ results: [] }),
+        })
+        // Call 2: Nominatim returns a result
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            {
+              place_id: 999,
+              display_name: "Chintamani, Chikkaballapura, Karnataka, India",
+              lat: "13.4000",
+              lon: "78.0500",
+              address: {
+                town: "Chintamani",
+                state: "Karnataka",
+                country: "India",
+              },
+            },
+          ],
+        });
+      global.fetch = mockFetch;
+
+      const places = await searchDualProviderPlaces("Chintamani");
+      expect(places.length).toBe(1);
+      expect(places[0].name).toBe("Chintamani");
+      expect(places[0].source).toBe("nominatim");
+    });
+  });
+
+  describe("reverseGeocodeAndElevation", () => {
+    it("returns dynamic reverse geocode label, elevation, and Köppen climate zone", async () => {
+      const mockFetch = vi
+        .fn()
+        // Call 1: Nominatim reverse
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            display_name: "Bengaluru, Bangalore Urban, Karnataka, India",
+            address: {
+              city: "Bengaluru",
+              state: "Karnataka",
+              country: "India",
+            },
+          }),
+        })
+        // Call 2: Open-Meteo elevation
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            elevation: [918.5],
+          }),
+        });
+      global.fetch = mockFetch;
+
+      const res = await reverseGeocodeAndElevation(12.9719, 77.5937);
+      expect(res.label).toBe("Bengaluru, Karnataka");
+      expect(res.elevationM).toBe(919);
+      expect(res.zone).toBeDefined();
+    });
+  });
+
+  describe("computeKoppenClimateZone", () => {
+    it("classifies tropical vs temperate vs arid zones accurately", () => {
+      // Near equator
+      expect(computeKoppenClimateZone(0, 20)).toMatch(/Tropical/i);
+      // Sahara / Arabian desert
+      expect(computeKoppenClimateZone(25, 45)).toMatch(/Arid/i);
+      // High latitude
+      expect(computeKoppenClimateZone(65, 10)).toMatch(/boreal/i);
     });
   });
 });
