@@ -125,6 +125,7 @@ describe("GlobeViewport", () => {
     expect(container.querySelector('[data-hud-overlay="layer-readout"]')).not.toBeNull();
     expect(container.querySelector('[data-hud-overlay="layer-switcher"]')).not.toBeNull();
     expect(container.querySelector('[data-hud-overlay="zoom-controls"]')).not.toBeNull();
+    expect(container.querySelector('[data-hud-overlay="map-layer-switcher"]')).not.toBeNull();
   });
 
   it("interacts with HUD zoom control bar buttons and slider", () => {

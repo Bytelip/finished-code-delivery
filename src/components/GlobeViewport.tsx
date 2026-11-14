@@ -63,6 +63,7 @@ import {
 } from "@/services/gibsLayers";
 import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/core/animated-background";
+import { MapLayerSwitcher, type BasemapStyle } from "@/components/map/MapLayerSwitcher";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 export const TELEMETRY_TABS = MAP_LAYERS;
@@ -460,6 +461,7 @@ export interface GlobeViewportProps {
   opacity: number;
   onOpacity: (o: number) => void;
   onPick: (lat: number, lon: number) => void;
+  initialBasemapStyle?: BasemapStyle;
 }
 
 export function GlobeViewport({
@@ -469,6 +471,7 @@ export function GlobeViewport({
   opacity,
   onOpacity,
   onPick,
+  initialBasemapStyle,
 }: GlobeViewportProps) {
   const { lat, lon } = telemetry.input;
   const { meta, hazards } = telemetry;
@@ -485,6 +488,13 @@ export function GlobeViewport({
   );
   const [leafletModule, setLeafletModule] = useState<LeafletBundle | null>(null);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
+
+  // Basemap & Layer Switcher State
+  const [basemapStyle, setBasemapStyle] = useState<BasemapStyle>(
+    initialBasemapStyle || "satellite",
+  );
+  const [showLabels, setShowLabels] = useState(true);
+  const [enable3dTerrain, setEnable3dTerrain] = useState(true);
 
   // Zoom & LOD control state
   const [orbitalAltitude, setOrbitalAltitude] = useState(1.4);
@@ -1510,14 +1520,38 @@ export function GlobeViewport({
               width={containerDimensions.width}
               height={containerDimensions.height}
               backgroundColor="rgba(0,0,0,0)"
-              globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-              bumpImageUrl="https://unpkg.com/three-globe/example/img/earth-topology.png"
-              globeTileEngineUrl={(x: number, y: number, l: number) =>
-                `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`
+              globeImageUrl={
+                basemapStyle === "dark"
+                  ? "https://unpkg.com/three-globe/example/img/earth-night.jpg"
+                  : basemapStyle === "terrain"
+                    ? "https://unpkg.com/three-globe/example/img/earth-topology.png"
+                    : "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
               }
+              bumpImageUrl="https://unpkg.com/three-globe/example/img/earth-topology.png"
+              bumpScale={basemapStyle === "terrain" && enable3dTerrain ? 0.08 : 0.02}
+              globeTileEngineUrl={(x: number, y: number, l: number) => {
+                if (basemapStyle === "dark") {
+                  return `https://a.basemaps.cartocdn.com/dark_all/${l}/${x}/${y}.png`;
+                }
+                if (basemapStyle === "terrain") {
+                  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${l}/${y}/${x}`;
+                }
+                if (basemapStyle === "default") {
+                  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${l}/${y}/${x}`;
+                }
+                return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
+              }}
               rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
-              atmosphereColor="#00e5ff"
-              atmosphereAltitude={0.24}
+              atmosphereColor={
+                basemapStyle === "dark"
+                  ? "#818cf8"
+                  : basemapStyle === "terrain"
+                    ? "#10b981"
+                    : basemapStyle === "default"
+                      ? "#38bdf8"
+                      : "#00e5ff"
+              }
+              atmosphereAltitude={basemapStyle === "terrain" && enable3dTerrain ? 0.32 : 0.24}
               arcsData={orbitArcsData}
               arcColor={(d: unknown) =>
                 (d as { color?: string[] })?.color || ["#00e5ff", "#10b981"]
@@ -1643,7 +1677,11 @@ export function GlobeViewport({
                   satBeacon.position.set(104 * Math.cos(t), 25 * Math.sin(t), 104 * Math.sin(t));
                 }
               }}
-              htmlElementsData={dynamicGlobeHtmlMarkers}
+              htmlElementsData={
+                showLabels
+                  ? dynamicGlobeHtmlMarkers
+                  : dynamicGlobeHtmlMarkers.filter((m) => m.priority === 1)
+              }
               htmlLat="lat"
               htmlLng="lng"
               htmlAltitude={0.015}
@@ -1743,26 +1781,61 @@ export function GlobeViewport({
             scrollWheelZoom={true}
             style={{ width: "100%", height: "100%", background: "#050811" }}
           >
-            {/* Esri World Imagery high-zoom satellite base layer */}
-            <LeafletComp.TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              maxZoom={18}
-              attribution="Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
-            />
+            {/* Dynamic Basemap Tile Layer */}
+            {basemapStyle === "satellite" && (
+              <LeafletComp.TileLayer
+                key="base-satellite"
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={18}
+                attribution="Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
+              />
+            )}
+            {basemapStyle === "terrain" && (
+              <LeafletComp.TileLayer
+                key="base-terrain"
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={18}
+                attribution="Tiles &copy; Esri &mdash; World Topo Map & Elevation Contours"
+              />
+            )}
+            {basemapStyle === "default" && (
+              <LeafletComp.TileLayer
+                key="base-default"
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={18}
+                attribution="Tiles &copy; Esri &mdash; World Street Map"
+              />
+            )}
+            {basemapStyle === "dark" && (
+              <LeafletComp.TileLayer
+                key={`base-dark-${showLabels ? "labels" : "nolabels"}`}
+                url={
+                  showLabels
+                    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    : "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+                }
+                maxZoom={18}
+                attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+              />
+            )}
 
-            {/* 100% Free Keyless ArcGIS Online Reference Layers (Zero Watermarks) */}
-            <LeafletComp.TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
-              maxZoom={18}
-              zIndex={15}
-              opacity={0.75}
-            />
-            <LeafletComp.TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}"
-              maxZoom={18}
-              zIndex={16}
-              opacity={0.8}
-            />
+            {/* Optional 100% Free Keyless ArcGIS Reference Place & Boundary Overlays */}
+            {showLabels && basemapStyle !== "dark" && (
+              <>
+                <LeafletComp.TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={18}
+                  zIndex={15}
+                  opacity={0.75}
+                />
+                <LeafletComp.TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={18}
+                  zIndex={16}
+                  opacity={0.8}
+                />
+              </>
+            )}
 
             {/* NASA GIBS WMTS Raster Tile Layer (Level maxZoom with smooth upscaling up to 18) */}
             <LeafletComp.TileLayer
@@ -2136,7 +2209,7 @@ export function GlobeViewport({
       {viewMode === "2d" && (
         <div
           data-hud-overlay="hazard-filter"
-          className="absolute left-3 bottom-24 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
+          className="absolute left-3 bottom-32 sm:bottom-28 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
         >
           <Button
             type="button"
@@ -2236,6 +2309,18 @@ export function GlobeViewport({
           )}
         </div>
       )}
+
+      {/* ---------------- FLOATING GOOGLE MAPS-STYLE BASEMAP & TERRAIN SWITCHER ---------------- */}
+      <MapLayerSwitcher
+        currentStyle={basemapStyle}
+        onStyleChange={setBasemapStyle}
+        showLabels={showLabels}
+        onToggleLabels={setShowLabels}
+        enable3dTerrain={enable3dTerrain}
+        onToggle3dTerrain={setEnable3dTerrain}
+        viewMode={viewMode}
+        className="absolute left-3 bottom-18 sm:bottom-16 z-30"
+      />
 
       {/* ---------------- BOTTOM-CENTER SCIENTIFIC LAYER LEGEND + SWITCHER ---------------- */}
       <div
