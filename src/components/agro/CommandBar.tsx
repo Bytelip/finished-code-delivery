@@ -14,8 +14,8 @@ import {
   Rocket,
   Clock,
   Radio,
-  Eye,
 } from "lucide-react";
+import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,8 +114,6 @@ export function CommandBar({
   onSignOut,
   onUpdateUser,
   onOpenMissionBrief,
-  cockpitHudActive = true,
-  onToggleCockpitHud,
 }: {
   lat: number;
   lon: number;
@@ -136,8 +134,6 @@ export function CommandBar({
   onSignOut?: () => void;
   onUpdateUser?: (u: UserProfile) => void;
   onOpenMissionBrief?: () => void;
-  cockpitHudActive?: boolean;
-  onToggleCockpitHud?: () => void;
 }) {
   const [metSeconds, setMetSeconds] = useState(142 * 3600 + 18 * 60 + 22);
 
@@ -614,23 +610,8 @@ export function CommandBar({
             <span>LINK: 99.8% NOMINAL</span>
           </div>
 
-          {/* Cockpit HUD Visor Toggle */}
-          <Button
-            type="button"
-            size="sm"
-            onClick={onToggleCockpitHud}
-            className={cn(
-              "h-7 px-2.5 text-[11px] font-mono font-bold tracking-wider rounded-full border transition-all flex items-center gap-1.5 cursor-pointer",
-              cockpitHudActive
-                ? "bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border-indigo-400/50 shadow-[0_0_14px_rgba(99,102,241,0.3)]"
-                : "bg-muted/40 hover:bg-muted/60 text-muted-foreground border-border/60",
-            )}
-            title="Toggle Sci-Fi Cockpit HUD Visor & Overlays"
-          >
-            <Eye className="size-3 text-indigo-400" />
-            <span className="hidden lg:inline">🛸 HUD: {cockpitHudActive ? "ON" : "OFF"}</span>
-            <span className="lg:hidden">HUD</span>
-          </Button>
+          {/* Multi-Theme Palette Switcher */}
+          <ThemeSwitcher />
 
           <Button
             type="button"

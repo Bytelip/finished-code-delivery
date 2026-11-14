@@ -5,7 +5,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
 import { CommandBar } from "@/components/agro/CommandBar";
 import { GlobeContainer } from "@/components/agro/GlobeContainer";
-import { OrbitalCockpitVisor } from "@/components/cockpit/OrbitalCockpitVisor";
 import {
   CosmicAuthPage,
   UserProfileNavbarWidget,
@@ -103,26 +102,6 @@ function AgroSpaceDashboard() {
   const [showMissionBriefModal, setShowMissionBriefModal] = useState(false);
   const [showAdvisoryReportModal, setShowAdvisoryReportModal] = useState(false);
   const [advisoryLanguage, setAdvisoryLanguage] = useState<"en" | "hi" | "kn">("en");
-
-  const [cockpitHudActive, setCockpitHudActive] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return localStorage.getItem("agro_cockpit_hud") !== "false";
-  });
-
-  const toggleCockpitHud = () => {
-    setCockpitHudActive((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("agro_cockpit_hud", String(next));
-      }
-      toast.info(next ? "Cockpit HUD Visor Online" : "Cockpit HUD Visor Offline", {
-        description: next
-          ? "Zero-G orbital frame, telemetry reticles, and targeting active."
-          : "Minimal clean view active.",
-      });
-      return next;
-    });
-  };
 
   useEffect(() => {
     const stored = getStoredUser() || loadStoredProfile();
@@ -252,9 +231,6 @@ function AgroSpaceDashboard() {
 
   return (
     <div className="flex min-h-screen relative overflow-x-hidden">
-      {/* SpaceX Dragon / NASA Orion Zero-G Orbital Cockpit HUD Visor */}
-      <OrbitalCockpitVisor active={cockpitHudActive} lat={lat} lon={lon} />
-
       <DashboardSidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
@@ -287,8 +263,6 @@ function AgroSpaceDashboard() {
           onOpenAuth={() => setShowAuthModal(true)}
           onOpenSettings={() => setShowSettingsModal(true)}
           onOpenMissionBrief={() => setShowMissionBriefModal(true)}
-          cockpitHudActive={cockpitHudActive}
-          onToggleCockpitHud={toggleCockpitHud}
           onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
           onUpdateUser={(updated) => {
             setOperator(updated);

@@ -147,6 +147,214 @@
   --glow-amber: 0 0 20px oklch(0.8 0.18 75 / 0.5);
   --glow-crimson: 0 0 24px oklch(0.67 0.25 25 / 0.6);
   --bracket: oklch(0.79 0.17 210 / 0.92);
+
+  --bg-primary: #04070d;
+  --bg-card: rgba(10, 20, 36, 0.88);
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-primary: #06b6d4;
+  --accent-glow: rgba(6, 182, 212, 0.35);
+  --border-subtle: rgba(6, 182, 212, 0.28);
+  --bg-ambient-gradient: radial-gradient(
+    circle at 50% 50%,
+    rgba(14, 165, 233, 0.12) 0%,
+    rgba(88, 28, 135, 0.06) 45%,
+    #02040a 100%
+  );
+}
+
+/* --- THEME 1: ORBITAL SAPPHIRE (Clean NASA Dark - Default) --- */
+html[data-theme="orbital-cyan"] {
+  --bg-primary: #04070d;
+  --bg-card: rgba(10, 20, 36, 0.88);
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-primary: #06b6d4;
+  --accent-glow: rgba(6, 182, 212, 0.35);
+  --border-subtle: rgba(6, 182, 212, 0.28);
+  --background: oklch(0.105 0.022 260);
+  --foreground: oklch(0.96 0.012 210);
+  --card: oklch(0.145 0.03 262 / 0.88);
+  --card-foreground: oklch(0.96 0.012 210);
+  --primary: oklch(0.79 0.17 210);
+  --border: oklch(0.79 0.17 210 / 0.24);
+  --cyan: oklch(0.79 0.17 210);
+  --bg-ambient-gradient: radial-gradient(
+    circle at 50% 50%,
+    rgba(14, 165, 233, 0.12) 0%,
+    rgba(88, 28, 135, 0.06) 45%,
+    #02040a 100%
+  );
+}
+
+/* --- THEME 2: ONYX MONOCHROME (Black & White Minimal) --- */
+html[data-theme="monochrome-dark"] {
+  --bg-primary: #000000;
+  --bg-card: rgba(14, 14, 16, 0.94);
+  --text-primary: #ffffff;
+  --text-muted: #a1a1aa;
+  --accent-primary: #ffffff;
+  --accent-glow: rgba(255, 255, 255, 0.28);
+  --border-subtle: rgba(255, 255, 255, 0.2);
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: rgba(18, 18, 22, 0.94);
+  --card-foreground: #ffffff;
+  --popover: rgba(18, 18, 22, 0.98);
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #18181b;
+  --secondary-foreground: #fafafa;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.2);
+  --input: rgba(255, 255, 255, 0.25);
+  --ring: #ffffff;
+  --cyan: #ffffff;
+  --emerald: #e4e4e7;
+  --bracket: #ffffff;
+  --sidebar: rgba(10, 10, 12, 0.96);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.18);
+  --shadow-hud: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 20px 45px -18px rgba(0, 0, 0, 0.9);
+  --shadow-hud-glow: 0 0 20px -3px rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.3);
+  --bg-ambient-gradient: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.03) 0%,
+    #000000 100%
+  );
+}
+
+/* --- THEME 3: ALABASTER DAYLIGHT (White & Black Pristine) --- */
+html[data-theme="monochrome-light"] {
+  --bg-primary: #f8fafc;
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --text-primary: #09090b;
+  --text-muted: #475569;
+  --accent-primary: #0f172a;
+  --accent-glow: rgba(15, 23, 42, 0.14);
+  --border-subtle: rgba(15, 23, 42, 0.14);
+  --background: #f1f5f9;
+  --foreground: #09090b;
+  --card: rgba(255, 255, 255, 0.96);
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #0f172a;
+  --primary-foreground: #ffffff;
+  --secondary: #e2e8f0;
+  --secondary-foreground: #0f172a;
+  --muted: #e2e8f0;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --border: #cbd5e1;
+  --input: #cbd5e1;
+  --ring: #0f172a;
+  --cyan: #0284c7;
+  --emerald: #059669;
+  --bracket: #0f172a;
+  --sidebar: rgba(255, 255, 255, 0.97);
+  --sidebar-foreground: #09090b;
+  --sidebar-primary: #0f172a;
+  --sidebar-border: #cbd5e1;
+  --shadow-hud: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+  --shadow-hud-glow: 0 0 15px -3px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.15);
+  --bg-ambient-gradient: radial-gradient(
+    circle at 50% 50%,
+    rgba(226, 232, 240, 0.7) 0%,
+    #f1f5f9 100%
+  );
+}
+
+/* --- THEME 4: OBSIDIAN & CHAMPAGNE GOLD (Luxury Premier) --- */
+html[data-theme="champagne-gold"] {
+  --bg-primary: #070709;
+  --bg-card: rgba(22, 20, 18, 0.94);
+  --text-primary: #fafaf9;
+  --text-muted: #d6d3d1;
+  --accent-primary: #d4af37;
+  --accent-glow: rgba(212, 175, 55, 0.35);
+  --border-subtle: rgba(212, 175, 55, 0.28);
+  --background: #070709;
+  --foreground: #fafaf9;
+  --card: rgba(24, 21, 18, 0.94);
+  --card-foreground: #fafaf9;
+  --popover: rgba(26, 22, 19, 0.98);
+  --popover-foreground: #fafaf9;
+  --primary: #d4af37;
+  --primary-foreground: #070709;
+  --secondary: #24211e;
+  --secondary-foreground: #fafaf9;
+  --muted: #24211e;
+  --muted-foreground: #a8a29e;
+  --accent: #2e2a26;
+  --accent-foreground: #fafaf9;
+  --border: rgba(212, 175, 55, 0.3);
+  --input: rgba(212, 175, 55, 0.35);
+  --ring: #d4af37;
+  --cyan: #d4af37;
+  --emerald: #f59e0b;
+  --bracket: #d4af37;
+  --sidebar: rgba(18, 16, 14, 0.96);
+  --sidebar-foreground: #fafaf9;
+  --sidebar-primary: #d4af37;
+  --sidebar-border: rgba(212, 175, 55, 0.28);
+  --shadow-hud: 0 0 0 1px rgba(212, 175, 55, 0.15), 0 20px 45px -18px rgba(0, 0, 0, 0.9);
+  --shadow-hud-glow: 0 0 20px -3px rgba(212, 175, 55, 0.25), 0 0 0 1px rgba(212, 175, 55, 0.35);
+  --bg-ambient-gradient: radial-gradient(
+    circle at 50% 50%,
+    rgba(212, 175, 55, 0.1) 0%,
+    rgba(40, 25, 10, 0.12) 50%,
+    #070709 100%
+  );
+}
+
+/* --- THEME 5: EMERALD BIOSPHERE (Botanical Earth) --- */
+html[data-theme="emerald-terra"] {
+  --bg-primary: #020805;
+  --bg-card: rgba(10, 28, 19, 0.92);
+  --text-primary: #ecfdf5;
+  --text-muted: #6ee7b7;
+  --accent-primary: #10b981;
+  --accent-glow: rgba(16, 185, 129, 0.38);
+  --border-subtle: rgba(16, 185, 129, 0.28);
+  --background: #020805;
+  --foreground: #ecfdf5;
+  --card: rgba(12, 32, 22, 0.94);
+  --card-foreground: #ecfdf5;
+  --popover: rgba(14, 36, 25, 0.98);
+  --popover-foreground: #ecfdf5;
+  --primary: #10b981;
+  --primary-foreground: #020805;
+  --secondary: #11281c;
+  --secondary-foreground: #ecfdf5;
+  --muted: #11281c;
+  --muted-foreground: #6ee7b7;
+  --accent: #173627;
+  --accent-foreground: #ecfdf5;
+  --border: rgba(16, 185, 129, 0.3);
+  --input: rgba(16, 185, 129, 0.35);
+  --ring: #10b981;
+  --cyan: #10b981;
+  --emerald: #34d399;
+  --bracket: #10b981;
+  --sidebar: rgba(6, 22, 15, 0.96);
+  --sidebar-foreground: #ecfdf5;
+  --sidebar-primary: #10b981;
+  --sidebar-border: rgba(16, 185, 129, 0.28);
+  --shadow-hud: 0 0 0 1px rgba(16, 185, 129, 0.15), 0 20px 45px -18px rgba(0, 0, 0, 0.9);
+  --shadow-hud-glow: 0 0 20px -3px rgba(16, 185, 129, 0.28), 0 0 0 1px rgba(16, 185, 129, 0.35);
+  --bg-ambient-gradient: radial-gradient(
+    circle at 50% 50%,
+    rgba(16, 185, 129, 0.1) 0%,
+    rgba(6, 78, 59, 0.12) 50%,
+    #020805 100%
+  );
 }
 
 @layer base {
@@ -158,29 +366,35 @@
     color-scheme: dark;
   }
 
+  html.light {
+    color-scheme: light;
+  }
+
   body {
-    background-color: #02040a;
-    background-image:
-      /* Ambient Cosmic Nebula Glow */
-      radial-gradient(
-        circle at 50% 50%,
-        rgba(14, 165, 233, 0.14) 0%,
-        rgba(88, 28, 135, 0.08) 45%,
-        #02040a 100%
-      ),
-      /* Upper Cockpit Horizon Glow */
-        radial-gradient(circle 900px at 50% -15%, rgba(6, 182, 212, 0.15), transparent 70%),
-      /* Micro Telemetry Matrix Grid Dots */
-        radial-gradient(rgba(34, 211, 238, 0.12) 1px, transparent 1px);
-    background-size:
-      100% 100%,
-      100% 100%,
-      32px 32px;
+    background-color: var(--background);
+    background-image: var(--bg-ambient-gradient);
+    background-size: 100% 100%;
     background-attachment: fixed;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+
+  /* Smooth transition for theme switching */
+  .hud-card,
+  .hologram-cockpit-card,
+  header,
+  nav,
+  aside,
+  main,
+  button {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
   }
 
   /* Futuristic aerospace scrollbars */
@@ -726,21 +940,22 @@
 
 /* Holographic Spacecraft Glass Surfaces */
 .hologram-cockpit-card {
-  background: rgba(4, 9, 20, 0.72) !important;
+  background: var(--card) !important;
   backdrop-filter: blur(24px) !important;
-  border: 1px solid rgba(6, 182, 212, 0.28) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid var(--border) !important;
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.85),
-    inset 0 1px 1px rgba(125, 211, 252, 0.2) !important;
+    0 20px 60px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .hologram-cockpit-card:hover {
-  border-color: rgba(34, 211, 238, 0.6) !important;
+  border-color: var(--primary) !important;
   box-shadow:
-    0 0 35px rgba(34, 211, 238, 0.25),
-    0 20px 60px rgba(0, 0, 0, 0.9),
-    inset 0 1px 1px rgba(125, 211, 252, 0.35) !important;
+    0 0 35px var(--accent-glow, rgba(34, 211, 238, 0.25)),
+    0 20px 60px rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15) !important;
 }
 
 /* Subtle Animated Laser Scanline */
@@ -750,14 +965,7 @@
 }
 
 .laser-scanline-panel::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 25px;
-  background: linear-gradient(to bottom, transparent, rgba(34, 211, 238, 0.04), transparent);
-  pointer-events: none;
-  animation: laserScanlineSweep 9s linear infinite;
+  display: none;
 }
 
 /* Chamfered Sci-Fi Corner Bracket Accents */
@@ -772,8 +980,8 @@
   left: 0;
   width: 10px;
   height: 10px;
-  border-top: 2px solid rgba(34, 211, 238, 0.85);
-  border-left: 2px solid rgba(34, 211, 238, 0.85);
+  border-top: 2px solid var(--primary, rgba(34, 211, 238, 0.85));
+  border-left: 2px solid var(--primary, rgba(34, 211, 238, 0.85));
   pointer-events: none;
   z-index: 10;
 }
@@ -785,8 +993,8 @@
   right: 0;
   width: 10px;
   height: 10px;
-  border-bottom: 2px solid rgba(34, 211, 238, 0.85);
-  border-right: 2px solid rgba(34, 211, 238, 0.85);
+  border-bottom: 2px solid var(--primary, rgba(34, 211, 238, 0.85));
+  border-right: 2px solid var(--primary, rgba(34, 211, 238, 0.85));
   pointer-events: none;
   z-index: 10;
 }
