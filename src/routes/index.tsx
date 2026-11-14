@@ -217,49 +217,66 @@ function AgroSpaceDashboard() {
           onScenario={setScenario}
         />
 
-        <div className="space-y-4 p-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="hud-label">{tabLabel}</div>
-                {liveStatus?.isLive ? (
-                  <span className="inline-flex items-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] text-emerald">
-                    <Radio className="size-2.5 animate-pulse text-emerald" /> LIVE SATELLITE (
-                    {liveStatus.activeFeeds.length}/9 FEEDS)
+        <div className="space-y-4 p-4 lg:p-5">
+          {/* Orbital Telemetry Top Deck */}
+          <div className="relative overflow-hidden rounded-lg border border-border/60 bg-card/75 p-4 backdrop-blur-xl shadow-[0_0_25px_rgba(0,0,0,0.5)]">
+            {/* Top Tactical Lightline */}
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-cyan via-emerald to-transparent opacity-80" />
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-cyan/15 border border-cyan/40 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan uppercase tracking-widest">
+                    {tabLabel}
                   </span>
-                ) : isLoadingLive ? (
-                  <span className="inline-flex items-center gap-1 rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan animate-pulse">
-                    <RefreshCw className="size-2.5 animate-spin text-cyan" /> SYNCING NASA SATELLITE
-                    TELEMETRY FOR {(telemetry.meta.regionLabel || "FIELD").toUpperCase()}...
+                  {liveStatus?.isLive ? (
+                    <span className="inline-flex items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2 py-0.5 font-mono text-[9px] font-bold text-emerald shadow-[0_0_10px_rgba(0,255,157,0.25)]">
+                      <Radio className="size-2.5 animate-pulse text-emerald" /> LIVE SATELLITE ({liveStatus.activeFeeds.length}/9 FEEDS ACTIVE)
+                    </span>
+                  ) : isLoadingLive ? (
+                    <span className="inline-flex items-center gap-1.5 rounded border border-cyan-500/50 bg-cyan-500/15 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan animate-pulse shadow-[0_0_10px_rgba(0,240,255,0.25)]">
+                      <RefreshCw className="size-2.5 animate-spin text-cyan" /> SYNCING NASA TELEMETRY FOR {(telemetry.meta.regionLabel || "FIELD").toUpperCase()}...
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded border border-muted/70 bg-muted/40 px-2 py-0.5 font-mono text-[9px] text-muted-foreground">
+                      <Satellite className="size-2.5 text-muted-foreground" /> MOCK ORBITAL TELEMETRY (DETERMINISTIC)
+                    </span>
+                  )}
+                  <span className="hidden sm:inline-flex items-center gap-1 font-mono text-[10px] text-cyan/70">
+                    <span className="inline-block size-1.5 rounded-full bg-cyan shadow-[0_0_6px_#00f0ff]" />
+                    {lat.toFixed(4)}° {lat >= 0 ? "N" : "S"}, {lon.toFixed(4)}° {lon >= 0 ? "E" : "W"}
                   </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded border border-muted/50 bg-muted/30 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
-                    <Satellite className="size-2.5 text-muted-foreground" /> MOCK FALLBACK (OFFLINE)
+                </div>
+
+                <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+                  <span>{telemetry.meta.regionLabel}</span>
+                  <span className="text-xs font-mono font-normal text-cyan/80 bg-cyan/10 border border-cyan/30 px-2 py-0.5 rounded">
+                    ELEV {telemetry.meta.elevationM}m
                   </span>
-                )}
+                </h1>
+
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                  <span className="text-foreground/80">{telemetry.meta.climateZone}</span> · {season} Cycle · {irrigation} Irrigation
+                </p>
               </div>
-              <h1 className="mt-1 text-xl font-semibold tracking-tight">
-                {telemetry.meta.regionLabel}
-              </h1>
-              <p className="font-mono text-[11px] text-muted-foreground">
-                {telemetry.meta.climateZone} · ELEV {telemetry.meta.elevationM} m ASL · {season} ·{" "}
-                {irrigation}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="hud-label">Field Health</div>
-                <div className="font-mono text-2xl font-semibold tabular-nums text-emerald">
-                  {telemetry.plantHealth.overall}
-                  <span className="text-sm text-muted-foreground">/100</span>
+
+              {/* Field Health Tactical Readout */}
+              <div className="flex flex-wrap items-center gap-3.5 rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 backdrop-blur-md">
+                <div className="text-right">
+                  <div className="hud-label text-[10px] text-cyan/80">Field Health Index</div>
+                  <div className="font-mono text-3xl font-extrabold tabular-nums text-emerald drop-shadow-[0_0_10px_rgba(0,255,157,0.5)]">
+                    {telemetry.plantHealth.overall}
+                    <span className="text-sm font-normal text-muted-foreground/70">/100</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <SeverityChip severity={telemetry.plantHealth.status} />
+                  {scenario !== "Nominal" && (
+                    <span className="inline-flex items-center gap-1 rounded border border-crimson/60 bg-crimson/20 px-2 py-0.5 font-mono text-[10px] font-bold text-crimson shadow-[0_0_10px_rgba(255,46,86,0.3)] animate-pulse">
+                      <Activity className="size-3" /> SIM · {scenario}
+                    </span>
+                  )}
                 </div>
               </div>
-              <SeverityChip severity={telemetry.plantHealth.status} />
-              {scenario !== "Nominal" && (
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-crimson/50 bg-crimson/10 px-2.5 py-1 font-mono text-[11px] text-crimson">
-                  <Activity className="size-3.5" /> SIM · {scenario}
-                </span>
-              )}
             </div>
           </div>
 

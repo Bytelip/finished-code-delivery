@@ -10,6 +10,7 @@ import {
   X,
   Check,
   Globe2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -62,8 +63,8 @@ function CoordInput({
     setDraft(String(c));
   };
   return (
-    <label className="flex items-center gap-1.5">
-      <span className="hud-label text-[11px]">{label}</span>
+    <label className="flex items-center gap-1.5 rounded border border-border/40 bg-card/60 px-2 py-1 shadow-inner focus-within:border-cyan/70 focus-within:shadow-[0_0_10px_rgba(0,240,255,0.25)] transition-all">
+      <span className="hud-label text-[10px] text-cyan/80 font-bold">{label}</span>
       <Input
         inputMode="decimal"
         aria-label={label === "Lat" ? "Latitude" : "Longitude"}
@@ -71,7 +72,7 @@ function CoordInput({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => e.key === "Enter" && commit()}
-        className="h-8 w-20 bg-background/60 font-mono text-xs tabular-nums px-2"
+        className="h-6 w-18 border-0 bg-transparent p-0 font-mono text-xs font-semibold tabular-nums text-foreground focus-visible:ring-0 focus-visible:outline-none"
       />
     </label>
   );
@@ -79,8 +80,8 @@ function CoordInput({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="hud-label text-[11px]">{label}</span>
+    <div className="flex items-center gap-2 rounded border border-border/30 bg-card/40 px-2.5 py-1.5 backdrop-blur-sm">
+      <span className="hud-label text-[10px] text-muted-foreground font-semibold">{label}</span>
       {children}
     </div>
   );
@@ -178,7 +179,6 @@ export function CommandBar({
     setSearchQuery(place.name);
     setDropdownOpen(false);
     setSelectedIndex(-1);
-    // Switch accuracy badge to emerald PINNED / SEARCH
     setAccuracyBadge({ text: "PINNED / SEARCH", type: "pinned" });
     toast.success(
       `Location locked: ${place.name} (${place.lat.toFixed(4)}°, ${place.lon.toFixed(4)}°)`,
@@ -204,14 +204,11 @@ export function CommandBar({
       setSelectedIndex(-1);
     } else if (e.key === "Enter") {
       e.preventDefault();
-      // If user selected an item from dropdown
       if (selectedIndex >= 0 && searchResults[selectedIndex]) {
         selectPlace(searchResults[selectedIndex]);
       } else if (searchResults.length > 0) {
-        // Automatically select the top result if enter is pressed
         selectPlace(searchResults[0]);
       } else if (searchQuery.trim().length >= 2) {
-        // Execute instant on-demand search
         setSearching(true);
         const places = await searchDualProviderPlaces(searchQuery.trim());
         setSearching(false);
@@ -252,7 +249,6 @@ export function CommandBar({
 
       onLocation(result.lat, result.lon, result.city || result.region);
 
-      // Insecure LAN warning
       if (result.networkBlocked || isInsecureLanContext()) {
         setShowInsecureBanner(true);
         const host = typeof window !== "undefined" ? window.location.host : "192.168.0.3:8080";
@@ -278,15 +274,14 @@ export function CommandBar({
   const host = typeof window !== "undefined" ? window.location.host : "192.168.0.3:8080";
 
   return (
-    <div className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-xl">
+    <div className="sticky top-0 z-20 border-b border-border/80 bg-background/85 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
       {/* ---------------- INSECURE LAN HOST BANNER ---------------- */}
       {showInsecureBanner && !bannerDismissed && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 font-mono text-xs text-amber-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 font-mono text-xs text-amber-200">
           <div className="flex items-center gap-2">
             <AlertTriangle className="size-4 shrink-0 text-amber-400" />
             <span>
-              Browsers block hardware GPS on insecure LAN IP (<code>http://{host}</code>).
-              Approximate location used.
+              Browsers block hardware GPS on insecure LAN HTTP (<code>http://{host}</code>). Approximate location used.
             </span>
             <a
               href={`https://${host}`}
@@ -295,8 +290,7 @@ export function CommandBar({
               Switch to HTTPS <ExternalLink className="size-3" />
             </a>
             <span className="hidden xl:inline text-muted-foreground ml-2">
-              (or open <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> and add{" "}
-              <code>http://{host}</code>)
+              (or open <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> and add <code>http://{host}</code>)
             </span>
           </div>
           <button
@@ -311,9 +305,9 @@ export function CommandBar({
       )}
 
       {/* ---------------- MAIN CONTROLS ROW ---------------- */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5 px-4 py-2.5">
         {/* Lat / Lon / Accuracy / GPS Trigger */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <CoordInput
             label="Lat"
             value={lat}
@@ -335,10 +329,10 @@ export function CommandBar({
               className={cn(
                 "hidden sm:inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider",
                 accuracyBadge.type === "pinned"
-                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald shadow-[0_0_8px_rgba(16,185,129,0.25)]"
+                  ? "border-emerald-500/60 bg-emerald-500/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)]"
                   : accuracyBadge.type === "high"
-                    ? "border-cyan-500/40 bg-cyan-500/10 text-cyan"
-                    : "border-amber-500/40 bg-amber-500/10 text-amber",
+                    ? "border-cyan-500/50 bg-cyan-500/15 text-cyan shadow-[0_0_10px_rgba(0,240,255,0.25)]"
+                    : "border-amber-500/50 bg-amber-500/15 text-amber shadow-[0_0_10px_rgba(255,183,0,0.25)]",
               )}
               title={
                 accuracyBadge.type === "pinned"
@@ -362,13 +356,13 @@ export function CommandBar({
             onClick={locate}
             disabled={locating}
             aria-label="Acquire high-precision GPS location"
-            className="h-8 px-2.5 text-xs font-mono"
+            className="h-7.5 px-2.5 text-xs font-mono font-semibold"
             title="Acquire multi-sample high-precision GPS lock"
           >
             {locating ? (
-              <Loader2 className="size-3.5 animate-spin mr-1" />
+              <Loader2 className="size-3.5 animate-spin mr-1 text-cyan" />
             ) : (
-              <Crosshair className="size-3.5 mr-1 text-cyan" />
+              <Crosshair className="size-3.5 mr-1 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
             )}
             GPS
           </Button>
@@ -381,7 +375,7 @@ export function CommandBar({
               {searching ? (
                 <Loader2 className="size-3.5 animate-spin text-cyan" />
               ) : (
-                <Search className="size-3.5 text-cyan/70" />
+                <Search className="size-3.5 text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
               )}
             </span>
             <Input
@@ -397,7 +391,7 @@ export function CommandBar({
               }}
               onKeyDown={handleKeyDown}
               placeholder="Search village, town, pincode..."
-              className="h-8 pl-8 pr-7 font-mono text-xs bg-[#0B101E]/90 text-foreground placeholder:text-muted-foreground/60 border-cyan-500/30 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+              className="h-8 pl-8 pr-7 font-mono text-xs bg-card/90 text-foreground placeholder:text-muted-foreground/50 border-cyan/40 focus:border-cyan focus:ring-1 focus:ring-cyan shadow-[0_0_12px_rgba(0,240,255,0.15)]"
             />
             {searchQuery && (
               <button
@@ -407,7 +401,7 @@ export function CommandBar({
                   setSearchResults([]);
                   setDropdownOpen(false);
                 }}
-                className="absolute right-2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 text-muted-foreground hover:text-cyan"
                 title="Clear search"
               >
                 <X className="size-3.5" />
@@ -417,14 +411,14 @@ export function CommandBar({
 
           {/* High-z-index Dark Aerospace HUD Dropdown Suggestions */}
           {dropdownOpen && searchResults.length > 0 && (
-            <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan-500/40 bg-[#0D1322] p-1.5 shadow-2xl backdrop-blur-md">
-              <div className="flex items-center justify-between px-2.5 py-1 font-mono text-[10px] text-muted-foreground uppercase tracking-wider border-b border-border/50">
-                <span className="flex items-center gap-1">
-                  <Globe2 className="size-3 text-cyan" /> Geocoding Matches
+            <div className="absolute left-0 top-full z-50 mt-1.5 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan/50 bg-[#060a14]/95 p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+              <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider border-b border-border/40">
+                <span className="flex items-center gap-1.5 text-cyan font-semibold">
+                  <Globe2 className="size-3 text-cyan" /> Dual Geocoder Target Locks
                 </span>
-                <span>Press Enter to select</span>
+                <span className="text-[9px] text-muted-foreground/70">Enter to lock</span>
               </div>
-              <ul className="divide-y divide-border/30 mt-1">
+              <ul className="divide-y divide-border/25 mt-1">
                 {searchResults.map((place, idx) => {
                   const isHighlighted = idx === selectedIndex;
                   return (
@@ -433,18 +427,20 @@ export function CommandBar({
                       onClick={() => selectPlace(place)}
                       onMouseEnter={() => setSelectedIndex(idx)}
                       className={cn(
-                        "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-colors",
-                        isHighlighted ? "bg-cyan-500/20 text-cyan" : "hover:bg-muted/50",
+                        "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-all",
+                        isHighlighted
+                          ? "bg-cyan/20 text-cyan border border-cyan/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]"
+                          : "hover:bg-card/70 border border-transparent",
                       )}
                     >
-                      <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan" />
+                      <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-1">
                           <span className="font-semibold text-foreground truncate">
                             {place.name}
                           </span>
-                          <span className="shrink-0 font-mono text-[10px] text-cyan/90">
-                            [{place.lat.toFixed(4)}, {place.lon.toFixed(4)}]
+                          <span className="shrink-0 font-mono text-[10px] text-cyan font-bold">
+                            [{place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°]
                           </span>
                         </div>
                         <div className="font-mono text-[10px] text-muted-foreground truncate">
@@ -460,28 +456,30 @@ export function CommandBar({
         </div>
 
         {/* ---------------- BOREWELL SLIDER ---------------- */}
-        <Field label="Borewell">
+        <Field label="Borewell Depth">
           <Slider
             aria-label="Borewell depth"
-            className="w-28 sm:w-36"
+            className="w-24 sm:w-32"
             min={BOREWELL_DEPTH_RANGE.min}
             max={BOREWELL_DEPTH_RANGE.max}
             step={1}
             value={[borewellDepth]}
             onValueChange={([v]) => v !== undefined && onDepth(v)}
           />
-          <span className="w-16 font-mono text-xs tabular-nums text-cyan">{borewellDepth} m</span>
+          <span className="w-14 font-mono text-xs font-bold tabular-nums text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
+            {borewellDepth} m
+          </span>
         </Field>
 
         {/* ---------------- IRRIGATION SELECT ---------------- */}
         <Field label="Irrigation">
           <Select value={irrigation} onValueChange={(v) => onIrrigation(v as Irrigation)}>
-            <SelectTrigger aria-label="Irrigation" className="h-8 w-26 bg-background/60 text-xs">
+            <SelectTrigger aria-label="Irrigation" className="h-7 w-26 bg-background/80 text-xs font-mono border-border/60">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
               {IRRIGATION_TYPES.map((i) => (
-                <SelectItem key={i} value={i}>
+                <SelectItem key={i} value={i} className="text-xs font-mono">
                   {i}
                 </SelectItem>
               ))}
@@ -492,7 +490,7 @@ export function CommandBar({
         {/* ---------------- SEASON SELECTOR ---------------- */}
         <Field label="Season">
           <div
-            className="flex rounded-md border border-border bg-background/60 p-0.5"
+            className="flex rounded border border-border/50 bg-background/80 p-0.5"
             role="radiogroup"
             aria-label="Season"
           >
@@ -504,10 +502,10 @@ export function CommandBar({
                 aria-checked={season === s}
                 onClick={() => onSeason(s)}
                 className={cn(
-                  "rounded px-2 py-0.5 text-xs transition-colors font-mono",
+                  "rounded px-2 py-0.5 text-xs transition-all font-mono font-semibold",
                   season === s
-                    ? "bg-emerald/15 text-emerald font-semibold"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-emerald/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)] border border-emerald/50"
+                    : "text-muted-foreground hover:text-foreground border border-transparent",
                 )}
               >
                 {s}
@@ -517,26 +515,28 @@ export function CommandBar({
         </Field>
 
         {/* ---------------- SCENARIO SIMULATOR ---------------- */}
-        <Field label="Scenario">
+        <Field label="Sim Scenario">
           <Select value={scenario} onValueChange={(v) => onScenario(v as Scenario)}>
             <SelectTrigger
               aria-label="Scenario simulator"
               className={cn(
-                "h-8 w-36 sm:w-40 bg-background/60 text-xs font-mono",
-                alert && "border-crimson/60 text-crimson",
+                "h-7 w-36 sm:w-40 bg-background/80 text-xs font-mono font-semibold",
+                alert
+                  ? "border-crimson/70 text-crimson shadow-[0_0_12px_rgba(255,46,86,0.35)]"
+                  : "border-border/60",
               )}
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
               {SCENARIOS.map((s) => (
-                <SelectItem key={s} value={s}>
+                <SelectItem key={s} value={s} className="text-xs font-mono">
                   {s}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {alert && <span className="size-2 animate-pulse rounded-full bg-crimson" aria-hidden />}
+          {alert && <span className="size-2 animate-pulse rounded-full bg-crimson shadow-[0_0_8px_#ff2e56]" aria-hidden />}
         </Field>
       </div>
     </div>

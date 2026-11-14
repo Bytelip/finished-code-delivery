@@ -18,16 +18,26 @@ export function HudCard({
   className?: string;
 }) {
   return (
-    <div className={cn("hud-card p-4", className)}>
-      <header className="mb-3 flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-2">
-          {icon && <span className="mt-0.5 text-cyan [&_svg]:size-4">{icon}</span>}
+    <div className={cn("hud-card p-4.5 transition-all duration-200", className)}>
+      <header className="mb-3.5 flex items-start justify-between gap-3 border-b border-border/40 pb-2.5">
+        <div className="flex min-w-0 items-start gap-2.5">
+          {icon && (
+            <div className="mt-0.5 grid size-6 shrink-0 place-items-center rounded border border-cyan/40 bg-cyan/10 text-cyan shadow-[0_0_10px_rgba(0,240,255,0.25)] [&_svg]:size-3.5">
+              {icon}
+            </div>
+          )}
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold tracking-tight">{title}</h3>
-            {subtitle && <p className="hud-label mt-0.5 truncate">{subtitle}</p>}
+            <h3 className="truncate font-sans text-sm font-semibold tracking-tight text-foreground/95">
+              {title}
+            </h3>
+            {subtitle && (
+              <p className="hud-label mt-0.5 truncate tracking-[0.18em] text-[10px] text-cyan/70">
+                {subtitle}
+              </p>
+            )}
           </div>
         </div>
-        {right}
+        {right && <div className="shrink-0">{right}</div>}
       </header>
       {children}
     </div>
@@ -36,35 +46,39 @@ export function HudCard({
 
 export const SEVERITY_STYLES: Record<
   Severity,
-  { label: string; text: string; chip: string; dot: string; ring: string }
+  { label: string; text: string; chip: string; dot: string; ring: string; glow: string }
 > = {
   nominal: {
     label: "Nominal",
     text: "text-emerald",
-    chip: "border-emerald/40 bg-emerald/10 text-emerald",
-    dot: "bg-emerald",
-    ring: "border-emerald/25",
+    chip: "border-emerald/40 bg-emerald/10 text-emerald shadow-[0_0_12px_rgba(0,255,157,0.18)]",
+    dot: "bg-emerald shadow-[0_0_6px_#00ff9d]",
+    ring: "border-emerald/30",
+    glow: "glow-emerald",
   },
   watch: {
     label: "Watch",
     text: "text-cyan",
-    chip: "border-cyan/40 bg-cyan/10 text-cyan",
-    dot: "bg-cyan",
-    ring: "border-cyan/30",
+    chip: "border-cyan/40 bg-cyan/10 text-cyan shadow-[0_0_12px_rgba(0,240,255,0.18)]",
+    dot: "bg-cyan shadow-[0_0_6px_#00f0ff]",
+    ring: "border-cyan/35",
+    glow: "glow-cyan",
   },
   warning: {
     label: "Warning",
     text: "text-amber",
-    chip: "border-amber/40 bg-amber/10 text-amber",
-    dot: "bg-amber",
-    ring: "border-amber/40",
+    chip: "border-amber/50 bg-amber/15 text-amber shadow-[0_0_14px_rgba(255,183,0,0.25)]",
+    dot: "bg-amber shadow-[0_0_8px_#ffb700]",
+    ring: "border-amber/50",
+    glow: "glow-amber",
   },
   critical: {
     label: "Critical",
     text: "text-crimson",
-    chip: "border-crimson/50 bg-crimson/15 text-crimson",
-    dot: "bg-crimson",
-    ring: "border-crimson/60",
+    chip: "border-crimson/60 bg-crimson/20 text-crimson shadow-[0_0_16px_rgba(255,46,86,0.35)]",
+    dot: "bg-crimson shadow-[0_0_10px_#ff2e56]",
+    ring: "border-crimson/70",
+    glow: "glow-crimson",
   },
 };
 
@@ -73,12 +87,16 @@ export function SeverityChip({ severity }: { severity: Severity }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider backdrop-blur-md transition-shadow",
         s.chip,
       )}
     >
       <span
-        className={cn("size-1.5 rounded-full", s.dot, severity === "critical" && "animate-pulse")}
+        className={cn(
+          "size-1.5 rounded-full",
+          s.dot,
+          (severity === "critical" || severity === "warning") && "animate-pulse",
+        )}
       />
       {s.label}
     </span>
@@ -97,11 +115,11 @@ export function Readout({
   tone?: string;
 }) {
   return (
-    <div className="min-w-0">
-      <div className="hud-label truncate">{label}</div>
+    <div className="min-w-0 rounded border border-border/30 bg-background/30 p-2 backdrop-blur-sm">
+      <div className="hud-label truncate text-[9px] text-muted-foreground">{label}</div>
       <div className={cn("mt-1 truncate font-mono text-lg font-semibold tabular-nums", tone)}>
         {value}
-        {unit && <span className="ml-1 text-xs font-normal text-muted-foreground">{unit}</span>}
+        {unit && <span className="ml-1 text-xs font-normal text-muted-foreground/80">{unit}</span>}
       </div>
     </div>
   );
