@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { OperatorProfileDropdown } from "@/components/OperatorProfileDropdown";
+import { UserProfileNavbarWidget } from "@/components/CosmicAuthPage";
 import type { UserProfile } from "@/types/userProfile";
 import {
   BOREWELL_DEPTH_RANGE,
@@ -107,6 +108,7 @@ export function CommandBar({
   onOpenSettings,
   onNavigateHome,
   onSignOut,
+  onUpdateUser,
 }: {
   lat: number;
   lon: number;
@@ -125,6 +127,7 @@ export function CommandBar({
   onOpenSettings?: () => void;
   onNavigateHome?: (lat: number, lon: number, label: string) => void;
   onSignOut?: () => void;
+  onUpdateUser?: (u: UserProfile) => void;
 }) {
   const [locating, setLocating] = useState(false);
   const [accuracyBadge, setAccuracyBadge] = useState<{
@@ -567,13 +570,22 @@ export function CommandBar({
 
         {/* ---------------- OPERATOR PROFILE ICON & QUICK MENU (TOP-RIGHT NAVBAR) ---------------- */}
         <div className="ml-auto flex items-center pl-1 shrink-0">
-          <OperatorProfileDropdown
-            profile={profile || null}
-            onOpenAuth={onOpenAuth || (() => {})}
-            onOpenSettings={onOpenSettings || (() => {})}
-            onNavigateHome={onNavigateHome}
-            onSignOut={onSignOut || (() => {})}
-          />
+          {profile ? (
+            <UserProfileNavbarWidget
+              user={profile}
+              onUpdateUser={(updated) => onUpdateUser?.(updated)}
+              onLogout={() => onSignOut?.()}
+              onNavigateHome={(locStr) => onNavigateHome?.(13.1367, 78.1292, locStr)}
+            />
+          ) : (
+            <OperatorProfileDropdown
+              profile={null}
+              onOpenAuth={onOpenAuth || (() => {})}
+              onOpenSettings={onOpenSettings || (() => {})}
+              onNavigateHome={onNavigateHome}
+              onSignOut={onSignOut || (() => {})}
+            />
+          )}
         </div>
       </div>
     </div>
