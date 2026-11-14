@@ -59,6 +59,7 @@ import {
   type SatelliteLayerMeta,
 } from "@/services/gibsLayers";
 import { toast } from "sonner";
+import { AnimatedBackground } from "@/components/core/animated-background";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 
@@ -2122,35 +2123,47 @@ export function GlobeViewport({
           </div>
         </div>
 
-        {/* Layer Switcher Buttons Pill Bar */}
+        {/* Layer Switcher Buttons Pill Bar with AnimatedBackground */}
         <div
-          className="flex flex-wrap justify-center gap-1.5 bg-background/90 px-3.5 py-1.5 rounded-xl border border-cyan/40 backdrop-blur-xl shadow-[0_0_25px_rgba(0,0,0,0.8)]"
           role="radiogroup"
           aria-label="Map layer"
+          className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1.5 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-[calc(100vw-2rem)]"
         >
-          {MAP_LAYERS.map((l) => {
-            const isAct = activeLayer === l;
-            return (
-              <Button
-                key={l}
-                type="button"
-                variant="pill"
-                size="pill"
-                role="radio"
-                aria-checked={isAct}
-                data-active={isAct}
-                onClick={() => onLayer(l)}
-                className={cn(
-                  "transition-all text-xs font-semibold flex items-center gap-1.5",
-                  isAct &&
-                    "border-cyan bg-cyan/25 text-cyan drop-shadow-[0_0_8px_rgba(0,240,255,0.7)] shadow-[0_0_12px_rgba(0,240,255,0.35)]",
-                )}
-              >
-                {isAct && <span className="size-1.5 rounded-full bg-cyan animate-pulse" />}
-                {l}
-              </Button>
-            );
-          })}
+          <AnimatedBackground
+            defaultValue={activeLayer}
+            className="rounded-full bg-cyan-500/15 border border-cyan-400/50 shadow-[0_0_16px_rgba(34,211,238,0.3)]"
+            transition={{
+              type: "spring",
+              bounce: 0.2,
+              duration: 0.3,
+            }}
+            enableHover
+          >
+            {MAP_LAYERS.map((tab) => {
+              const isSelected = activeLayer === tab;
+              return (
+                <button
+                  key={tab}
+                  data-id={tab}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  aria-label={tab}
+                  onClick={() => onLayer(tab)}
+                  className={`px-3.5 py-1.5 font-mono text-xs tracking-wider rounded-full transition-colors duration-300 ${
+                    isSelected
+                      ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
+                      : "text-slate-400 hover:text-cyan-100 border border-white/5"
+                  }`}
+                >
+                  {isSelected && (
+                    <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
+                  )}
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
+          </AnimatedBackground>
         </div>
       </div>
     </div>
