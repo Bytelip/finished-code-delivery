@@ -5,14 +5,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
 import { CommandBar } from "@/components/agro/CommandBar";
 import { GlobeContainer } from "@/components/agro/GlobeContainer";
-import {
-  CosmicAuthPage,
-  UserProfileNavbarWidget,
-  getStoredUser,
-  saveStoredUser,
-} from "@/components/CosmicAuthPage";
+import { CosmicAuthPage, getStoredUser, saveStoredUser } from "@/components/CosmicAuthPage";
 import { UserProfileModal } from "@/components/UserProfileModal";
-import { OperatorProfileDropdown } from "@/components/OperatorProfileDropdown";
 import {
   clearStoredProfile,
   loadStoredProfile,
@@ -343,42 +337,6 @@ function AgroSpaceDashboard() {
                     )}
                   </div>
                 </div>
-
-                {/* Operator Profile Widget in Top Deck */}
-                {operator ? (
-                  <UserProfileNavbarWidget
-                    user={operator}
-                    onUpdateUser={(updated) => {
-                      setOperator(updated);
-                      saveStoredUser(updated);
-                      toast.success("Profile Updated", {
-                        description:
-                          "Mission preferences and operator credentials saved successfully.",
-                      });
-                    }}
-                    onLogout={() => {
-                      saveStoredUser(null);
-                      setOperator(null);
-                      toast.info("Operator Signed Out", {
-                        description: "Mission Control session terminated.",
-                      });
-                    }}
-                    onNavigateHome={(locStr) => {
-                      toast.info("Radar Lock", {
-                        description: `Base Station: ${locStr}`,
-                      });
-                      setLocation(13.1367, 78.1292, locStr);
-                    }}
-                  />
-                ) : (
-                  <OperatorProfileDropdown
-                    profile={null}
-                    onOpenAuth={() => setShowAuthModal(true)}
-                    onOpenSettings={() => setShowSettingsModal(true)}
-                    onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
-                    onSignOut={() => {}}
-                  />
-                )}
               </div>
             </div>
           </div>

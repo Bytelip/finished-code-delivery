@@ -5,17 +5,36 @@ import { ThemeProvider, useTheme, AVAILABLE_THEMES, THEME_CONFIGS } from "@/cont
 import { ThemeSwitcher, ThemeSettingsCard } from "@/components/theme/ThemeSwitcher";
 
 function TestConsumer() {
-  const { theme, setTheme, currentConfig, availableThemes } = useTheme();
+  const {
+    theme,
+    setTheme,
+    currentConfig,
+    availableThemes,
+    customSettings,
+    updateCustomSettings,
+    resetCustomSettings,
+  } = useTheme();
   return (
     <div>
       <span data-testid="active-theme">{theme}</span>
       <span data-testid="active-name">{currentConfig.name}</span>
       <span data-testid="active-badge">{currentConfig.badge}</span>
       <span data-testid="theme-count">{availableThemes.length}</span>
+      <span data-testid="custom-accent">{customSettings.accentColor}</span>
+      <span data-testid="custom-bg">{customSettings.backgroundColor}</span>
       <button onClick={() => setTheme("monochrome-dark")}>Set Onyx Dark</button>
       <button onClick={() => setTheme("monochrome-light")}>Set Alabaster Light</button>
       <button onClick={() => setTheme("champagne-gold")}>Set Gold</button>
       <button onClick={() => setTheme("emerald-terra")}>Set Emerald</button>
+      <button
+        onClick={() => {
+          setTheme("custom");
+          updateCustomSettings({ accentColor: "#FF007F", backgroundColor: "#02040A", blurPx: 20 });
+        }}
+      >
+        Set Custom Neon
+      </button>
+      <button onClick={resetCustomSettings}>Reset Custom</button>
     </div>
   );
 }
@@ -99,6 +118,26 @@ describe("Multi-Theme Engine & Switcher", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("emerald-terra");
   });
 
+  it("supports Custom User Theme with dynamic accent, background and CSS variables", () => {
+    render(
+      <ThemeProvider>
+        <TestConsumer />
+      </ThemeProvider>,
+    );
+
+    act(() => {
+      fireEvent.click(screen.getByText("Set Custom Neon"));
+    });
+
+    expect(screen.getByTestId("active-theme").textContent).toBe("custom");
+    expect(screen.getByTestId("active-name").textContent).toBe("Custom User Theme");
+    expect(screen.getByTestId("custom-accent").textContent).toBe("#FF007F");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("custom");
+    expect(document.documentElement.style.getPropertyValue("--accent-primary")).toBe("#FF007F");
+    expect(document.documentElement.style.getPropertyValue("--bg-primary")).toBe("#02040A");
+    expect(document.documentElement.style.getPropertyValue("--hud-blur")).toBe("20px");
+  });
+
   it("renders ThemeSwitcher trigger button and shows current theme details", () => {
     render(
       <ThemeProvider>
@@ -119,7 +158,7 @@ describe("Multi-Theme Engine & Switcher", () => {
     );
 
     expect(screen.getByText(/Interface Appearance & Theme/i)).toBeInTheDocument();
-    expect(screen.getByText("5 High-End Palettes")).toBeInTheDocument();
+    expect(screen.getByText("5 Presets + Custom Builder")).toBeInTheDocument();
 
     const onyxBtn = screen.getByRole("button", { name: /Onyx Monochrome/i });
     expect(onyxBtn).toBeInTheDocument();

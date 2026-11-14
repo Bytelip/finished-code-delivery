@@ -300,7 +300,7 @@ const ALL_CITIES_AND_TOWNS: PlaceLabelEntry[] = [
   { id: "tn-hsk", lat: 13.07, lng: 77.7981, text: "Hoskote" },
   { id: "tn-mlr", lat: 13.0044, lng: 77.9392, text: "Malur" },
   { id: "tn-bpt", lat: 12.9961, lng: 78.1994, text: "Bangarapet" },
-  { id: "tn-mbl", lat: 13.1633, lng: 78.3967, text: "Mulbagal" },
+  { id: "tn-mbl", lat: 13.1718, lng: 78.4416, text: "Mulabagilu" },
   { id: "tn-snp", lat: 13.3378, lng: 78.2167, text: "Srinivaspur" },
   { id: "tn-kgf", lat: 12.9583, lng: 78.2711, text: "KGF" },
   { id: "tn-dvh", lat: 13.2483, lng: 77.7128, text: "Devenahalli" },
@@ -620,7 +620,7 @@ export function GlobeViewport({
 
   const prevCoordsRef = useRef<{ lat: number; lon: number }>({ lat, lon });
 
-  // Center 3D Globe camera on current farm coords with cinematic 2.2s fly-in
+  // Center 3D Globe camera on current farm coords with smooth spherical fly-to interpolation (1.8s)
   useEffect(() => {
     if (
       viewMode === "3d" &&
@@ -628,7 +628,7 @@ export function GlobeViewport({
       typeof globeRef.current.pointOfView === "function"
     ) {
       try {
-        globeRef.current.pointOfView({ lat, lng: lon, altitude: 0.72 }, 2200);
+        globeRef.current.pointOfView({ lat, lng: lon, altitude: 0.35 }, 1800);
       } catch {
         // ignore pointOfView transition timing
       }
@@ -645,6 +645,58 @@ export function GlobeViewport({
 
     return () => clearTimeout(timer);
   }, [lat, lon, viewMode]);
+
+  // 3D Orbital in-place basemap switching: updates Three.js globe texture, tile engine URL and atmosphere in real-time
+  useEffect(() => {
+    if (!globeRef.current || viewMode !== "3d") return;
+    const globe = globeRef.current as {
+      globeImageUrl?: (url: string) => void;
+      globeTileEngineUrl?: (fn: (x: number, y: number, l: number) => string) => void;
+      atmosphereColor?: (color: string) => void;
+      globeMaterial?: () => { needsUpdate?: boolean };
+    };
+
+    let bgImg = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+    let tileFn = (x: number, y: number, l: number) =>
+      `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
+    let atmoColor = "#00e5ff";
+
+    if (basemapStyle === "dark") {
+      bgImg = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
+      tileFn = (x: number, y: number, l: number) =>
+        `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${l}/${y}/${x}`;
+      atmoColor = "#818cf8";
+    } else if (basemapStyle === "terrain") {
+      bgImg = "https://unpkg.com/three-globe/example/img/earth-topology.png";
+      tileFn = (x: number, y: number, l: number) =>
+        `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${l}/${y}/${x}`;
+      atmoColor = "#10b981";
+    } else if (basemapStyle === "default") {
+      bgImg = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+      tileFn = (x: number, y: number, l: number) =>
+        `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${l}/${y}/${x}`;
+      atmoColor = "#38bdf8";
+    }
+
+    if (typeof globe.globeImageUrl === "function") {
+      globe.globeImageUrl(bgImg);
+    }
+    if (typeof globe.globeTileEngineUrl === "function") {
+      globe.globeTileEngineUrl(tileFn);
+    }
+    if (typeof globe.atmosphereColor === "function") {
+      globe.atmosphereColor(atmoColor);
+    }
+
+    try {
+      const mat = typeof globe.globeMaterial === "function" ? globe.globeMaterial() : null;
+      if (mat) {
+        mat.needsUpdate = true;
+      }
+    } catch {
+      // ignore
+    }
+  }, [basemapStyle, enable3dTerrain, viewMode]);
 
   // Live Satellite Overpass Countdown Ticker
   const [overpassSeconds, setOverpassSeconds] = useState(862); // 14m 22s
@@ -817,10 +869,10 @@ export function GlobeViewport({
       return labels;
     }
 
-    // Stage 2 — Country Zoom (0.75 < altitude <= 1.5):
+    // Stage 2 — Country Zoom (0.65 < altitude <= 1.5):
     // Smoothly fade in State names in clean, small white/slate typography.
     // Keep smaller cities, districts, and terrain features hidden so they never overlap states.
-    if (orbitalAltitude > 0.75 && orbitalAltitude <= 1.5) {
+    if (orbitalAltitude > 0.65 && orbitalAltitude <= 1.5) {
       for (const c of GLOBAL_COUNTRIES) {
         labels.push({
           id: c.id,
@@ -1057,10 +1109,21 @@ export function GlobeViewport({
 
     try {
       if (typeof globeRef.current.controls === "function") {
-        controlsInstance = globeRef.current.controls() as {
+        const ctrl = globeRef.current.controls() as {
+          enableDamping?: boolean;
+          dampingFactor?: number;
+          rotateSpeed?: number;
+          zoomSpeed?: number;
           addEventListener?: (e: string, cb: () => void) => void;
           removeEventListener?: (e: string, cb: () => void) => void;
         };
+        if (ctrl) {
+          ctrl.enableDamping = true;
+          ctrl.dampingFactor = 0.06;
+          ctrl.rotateSpeed = 0.55;
+          ctrl.zoomSpeed = 0.75;
+          controlsInstance = ctrl;
+        }
       }
     } catch {
       // controls not ready yet
@@ -1200,41 +1263,41 @@ export function GlobeViewport({
 
   const lastAutoTransitionRef = useRef(0);
 
-  // Two-way auto-zoom transitions between 2D Map & 3D Orbital Globe
+  // Two-way auto-zoom transitions between 2D Map & 3D Orbital Globe (Wide Hysteresis Buffer)
   const handleAutoTransitionTo3D = useCallback(() => {
     const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 1800) return;
+    if (now - lastAutoTransitionRef.current < 600) return;
     lastAutoTransitionRef.current = now;
 
     if (webGLSupported) {
       setViewMode("3d");
-      setOrbitalAltitude(1.6);
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.6 }, 1000);
+      setOrbitalAltitude(1.35);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.35 }, 1000);
       toast.info("Entering 3D Orbital Overview", {
-        description: "Zoomed out past continental threshold (zoom <= 4). Switched to 3D Globe.",
+        description: "Zoomed out to global threshold (zoom <= 2). Switched to 3D Globe.",
       });
     }
   }, [webGLSupported, lat, lon]);
 
   const handleAutoTransitionTo2D = useCallback(() => {
     const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 1800) return;
+    if (now - lastAutoTransitionRef.current < 600) return;
     lastAutoTransitionRef.current = now;
 
     setViewMode("2d");
-    setGisZoom(14);
+    setGisZoom(9);
     toast.info("Entering High-Resolution 2D Field GIS", {
-      description: "Deep zoom reached (altitude <= 0.28). Switched to 2D Satellite GIS.",
+      description: "Sub-district orbit reached (altitude <= 0.14). Switched to 2D Regional GIS.",
     });
   }, []);
 
-  // Zoom In Handler (Strict 4-Stage LOD: triggers 2D Hand-Off when altitude <= 0.28)
+  // Zoom In Handler (Strict 4-Stage LOD: triggers 2D Hand-Off when altitude <= 0.14)
   const handleZoomIn = () => {
     if (viewMode === "3d") {
-      const newAlt = Math.max(0.06, orbitalAltitude * 0.65);
+      const newAlt = Math.max(0.04, orbitalAltitude * 0.65);
       setOrbitalAltitude(newAlt);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
-      if (newAlt <= 0.28) {
+      if (newAlt <= 0.14) {
         handleAutoTransitionTo2D();
       }
     } else {
@@ -1242,7 +1305,7 @@ export function GlobeViewport({
     }
   };
 
-  // Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 4)
+  // Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 2)
   const handleZoomOut = () => {
     if (viewMode === "3d") {
       const newAlt = Math.min(2.5, orbitalAltitude * 1.45);
@@ -1250,7 +1313,7 @@ export function GlobeViewport({
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
     } else {
       const curZ = leafletMapRef.current?.getZoom?.() ?? gisZoom;
-      if (curZ <= 4) {
+      if (curZ <= 2) {
         handleAutoTransitionTo3D();
       } else {
         leafletMapRef.current?.zoomOut?.(1, { animate: true });
@@ -1265,12 +1328,12 @@ export function GlobeViewport({
         handleAutoTransitionTo2D();
         return;
       }
-      const newAlt = Math.max(0.06, Math.min(2.5, 2.5 - ((newZoom - 1) / 17) * (2.5 - 0.06)));
+      const newAlt = Math.max(0.04, Math.min(2.5, 2.5 - ((newZoom - 1) / 17) * (2.5 - 0.04)));
       setOrbitalAltitude(newAlt);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 300);
-      if (newAlt <= 0.28) handleAutoTransitionTo2D();
+      if (newAlt <= 0.14) handleAutoTransitionTo2D();
     } else {
-      if (newZoom <= 4) {
+      if (newZoom <= 2) {
         handleAutoTransitionTo3D();
         return;
       }
@@ -1311,7 +1374,7 @@ export function GlobeViewport({
           badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
         };
       }
-      if (orbitalAltitude > 0.75) {
+      if (orbitalAltitude > 0.65) {
         return {
           stage: "STAGE 2",
           label: "ORBITAL VIEW • STATE LEVEL",
@@ -1320,7 +1383,7 @@ export function GlobeViewport({
           badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
         };
       }
-      if (orbitalAltitude > 0.28) {
+      if (orbitalAltitude > 0.14) {
         return {
           stage: "STAGE 3",
           label: "ORBITAL VIEW • DISTRICT LEVEL",
@@ -1346,7 +1409,7 @@ export function GlobeViewport({
           badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
         };
       }
-      if (gisZoom > 4) {
+      if (gisZoom > 2) {
         return {
           stage: "STAGE 4",
           label: "2D TACTICAL MAP • REGIONAL OVERVIEW",
@@ -1358,7 +1421,7 @@ export function GlobeViewport({
       return {
         stage: "STAGE 1",
         label: "AUTO-HAND-OFF • 3D ORBITAL GLOBE",
-        detail: `Zoom ${gisZoom} <= 4`,
+        detail: `Zoom ${gisZoom} <= 2`,
         color: "#38BDF8",
         badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
       };
@@ -1531,7 +1594,7 @@ export function GlobeViewport({
               bumpScale={basemapStyle === "terrain" && enable3dTerrain ? 0.08 : 0.02}
               globeTileEngineUrl={(x: number, y: number, l: number) => {
                 if (basemapStyle === "dark") {
-                  return `https://a.basemaps.cartocdn.com/dark_all/${l}/${x}/${y}.png`;
+                  return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${l}/${y}/${x}`;
                 }
                 if (basemapStyle === "terrain") {
                   return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${l}/${y}/${x}`;
@@ -1709,14 +1772,20 @@ export function GlobeViewport({
               onZoom={(pov: { lat: number; lng: number; altitude: number }) => {
                 if (typeof pov?.altitude === "number") {
                   setOrbitalAltitude(pov.altitude);
-                  if (pov.altitude <= 0.28) {
+                  if (pov.altitude <= 0.14) {
                     handleAutoTransitionTo2D();
                   }
                   setTimeout(runCollisionCull, 50);
                 }
               }}
               onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
-                onPick(Math.round(clickLat * 10000) / 10000, Math.round(clickLng * 10000) / 10000);
+                const targetLat = Math.round(clickLat * 10000) / 10000;
+                const targetLng = Math.round(clickLng * 10000) / 10000;
+                onPick(targetLat, targetLng);
+                globeRef.current?.pointOfView?.(
+                  { lat: targetLat, lng: targetLng, altitude: 0.35 },
+                  1800,
+                );
               }}
             />
           </div>
@@ -1778,6 +1847,8 @@ export function GlobeViewport({
           <LeafletComp.MapContainer
             center={[lat, lon]}
             zoom={gisZoom}
+            minZoom={2}
+            maxZoom={18}
             scrollWheelZoom={true}
             style={{ width: "100%", height: "100%", background: "#050811" }}
           >
@@ -1807,16 +1878,23 @@ export function GlobeViewport({
               />
             )}
             {basemapStyle === "dark" && (
-              <LeafletComp.TileLayer
-                key={`base-dark-${showLabels ? "labels" : "nolabels"}`}
-                url={
-                  showLabels
-                    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                    : "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
-                }
-                maxZoom={18}
-                attribution="&copy; OpenStreetMap contributors &copy; CARTO"
-              />
+              <>
+                <LeafletComp.TileLayer
+                  key="base-dark"
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={18}
+                  attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+                />
+                {showLabels && (
+                  <LeafletComp.TileLayer
+                    key="base-dark-labels"
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                    maxZoom={18}
+                    zIndex={15}
+                    opacity={0.85}
+                  />
+                )}
+              </>
             )}
 
             {/* Optional 100% Free Keyless ArcGIS Reference Place & Boundary Overlays */}
@@ -2537,7 +2615,7 @@ function LeafletBridge({
       if (e?.target && typeof e.target.getZoom === "function") {
         const z = e.target.getZoom();
         onZoomChange(z);
-        if (z <= 4 && onAutoSwitchTo3D) {
+        if (z <= 2 && onAutoSwitchTo3D) {
           onAutoSwitchTo3D();
         }
       }
