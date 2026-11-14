@@ -13,6 +13,7 @@ import {
   saveStoredProfile,
   type UserProfile,
 } from "@/types/userProfile";
+import { processIncomingAuthCallback } from "@/services/authService";
 import { toast } from "sonner";
 import {
   PlantHealthRadar,
@@ -100,6 +101,14 @@ function AgroSpaceDashboard() {
   useEffect(() => {
     const stored = getStoredUser() || loadStoredProfile();
     if (stored) setOperator(stored);
+
+    // Also process any returning OAuth redirect sessions
+    processIncomingAuthCallback().then((user) => {
+      if (user) {
+        setOperator(user);
+        saveStoredProfile(user);
+      }
+    });
   }, []);
 
   useEffect(() => {

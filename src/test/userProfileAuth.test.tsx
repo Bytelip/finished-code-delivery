@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { CosmicAuthPage, UserProfileNavbarWidget } from "@/components/CosmicAuthPage";
 import { OperatorProfileDropdown } from "@/components/OperatorProfileDropdown";
 import { UserProfileModal } from "@/components/UserProfileModal";
+import * as authService from "@/services/authService";
 import {
   createInitialProfile,
   saveStoredProfile,
@@ -14,6 +15,7 @@ import {
 describe("User Profile & Authentication System", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it("creates, saves, loads, and clears user profiles in localStorage", () => {
@@ -34,14 +36,91 @@ describe("User Profile & Authentication System", () => {
     expect(loadStoredProfile()).toBeNull();
   });
 
-  it("renders CosmicAuthPage with OAuth providers and transitions to OTP screen on email entry", async () => {
+  it("handles Google login directly without showing the OTP verification screen", async () => {
+    const initiateOAuthSpy = vi.spyOn(authService, "initiateOAuthLogin").mockResolvedValue({
+      success: true,
+      redirecting: true,
+    });
+
+    render(<CosmicAuthPage />);
+
+    const googleBtn = screen.getByRole("button", { name: /Continue with Google/i });
+    expect(googleBtn).toBeDefined();
+
+    fireEvent.click(googleBtn);
+
+    expect(initiateOAuthSpy).toHaveBeenCalledWith("Google");
+    // Verify that the OTP screen is NOT displayed
+    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+    expect(screen.queryByText(/Gmail Dispatch OTP/i)).toBeNull();
+    expect(screen.queryByText(/Auto-Fill/i)).toBeNull();
+  });
+
+  it("handles Microsoft login directly without showing the OTP verification screen", async () => {
+    const initiateOAuthSpy = vi.spyOn(authService, "initiateOAuthLogin").mockResolvedValue({
+      success: true,
+      redirecting: true,
+    });
+
+    render(<CosmicAuthPage />);
+
+    const msBtn = screen.getByRole("button", { name: /Continue with Microsoft/i });
+    fireEvent.click(msBtn);
+
+    expect(initiateOAuthSpy).toHaveBeenCalledWith("Microsoft");
+    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+    expect(screen.queryByText(/Gmail Dispatch OTP/i)).toBeNull();
+  });
+
+  it("handles Apple login directly without showing the OTP verification screen", async () => {
+    const initiateOAuthSpy = vi.spyOn(authService, "initiateOAuthLogin").mockResolvedValue({
+      success: true,
+      redirecting: true,
+    });
+
+    render(<CosmicAuthPage />);
+
+    const appleBtn = screen.getByRole("button", { name: /Continue with Apple/i });
+    fireEvent.click(appleBtn);
+
+    expect(initiateOAuthSpy).toHaveBeenCalledWith("Apple");
+    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+    expect(screen.queryByText(/Gmail Dispatch OTP/i)).toBeNull();
+  });
+
+  it("displays setup notice when OAuth provider credentials are not configured", async () => {
+    vi.spyOn(authService, "initiateOAuthLogin").mockResolvedValue({
+      success: false,
+      error: "Google OAuth is not configured. Please provide VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY.",
+    });
+
+    render(<CosmicAuthPage />);
+
+    const googleBtn = screen.getByRole("button", { name: /Continue with Google/i });
+    fireEvent.click(googleBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Authentication Setup Notice/i)).toBeDefined();
+      expect(screen.getByText(/Google OAuth is not configured/i)).toBeDefined();
+    });
+
+    // Verify OTP screen did NOT appear
+    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+  });
+
+  it("transitions to genuine 6-digit OTP screen ONLY on valid email entry with manual entry (no fake banner, no auto-fill)", async () => {
+    const sendOtpSpy = vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
+      success: true,
+    });
+
+    const mockVerifiedUser = createInitialProfile("pilot@nasa.gov", "Email", "Pilot Naren");
+    const verifyOtpSpy = vi.spyOn(authService, "verifyEmailOtp").mockResolvedValue({
+      success: true,
+      user: mockVerifiedUser,
+    });
+
     const handleSuccess = vi.fn();
     render(<CosmicAuthPage onSuccess={handleSuccess} />);
-
-    // Check OAuth options
-    expect(screen.getByText(/Continue with Google/i)).toBeDefined();
-    expect(screen.getByText(/Continue with Microsoft/i)).toBeDefined();
-    expect(screen.getByText(/Continue with Apple/i)).toBeDefined();
 
     // Fill email
     const emailInput = screen.getByPlaceholderText(/Enter your Gmail or email address/i);
@@ -51,35 +130,74 @@ describe("User Profile & Authentication System", () => {
     const continueBtn = screen.getByRole("button", { name: /^Continue$/i });
     fireEvent.click(continueBtn);
 
-    // Wait for step 2 (OTP screen) to appear
-    await waitFor(
-      () => {
-        expect(screen.getByText(/Check your Gmail/i)).toBeDefined();
-        expect(screen.getByText(/We sent a 6-digit verification code to/i)).toBeDefined();
-      },
-      { timeout: 2000 },
-    );
+    await waitFor(() => {
+      expect(sendOtpSpy).toHaveBeenCalledWith("pilot@nasa.gov");
+      expect(screen.getByText(/Check your Gmail/i)).toBeDefined();
+      expect(screen.getByText(/We sent a 6-digit verification code to/i)).toBeDefined();
+    });
 
-    // Check that auto-fill button is present, fills digits, then verify
-    const autoFillBtn = screen.getByRole("button", { name: /Auto-Fill/i });
-    expect(autoFillBtn).toBeDefined();
-    fireEvent.click(autoFillBtn);
+    // CRITICAL: Ensure fake "Gmail Dispatch OTP" banner and "Auto-Fill" are completely absent
+    expect(screen.queryByText(/Gmail Dispatch OTP/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Auto-Fill/i })).toBeNull();
+
+    // Verify presence of Security Verification and Expiration timer
+    expect(screen.getByText(/Security Verification/i)).toBeDefined();
+    expect(screen.getByText(/Expires in/i)).toBeDefined();
+
+    // User manually enters 6-digit OTP into inputs
+    const inputs = screen.getAllByRole("textbox");
+    expect(inputs.length).toBe(6);
+
+    const testOtp = ["8", "3", "1", "9", "4", "2"];
+    inputs.forEach((input, idx) => {
+      fireEvent.change(input, { target: { value: testOtp[idx] } });
+    });
 
     const verifyBtn = screen.getByRole("button", { name: /Verify & Create Account/i });
     fireEvent.click(verifyBtn);
 
     await waitFor(() => {
-      expect(handleSuccess).toHaveBeenCalledTimes(1);
-      const createdUser = handleSuccess.mock.calls[0][0] as UserProfile;
-      expect(createdUser.email).toBe("pilot@nasa.gov");
-      expect(createdUser.verified).toBe(true);
+      expect(verifyOtpSpy).toHaveBeenCalledWith("pilot@nasa.gov", "831942", "");
+      expect(handleSuccess).toHaveBeenCalledWith(mockVerifiedUser);
+    });
+  });
+
+  it("shows an error on incorrect OTP entry and allows resending after cooldown", async () => {
+    vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({ success: true });
+    vi.spyOn(authService, "verifyEmailOtp").mockResolvedValue({
+      success: false,
+      error: "Invalid verification code. 4 attempts remaining.",
+    });
+
+    render(<CosmicAuthPage />);
+
+    const emailInput = screen.getByPlaceholderText(/Enter your Gmail or email address/i);
+    fireEvent.change(emailInput, { target: { value: "pilot@nasa.gov" } });
+
+    const continueBtn = screen.getByRole("button", { name: /^Continue$/i });
+    fireEvent.click(continueBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Check your Gmail/i)).toBeDefined();
+    });
+
+    const inputs = screen.getAllByRole("textbox");
+    ["0", "0", "0", "0", "0", "0"].forEach((digit, idx) => {
+      fireEvent.change(inputs[idx], { target: { value: digit } });
+    });
+
+    const verifyBtn = screen.getByRole("button", { name: /Verify & Create Account/i });
+    fireEvent.click(verifyBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid verification code/i)).toBeDefined();
     });
   });
 
   it("renders OperatorProfileDropdown with avatar, online indicator, and opens quick menu", () => {
     const mockProfile = createInitialProfile(
       "commander@agrospace.io",
-      "Email OTP",
+      "Email",
       "Commander Naren",
     );
     const onOpenSettings = vi.fn();

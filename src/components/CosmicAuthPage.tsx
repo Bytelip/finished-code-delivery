@@ -1,4 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
+import {
+  initiateOAuthLogin,
+  sendEmailOtp,
+  verifyEmailOtp,
+  processIncomingAuthCallback,
+  type OAuthProvider,
+} from "@/services/authService";
 
 // ==========================================
 // 1. TYPES & USER PROFILE MODEL
@@ -266,7 +273,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
 };
 
 // ==========================================
-// 3. LOGIN / SIGNUP + 6-DIGIT GMAIL OTP MODAL
+// 3. LOGIN / SIGNUP + 6-DIGIT EMAIL OTP MODAL
 // ==========================================
 export interface CosmicAuthPageProps {
   onAuthComplete?: (user: UserProfile) => void;
@@ -282,86 +289,120 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [step, setStep] = useState<"entry" | "otp">("entry");
   const [email, setEmail] = useState<string>("");
   const [name, setName] = useState<string>("");
-  const [selectedProvider, setSelectedProvider] = useState<
-    "Email" | "Google" | "Microsoft" | "Apple"
-  >("Email");
-  const [generatedOtp, setGeneratedOtp] = useState<string>("");
   const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [otpError, setOtpError] = useState<string>("");
-  const [resendTimer, setResendTimer] = useState<number>(0);
+  const [configError, setConfigError] = useState<string>("");
+  const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
   const [sendingEmail, setSendingEmail] = useState<boolean>(false);
+  const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
+  const [resendTimer, setResendTimer] = useState<number>(0);
+  const [expireTimer, setExpireTimer] = useState<number>(0);
 
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
-  // Countdown timer for Resend OTP
+  // Listen for OAuth session on mount or return
+  useEffect(() => {
+    processIncomingAuthCallback().then((user) => {
+      if (user) {
+        onAuthComplete?.(user);
+        onSuccess?.(user);
+      }
+    });
+  }, [onAuthComplete, onSuccess]);
+
+  // Countdown timer for Resend OTP (45s cooldown)
   useEffect(() => {
     if (resendTimer <= 0) return;
-    const timer = setInterval(() => setResendTimer((t) => t - 1), 1000);
+    const timer = setInterval(() => setResendTimer((t) => Math.max(0, t - 1)), 1000);
     return () => clearInterval(timer);
   }, [resendTimer]);
 
-  // Helper to generate & send 6-digit verification code to Gmail
-  const sendVerificationCode = async (
-    targetEmail: string,
-    providerName: "Email" | "Google" | "Microsoft" | "Apple",
-  ) => {
-    setSendingEmail(true);
-    setOtpError("");
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
-    setOtpDigits(["", "", "", "", "", ""]);
-    setSelectedProvider(providerName);
+  // Countdown timer for 5-minute OTP expiration (300s)
+  useEffect(() => {
+    if (step !== "otp" || expireTimer <= 0) return;
+    const timer = setInterval(() => {
+      setExpireTimer((t) => {
+        if (t <= 1) {
+          setOtpError("Verification code has expired (5-minute limit). Please request a new code.");
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, expireTimer]);
 
-    // Optional: If EmailJS environment variables are configured with real keys, send real email to Gmail
-    const envObj = (import.meta as unknown as { env?: Record<string, string> }).env;
-    const serviceId = envObj?.VITE_EMAILJS_SERVICE_ID;
-    const templateId = envObj?.VITE_EMAILJS_TEMPLATE_ID;
-    const publicKey = envObj?.VITE_EMAILJS_PUBLIC_KEY;
-
-    const isRealKey = (val?: string) =>
-      Boolean(val && val.trim() && !val.toLowerCase().includes("your_"));
-
-    if (isRealKey(serviceId) && isRealKey(templateId) && isRealKey(publicKey)) {
-      try {
-        await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            service_id: serviceId,
-            template_id: templateId,
-            user_id: publicKey,
-            template_params: {
-              to_email: targetEmail,
-              verification_code: code,
-              app_name: "AgroSpace Nexus",
-            },
-          }),
-        });
-      } catch (err) {
-        console.warn("EmailJS fallback to local preview OTP:", err);
+  // Direct Social OAuth Login (Google, Microsoft, Apple)
+  // NEVER transitions to OTP screen, NEVER displays random OTP
+  const handleSocialOAuth = async (provider: OAuthProvider) => {
+    setConfigError("");
+    setLoadingOAuth(provider);
+    try {
+      const result = await initiateOAuthLogin(provider);
+      if (!result.success) {
+        setConfigError(result.error || `${provider} authentication failed.`);
+        setLoadingOAuth(null);
       }
+      // If success, user is redirected by the OAuth provider
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setConfigError(`OAuth error: ${msg}`);
+      setLoadingOAuth(null);
     }
-
-    setTimeout(() => {
-      setSendingEmail(false);
-      setStep("otp");
-      setResendTimer(30);
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
-    }, 450);
   };
 
-  const handleEmailContinue = (e: React.FormEvent) => {
+  // Email Authentication (Sends Genuine 6-Digit OTP)
+  // Transition to OTP screen occurs ONLY for email authentication
+  const handleEmailContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isEmailValid) return;
-    sendVerificationCode(email.trim(), "Email");
+    setSendingEmail(true);
+    setOtpError("");
+    setConfigError("");
+
+    try {
+      const result = await sendEmailOtp(email.trim());
+      setSendingEmail(false);
+      if (!result.success) {
+        setConfigError(result.error || "Failed to send verification code.");
+        return;
+      }
+      // Genuine OTP sent; transition to manual OTP verification screen
+      setStep("otp");
+      setResendTimer(45);
+      setExpireTimer(300); // 5 minutes expiration
+      setOtpDigits(["", "", "", "", "", ""]);
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+    } catch (err: unknown) {
+      setSendingEmail(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      setConfigError(`Error sending verification code: ${msg}`);
+    }
   };
 
-  const handleSocialOAuth = (provider: "Google" | "Microsoft" | "Apple") => {
-    const targetEmail =
-      email.trim() && isEmailValid ? email.trim() : `naren.${provider.toLowerCase()}@gmail.com`;
-    setEmail(targetEmail);
-    sendVerificationCode(targetEmail, provider);
+  // Resend OTP handler with 45s cooldown
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setOtpError("");
+    setSendingEmail(true);
+
+    try {
+      const result = await sendEmailOtp(email.trim());
+      setSendingEmail(false);
+      if (!result.success) {
+        setOtpError(result.error || "Failed to resend verification code.");
+        return;
+      }
+      setResendTimer(45);
+      setExpireTimer(300);
+      setOtpDigits(["", "", "", "", "", ""]);
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+    } catch (err: unknown) {
+      setSendingEmail(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      setOtpError(`Resend error: ${msg}`);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -390,45 +431,39 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  // Verifies the user-entered 6-digit OTP against the backend service
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const entered = otpDigits.join("");
     if (entered.length < 6) {
-      setOtpError("Please enter all 6 digits.");
+      setOtpError("Please enter all 6 digits of the verification code.");
       return;
     }
-    if (entered !== generatedOtp) {
-      setOtpError("Invalid verification code. Please check the code and try again.");
+    if (expireTimer <= 0) {
+      setOtpError("Verification code has expired (5-minute limit). Please request a new code.");
       return;
     }
 
-    const derivedName =
-      name.trim() ||
-      email
-        .split("@")[0]
-        .replace(/[._-]/g, " ")
-        .replace(/\b\w/g, (l) => l.toUpperCase());
+    setVerifyingOtp(true);
+    setOtpError("");
 
-    const newUser: UserProfile = {
-      id: "usr_" + Date.now(),
-      name: derivedName || "Commander Naren",
-      fullName: derivedName || "Commander Naren",
-      email: email.trim(),
-      provider: selectedProvider,
-      verified: true,
-      isVerified: true,
-      role: "Mission Commander",
-      avatarColor: "#06B6D4",
-      homeLocation: "Kolar Plateau, Karnataka (13.1367° N, 78.1292° E)",
-      defaultView: "3D",
-      defaultLayer: "NDVI",
-      units: "metric",
-      hazardAlerts: true,
-    };
+    try {
+      const result = await verifyEmailOtp(email.trim(), entered, name.trim());
+      setVerifyingOtp(false);
 
-    saveStoredUser(newUser);
-    onAuthComplete?.(newUser);
-    onSuccess?.(newUser);
+      if (!result.success || !result.user) {
+        setOtpError(result.error || "Invalid verification code. Please check and try again.");
+        return;
+      }
+
+      saveStoredUser(result.user);
+      onAuthComplete?.(result.user);
+      onSuccess?.(result.user);
+    } catch (err: unknown) {
+      setVerifyingOtp(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      setOtpError(`Verification error: ${msg}`);
+    }
   };
 
   return (
@@ -458,6 +493,23 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           </svg>
         </div>
 
+        {/* Authentication Notice / Configuration Alert */}
+        {configError && (
+          <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
+            <div className="flex items-center gap-2 font-semibold text-amber-300">
+              <svg className="h-4 w-4 shrink-0 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>Authentication Setup Notice</span>
+            </div>
+            <p className="mt-1.5 leading-relaxed text-amber-200/90">{configError}</p>
+          </div>
+        )}
+
         {step === "entry" ? (
           <>
             <div className="text-center mb-6">
@@ -467,12 +519,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               <p className="mt-1 text-sm text-slate-400">Sign in or sign up</p>
             </div>
 
-            {/* Social OAuth Buttons */}
+            {/* Social OAuth Buttons - Direct OAuth Flow, No OTP */}
             <div className="space-y-2.5">
               <button
                 type="button"
+                disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("Google")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] cursor-pointer"
+                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
               >
                 <svg className="absolute left-4 h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -492,13 +545,14 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5L1.6 17c1.9 3.9 5.8 7 10.4 7z"
                   />
                 </svg>
-                <span>Continue with Google</span>
+                <span>{loadingOAuth === "Google" ? "Connecting to Google..." : "Continue with Google"}</span>
               </button>
 
               <button
                 type="button"
+                disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("Microsoft")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] cursor-pointer"
+                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
               >
                 <svg className="absolute left-4 h-4 w-4" viewBox="0 0 23 23">
                   <path fill="#f35325" d="M1 1h10v10H1z" />
@@ -506,18 +560,19 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   <path fill="#05a6f0" d="M1 12h10v10H1z" />
                   <path fill="#ffba08" d="M12 12h10v10H12z" />
                 </svg>
-                <span>Continue with Microsoft</span>
+                <span>{loadingOAuth === "Microsoft" ? "Connecting to Microsoft..." : "Continue with Microsoft"}</span>
               </button>
 
               <button
                 type="button"
+                disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("Apple")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] cursor-pointer"
+                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
               >
                 <svg className="absolute left-4 h-4 w-4 fill-current" viewBox="0 0 24 24">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
                 </svg>
-                <span>Continue with Apple</span>
+                <span>{loadingOAuth === "Apple" ? "Connecting to Apple..." : "Continue with Apple"}</span>
               </button>
             </div>
 
@@ -558,32 +613,34 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             </form>
           </>
         ) : (
-          /* STEP 2: 6-DIGIT GMAIL VERIFICATION CODE SCREEN */
+          /* STEP 2: GENUINE 6-DIGIT EMAIL OTP VERIFICATION SCREEN */
           <div>
             <div className="text-center mb-5">
               <h2 className="text-xl font-semibold text-white">Check your Gmail</h2>
               <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
                 We sent a 6-digit verification code to{" "}
-                <span className="font-mono text-cyan-300">{email}</span>
+                <span className="font-mono text-cyan-300 font-semibold">{email}</span>
               </p>
             </div>
 
-            {/* Simulated Gmail Dispatch Banner (So Hackathon Judges / Local Testing Can See Code Immediately) */}
-            <div className="mb-5 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs">
-              <div className="flex items-center gap-2 text-emerald-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Gmail Dispatch OTP:</span>
-                <span className="font-mono text-sm font-bold tracking-widest text-white">
-                  {generatedOtp}
-                </span>
+            {/* Security telemetry & 5-minute countdown indicator (No fake OTP banner, No auto-fill) */}
+            <div className="mb-5 flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-950/30 px-3.5 py-2.5 text-xs">
+              <div className="flex items-center gap-2 text-cyan-300">
+                <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span>Security Verification</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setOtpDigits(generatedOtp.split(""))}
-                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/30 cursor-pointer"
-              >
-                Auto-Fill
-              </button>
+              <div className="font-mono text-[11px] text-slate-400">
+                {expireTimer > 0 ? (
+                  <span>
+                    Expires in{" "}
+                    <span className="text-cyan-300 font-bold">
+                      {Math.floor(expireTimer / 60)}:{(expireTimer % 60).toString().padStart(2, "0")}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-rose-400 font-semibold">Code Expired</span>
+                )}
+              </div>
             </div>
 
             <form onSubmit={handleVerifyOtp} className="space-y-4">
@@ -606,33 +663,47 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 ))}
               </div>
 
-              {otpError && <p className="text-center text-xs text-rose-400">{otpError}</p>}
+              {otpError && (
+                <p className="text-center text-xs text-rose-400 font-medium leading-relaxed">
+                  {otpError}
+                </p>
+              )}
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] transition hover:brightness-110 cursor-pointer"
+                disabled={otpDigits.join("").length < 6 || verifyingOtp || expireTimer <= 0}
+                className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] transition hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
-                Verify & Create Account
+                {verifyingOtp ? "Verifying..." : "Verify & Create Account"}
               </button>
             </form>
 
             <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
               <button
                 type="button"
-                onClick={() => setStep("entry")}
+                onClick={() => {
+                  setStep("entry");
+                  setOtpError("");
+                }}
                 className="hover:text-white cursor-pointer"
               >
                 ← Change email
               </button>
               <button
                 type="button"
-                disabled={resendTimer > 0}
-                onClick={() => sendVerificationCode(email, selectedProvider)}
+                disabled={resendTimer > 0 || sendingEmail}
+                onClick={handleResendOtp}
                 className={`cursor-pointer ${
-                  resendTimer > 0 ? "text-slate-500" : "text-cyan-400 hover:underline"
+                  resendTimer > 0 || sendingEmail
+                    ? "text-slate-500 cursor-not-allowed"
+                    : "text-cyan-400 hover:underline"
                 }`}
               >
-                {resendTimer > 0 ? `Resend code in ${resendTimer}s` : "Resend code to Gmail"}
+                {resendTimer > 0
+                  ? `Resend code in ${resendTimer}s`
+                  : sendingEmail
+                    ? "Sending..."
+                    : "Resend code to Gmail"}
               </button>
             </div>
           </div>
@@ -836,7 +907,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                     className="w-full rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-slate-400"
                   />
                   <span className="shrink-0 rounded-xl bg-emerald-500/20 px-3 py-2 font-mono text-[11px] text-emerald-300">
-                    ✓ OTP Verified
+                    ✓ Verified
                   </span>
                 </div>
               </div>
