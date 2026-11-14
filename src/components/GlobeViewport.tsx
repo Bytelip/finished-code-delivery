@@ -20,6 +20,7 @@
  */
 import {
   Component,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -57,6 +58,7 @@ import {
   SATELLITE_LAYERS_CONFIG,
   type SatelliteLayerMeta,
 } from "@/services/gibsLayers";
+import { toast } from "sonner";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 
@@ -212,6 +214,536 @@ const LAT_TICKS = [60, 30, 0, -30, -60];
 const toX = (lon: number) => ((lon + 180) / 360) * 100;
 const toY = (lat: number) => ((90 - lat) / 180) * 100;
 
+interface GlobeLabelItem {
+  id: string;
+  lat: number;
+  lng: number;
+  text: string;
+  color: string;
+  size: number;
+  dotRadius: number;
+}
+
+const GLOBAL_OCEANS: GlobeLabelItem[] = [
+  {
+    id: "oc-ind",
+    lat: -12.0,
+    lng: 78.0,
+    text: "INDIAN OCEAN",
+    color: "#67e8f9",
+    size: 1.5,
+    dotRadius: 0,
+  },
+  {
+    id: "oc-arb",
+    lat: 15.5,
+    lng: 65.0,
+    text: "ARABIAN SEA",
+    color: "#67e8f9",
+    size: 1.2,
+    dotRadius: 0,
+  },
+  {
+    id: "oc-bob",
+    lat: 14.5,
+    lng: 88.0,
+    text: "BAY OF BENGAL",
+    color: "#67e8f9",
+    size: 1.2,
+    dotRadius: 0,
+  },
+  {
+    id: "oc-pac",
+    lat: 8.0,
+    lng: 160.0,
+    text: "PACIFIC OCEAN",
+    color: "#67e8f9",
+    size: 1.7,
+    dotRadius: 0,
+  },
+  {
+    id: "oc-atl",
+    lat: 12.0,
+    lng: -35.0,
+    text: "ATLANTIC OCEAN",
+    color: "#67e8f9",
+    size: 1.7,
+    dotRadius: 0,
+  },
+  {
+    id: "oc-sou",
+    lat: -60.0,
+    lng: 70.0,
+    text: "SOUTHERN OCEAN",
+    color: "#67e8f9",
+    size: 1.4,
+    dotRadius: 0,
+  },
+];
+
+const GLOBAL_COUNTRIES: GlobeLabelItem[] = [
+  {
+    id: "cnt-ind",
+    lat: 23.0,
+    lng: 79.5,
+    text: "INDIA",
+    color: "#ffffff",
+    size: 1.8,
+    dotRadius: 0.35,
+  },
+  {
+    id: "cnt-aus",
+    lat: -25.0,
+    lng: 134.0,
+    text: "AUSTRALIA",
+    color: "#ffffff",
+    size: 1.6,
+    dotRadius: 0.3,
+  },
+  { id: "cnt-afr", lat: 4.0, lng: 21.0, text: "AFRICA", color: "#ffffff", size: 1.7, dotRadius: 0 },
+  {
+    id: "cnt-chn",
+    lat: 35.0,
+    lng: 104.0,
+    text: "CHINA",
+    color: "#ffffff",
+    size: 1.6,
+    dotRadius: 0.3,
+  },
+  {
+    id: "cnt-usa",
+    lat: 38.0,
+    lng: -97.0,
+    text: "UNITED STATES",
+    color: "#ffffff",
+    size: 1.6,
+    dotRadius: 0.3,
+  },
+  {
+    id: "cnt-rus",
+    lat: 60.0,
+    lng: 100.0,
+    text: "RUSSIA",
+    color: "#ffffff",
+    size: 1.7,
+    dotRadius: 0.3,
+  },
+  {
+    id: "cnt-bra",
+    lat: -12.0,
+    lng: -52.0,
+    text: "BRAZIL",
+    color: "#ffffff",
+    size: 1.6,
+    dotRadius: 0.3,
+  },
+  {
+    id: "cnt-eur",
+    lat: 50.0,
+    lng: 15.0,
+    text: "EUROPE",
+    color: "#ffffff",
+    size: 1.6,
+    dotRadius: 0,
+  },
+  {
+    id: "cnt-gbr",
+    lat: 54.0,
+    lng: -2.0,
+    text: "UNITED KINGDOM",
+    color: "#ffffff",
+    size: 1.45,
+    dotRadius: 0.25,
+  },
+  {
+    id: "cnt-jpn",
+    lat: 36.0,
+    lng: 138.0,
+    text: "JAPAN",
+    color: "#ffffff",
+    size: 1.45,
+    dotRadius: 0.25,
+  },
+  {
+    id: "cnt-can",
+    lat: 56.0,
+    lng: -106.0,
+    text: "CANADA",
+    color: "#ffffff",
+    size: 1.6,
+    dotRadius: 0.3,
+  },
+];
+
+const REGIONAL_STATES: GlobeLabelItem[] = [
+  {
+    id: "st-ka",
+    lat: 14.5,
+    lng: 75.8,
+    text: "Karnataka",
+    color: "#fef08a",
+    size: 1.35,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-tn",
+    lat: 11.1,
+    lng: 78.6,
+    text: "Tamil Nadu",
+    color: "#fef08a",
+    size: 1.3,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-ap",
+    lat: 15.9,
+    lng: 79.7,
+    text: "Andhra Pradesh",
+    color: "#fef08a",
+    size: 1.3,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-kl",
+    lat: 10.5,
+    lng: 76.5,
+    text: "Kerala",
+    color: "#fef08a",
+    size: 1.25,
+    dotRadius: 0.2,
+  },
+  {
+    id: "st-tg",
+    lat: 17.8,
+    lng: 79.1,
+    text: "Telangana",
+    color: "#fef08a",
+    size: 1.3,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-mh",
+    lat: 19.5,
+    lng: 75.8,
+    text: "Maharashtra",
+    color: "#fef08a",
+    size: 1.35,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-gj",
+    lat: 22.3,
+    lng: 71.8,
+    text: "Gujarat",
+    color: "#fef08a",
+    size: 1.3,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-pb",
+    lat: 31.1,
+    lng: 75.3,
+    text: "Punjab",
+    color: "#fef08a",
+    size: 1.3,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-rj",
+    lat: 26.5,
+    lng: 73.8,
+    text: "Rajasthan",
+    color: "#fef08a",
+    size: 1.35,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-mp",
+    lat: 23.5,
+    lng: 77.5,
+    text: "Madhya Pradesh",
+    color: "#fef08a",
+    size: 1.35,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-up",
+    lat: 27.2,
+    lng: 80.9,
+    text: "Uttar Pradesh",
+    color: "#fef08a",
+    size: 1.35,
+    dotRadius: 0.25,
+  },
+  {
+    id: "st-wb",
+    lat: 23.8,
+    lng: 87.8,
+    text: "West Bengal",
+    color: "#fef08a",
+    size: 1.3,
+    dotRadius: 0.25,
+  },
+];
+
+const REGIONAL_CITIES: GlobeLabelItem[] = [
+  {
+    id: "ct-blr",
+    lat: 12.9716,
+    lng: 77.5946,
+    text: "Bengaluru",
+    color: "#00f0ff",
+    size: 1.45,
+    dotRadius: 0.35,
+  },
+  {
+    id: "ct-maa",
+    lat: 13.0827,
+    lng: 80.2707,
+    text: "Chennai",
+    color: "#00f0ff",
+    size: 1.35,
+    dotRadius: 0.3,
+  },
+  {
+    id: "ct-hyd",
+    lat: 17.385,
+    lng: 78.4867,
+    text: "Hyderabad",
+    color: "#00f0ff",
+    size: 1.35,
+    dotRadius: 0.3,
+  },
+  {
+    id: "ct-bom",
+    lat: 19.076,
+    lng: 72.8777,
+    text: "Mumbai",
+    color: "#00f0ff",
+    size: 1.4,
+    dotRadius: 0.35,
+  },
+  {
+    id: "ct-del",
+    lat: 28.6139,
+    lng: 77.209,
+    text: "New Delhi",
+    color: "#00f0ff",
+    size: 1.4,
+    dotRadius: 0.35,
+  },
+  {
+    id: "ct-ccu",
+    lat: 22.5726,
+    lng: 88.3639,
+    text: "Kolkata",
+    color: "#00f0ff",
+    size: 1.3,
+    dotRadius: 0.3,
+  },
+  {
+    id: "ct-pnq",
+    lat: 18.5204,
+    lng: 73.8567,
+    text: "Pune",
+    color: "#00f0ff",
+    size: 1.25,
+    dotRadius: 0.25,
+  },
+  {
+    id: "ct-myq",
+    lat: 12.2958,
+    lng: 76.6394,
+    text: "Mysuru",
+    color: "#00f0ff",
+    size: 1.2,
+    dotRadius: 0.25,
+  },
+  {
+    id: "ct-ixe",
+    lat: 12.9141,
+    lng: 74.856,
+    text: "Mangaluru",
+    color: "#00f0ff",
+    size: 1.2,
+    dotRadius: 0.25,
+  },
+  {
+    id: "ct-cjb",
+    lat: 11.0168,
+    lng: 76.9558,
+    text: "Coimbatore",
+    color: "#00f0ff",
+    size: 1.2,
+    dotRadius: 0.25,
+  },
+  {
+    id: "ct-vtg",
+    lat: 13.8,
+    lng: 75.3,
+    text: "Western Ghats",
+    color: "#86efac",
+    size: 1.2,
+    dotRadius: 0,
+  },
+  {
+    id: "ct-dcn",
+    lat: 16.5,
+    lng: 76.8,
+    text: "Deccan Plateau",
+    color: "#fde047",
+    size: 1.25,
+    dotRadius: 0,
+  },
+  {
+    id: "ct-klp",
+    lat: 13.13,
+    lng: 78.13,
+    text: "Kolar Plateau",
+    color: "#00f0ff",
+    size: 1.3,
+    dotRadius: 0.3,
+  },
+];
+
+const LOCAL_TOWNS: GlobeLabelItem[] = [
+  {
+    id: "tn-klr",
+    lat: 13.1367,
+    lng: 78.1292,
+    text: "Kolar",
+    color: "#38bdf8",
+    size: 1.15,
+    dotRadius: 0.25,
+  },
+  {
+    id: "tn-ckb",
+    lat: 13.4325,
+    lng: 77.7275,
+    text: "Chikkaballapur",
+    color: "#38bdf8",
+    size: 1.05,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-hsk",
+    lat: 13.07,
+    lng: 77.7981,
+    text: "Hoskote",
+    color: "#38bdf8",
+    size: 1.05,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-mlr",
+    lat: 13.0044,
+    lng: 77.9392,
+    text: "Malur",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-bpt",
+    lat: 12.9961,
+    lng: 78.1994,
+    text: "Bangarapet",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-mbl",
+    lat: 13.1633,
+    lng: 78.3967,
+    text: "Mulbagal",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-snp",
+    lat: 13.3378,
+    lng: 78.2167,
+    text: "Srinivaspur",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-kgf",
+    lat: 12.9583,
+    lng: 78.2711,
+    text: "KGF (Kolar Gold Fields)",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-dvh",
+    lat: 13.2483,
+    lng: 77.7128,
+    text: "Devenahalli",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-ddb",
+    lat: 13.2925,
+    lng: 77.5428,
+    text: "Doddaballapur",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-wtf",
+    lat: 12.9698,
+    lng: 77.75,
+    text: "Whitefield",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-tmk",
+    lat: 13.3409,
+    lng: 77.101,
+    text: "Tumakuru",
+    color: "#38bdf8",
+    size: 1.1,
+    dotRadius: 0.25,
+  },
+  {
+    id: "tn-ank",
+    lat: 12.71,
+    lng: 77.6978,
+    text: "Anekal",
+    color: "#38bdf8",
+    size: 1.0,
+    dotRadius: 0.2,
+  },
+  {
+    id: "tn-nh75",
+    lat: 13.11,
+    lng: 78.02,
+    text: "NH 75 Corridor",
+    color: "#94a3b8",
+    size: 0.9,
+    dotRadius: 0,
+  },
+  {
+    id: "tn-plr",
+    lat: 13.05,
+    lng: 78.25,
+    text: "Palar River Basin",
+    color: "#67e8f9",
+    size: 0.9,
+    dotRadius: 0,
+  },
+];
+
 export interface GlobeViewportProps {
   telemetry: AgroTelemetry;
   activeLayer: MapLayer;
@@ -236,7 +768,7 @@ export function GlobeViewport({
   const activeSatelliteConfig: SatelliteLayerMeta =
     SATELLITE_LAYERS_CONFIG[activeLayer] || SATELLITE_LAYERS_CONFIG.NDVI;
 
-  const [viewMode, setViewMode] = useState<"3d" | "2d">("2d");
+  const [viewMode, setViewMode] = useState<"3d" | "2d">("3d");
   const [mounted, setMounted] = useState(false);
   const [webGLSupported, setWebGLSupported] = useState(false);
   const [globeModule, setGlobeModule] = useState<ComponentType<Record<string, unknown>> | null>(
@@ -266,8 +798,8 @@ export function GlobeViewport({
     setMounted(true);
     const hasGL = hasWebGLSupport();
     setWebGLSupported(hasGL);
-    if (hasGL) {
-      setViewMode("3d");
+    if (!hasGL) {
+      setViewMode("2d");
     }
 
     let active = true;
@@ -467,7 +999,41 @@ export function GlobeViewport({
     ];
   }, [activeLayer, activeSatelliteConfig, opacity, lat, lon]);
 
-  // 3D Regional Telemetry Grid Points (Prevents layer from ever being blank or blurry at high zoom)
+  // Multi-zoom dynamic place names on 3D Orbital Globe (like 2D maps)
+  const visibleGlobeLabels = useMemo(() => {
+    const list: GlobeLabelItem[] = [];
+
+    // Far Orbital Zoom (alt >= 0.75): Continents, oceans, major countries
+    if (orbitalAltitude >= 0.75) {
+      list.push(...GLOBAL_OCEANS);
+      list.push(...GLOBAL_COUNTRIES);
+    }
+
+    // Medium / Regional Zoom (0.25 <= alt < 1.6): States, provinces, major metros & terrain
+    if (orbitalAltitude >= 0.25 && orbitalAltitude < 1.6) {
+      list.push(...REGIONAL_STATES);
+      list.push(...REGIONAL_CITIES);
+    }
+
+    // Close Orbital Zoom (alt < 0.65): District/town labels, local corridors
+    if (orbitalAltitude < 0.65) {
+      list.push(...LOCAL_TOWNS);
+      // Active searched/GPS coordinate pin label
+      list.push({
+        id: "active-field-target-label",
+        lat,
+        lng: lon,
+        text: `★ ${meta.regionLabel || "Target Field"}`,
+        color: "#00f0ff",
+        size: 1.35,
+        dotRadius: 0.35,
+      });
+    }
+
+    return list;
+  }, [orbitalAltitude, lat, lon, meta.regionLabel]);
+
+  // 3D Regional Telemetry Grid Micro-Points (Sleek surface micro-markers flush with Earth curvature)
   const telemetryPointsData = useMemo(() => {
     const points: {
       lat: number;
@@ -478,17 +1044,17 @@ export function GlobeViewport({
       label: string;
     }[] = [];
 
-    // Primary target beacon point
+    // Sleek primary target marker dot flush to the sphere surface
     points.push({
       lat,
       lng: lon,
-      size: 1.6,
-      altitude: 0.06,
+      size: 0.28,
+      altitude: 0.0025,
       color: activeSatelliteConfig.primaryColor,
       label: `Field Target Pin • ${activeLayer}: ${reading.value} ${reading.unit}`,
     });
 
-    // 16 Regional 3D telemetry sensor nodes around the field
+    // 16 Regional 3D telemetry sensor micro-nodes flush with Earth curvature
     const gridOffsets = [
       { dLat: 0.12, dLon: 0.12, weight: 0.85 },
       { dLat: -0.15, dLon: 0.18, weight: 0.72 },
@@ -521,8 +1087,8 @@ export function GlobeViewport({
           points.push({
             lat: pLat,
             lng: pLon,
-            size: 1.8 * off.weight,
-            altitude: 0.08 * off.weight,
+            size: 0.22 * off.weight + 0.08,
+            altitude: 0.002,
             color: off.weight > 0.85 ? "#ef4444" : "#f59e0b",
             label: `FIRMS Hotspot • FRP ${Math.round(off.weight * 50)} MW`,
           });
@@ -531,8 +1097,8 @@ export function GlobeViewport({
         points.push({
           lat: pLat,
           lng: pLon,
-          size: 1.0 * off.weight,
-          altitude: 0.04 * off.weight,
+          size: 0.16 * off.weight + 0.05,
+          altitude: 0.002,
           color: ptColor,
           label: `${activeLayer} Sensor Node (${pLat.toFixed(2)}°, ${pLon.toFixed(2)}°) • ${(off.weight * (reading.intensity + 0.3)).toFixed(2)} ${reading.unit}`,
         });
@@ -729,13 +1295,48 @@ export function GlobeViewport({
     return gisZoom;
   }, [viewMode, orbitalAltitude, gisZoom]);
 
+  const lastAutoTransitionRef = useRef(0);
+
+  // Two-way auto-zoom transitions between 2D Map & 3D Orbital Globe
+  const handleAutoTransitionTo3D = useCallback(() => {
+    const now = Date.now();
+    if (now - lastAutoTransitionRef.current < 1800) return;
+    lastAutoTransitionRef.current = now;
+
+    if (webGLSupported) {
+      setViewMode("3d");
+      setOrbitalAltitude(1.8);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.8 }, 1000);
+      toast.info("Entering 3D Orbital Overview", {
+        description: "Auto-transitioned from 2D Field GIS to 3D Orbital Globe.",
+      });
+    }
+  }, [webGLSupported, lat, lon]);
+
+  const handleAutoTransitionTo2D = useCallback(() => {
+    const now = Date.now();
+    if (now - lastAutoTransitionRef.current < 1800) return;
+    lastAutoTransitionRef.current = now;
+
+    setViewMode("2d");
+    setGisZoom(14);
+    setAutoLodNotice(false);
+    toast.info("Entering High-Resolution 2D Field GIS", {
+      description: "Ground proximity reached (<50 km). Switched to 2D Satellite GIS.",
+    });
+  }, []);
+
   // Zoom In Handler
   const handleZoomIn = () => {
     if (viewMode === "3d") {
       const newAlt = Math.max(0.06, orbitalAltitude * 0.65);
       setOrbitalAltitude(newAlt);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
-      if (newAlt < 0.18) setAutoLodNotice(true);
+      if (newAlt <= 0.08) {
+        handleAutoTransitionTo2D();
+      } else if (newAlt < 0.18) {
+        setAutoLodNotice(true);
+      }
     } else {
       leafletMapRef.current?.zoomIn?.(1, { animate: true });
     }
@@ -749,19 +1350,33 @@ export function GlobeViewport({
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
       if (newAlt >= 0.18) setAutoLodNotice(false);
     } else {
-      leafletMapRef.current?.zoomOut?.(1, { animate: true });
+      const curZ = leafletMapRef.current?.getZoom?.() ?? gisZoom;
+      if (curZ <= 4) {
+        handleAutoTransitionTo3D();
+      } else {
+        leafletMapRef.current?.zoomOut?.(1, { animate: true });
+      }
     }
   };
 
   // Vertical Zoom Slider Handler
   const handleSliderChange = (newZoom: number) => {
     if (viewMode === "3d") {
+      if (newZoom >= 17) {
+        handleAutoTransitionTo2D();
+        return;
+      }
       const newAlt = Math.max(0.06, Math.min(2.5, 2.5 - ((newZoom - 1) / 17) * (2.5 - 0.06)));
       setOrbitalAltitude(newAlt);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 300);
-      if (newAlt < 0.18) setAutoLodNotice(true);
+      if (newAlt <= 0.08) handleAutoTransitionTo2D();
+      else if (newAlt < 0.18) setAutoLodNotice(true);
       else setAutoLodNotice(false);
     } else {
+      if (newZoom <= 3) {
+        handleAutoTransitionTo3D();
+        return;
+      }
       leafletMapRef.current?.setZoom?.(newZoom, { animate: true });
       setGisZoom(newZoom);
     }
@@ -785,8 +1400,7 @@ export function GlobeViewport({
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: 2.0 }, 1000);
       setAutoLodNotice(false);
     } else {
-      leafletMapRef.current?.flyTo?.([lat, lon], 3, { animate: true, duration: 1.2 });
-      setGisZoom(3);
+      handleAutoTransitionTo3D();
     }
   };
 
@@ -947,6 +1561,20 @@ export function GlobeViewport({
               pointColor={(d: unknown) => (d as { color?: string })?.color || "#00e5ff"}
               pointAltitude="altitude"
               pointRadius="size"
+              pointResolution={16}
+              pointsMerge={true}
+              labelsData={visibleGlobeLabels}
+              labelLat={(d: unknown) => (d as GlobeLabelItem).lat}
+              labelLng={(d: unknown) => (d as GlobeLabelItem).lng}
+              labelText={(d: unknown) => (d as GlobeLabelItem).text}
+              labelColor={(d: unknown) => (d as GlobeLabelItem).color || "#ffffff"}
+              labelSize={(d: unknown) => (d as GlobeLabelItem).size || 1.2}
+              labelAltitude={0.005}
+              labelResolution={3}
+              labelIncludeDot={(d: unknown) => ((d as GlobeLabelItem).dotRadius || 0) > 0}
+              labelDotRadius={(d: unknown) => (d as GlobeLabelItem).dotRadius || 0.25}
+              labelDotOrientation={() => "bottom" as const}
+              labelsTransitionDuration={300}
               customLayerData={customOverlayData}
               customThreeObject={(d: unknown) => {
                 const item = d as {
@@ -1025,7 +1653,9 @@ export function GlobeViewport({
               onZoom={(pov: { lat: number; lng: number; altitude: number }) => {
                 if (typeof pov?.altitude === "number") {
                   setOrbitalAltitude(pov.altitude);
-                  if (pov.altitude < 0.18) {
+                  if (pov.altitude <= 0.08) {
+                    handleAutoTransitionTo2D();
+                  } else if (pov.altitude < 0.18) {
                     setAutoLodNotice(true);
                   } else {
                     setAutoLodNotice(false);
@@ -1078,6 +1708,15 @@ export function GlobeViewport({
               maxZoom={18}
               zIndex={15}
               opacity={0.65}
+            />
+
+            {/* CartoDB Dark Matter Only-Labels for high-contrast crisp text */}
+            <LeafletComp.TileLayer
+              url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+              subdomains="abcd"
+              maxZoom={18}
+              zIndex={16}
+              opacity={0.85}
             />
 
             {/* NASA GIBS WMTS Raster Tile Layer (Level maxZoom with smooth upscaling up to 18) */}
@@ -1234,6 +1873,7 @@ export function GlobeViewport({
                 leafletMapRef.current = m;
               }}
               onZoomChange={setGisZoom}
+              onAutoSwitchTo3D={handleAutoTransitionTo3D}
               useMap={LeafletComp.useMap}
               useMapEvents={LeafletComp.useMapEvents}
             />
@@ -1672,11 +2312,13 @@ function LeafletRecenter({
 function LeafletBridge({
   setMapInstance,
   onZoomChange,
+  onAutoSwitchTo3D,
   useMap,
   useMapEvents,
 }: {
   setMapInstance: (m: LeafletMapInstance) => void;
   onZoomChange: (z: number) => void;
+  onAutoSwitchTo3D?: () => void;
   useMap: LeafletBundle["useMap"];
   useMapEvents: LeafletBundle["useMapEvents"];
 }) {
@@ -1693,7 +2335,11 @@ function LeafletBridge({
   useMapEvents({
     zoomend(e) {
       if (e?.target && typeof e.target.getZoom === "function") {
-        onZoomChange(e.target.getZoom());
+        const z = e.target.getZoom();
+        onZoomChange(z);
+        if (z <= 3 && onAutoSwitchTo3D) {
+          onAutoSwitchTo3D();
+        }
       }
     },
   });
