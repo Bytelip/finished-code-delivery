@@ -19,6 +19,7 @@ import { SeverityChip } from "@/components/agro/hud";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
 import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiService";
 import {
+  computeKoppenClimateZone,
   getStoredLocation,
   getUrlCoords,
   reverseGeocodeAndElevation,
@@ -86,19 +87,26 @@ function AgroSpaceDashboard() {
     if (urlCoords) {
       setLat(urlCoords.lat);
       setLon(urlCoords.lon);
+      const synZone = computeKoppenClimateZone(urlCoords.lat, urlCoords.lon);
+      setLocationMeta({
+        label: `Field ${Math.abs(urlCoords.lat).toFixed(4)}°${urlCoords.lat >= 0 ? "N" : "S"}, ${Math.abs(urlCoords.lon).toFixed(4)}°${urlCoords.lon >= 0 ? "E" : "W"}`,
+        zone: synZone,
+        elevationM: 500,
+      });
       saveStoredLocation(urlCoords.lat, urlCoords.lon);
     } else {
       const stored = getStoredLocation();
       if (stored) {
         setLat(stored.lat);
         setLon(stored.lon);
-        if (stored.label) {
-          setLocationMeta({
-            label: stored.label,
-            zone: "Dynamic Agricultural Zone",
-            elevationM: 500,
-          });
-        }
+        const synZone = computeKoppenClimateZone(stored.lat, stored.lon);
+        setLocationMeta({
+          label:
+            stored.label ||
+            `Field ${Math.abs(stored.lat).toFixed(4)}°${stored.lat >= 0 ? "N" : "S"}, ${Math.abs(stored.lon).toFixed(4)}°${stored.lon >= 0 ? "E" : "W"}`,
+          zone: synZone,
+          elevationM: 500,
+        });
         syncUrlCoords(stored.lat, stored.lon);
       }
     }
@@ -173,13 +181,15 @@ function AgroSpaceDashboard() {
     const fixedLon = Math.round(lo * 10000) / 10000;
     setLat(fixedLat);
     setLon(fixedLon);
-    if (label) {
-      setLocationMeta((prev) => ({
-        label,
-        zone: prev?.zone ?? "Dynamic Agricultural Zone",
-        elevationM: prev?.elevationM ?? 500,
-      }));
-    }
+    const synZone = computeKoppenClimateZone(fixedLat, fixedLon);
+    const initialName =
+      label ||
+      `Field ${Math.abs(fixedLat).toFixed(4)}°${fixedLat >= 0 ? "N" : "S"}, ${Math.abs(fixedLon).toFixed(4)}°${fixedLon >= 0 ? "E" : "W"}`;
+    setLocationMeta((prev) => ({
+      label: initialName,
+      zone: synZone,
+      elevationM: prev?.elevationM ?? 500,
+    }));
     saveStoredLocation(fixedLat, fixedLon, label);
     syncUrlCoords(fixedLat, fixedLon);
   };
