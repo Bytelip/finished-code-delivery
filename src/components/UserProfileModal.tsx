@@ -21,6 +21,7 @@ import {
   type UserProfile,
 } from "@/types/userProfile";
 import { MAP_LAYERS, type MapLayer } from "@/types/agroSpace";
+import { ThemeSettingsCard } from "@/components/theme/ThemeSwitcher";
 
 export interface UserProfileModalProps {
   profile: UserProfile;
@@ -432,6 +433,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <option value="imperial">Imperial (°F / mi / in)</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Display & Theme Appearance */}
+                <div className="pt-4 border-t border-white/10">
+                  <ThemeSettingsCard />
                 </div>
               </div>
             )}
