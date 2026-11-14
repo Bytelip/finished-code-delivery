@@ -5,12 +5,14 @@
  *
  * Capabilities:
  * - 3D Orbital Globe: Three.js / react-globe.gl with multi-resolution slippy tile engine
- *   (ArcGIS World Imagery + Blue Marble), cyan atmosphere glow, pulsing hazard rings
- *   for EONET cyclones & USGS earthquakes, satellite orbit arcs (Terra, SMAP, GPM, ISS),
- *   HTML hazard badges, and Auto-LOD proximity switch.
+ *   connected directly to NASA GIBS WMTS endpoints for all 8 layers, plus dynamic
+ *   semi-transparent spherical overlay mesh (AdditiveBlending), 3D regional telemetry grid
+ *   points, pulsing telemetry scan rings, orbit arcs (Terra, SMAP, GPM, ISS), and Auto-LOD.
  * - Floating Tactical HUD Zoom Control Bar: Zoom In (+), Zoom Out (-), interactive
  *   vertical range slider with live Z / ALT / FIELD readout badge, Target Farm (Z:15)
  *   and Full Orbit (Z:3) quick actions.
+ * - Floating HUD Color-Scale Legend: Active satellite sensor name, continuous color
+ *   gradient bar with min/max scientific units, and layer glow/opacity slider (20%-100%).
  * - 2D Field GIS: Leaflet / react-leaflet high-zoom satellite imagery overlaid with live
  *   NASA GIBS WMTS raster tiles (maxNativeZoom + maxZoom 18 for crisp upscaling), reference
  *   boundaries, and 5 interactive warning/hazard markers + impact radius circles + polyline tracks.
@@ -27,6 +29,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import * as THREE from "three";
 import {
   Globe as GlobeIcon,
   Map as MapIcon,
@@ -49,9 +52,13 @@ import { Slider } from "@/components/ui/slider";
 import { formatCoord } from "@/components/agro/hud";
 import { cn } from "@/lib/utils";
 import { MAP_LAYERS, type AgroTelemetry, type MapLayer } from "@/types/agroSpace";
-import { GIBS_LAYER_CONFIG } from "@/services/gibsLayers";
+import {
+  GIBS_LAYER_CONFIG,
+  SATELLITE_LAYERS_CONFIG,
+  type SatelliteLayerMeta,
+} from "@/services/gibsLayers";
 
-export { GIBS_LAYER_CONFIG };
+export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 
 interface GlobeMethods {
   pointOfView: (pov: { lat?: number; lng?: number; altitude?: number }, ms?: number) => void;
@@ -226,6 +233,9 @@ export function GlobeViewport({
   const { meta, hazards } = telemetry;
   const reading = telemetry.layers[activeLayer];
 
+  const activeSatelliteConfig: SatelliteLayerMeta =
+    SATELLITE_LAYERS_CONFIG[activeLayer] || SATELLITE_LAYERS_CONFIG.NDVI;
+
   const [viewMode, setViewMode] = useState<"3d" | "2d">("2d");
   const [mounted, setMounted] = useState(false);
   const [webGLSupported, setWebGLSupported] = useState(false);
@@ -249,7 +259,7 @@ export function GlobeViewport({
   const globeRef = useRef<GlobeMethods | null>(null);
   const leafletMapRef = useRef<LeafletMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 480 });
+  const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 500 });
 
   // Safe client-side dynamic loading of WebGL & Leaflet to keep SSR 100% deterministic
   useEffect(() => {
@@ -308,7 +318,7 @@ export function GlobeViewport({
       if (containerRef.current) {
         setContainerDimensions({
           width: containerRef.current.clientWidth || 800,
-          height: containerRef.current.clientHeight || 480,
+          height: containerRef.current.clientHeight || 500,
         });
       }
     };
@@ -332,9 +342,8 @@ export function GlobeViewport({
     }
   }, [lat, lon, viewMode]);
 
-  // NASA GIBS WMTS URL definition
-  const gibsConfig = GIBS_LAYER_CONFIG[activeLayer];
-  const gibsTileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${gibsConfig.layerName}/default/${gibsConfig.defaultDate}/GoogleMapsCompatible_Level${gibsConfig.maxZoom}/{z}/{y}/{x}.png`;
+  // NASA GIBS WMTS URL definition for 2D Leaflet
+  const gibsTileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/{z}/{y}/{x}.${activeSatelliteConfig.format}`;
 
   // 3D Orbital Arcs Data (Terra, SMAP, GPM, ISS orbits)
   const orbitArcsData = useMemo(() => {
@@ -374,20 +383,32 @@ export function GlobeViewport({
     ];
   }, [lon]);
 
-  // 3D Hazard Rings Data (EONET cyclones, USGS earthquakes, and field radar beacon)
-  const hazardRingsData = useMemo(() => {
+  // 3D Dynamic Concentric Hazard & Telemetry Scanning Rings
+  const dynamicHazardRings = useMemo(() => {
     const rings = [
+      // Primary field pin target beacon pulsing in active layer color
       {
         lat,
         lng: lon,
-        maxR: 3.5,
-        propagationSpeed: 2,
+        maxR: 4.5,
+        propagationSpeed: 2.5,
         repeatPeriod: 1200,
-        color: "#00e5ff",
-        name: "Field Sensor Reticle",
+        color: activeSatelliteConfig.primaryColor,
+        name: `Field Reticle • ${activeLayer}: ${reading.value} ${reading.unit}`,
+      },
+      // Regional telemetry coverage scanning halo
+      {
+        lat,
+        lng: lon,
+        maxR: 9.5,
+        propagationSpeed: 1.8,
+        repeatPeriod: 2200,
+        color: activeSatelliteConfig.colorRamp.colors[1] || activeSatelliteConfig.primaryColor,
+        name: `${activeLayer} Sensor Swath Radius`,
       },
     ];
 
+    // Pulsing hazard rings for active natural hazards
     for (const h of hazards) {
       if (h.type === "cyclone" && (h.severity === "critical" || h.severity === "warning")) {
         rings.push({
@@ -425,18 +446,109 @@ export function GlobeViewport({
     }
 
     return rings;
-  }, [lat, lon, hazards]);
+  }, [lat, lon, activeLayer, activeSatelliteConfig, reading, hazards]);
 
-  // 3D HTML Hazard Badges and Pins for react-globe.gl
-  const globeHtmlMarkers = useMemo(() => {
+  // 3D Spherical Overlay Mesh Object Data (AdditiveBlending canvas texture shell)
+  const customOverlayData = useMemo(() => {
+    return [
+      {
+        id: `overlay-${activeLayer}`,
+        layer: activeLayer,
+        color: activeSatelliteConfig.primaryColor,
+        opacity: (opacity / 100) * 0.78,
+        colors: activeSatelliteConfig.colorRamp.colors,
+        lat,
+        lon,
+      },
+    ];
+  }, [activeLayer, activeSatelliteConfig, opacity, lat, lon]);
+
+  // 3D Regional Telemetry Grid Points (Prevents layer from ever being blank or blurry at high zoom)
+  const telemetryPointsData = useMemo(() => {
+    const points: {
+      lat: number;
+      lng: number;
+      size: number;
+      altitude: number;
+      color: string;
+      label: string;
+    }[] = [];
+
+    // Primary target beacon point
+    points.push({
+      lat,
+      lng: lon,
+      size: 1.6,
+      altitude: 0.06,
+      color: activeSatelliteConfig.primaryColor,
+      label: `Field Target Pin • ${activeLayer}: ${reading.value} ${reading.unit}`,
+    });
+
+    // 16 Regional 3D telemetry sensor nodes around the field
+    const gridOffsets = [
+      { dLat: 0.12, dLon: 0.12, weight: 0.85 },
+      { dLat: -0.15, dLon: 0.18, weight: 0.72 },
+      { dLat: 0.22, dLon: -0.16, weight: 0.92 },
+      { dLat: -0.25, dLon: -0.22, weight: 0.65 },
+      { dLat: 0.45, dLon: 0.35, weight: 0.88 },
+      { dLat: -0.42, dLon: 0.52, weight: 0.61 },
+      { dLat: 0.65, dLon: -0.48, weight: 0.79 },
+      { dLat: -0.58, dLon: -0.62, weight: 0.54 },
+      { dLat: 1.2, dLon: 1.1, weight: 0.82 },
+      { dLat: -1.4, dLon: 0.95, weight: 0.7 },
+      { dLat: 1.6, dLon: -1.3, weight: 0.9 },
+      { dLat: -1.8, dLon: -1.5, weight: 0.58 },
+      { dLat: 2.8, dLon: 2.2, weight: 0.75 },
+      { dLat: -3.1, dLon: 2.5, weight: 0.68 },
+      { dLat: 3.5, dLon: -2.9, weight: 0.86 },
+      { dLat: -3.6, dLon: -3.2, weight: 0.62 },
+    ];
+
+    const colorScale = activeSatelliteConfig.colorRamp.colors;
+
+    for (const off of gridOffsets) {
+      const pLat = lat + off.dLat;
+      const pLon = lon + off.dLon;
+      const cIdx = Math.min(colorScale.length - 1, Math.floor(off.weight * colorScale.length));
+      const ptColor = colorScale[cIdx] || activeSatelliteConfig.primaryColor;
+
+      if (activeLayer === "FIRMS Fires") {
+        if (off.weight > 0.68) {
+          points.push({
+            lat: pLat,
+            lng: pLon,
+            size: 1.8 * off.weight,
+            altitude: 0.08 * off.weight,
+            color: off.weight > 0.85 ? "#ef4444" : "#f59e0b",
+            label: `FIRMS Hotspot • FRP ${Math.round(off.weight * 50)} MW`,
+          });
+        }
+      } else {
+        points.push({
+          lat: pLat,
+          lng: pLon,
+          size: 1.0 * off.weight,
+          altitude: 0.04 * off.weight,
+          color: ptColor,
+          label: `${activeLayer} Sensor Node (${pLat.toFixed(2)}°, ${pLon.toFixed(2)}°) • ${(off.weight * (reading.intensity + 0.3)).toFixed(2)} ${reading.unit}`,
+        });
+      }
+    }
+
+    return points;
+  }, [lat, lon, activeLayer, activeSatelliteConfig, reading]);
+
+  // 3D HTML Status Badges for react-globe.gl
+  const dynamicGlobeHtmlMarkers = useMemo(() => {
     const list = [
       {
         lat,
         lng: lon,
         html: `
-          <div style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#0D1322f0;border:1px solid #00e5ff;color:#00e5ff;font-family:monospace;font-size:10px;font-weight:600;box-shadow:0 0 12px rgba(0,229,255,0.4);pointer-events:none;">
-            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00e5ff;animation:ping 1.5s infinite;"></span>
-            <span>TARGET FIELD</span>
+          <div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:#0D1322f2;border:1px solid ${activeSatelliteConfig.primaryColor};color:#ffffff;font-family:monospace;font-size:10px;font-weight:600;box-shadow:0 0 12px ${activeSatelliteConfig.primaryColor}80;pointer-events:none;white-space:nowrap;">
+            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${activeSatelliteConfig.primaryColor};animation:ping 1.5s infinite;"></span>
+            <span style="color:${activeSatelliteConfig.primaryColor}">${activeLayer}:</span>
+            <span style="font-weight:bold;">${reading.value} ${reading.unit}</span>
           </div>
         `,
       },
@@ -480,7 +592,7 @@ export function GlobeViewport({
     }
 
     return list;
-  }, [lat, lon, hazards]);
+  }, [lat, lon, activeLayer, activeSatelliteConfig, reading, hazards]);
 
   // 2D Field GIS Hazard Features List
   const mapHazardsList = useMemo(() => {
@@ -767,9 +879,9 @@ export function GlobeViewport({
       data-lat={lat}
       data-lon={lon}
       data-layer={activeLayer}
-      className="relative w-full h-[520px] rounded-xl border border-cyan-500/30 bg-[#050811] overflow-hidden select-none"
+      className="relative w-full h-[540px] rounded-xl border border-cyan-500/30 bg-[#050811] overflow-hidden select-none"
     >
-      {/* ---------------- 3D ORBITAL GLOBE MODE (SLIPPY TILE ENGINE + HIGH-DPI) ---------------- */}
+      {/* ---------------- 3D ORBITAL GLOBE MODE (NASA GIBS WMTS + THREE.JS OVERLAYS) ---------------- */}
       {viewMode === "3d" && GlobeComponent && mounted && webGLSupported ? (
         <SafeGlobeErrorBoundary
           fallback={graticuleGridFallback}
@@ -783,9 +895,14 @@ export function GlobeViewport({
               backgroundColor="#050811"
               globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
               bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-              globeTileEngineUrl={(x: number, y: number, l: number) =>
-                `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`
-              }
+              globeTileEngineUrl={(x: number, y: number, l: number) => {
+                // If zoom is within layer maxZoom, project NASA GIBS WMTS tiles
+                if (l <= activeSatelliteConfig.maxZoom) {
+                  return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/${l}/${y}/${x}.${activeSatelliteConfig.format}`;
+                }
+                // When zoomed closer, seamlessly switch to ArcGIS World Imagery tiles
+                return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
+              }}
               rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
               atmosphereColor="#00e5ff"
               atmosphereAltitude={0.22}
@@ -797,12 +914,85 @@ export function GlobeViewport({
               arcDashGap={0.2}
               arcDashAnimateTime={3000}
               arcAltitude={0.28}
-              ringsData={hazardRingsData}
+              ringsData={dynamicHazardRings}
               ringColor={(d: unknown) => (d as { color?: string })?.color || "#00e5ff"}
               ringMaxRadius="maxR"
               ringPropagationSpeed="propagationSpeed"
               ringRepeatPeriod="repeatPeriod"
-              htmlElementsData={globeHtmlMarkers}
+              pointsData={telemetryPointsData}
+              pointColor={(d: unknown) => (d as { color?: string })?.color || "#00e5ff"}
+              pointAltitude="altitude"
+              pointRadius="size"
+              customLayerData={customOverlayData}
+              customThreeObject={(d: unknown) => {
+                const item = d as {
+                  color: string;
+                  opacity: number;
+                  colors: string[];
+                  lat: number;
+                  lon: number;
+                };
+                const group = new THREE.Group();
+                const geom = new THREE.SphereGeometry(100.4, 64, 32);
+
+                if (typeof document !== "undefined") {
+                  const canvas = document.createElement("canvas");
+                  canvas.width = 512;
+                  canvas.height = 256;
+                  const ctx = canvas.getContext("2d");
+                  if (ctx) {
+                    const grad = ctx.createLinearGradient(0, 0, 512, 0);
+                    item.colors.forEach((c: string, idx: number) => {
+                      grad.addColorStop(idx / Math.max(1, item.colors.length - 1), c);
+                    });
+                    ctx.fillStyle = grad;
+                    ctx.globalAlpha = 0.35;
+                    ctx.fillRect(0, 0, 512, 256);
+
+                    // Intense radiant telemetry glow over the target field
+                    const cx = ((item.lon + 180) / 360) * 512;
+                    const cy = ((90 - item.lat) / 180) * 256;
+                    const radGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 80);
+                    radGrad.addColorStop(0, item.color);
+                    radGrad.addColorStop(
+                      0.5,
+                      item.colors[Math.floor(item.colors.length / 2)] || item.color,
+                    );
+                    radGrad.addColorStop(1, "transparent");
+                    ctx.globalAlpha = 0.85;
+                    ctx.fillStyle = radGrad;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 80, 0, Math.PI * 2);
+                    ctx.fill();
+                  }
+
+                  const texture = new THREE.CanvasTexture(canvas);
+                  const mat = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    opacity: item.opacity,
+                    blending: THREE.AdditiveBlending,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                  });
+
+                  const mesh = new THREE.Mesh(geom, mat);
+                  group.add(mesh);
+                }
+                return group;
+              }}
+              customThreeObjectUpdate={(obj: unknown, d: unknown) => {
+                const item = d as { opacity: number };
+                const group = obj as THREE.Group;
+                const mesh = group?.children?.[0] as THREE.Mesh<
+                  THREE.BufferGeometry,
+                  THREE.MeshBasicMaterial
+                >;
+                if (mesh?.material) {
+                  mesh.material.opacity = item.opacity;
+                }
+              }}
+              htmlElementsData={dynamicGlobeHtmlMarkers}
               htmlLat="lat"
               htmlLng="lng"
               htmlAltitude={0.03}
@@ -872,9 +1062,9 @@ export function GlobeViewport({
 
             {/* NASA GIBS WMTS Raster Tile Layer (Level maxZoom with smooth upscaling up to 18) */}
             <LeafletComp.TileLayer
-              key={`${gibsConfig.layerName}-${gibsConfig.defaultDate}`}
+              key={`${activeSatelliteConfig.gibsLayerName}-${activeSatelliteConfig.defaultDate}`}
               url={gibsTileUrl}
-              maxNativeZoom={gibsConfig.maxZoom}
+              maxNativeZoom={activeSatelliteConfig.maxZoom}
               maxZoom={18}
               opacity={opacity / 100}
               zIndex={10}
@@ -1123,7 +1313,7 @@ export function GlobeViewport({
           </div>
           <div className="font-mono text-[10px] text-muted-foreground">{reading.unit}</div>
           <div className="mt-1 font-mono text-[9px] text-cyan/70 truncate max-w-44">
-            GIBS: {gibsConfig.layerName}
+            GIBS: {activeSatelliteConfig.gibsLayerName}
           </div>
           {hover && (
             <div className="mt-2 border-t border-border pt-1 font-mono text-[10px] text-muted-foreground">
@@ -1223,7 +1413,7 @@ export function GlobeViewport({
       {viewMode === "2d" && (
         <div
           data-hud-overlay="hazard-filter"
-          className="absolute left-3 bottom-14 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
+          className="absolute left-3 bottom-24 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
         >
           <Button
             type="button"
@@ -1324,54 +1514,85 @@ export function GlobeViewport({
         </div>
       )}
 
-      {/* ---------------- BOTTOM-CENTER LAYER SWITCHER + OPACITY ---------------- */}
+      {/* ---------------- BOTTOM-CENTER SCIENTIFIC LAYER LEGEND + SWITCHER ---------------- */}
       <div
         data-hud-overlay="layer-switcher"
         className="absolute inset-x-3 bottom-2.5 mx-auto flex max-w-3xl flex-col items-center gap-1.5 z-20 pointer-events-auto"
       >
+        {/* Floating Glassmorphic Color-Scale Legend Pill */}
+        <div className="w-full max-w-xl rounded-xl border border-cyan-500/40 bg-[#0D1322]/95 p-2 backdrop-blur-md shadow-2xl">
+          <div className="flex items-center justify-between gap-2 mb-1.5 font-mono text-[11px]">
+            <div className="flex items-center gap-1.5 truncate">
+              <Radio className="size-3 text-emerald animate-pulse shrink-0" />
+              <span className="font-bold text-cyan truncate">
+                {activeSatelliteConfig.sensorName}
+              </span>
+              <span className="text-muted-foreground hidden sm:inline truncate">
+                • {activeSatelliteConfig.title}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="font-mono text-[10px] text-muted-foreground">GLOW</span>
+              <Slider
+                aria-label="Layer opacity"
+                className="w-20 sm:w-24"
+                min={20}
+                max={100}
+                step={1}
+                value={[opacity]}
+                onValueChange={([v]) => v !== undefined && onOpacity(v)}
+              />
+              <span className="font-mono text-[10px] text-cyan tabular-nums w-8 text-right font-bold">
+                {opacity}%
+              </span>
+            </div>
+          </div>
+
+          {/* Continuous Color Gradient Bar */}
+          <div
+            className="h-2 w-full rounded-full shadow-inner border border-white/10"
+            style={{ background: activeSatelliteConfig.colorRamp.gradient }}
+          />
+
+          {/* Scale Min / Active Reading / Max Readout */}
+          <div className="mt-1 flex items-center justify-between font-mono text-[9px] text-muted-foreground">
+            <span className="truncate">{activeSatelliteConfig.colorRamp.minLabel}</span>
+            <span className="px-1.5 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/30 text-cyan text-[10px] tabular-nums">
+              FIELD: {reading.value} {reading.unit}
+            </span>
+            <span className="truncate text-right">{activeSatelliteConfig.colorRamp.maxLabel}</span>
+          </div>
+        </div>
+
+        {/* Layer Switcher Buttons Pill Bar */}
         <div
-          className="flex flex-wrap justify-center gap-1.5 bg-background/85 px-3 py-1.5 rounded-xl border border-cyan-500/30 backdrop-blur-md shadow-xl"
+          className="flex flex-wrap justify-center gap-1.5 bg-background/90 px-3 py-1.5 rounded-xl border border-cyan-500/30 backdrop-blur-md shadow-xl"
           role="radiogroup"
           aria-label="Map layer"
         >
-          {MAP_LAYERS.map((l) => (
-            <Button
-              key={l}
-              type="button"
-              variant="pill"
-              size="pill"
-              role="radio"
-              aria-checked={activeLayer === l}
-              data-active={activeLayer === l}
-              onClick={() => onLayer(l)}
-              className={cn(
-                "transition-all text-xs",
-                activeLayer === l && "border-cyan/80 bg-cyan/20 text-cyan text-glow",
-              )}
-            >
-              {l}
-            </Button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-3 rounded-full border border-cyan-500/30 bg-background/85 px-4 py-1 backdrop-blur-md shadow-lg">
-          <Layers className="size-3.5 text-cyan" />
-          <span className="hud-label">GIBS Opacity</span>
-          <Slider
-            aria-label="Layer opacity"
-            className="w-36"
-            min={0}
-            max={100}
-            step={1}
-            value={[opacity]}
-            onValueChange={([v]) => v !== undefined && onOpacity(v)}
-          />
-          <span className="w-8 text-right font-mono text-[11px] tabular-nums text-cyan">
-            {opacity}%
-          </span>
-          <span className="hidden sm:inline-block border-l border-border pl-2 font-mono text-[10px] text-muted-foreground truncate">
-            Level {gibsConfig.maxZoom} WMTS
-          </span>
+          {MAP_LAYERS.map((l) => {
+            const isAct = activeLayer === l;
+            return (
+              <Button
+                key={l}
+                type="button"
+                variant="pill"
+                size="pill"
+                role="radio"
+                aria-checked={isAct}
+                data-active={isAct}
+                onClick={() => onLayer(l)}
+                className={cn(
+                  "transition-all text-xs flex items-center gap-1",
+                  isAct &&
+                    "border-cyan/80 bg-cyan/20 text-cyan text-glow shadow-[0_0_12px_rgba(6,182,212,0.4)]",
+                )}
+              >
+                {isAct && <span className="size-1.5 rounded-full bg-cyan animate-pulse" />}
+                {l}
+              </Button>
+            );
+          })}
         </div>
       </div>
     </div>
