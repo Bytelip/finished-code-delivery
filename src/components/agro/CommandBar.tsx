@@ -278,7 +278,7 @@ export function CommandBar({
   const host = typeof window !== "undefined" ? window.location.host : "192.168.0.3:8080";
 
   return (
-    <div className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-xl">
+    <div className="sticky top-0 z-[100] border-b border-border bg-background/80 backdrop-blur-xl">
       {/* ---------------- INSECURE LAN HOST BANNER ---------------- */}
       {showInsecureBanner && !bannerDismissed && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 font-mono text-xs text-amber-200">
@@ -417,7 +417,7 @@ export function CommandBar({
 
           {/* High-z-index Dark Aerospace HUD Dropdown Suggestions */}
           {dropdownOpen && searchResults.length > 0 && (
-            <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan-500/40 bg-[#0D1322] p-1.5 shadow-2xl backdrop-blur-md">
+            <div className="absolute left-0 top-full z-[1000] mt-1 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan-500/40 bg-[#0D1322] p-1.5 shadow-2xl backdrop-blur-md">
               <div className="flex items-center justify-between px-2.5 py-1 font-mono text-[10px] text-muted-foreground uppercase tracking-wider border-b border-border/50">
                 <span className="flex items-center gap-1">
                   <Globe2 className="size-3 text-cyan" /> Geocoding Matches
@@ -431,6 +431,10 @@ export function CommandBar({
                     <li
                       key={place.id}
                       onClick={() => selectPlace(place)}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectPlace(place);
+                      }}
                       onMouseEnter={() => setSelectedIndex(idx)}
                       className={cn(
                         "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-colors",

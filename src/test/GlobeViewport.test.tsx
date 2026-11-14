@@ -124,5 +124,40 @@ describe("GlobeViewport", () => {
     expect(container.querySelector('[data-hud-overlay="reticle"]')).not.toBeNull();
     expect(container.querySelector('[data-hud-overlay="layer-readout"]')).not.toBeNull();
     expect(container.querySelector('[data-hud-overlay="layer-switcher"]')).not.toBeNull();
+    expect(container.querySelector('[data-hud-overlay="zoom-controls"]')).not.toBeNull();
+  });
+
+  it("interacts with HUD zoom control bar buttons and slider", () => {
+    const { container } = render(
+      <GlobeViewport
+        telemetry={telemetry}
+        activeLayer="NDVI"
+        onLayer={vi.fn()}
+        opacity={70}
+        onOpacity={vi.fn()}
+        onPick={vi.fn()}
+      />,
+    );
+
+    const zoomInBtn = screen.getByRole("button", { name: "Zoom In" });
+    const zoomOutBtn = screen.getByRole("button", { name: "Zoom Out" });
+    const targetFarmBtn = screen.getByRole("button", { name: "Target Farm" });
+    const fullOrbitBtn = screen.getByRole("button", { name: "Full Orbit" });
+
+    expect(zoomInBtn).toBeDefined();
+    expect(zoomOutBtn).toBeDefined();
+    expect(targetFarmBtn).toBeDefined();
+    expect(fullOrbitBtn).toBeDefined();
+
+    fireEvent.click(zoomInBtn);
+    fireEvent.click(zoomOutBtn);
+    fireEvent.click(targetFarmBtn);
+    fireEvent.click(fullOrbitBtn);
+
+    const slider = container.querySelector('input[type="range"]');
+    expect(slider).not.toBeNull();
+    if (slider) {
+      fireEvent.change(slider, { target: { value: "14" } });
+    }
   });
 });

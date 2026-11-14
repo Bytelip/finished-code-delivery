@@ -234,6 +234,31 @@
 /* ==========================================================================
    Print Optimization for Farmer Advisory Bulletin & Official PDF Reports
    ========================================================================== */
+/* Dark Aerospace HUD Leaflet Popup */
+.hud-leaflet-popup .leaflet-popup-content-wrapper {
+  background: #0d1322f2 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(6, 182, 212, 0.45) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.7),
+    0 0 12px rgba(6, 182, 212, 0.3) !important;
+}
+
+.hud-leaflet-popup .leaflet-popup-tip {
+  background: #0d1322f2 !important;
+  border: 1px solid rgba(6, 182, 212, 0.45) !important;
+}
+
+.hud-leaflet-popup .leaflet-popup-close-button {
+  color: #94a3b8 !important;
+}
+
+.hud-leaflet-popup .leaflet-popup-close-button:hover {
+  color: #06b6d4 !important;
+}
+
 @media print {
   @page {
     margin: 12mm 15mm;

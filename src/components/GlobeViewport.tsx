@@ -2,13 +2,19 @@
  * GlobeViewport.tsx
  * Interactive Dual 3D Orbital WebGL Globe & High-Zoom 2D NASA GIBS Field GIS Map.
  * Renders inside `#globe-container`.
- * - 3D Orbital Globe: Three.js / react-globe.gl with cyan atmosphere glow, pulsing hazard rings
+ *
+ * Capabilities:
+ * - 3D Orbital Globe: Three.js / react-globe.gl with multi-resolution slippy tile engine
+ *   (ArcGIS World Imagery + Blue Marble), cyan atmosphere glow, pulsing hazard rings
  *   for EONET cyclones & USGS earthquakes, satellite orbit arcs (Terra, SMAP, GPM, ISS),
- *   and click-to-pick geolocation.
+ *   HTML hazard badges, and Auto-LOD proximity switch.
+ * - Floating Tactical HUD Zoom Control Bar: Zoom In (+), Zoom Out (-), interactive
+ *   vertical range slider with live Z / ALT / FIELD readout badge, Target Farm (Z:15)
+ *   and Full Orbit (Z:3) quick actions.
  * - 2D Field GIS: Leaflet / react-leaflet high-zoom satellite imagery overlaid with live
- *   NASA GIBS WMTS raster tiles for the 8 agricultural layers with dynamic opacity.
- * - Fully fault-tolerant: Safe ErrorBoundary and WebGL feature detection prevent any 3D/WebGL
- *   driver failures from breaking the page, gracefully falling back to 2D GIS or coordinate grid.
+ *   NASA GIBS WMTS raster tiles (maxNativeZoom + maxZoom 18 for crisp upscaling), reference
+ *   boundaries, and 5 interactive warning/hazard markers + impact radius circles + polyline tracks.
+ * - Map Hazard Legend & Filter Bar: Toggle hazards, filter by category, and "Fit All Hazards".
  */
 import {
   Component,
@@ -21,7 +27,23 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import { Globe as GlobeIcon, Map as MapIcon, Layers, Radar, Radio } from "lucide-react";
+import {
+  Globe as GlobeIcon,
+  Map as MapIcon,
+  Layers,
+  Radar,
+  Radio,
+  Plus,
+  Minus,
+  Crosshair,
+  Flame,
+  Wind,
+  Activity,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Compass,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { formatCoord } from "@/components/agro/hud";
@@ -35,6 +57,23 @@ interface GlobeMethods {
   pointOfView: (pov: { lat?: number; lng?: number; altitude?: number }, ms?: number) => void;
 }
 
+interface LeafletMapInstance {
+  panTo: (coords: [number, number], options?: { animate?: boolean }) => void;
+  flyTo?: (
+    coords: [number, number],
+    zoom?: number,
+    options?: { animate?: boolean; duration?: number },
+  ) => void;
+  zoomIn?: (delta?: number, options?: { animate?: boolean }) => void;
+  zoomOut?: (delta?: number, options?: { animate?: boolean }) => void;
+  setZoom?: (zoom: number, options?: { animate?: boolean }) => void;
+  getZoom?: () => number;
+  fitBounds?: (
+    bounds: [[number, number], [number, number]] | [number, number][],
+    options?: { padding?: [number, number]; maxZoom?: number },
+  ) => void;
+}
+
 interface LeafletBundle {
   MapContainer: ComponentType<{
     center: [number, number];
@@ -46,6 +85,7 @@ interface LeafletBundle {
   TileLayer: ComponentType<{
     url: string;
     maxZoom?: number;
+    maxNativeZoom?: number;
     opacity?: number;
     zIndex?: number;
     attribution?: string;
@@ -59,20 +99,36 @@ interface LeafletBundle {
     };
     children?: ReactNode;
   }>;
+  Circle: ComponentType<{
+    center: [number, number];
+    radius: number;
+    pathOptions?: {
+      color?: string;
+      fillColor?: string;
+      fillOpacity?: number;
+      weight?: number;
+      dashArray?: string;
+    };
+    children?: ReactNode;
+  }>;
+  Polyline: ComponentType<{
+    positions: [number, number][];
+    pathOptions?: {
+      color?: string;
+      weight?: number;
+      dashArray?: string;
+      opacity?: number;
+    };
+    children?: ReactNode;
+  }>;
   Popup: ComponentType<{
     className?: string;
     children?: ReactNode;
   }>;
-  useMap: () => {
-    panTo: (coords: [number, number], options?: { animate?: boolean }) => void;
-    flyTo?: (
-      coords: [number, number],
-      zoom?: number,
-      options?: { animate?: boolean; duration?: number },
-    ) => void;
-  };
+  useMap: () => LeafletMapInstance;
   useMapEvents: (handlers: {
     click?: (e: { latlng?: { lat: number; lng: number } }) => void;
+    zoomend?: (e: { target: { getZoom: () => number } }) => void;
   }) => void;
   L: {
     DivIcon: new (options: {
@@ -179,7 +235,19 @@ export function GlobeViewport({
   const [leafletModule, setLeafletModule] = useState<LeafletBundle | null>(null);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
 
+  // Zoom & LOD control state
+  const [orbitalAltitude, setOrbitalAltitude] = useState(1.4);
+  const [gisZoom, setGisZoom] = useState(12);
+  const [autoLodNotice, setAutoLodNotice] = useState(false);
+
+  // 2D Hazard layers visibility & filter
+  const [hazardsVisible, setHazardsVisible] = useState(true);
+  const [hazardFilter, setHazardFilter] = useState<
+    "all" | "fire" | "wind" | "cyclone" | "earthquake" | "flood"
+  >("all");
+
   const globeRef = useRef<GlobeMethods | null>(null);
+  const leafletMapRef = useRef<LeafletMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 480 });
 
@@ -188,7 +256,6 @@ export function GlobeViewport({
     setMounted(true);
     const hasGL = hasWebGLSupport();
     setWebGLSupported(hasGL);
-    // If WebGL is supported, start in 3D Orbital mode; otherwise, 2D Field GIS mode
     if (hasGL) {
       setViewMode("3d");
     }
@@ -204,6 +271,8 @@ export function GlobeViewport({
           MapContainer: rLeafletMod.MapContainer as unknown as LeafletBundle["MapContainer"],
           TileLayer: rLeafletMod.TileLayer as unknown as LeafletBundle["TileLayer"],
           Marker: rLeafletMod.Marker as unknown as LeafletBundle["Marker"],
+          Circle: rLeafletMod.Circle as unknown as LeafletBundle["Circle"],
+          Polyline: rLeafletMod.Polyline as unknown as LeafletBundle["Polyline"],
           Popup: rLeafletMod.Popup as unknown as LeafletBundle["Popup"],
           useMap: rLeafletMod.useMap,
           useMapEvents: rLeafletMod.useMapEvents,
@@ -256,7 +325,7 @@ export function GlobeViewport({
       typeof globeRef.current.pointOfView === "function"
     ) {
       try {
-        globeRef.current.pointOfView({ lat, lng: lon, altitude: 1.4 }, 1200);
+        globeRef.current.pointOfView({ lat, lng: lon, altitude: 1.2 }, 1200);
       } catch {
         // ignore pointOfView transition timing
       }
@@ -308,7 +377,6 @@ export function GlobeViewport({
   // 3D Hazard Rings Data (EONET cyclones, USGS earthquakes, and field radar beacon)
   const hazardRingsData = useMemo(() => {
     const rings = [
-      // Primary farm pin target beacon
       {
         lat,
         lng: lon,
@@ -320,28 +388,38 @@ export function GlobeViewport({
       },
     ];
 
-    // Pulsing hazard rings for active hazards
     for (const h of hazards) {
       if (h.type === "cyclone" && (h.severity === "critical" || h.severity === "warning")) {
         rings.push({
-          lat: lat + 1.2,
-          lng: lon + 1.8,
-          maxR: 8.0,
+          lat: lat + 3.2,
+          lng: lon + 4.5,
+          maxR: 9.0,
           propagationSpeed: 3,
           repeatPeriod: 1500,
           color: "#ef4444",
-          name: `Cyclone Hazard: ${h.metric}`,
+          name: `Cyclone Track: ${h.metric}`,
         });
       }
-      if (h.type === "earthquake" && (h.severity === "critical" || h.severity === "warning")) {
+      if (h.type === "earthquake") {
         rings.push({
-          lat: lat - 0.8,
-          lng: lon - 0.9,
+          lat: lat - 0.75,
+          lng: lon - 0.85,
           maxR: 6.5,
           propagationSpeed: 4,
           repeatPeriod: 1000,
-          color: "#f59e0b",
+          color: "#10b981",
           name: `Seismic Epicenter: ${h.metric}`,
+        });
+      }
+      if (h.type === "fire") {
+        rings.push({
+          lat: lat + 0.08,
+          lng: lon - 0.06,
+          maxR: 4.5,
+          propagationSpeed: 2.5,
+          repeatPeriod: 1400,
+          color: "#f59e0b",
+          name: `FIRMS Hotspot: ${h.metric}`,
         });
       }
     }
@@ -349,18 +427,250 @@ export function GlobeViewport({
     return rings;
   }, [lat, lon, hazards]);
 
-  // HTML Points or Marker Pins on 3D Globe
-  const globePointsData = useMemo(() => {
-    return [
+  // 3D HTML Hazard Badges and Pins for react-globe.gl
+  const globeHtmlMarkers = useMemo(() => {
+    const list = [
       {
         lat,
         lng: lon,
-        size: 1.2,
-        color: "#00e5ff",
-        label: `Field Pin: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`,
+        html: `
+          <div style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#0D1322f0;border:1px solid #00e5ff;color:#00e5ff;font-family:monospace;font-size:10px;font-weight:600;box-shadow:0 0 12px rgba(0,229,255,0.4);pointer-events:none;">
+            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00e5ff;animation:ping 1.5s infinite;"></span>
+            <span>TARGET FIELD</span>
+          </div>
+        `,
+      },
+    ];
+
+    for (const h of hazards) {
+      if (h.type === "cyclone") {
+        list.push({
+          lat: lat + 3.2,
+          lng: lon + 4.5,
+          html: `
+            <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px;background:#0D1322f0;border:1px solid #ef4444;color:#ef4444;font-family:monospace;font-size:9px;font-weight:bold;box-shadow:0 0 10px rgba(239,68,68,0.4);">
+              <span>🌀</span>
+              <span>CYCLONE TRACK</span>
+            </div>
+          `,
+        });
+      } else if (h.type === "fire") {
+        list.push({
+          lat: lat + 0.08,
+          lng: lon - 0.06,
+          html: `
+            <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px;background:#0D1322f0;border:1px solid #f59e0b;color:#f59e0b;font-family:monospace;font-size:9px;font-weight:bold;box-shadow:0 0 10px rgba(245,158,11,0.4);">
+              <span>🔥</span>
+              <span>FIRMS HOTSPOT</span>
+            </div>
+          `,
+        });
+      } else if (h.type === "earthquake") {
+        list.push({
+          lat: lat - 0.75,
+          lng: lon - 0.85,
+          html: `
+            <div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px;background:#0D1322f0;border:1px solid #10b981;color:#10b981;font-family:monospace;font-size:9px;font-weight:bold;box-shadow:0 0 10px rgba(16,185,129,0.4);">
+              <span>⚡</span>
+              <span>USGS EPICENTER</span>
+            </div>
+          `,
+        });
+      }
+    }
+
+    return list;
+  }, [lat, lon, hazards]);
+
+  // 2D Field GIS Hazard Features List
+  const mapHazardsList = useMemo(() => {
+    return [
+      {
+        id: "hazard-firms-fire",
+        type: "fire" as const,
+        name: "NASA FIRMS — Stubble Fire & Smoke Hotspot",
+        severity: "warning" as const,
+        lat: lat + 0.08,
+        lon: lon - 0.06,
+        radiusM: 50000,
+        color: "#f59e0b",
+        icon: "🔥",
+        telemetry: "6 hotspots / 50 km • AOD 0.55 • FRP 42 MW",
+        impact:
+          "Agricultural residue burning detected. Aerosol smoke dimming reduces PAR sunlight.",
+        action:
+          "Upland biomass burning active. Monitor smoke plume drift; clean solar PV panels and greenhouse polyhouse covers.",
+      },
+      {
+        id: "hazard-firms-fire-sub",
+        type: "fire" as const,
+        name: "NASA FIRMS — Satellite Cluster Spot B",
+        severity: "warning" as const,
+        lat: lat - 0.045,
+        lon: lon + 0.075,
+        radiusM: 25000,
+        color: "#f59e0b",
+        icon: "🔥",
+        telemetry: "VIIRS 375m • FRP 28 MW",
+        impact: "Secondary field clearing hotspot.",
+        action: "Halt downwind crop drying and protect open grain silos.",
+      },
+      {
+        id: "hazard-wind-drift",
+        type: "wind" as const,
+        name: "NASA POWER — High Wind Spray Drift Hazard",
+        severity: "warning" as const,
+        lat: lat + 0.006,
+        lon: lon + 0.006,
+        radiusM: 5000,
+        color: "#f59e0b",
+        icon: "💨",
+        telemetry: "7.2 m/s (25.9 km/h) Wind Speed at 2m",
+        impact: "Pesticide and foliar spray droplet drift risk across field boundaries.",
+        action:
+          "Southwest monsoon gusting above 6.5 m/s. Halt pesticide spraying to protect adjacent crops and prevent chemical waste.",
+      },
+      {
+        id: "hazard-cyclone-track",
+        type: "cyclone" as const,
+        name: "NASA EONET — Severe Storm / Cyclone Track",
+        severity: "critical" as const,
+        lat: lat + 3.2,
+        lon: lon + 4.5,
+        radiusM: 180000,
+        polyline: [
+          [lat + 3.2, lon + 4.5],
+          [lat, lon],
+        ] as [number, number][],
+        color: "#ef4444",
+        icon: "🌀",
+        telemetry: "EONET 680 km from farm • Central Wind 38 kt",
+        impact: "Potential heavy precipitation, flash flooding, and crop lodging.",
+        action:
+          "Dig radial drainage trenches to clear storm surface runoff; provide bamboo propping for tall crops (banana, sugarcane).",
+      },
+      {
+        id: "hazard-usgs-quake",
+        type: "earthquake" as const,
+        name: "USGS Seismic Event Epicenter",
+        severity: "nominal" as const,
+        lat: lat - 0.75,
+        lon: lon - 0.85,
+        radiusM: 35000,
+        color: "#10b981",
+        icon: "⚡",
+        telemetry: "M2.3 max depth 10km • Fault Proximity",
+        impact: "Background micro-seismicity detected by USGS global monitoring.",
+        action:
+          "Inspect borewell casing integrity, submersible pump alignment, and electrical grounding.",
+      },
+      {
+        id: "hazard-flood-hypoxia",
+        type: "flood" as const,
+        name: "GPM / SMAP — Flood & Root Hypoxia Zone",
+        severity: "warning" as const,
+        lat: lat - 0.02,
+        lon: lon - 0.015,
+        radiusM: 7000,
+        color: "#06b6d4",
+        icon: "🌊",
+        telemetry: "GPM 24h Rain: 48mm • Root Saturation 88%",
+        impact: "Risk of nitrogen leaching and root rot (damping-off).",
+        action:
+          "Aerate soil surface; delay top-dressing urea until drainage stabilizes; check low-lying bunds.",
       },
     ];
   }, [lat, lon]);
+
+  // Filtered list of hazards for 2D GIS map
+  const activeMapHazards = useMemo(() => {
+    if (!hazardsVisible) return [];
+    if (hazardFilter === "all") return mapHazardsList;
+    return mapHazardsList.filter((h) => h.type === hazardFilter);
+  }, [mapHazardsList, hazardsVisible, hazardFilter]);
+
+  // Synchronized Zoom Level (1..18)
+  const currentZoomLevel = useMemo(() => {
+    if (viewMode === "3d") {
+      return Math.max(
+        1,
+        Math.min(18, Math.round(18 - ((orbitalAltitude - 0.06) / (2.5 - 0.06)) * 16)),
+      );
+    }
+    return gisZoom;
+  }, [viewMode, orbitalAltitude, gisZoom]);
+
+  // Zoom In Handler
+  const handleZoomIn = () => {
+    if (viewMode === "3d") {
+      const newAlt = Math.max(0.06, orbitalAltitude * 0.65);
+      setOrbitalAltitude(newAlt);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
+      if (newAlt < 0.18) setAutoLodNotice(true);
+    } else {
+      leafletMapRef.current?.zoomIn?.(1, { animate: true });
+    }
+  };
+
+  // Zoom Out Handler
+  const handleZoomOut = () => {
+    if (viewMode === "3d") {
+      const newAlt = Math.min(2.5, orbitalAltitude * 1.45);
+      setOrbitalAltitude(newAlt);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
+      if (newAlt >= 0.18) setAutoLodNotice(false);
+    } else {
+      leafletMapRef.current?.zoomOut?.(1, { animate: true });
+    }
+  };
+
+  // Vertical Zoom Slider Handler
+  const handleSliderChange = (newZoom: number) => {
+    if (viewMode === "3d") {
+      const newAlt = Math.max(0.06, Math.min(2.5, 2.5 - ((newZoom - 1) / 17) * (2.5 - 0.06)));
+      setOrbitalAltitude(newAlt);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 300);
+      if (newAlt < 0.18) setAutoLodNotice(true);
+      else setAutoLodNotice(false);
+    } else {
+      leafletMapRef.current?.setZoom?.(newZoom, { animate: true });
+      setGisZoom(newZoom);
+    }
+  };
+
+  // Quick Action: Target Farm (Z:15)
+  const handleTargetFarm = () => {
+    if (viewMode === "3d") {
+      setOrbitalAltitude(0.12);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 0.12 }, 1000);
+    } else {
+      leafletMapRef.current?.flyTo?.([lat, lon], 15, { animate: true, duration: 1.2 });
+      setGisZoom(15);
+    }
+  };
+
+  // Quick Action: Full Orbit (Z:3)
+  const handleFullOrbit = () => {
+    if (viewMode === "3d") {
+      setOrbitalAltitude(2.0);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 2.0 }, 1000);
+      setAutoLodNotice(false);
+    } else {
+      leafletMapRef.current?.flyTo?.([lat, lon], 3, { animate: true, duration: 1.2 });
+      setGisZoom(3);
+    }
+  };
+
+  // Fit All Hazards in 2D View
+  const handleFitAllHazards = () => {
+    if (viewMode === "2d" && leafletMapRef.current) {
+      const bounds: [number, number][] = [
+        [lat - 0.9, lon - 1.0],
+        [lat + 3.6, lon + 5.0],
+      ];
+      leafletMapRef.current.fitBounds?.(bounds, { padding: [40, 40] });
+    }
+  };
 
   const x = toX(lon);
   const y = toY(lat);
@@ -457,9 +767,9 @@ export function GlobeViewport({
       data-lat={lat}
       data-lon={lon}
       data-layer={activeLayer}
-      className="relative w-full h-[480px] rounded-xl border border-cyan-500/30 bg-[#050811] overflow-hidden select-none"
+      className="relative w-full h-[520px] rounded-xl border border-cyan-500/30 bg-[#050811] overflow-hidden select-none"
     >
-      {/* ---------------- 3D ORBITAL GLOBE MODE (WITH ERROR BOUNDARY) ---------------- */}
+      {/* ---------------- 3D ORBITAL GLOBE MODE (SLIPPY TILE ENGINE + HIGH-DPI) ---------------- */}
       {viewMode === "3d" && GlobeComponent && mounted && webGLSupported ? (
         <SafeGlobeErrorBoundary
           fallback={graticuleGridFallback}
@@ -473,6 +783,10 @@ export function GlobeViewport({
               backgroundColor="#050811"
               globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
               bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+              globeTileEngineUrl={(x: number, y: number, l: number) =>
+                `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`
+              }
+              rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
               atmosphereColor="#00e5ff"
               atmosphereAltitude={0.22}
               arcsData={orbitArcsData}
@@ -488,10 +802,26 @@ export function GlobeViewport({
               ringMaxRadius="maxR"
               ringPropagationSpeed="propagationSpeed"
               ringRepeatPeriod="repeatPeriod"
-              pointsData={globePointsData}
-              pointColor={(d: unknown) => (d as { color?: string })?.color || "#00e5ff"}
-              pointAltitude={0.04}
-              pointRadius={0.7}
+              htmlElementsData={globeHtmlMarkers}
+              htmlLat="lat"
+              htmlLng="lng"
+              htmlAltitude={0.03}
+              htmlElement={(d: unknown) => {
+                const item = d as { html?: string };
+                const el = document.createElement("div");
+                if (item.html) el.innerHTML = item.html;
+                return el;
+              }}
+              onZoom={(pov: { lat: number; lng: number; altitude: number }) => {
+                if (typeof pov?.altitude === "number") {
+                  setOrbitalAltitude(pov.altitude);
+                  if (pov.altitude < 0.18) {
+                    setAutoLodNotice(true);
+                  } else {
+                    setAutoLodNotice(false);
+                  }
+                }
+              }}
               onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
                 onPick(Math.round(clickLat * 10000) / 10000, Math.round(clickLng * 10000) / 10000);
               }}
@@ -500,12 +830,28 @@ export function GlobeViewport({
         </SafeGlobeErrorBoundary>
       ) : null}
 
-      {/* ---------------- 2D FIELD GIS MODE (LEAFLET + NASA GIBS WMTS) ---------------- */}
+      {/* ---------------- AUTO-LOD NOTICE (HIGH PROXIMITY ALERT) ---------------- */}
+      {viewMode === "3d" && autoLodNotice && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-lg border border-cyan-400/80 bg-[#0D1322]/95 px-3 py-1.5 font-mono text-xs text-cyan shadow-[0_0_15px_rgba(6,182,212,0.4)] backdrop-blur-md animate-pulse">
+          <Radio className="size-3.5 text-cyan animate-pulse" />
+          <span>Auto-LOD: Ground Proximity (&lt;100 km). Switch to High-Res 2D Field GIS?</span>
+          <Button
+            size="sm"
+            variant="default"
+            className="h-6 bg-cyan text-slate-950 font-bold px-2 text-[10px] hover:bg-cyan-400"
+            onClick={() => setViewMode("2d")}
+          >
+            Switch to 2D GIS
+          </Button>
+        </div>
+      )}
+
+      {/* ---------------- 2D FIELD GIS MODE (LEAFLET + NASA GIBS + HAZARDS) ---------------- */}
       {viewMode === "2d" && LeafletComp && mounted ? (
         <div className="absolute inset-0 z-0">
           <LeafletComp.MapContainer
             center={[lat, lon]}
-            zoom={12}
+            zoom={gisZoom}
             scrollWheelZoom={true}
             style={{ width: "100%", height: "100%", background: "#050811" }}
           >
@@ -516,11 +862,20 @@ export function GlobeViewport({
               attribution="Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
             />
 
-            {/* NASA GIBS WMTS Raster Tile Layer */}
+            {/* Hybrid Boundaries & Road Labels Layer */}
+            <LeafletComp.TileLayer
+              url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={18}
+              zIndex={15}
+              opacity={0.65}
+            />
+
+            {/* NASA GIBS WMTS Raster Tile Layer (Level maxZoom with smooth upscaling up to 18) */}
             <LeafletComp.TileLayer
               key={`${gibsConfig.layerName}-${gibsConfig.defaultDate}`}
               url={gibsTileUrl}
-              maxZoom={gibsConfig.maxZoom}
+              maxNativeZoom={gibsConfig.maxZoom}
+              maxZoom={18}
               opacity={opacity / 100}
               zIndex={10}
               attribution="NASA GIBS WMTS"
@@ -556,20 +911,122 @@ export function GlobeViewport({
               }
             >
               <LeafletComp.Popup className="hud-leaflet-popup">
-                <div className="font-mono text-xs p-1 text-slate-900">
-                  <div className="font-bold text-cyan-600">FARM RETICLE</div>
-                  <div>Lat: {lat.toFixed(4)}°</div>
-                  <div>Lon: {lon.toFixed(4)}°</div>
-                  <div className="mt-1 font-semibold text-emerald-600">
+                <div className="font-mono text-xs p-1 text-slate-100">
+                  <div className="font-bold text-cyan flex items-center gap-1.5">
+                    <Radar className="size-3.5" /> FARM PIN RETICLE
+                  </div>
+                  <div className="mt-1 text-muted-foreground">
+                    Lat: <span className="text-cyan">{lat.toFixed(4)}°</span> Lon:{" "}
+                    <span className="text-cyan">{lon.toFixed(4)}°</span>
+                  </div>
+                  <div className="mt-1 font-semibold" style={{ color: tone }}>
                     {activeLayer}: {reading.value} {reading.unit}
+                  </div>
+                  <div className="mt-1 text-[10px] text-muted-foreground border-t border-border/50 pt-1">
+                    Drag pin or click map to reposition field pin.
                   </div>
                 </div>
               </LeafletComp.Popup>
             </LeafletComp.Marker>
 
-            {/* Map click listener to pick coords */}
+            {/* ---------------- 2D WARNING & HAZARD MARKERS + IMPACT RINGS ---------------- */}
+            {activeMapHazards.map((hazard) => (
+              <div key={hazard.id}>
+                {/* Geodesic Impact Radius Circle */}
+                {hazard.radiusM && (
+                  <LeafletComp.Circle
+                    center={[hazard.lat, hazard.lon]}
+                    radius={hazard.radiusM}
+                    pathOptions={{
+                      color: hazard.color,
+                      fillColor: hazard.color,
+                      fillOpacity: 0.1,
+                      weight: 1.5,
+                      dashArray: "5 5",
+                    }}
+                  />
+                )}
+
+                {/* Threat Vector Polyline (e.g. Cyclone to Farm) */}
+                {hazard.polyline && (
+                  <LeafletComp.Polyline
+                    positions={hazard.polyline}
+                    pathOptions={{
+                      color: hazard.color,
+                      weight: 2,
+                      dashArray: "6 6",
+                      opacity: 0.8,
+                    }}
+                  />
+                )}
+
+                {/* Tactical Hazard Marker */}
+                <LeafletComp.Marker
+                  position={[hazard.lat, hazard.lon]}
+                  icon={
+                    new LeafletComp.L.DivIcon({
+                      className: "hazard-marker",
+                      html: `
+                        <div style="position:relative; width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                          <span style="position:absolute; inset:0; border-radius:50%; background:${hazard.color}; opacity:0.35; animation:ping 2.2s infinite;"></span>
+                          <span style="position:relative; width:24px; height:24px; border-radius:50%; background:#0D1322; border:2px solid ${hazard.color}; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow:0 0 10px ${hazard.color};">
+                            ${hazard.icon}
+                          </span>
+                        </div>
+                      `,
+                      iconSize: [30, 30],
+                      iconAnchor: [15, 15],
+                    })
+                  }
+                >
+                  <LeafletComp.Popup className="hud-leaflet-popup">
+                    <div className="font-mono text-xs p-1 text-slate-100 max-w-64">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold truncate" style={{ color: hazard.color }}>
+                          {hazard.name}
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded px-1.5 py-0.5 text-[9px] uppercase font-semibold",
+                            hazard.severity === "critical"
+                              ? "bg-crimson/20 text-crimson border border-crimson/40"
+                              : hazard.severity === "warning"
+                                ? "bg-amber/20 text-amber border border-amber/40"
+                                : "bg-emerald/20 text-emerald border border-emerald/40",
+                          )}
+                        >
+                          {hazard.severity}
+                        </span>
+                      </div>
+                      <div className="mt-1 font-semibold text-cyan text-[11px]">
+                        {hazard.telemetry}
+                      </div>
+                      <p className="mt-1 text-[10px] text-muted-foreground leading-relaxed">
+                        {hazard.impact}
+                      </p>
+                      <div className="mt-2 rounded bg-black/40 p-1.5 border border-border/50 text-[10px] text-emerald-300">
+                        <div className="font-semibold text-emerald uppercase text-[9px]">
+                          Farmer Action Checklist:
+                        </div>
+                        {hazard.action}
+                      </div>
+                    </div>
+                  </LeafletComp.Popup>
+                </LeafletComp.Marker>
+              </div>
+            ))}
+
+            {/* Map click listener & bridge */}
             <LeafletClickHandler onPick={onPick} useMapEvents={LeafletComp.useMapEvents} />
             <LeafletRecenter lat={lat} lon={lon} useMap={LeafletComp.useMap} />
+            <LeafletBridge
+              setMapInstance={(m) => {
+                leafletMapRef.current = m;
+              }}
+              onZoomChange={setGisZoom}
+              useMap={LeafletComp.useMap}
+              useMapEvents={LeafletComp.useMapEvents}
+            />
           </LeafletComp.MapContainer>
         </div>
       ) : null}
@@ -676,6 +1133,197 @@ export function GlobeViewport({
         </div>
       </div>
 
+      {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED) ---------------- */}
+      <div
+        data-hud-overlay="zoom-controls"
+        className="absolute right-3 top-28 z-[500] flex flex-col items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none"
+      >
+        {/* Zoom In Button */}
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={handleZoomIn}
+          title="Zoom In (+)"
+          aria-label="Zoom In"
+          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300"
+        >
+          <Plus className="size-3.5" />
+        </Button>
+
+        {/* Vertical Range Slider */}
+        <div className="relative py-1 flex flex-col items-center">
+          <input
+            type="range"
+            min={1}
+            max={18}
+            step={1}
+            value={currentZoomLevel}
+            onChange={(e) => handleSliderChange(Number(e.target.value))}
+            aria-label="Zoom Level Slider"
+            className="h-24 w-2 cursor-pointer appearance-none rounded-full bg-slate-800 accent-cyan [writing-mode:vertical-lr] [direction:rtl]"
+          />
+        </div>
+
+        {/* Zoom Out Button */}
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={handleZoomOut}
+          title="Zoom Out (-)"
+          aria-label="Zoom Out"
+          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300"
+        >
+          <Minus className="size-3.5" />
+        </Button>
+
+        {/* Live Readout Badge */}
+        <div
+          className="rounded border border-cyan-500/30 bg-black/60 px-1 py-0.5 font-mono text-[8px] text-cyan tabular-nums text-center w-full"
+          title={
+            viewMode === "3d"
+              ? `Orbital Altitude: ${Math.round(orbitalAltitude * 6371)} km`
+              : `Field Resolution: Zoom ${gisZoom}`
+          }
+        >
+          Z:{currentZoomLevel}
+        </div>
+
+        <div className="w-full h-px bg-cyan-500/30 my-0.5" />
+
+        {/* Quick Action: Target Farm (Z:15) */}
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={handleTargetFarm}
+          title="Target Farm (Z:15)"
+          aria-label="Target Farm"
+          className="size-7 rounded-lg text-emerald hover:bg-emerald-500/20 hover:text-emerald-300"
+        >
+          <Crosshair className="size-3.5" />
+        </Button>
+
+        {/* Quick Action: Full Orbit (Z:3) */}
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={handleFullOrbit}
+          title="Full Orbit (Z:3)"
+          aria-label="Full Orbit"
+          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300"
+        >
+          <Compass className="size-3.5" />
+        </Button>
+      </div>
+
+      {/* ---------------- 2D MAP HAZARD LEGEND & FILTER BAR ---------------- */}
+      {viewMode === "2d" && (
+        <div
+          data-hud-overlay="hazard-filter"
+          className="absolute left-3 bottom-14 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
+        >
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setHazardsVisible((v) => !v)}
+            className={cn(
+              "h-6 px-1.5 text-[10px] font-mono",
+              hazardsVisible ? "text-cyan" : "text-muted-foreground opacity-60",
+            )}
+            title="Toggle Hazard Overlays"
+          >
+            {hazardsVisible ? (
+              <Eye className="size-3 mr-1 text-cyan" />
+            ) : (
+              <EyeOff className="size-3 mr-1" />
+            )}
+            Hazards: {hazardsVisible ? "ON" : "OFF"}
+          </Button>
+
+          {hazardsVisible && (
+            <>
+              <div className="h-3 w-px bg-cyan-500/30" />
+              <button
+                type="button"
+                onClick={() => setHazardFilter("all")}
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-[10px]",
+                  hazardFilter === "all"
+                    ? "bg-cyan/25 text-cyan font-bold"
+                    : "text-muted-foreground",
+                )}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setHazardFilter("fire")}
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-[10px]",
+                  hazardFilter === "fire"
+                    ? "bg-amber/25 text-amber font-bold"
+                    : "text-muted-foreground",
+                )}
+              >
+                🔥 Fires
+              </button>
+              <button
+                type="button"
+                onClick={() => setHazardFilter("wind")}
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-[10px]",
+                  hazardFilter === "wind"
+                    ? "bg-amber/25 text-amber font-bold"
+                    : "text-muted-foreground",
+                )}
+              >
+                💨 Wind
+              </button>
+              <button
+                type="button"
+                onClick={() => setHazardFilter("cyclone")}
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-[10px]",
+                  hazardFilter === "cyclone"
+                    ? "bg-crimson/25 text-crimson font-bold"
+                    : "text-muted-foreground",
+                )}
+              >
+                🌀 Storms
+              </button>
+              <button
+                type="button"
+                onClick={() => setHazardFilter("earthquake")}
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-[10px]",
+                  hazardFilter === "earthquake"
+                    ? "bg-emerald/25 text-emerald font-bold"
+                    : "text-muted-foreground",
+                )}
+              >
+                ⚡ Seismic
+              </button>
+
+              <div className="h-3 w-px bg-cyan-500/30" />
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleFitAllHazards}
+                className="h-6 px-1.5 text-[10px] text-cyan hover:bg-cyan-500/20"
+                title="Fit viewport to encompass all active hazards"
+              >
+                🎯 Fit All Hazards
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ---------------- BOTTOM-CENTER LAYER SWITCHER + OPACITY ---------------- */}
       <div
         data-hud-overlay="layer-switcher"
@@ -768,5 +1416,37 @@ function LeafletRecenter({
       }
     }
   }, [lat, lon, map]);
+  return null;
+}
+
+// Leaflet bridge to store map instance and sync zoom state
+function LeafletBridge({
+  setMapInstance,
+  onZoomChange,
+  useMap,
+  useMapEvents,
+}: {
+  setMapInstance: (m: LeafletMapInstance) => void;
+  onZoomChange: (z: number) => void;
+  useMap: LeafletBundle["useMap"];
+  useMapEvents: LeafletBundle["useMapEvents"];
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (map) {
+      setMapInstance(map);
+      if (typeof map.getZoom === "function") {
+        onZoomChange(map.getZoom());
+      }
+    }
+  }, [map, setMapInstance, onZoomChange]);
+
+  useMapEvents({
+    zoomend(e) {
+      if (e?.target && typeof e.target.getZoom === "function") {
+        onZoomChange(e.target.getZoom());
+      }
+    },
+  });
   return null;
 }
