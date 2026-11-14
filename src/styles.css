@@ -507,6 +507,98 @@
 }
 
 /* ==========================================================================
+   Cosmic Multi-Layer Starfield Ambience
+   ========================================================================== */
+@keyframes animStarfield {
+  from {
+    transform: translateY(0px) translateZ(0);
+  }
+  to {
+    transform: translateY(-2000px) translateZ(0);
+  }
+}
+
+.cosmic-starfield-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #061326 0%, #03060d 70%, #010307 100%);
+}
+
+.cosmic-stars-1 {
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  box-shadow:
+    24px 45px #fff,
+    120px 80px #38bdf8,
+    300px 150px #fff,
+    450px 220px #e0f2fe,
+    600px 80px #fff,
+    850px 320px #7dd3fc,
+    1100px 90px #fff,
+    1350px 240px #e0f2fe,
+    150px 500px #fff,
+    400px 600px #38bdf8,
+    700px 750px #fff,
+    950px 520px #fff,
+    1200px 640px #7dd3fc,
+    1450px 800px #fff,
+    300px 950px #e0f2fe,
+    650px 1100px #fff,
+    1000px 1250px #38bdf8,
+    1300px 1150px #fff,
+    100px 1400px #e0f2fe,
+    500px 1500px #fff,
+    850px 1650px #7dd3fc,
+    1200px 1750px #fff,
+    350px 1850px #fff,
+    750px 1950px #38bdf8;
+  animation: animStarfield 150s linear infinite;
+  position: absolute;
+}
+
+.cosmic-stars-2 {
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  box-shadow:
+    80px 120px #38bdf8,
+    350px 280px #fff,
+    720px 180px #a5f3fc,
+    1150px 340px #fff,
+    250px 650px #fff,
+    680px 820px #38bdf8,
+    1050px 720px #a5f3fc,
+    1400px 920px #fff,
+    180px 1250px #fff,
+    550px 1420px #38bdf8,
+    920px 1350px #fff,
+    1300px 1600px #a5f3fc;
+  animation: animStarfield 90s linear infinite;
+  position: absolute;
+}
+
+.cosmic-stars-3 {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow:
+    180px 240px #e0f2fe,
+    600px 450px #67e8f9,
+    1250px 500px #fff,
+    400px 1050px #67e8f9,
+    980px 1150px #e0f2fe,
+    1350px 1400px #fff,
+    300px 1700px #67e8f9,
+    850px 1850px #fff;
+  animation: animStarfield 50s linear infinite;
+  position: absolute;
+}
+
+/* ==========================================================================
    Print Optimization for Farmer Advisory Bulletin & Official PDF Reports
    ========================================================================== */
 /* Dark Aerospace HUD Leaflet Popup */

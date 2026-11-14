@@ -616,7 +616,7 @@ export function HazardAlertCenter({
 /**
  * Print & PDF-Optimized Farmer Advisory Report Modal
  */
-function FarmerAdvisoryModal({
+export function FarmerAdvisoryModal({
   telemetry,
   tacticalHazards,
   checkedSteps,

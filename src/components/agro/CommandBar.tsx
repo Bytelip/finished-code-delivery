@@ -11,6 +11,7 @@ import {
   Check,
   Globe2,
   SlidersHorizontal,
+  Rocket,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,7 @@ export function CommandBar({
   onNavigateHome,
   onSignOut,
   onUpdateUser,
+  onOpenMissionBrief,
 }: {
   lat: number;
   lon: number;
@@ -128,6 +130,7 @@ export function CommandBar({
   onNavigateHome?: (lat: number, lon: number, label: string) => void;
   onSignOut?: () => void;
   onUpdateUser?: (u: UserProfile) => void;
+  onOpenMissionBrief?: () => void;
 }) {
   const [locating, setLocating] = useState(false);
   const [accuracyBadge, setAccuracyBadge] = useState<{
@@ -569,7 +572,19 @@ export function CommandBar({
         </Field>
 
         {/* ---------------- OPERATOR PROFILE ICON & QUICK MENU (TOP-RIGHT NAVBAR) ---------------- */}
-        <div className="ml-auto flex items-center pl-1 shrink-0">
+        <div className="ml-auto flex items-center gap-2 pl-1 shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            onClick={onOpenMissionBrief}
+            className="h-7 px-2.5 text-[11px] font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Open NASA Space Apps Mission Brief"
+          >
+            <Rocket className="size-3 text-cyan-400 animate-pulse" />
+            <span className="hidden sm:inline">🚀 Mission Brief</span>
+            <span className="sm:hidden">Brief</span>
+          </Button>
+
           {profile ? (
             <UserProfileNavbarWidget
               user={profile}

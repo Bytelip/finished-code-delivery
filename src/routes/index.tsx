@@ -33,6 +33,9 @@ import { PlantPillarList } from "@/components/agro/PlantPillarList";
 import { SeverityChip } from "@/components/agro/hud";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
 import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiService";
+import { AgroDecisionCard } from "@/components/agro/AgroDecisionCard";
+import { NasaMissionBriefModal } from "@/components/NasaMissionBriefModal";
+import { FarmerAdvisoryModal } from "@/components/HazardAlertCenter";
 import {
   computeKoppenClimateZone,
   getStoredLocation,
@@ -95,6 +98,9 @@ function AgroSpaceDashboard() {
   const [operator, setOperator] = useState<UserProfile | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showMissionBriefModal, setShowMissionBriefModal] = useState(false);
+  const [showAdvisoryReportModal, setShowAdvisoryReportModal] = useState(false);
+  const [advisoryLanguage, setAdvisoryLanguage] = useState<"en" | "hi" | "kn">("en");
 
   useEffect(() => {
     const stored = getStoredUser() || loadStoredProfile();
@@ -255,6 +261,7 @@ function AgroSpaceDashboard() {
           profile={operator}
           onOpenAuth={() => setShowAuthModal(true)}
           onOpenSettings={() => setShowSettingsModal(true)}
+          onOpenMissionBrief={() => setShowMissionBriefModal(true)}
           onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
           onUpdateUser={(updated) => {
             setOperator(updated);
@@ -384,6 +391,12 @@ function AgroSpaceDashboard() {
             onPick={setLocation}
           />
 
+          {/* AI Agronomic & Climate Decision Card */}
+          <AgroDecisionCard
+            telemetry={telemetry}
+            onExportReport={() => setShowAdvisoryReportModal(true)}
+          />
+
           {tab === "overview" && (
             <>
               <div className="grid gap-4 lg:grid-cols-2">
@@ -470,6 +483,24 @@ function AgroSpaceDashboard() {
             setLocation(hLat, hLon, hLabel);
           }}
           onClose={() => setShowSettingsModal(false)}
+        />
+      )}
+
+      {/* NASA Space Apps Mission Brief Modal */}
+      <NasaMissionBriefModal
+        isOpen={showMissionBriefModal}
+        onClose={() => setShowMissionBriefModal(false)}
+      />
+
+      {/* 1-Click Printable NASA Field Report / Farmer Advisory Modal */}
+      {showAdvisoryReportModal && (
+        <FarmerAdvisoryModal
+          telemetry={telemetry}
+          tacticalHazards={[]}
+          checkedSteps={{}}
+          language={advisoryLanguage}
+          onLanguageChange={setAdvisoryLanguage}
+          onClose={() => setShowAdvisoryReportModal(false)}
         />
       )}
     </div>

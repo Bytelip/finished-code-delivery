@@ -47,6 +47,9 @@ import {
   Eye,
   EyeOff,
   Compass,
+  Play,
+  Pause,
+  Satellite,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -564,7 +567,50 @@ export function GlobeViewport({
     return () => window.removeEventListener("resize", updateSize);
   }, [mounted, viewMode]);
 
-  // Center 3D Globe camera on current farm coords whenever lat/lon changes
+  // Temporal Time-Machine Scrubber Configuration (-30D -> LIVE -> +7D AI Forecast)
+  const TEMPORAL_STEPS = useMemo(
+    () => [
+      { id: "-30d", label: "30D AGO", dateLabel: "16 OCT 2026", factor: 0.93 },
+      { id: "-7d", label: "7D AGO", dateLabel: "08 NOV 2026", factor: 0.98 },
+      { id: "live", label: "LIVE NOW", dateLabel: "15 NOV 2026 (LIVE)", factor: 1.0 },
+      { id: "+7d", label: "+7D FORECAST", dateLabel: "22 NOV 2026 (AI)", factor: 1.06 },
+    ],
+    [],
+  );
+  const [temporalIdx, setTemporalIdx] = useState(2);
+  const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
+
+  useEffect(() => {
+    if (!isPlayingTimeline) return;
+    const interval = setInterval(() => {
+      setTemporalIdx((prev) => (prev + 1) % TEMPORAL_STEPS.length);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, [isPlayingTimeline, TEMPORAL_STEPS.length]);
+
+  const currentTemporal = TEMPORAL_STEPS[temporalIdx];
+  const temporalReadingValue = useMemo(() => {
+    const raw = reading.value;
+    if (typeof raw === "number") {
+      return Math.round(raw * currentTemporal.factor * 100) / 100;
+    }
+    const parsed = parseFloat(String(raw));
+    if (!isNaN(parsed)) {
+      return (Math.round(parsed * currentTemporal.factor * 100) / 100).toFixed(2);
+    }
+    return raw;
+  }, [reading.value, currentTemporal.factor]);
+
+  // Target Locked Reticle Banner State (Cinematic Fly-in)
+  const [targetLockedBanner, setTargetLockedBanner] = useState<{
+    lat: number;
+    lon: number;
+    visible: boolean;
+  }>({ lat, lon, visible: true });
+
+  const prevCoordsRef = useRef<{ lat: number; lon: number }>({ lat, lon });
+
+  // Center 3D Globe camera on current farm coords with cinematic 2.2s fly-in
   useEffect(() => {
     if (
       viewMode === "3d" &&
@@ -572,18 +618,47 @@ export function GlobeViewport({
       typeof globeRef.current.pointOfView === "function"
     ) {
       try {
-        globeRef.current.pointOfView({ lat, lng: lon, altitude: 1.2 }, 1200);
+        globeRef.current.pointOfView({ lat, lng: lon, altitude: 0.72 }, 2200);
       } catch {
         // ignore pointOfView transition timing
       }
     }
+
+    if (prevCoordsRef.current.lat !== lat || prevCoordsRef.current.lon !== lon) {
+      prevCoordsRef.current = { lat, lon };
+      setTargetLockedBanner({ lat, lon, visible: true });
+    }
+
+    const timer = setTimeout(() => {
+      setTargetLockedBanner((prev) => ({ ...prev, visible: false }));
+    }, 3200);
+
+    return () => clearTimeout(timer);
   }, [lat, lon, viewMode]);
+
+  // Live Satellite Overpass Countdown Ticker
+  const [overpassSeconds, setOverpassSeconds] = useState(862); // 14m 22s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setOverpassSeconds((s) => (s > 1 ? s - 1 : 1200));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const overpassMinutes = Math.floor(overpassSeconds / 60);
+  const overpassRemSec = overpassSeconds % 60;
+  const overpassTimerStr = `${overpassMinutes}m ${overpassRemSec < 10 ? "0" : ""}${overpassRemSec}s`;
 
   // NASA GIBS WMTS URL definition for 2D Leaflet
   const gibsTileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/{z}/{y}/{x}.${activeSatelliteConfig.format}`;
 
-  // 3D Orbital Arcs Data (Cyclone threat vector + Terra, SMAP, GPM, ISS orbits)
+  // 3D Orbital Arcs Data (Cyclone threat vector + Terra, SMAP, GPM, ISS orbits with active sensor highlighted)
   const orbitArcsData = useMemo(() => {
+    const isTerra = activeLayer === "NDVI" || activeLayer === "EVI" || activeLayer === "LAI";
+    const isSmap = activeLayer === "SMAP Moisture";
+    const isGpm = activeLayer === "GPM Rain";
+    const isEcostress = activeLayer === "ECOSTRESS ESI";
+
     return [
       // Animated dashed red cyclone trajectory arc connecting cyclone to landfall/impact farm zone
       {
@@ -599,7 +674,7 @@ export function GlobeViewport({
         startLng: lon - 35,
         endLat: -78,
         endLng: lon + 25,
-        color: ["#10b981", "#06b6d4"],
+        color: isTerra ? ["#00f0ff", "#38bdf8"] : ["#10b981", "#06b6d4"],
         name: "MODIS Terra (Sun-Synchronous)",
       },
       {
@@ -607,7 +682,7 @@ export function GlobeViewport({
         startLng: lon - 75,
         endLat: -82,
         endLng: lon - 10,
-        color: ["#06b6d4", "#3b82f6"],
+        color: isSmap ? ["#00f0ff", "#38bdf8"] : ["#06b6d4", "#3b82f6"],
         name: "SMAP L-Band Polar Pass",
       },
       {
@@ -615,7 +690,7 @@ export function GlobeViewport({
         startLng: lon - 120,
         endLat: -65,
         endLng: lon + 55,
-        color: ["#06b6d4", "#a855f7"],
+        color: isGpm ? ["#00f0ff", "#38bdf8"] : ["#06b6d4", "#a855f7"],
         name: "GPM IMERG 65° Inclined Orbit",
       },
       {
@@ -623,11 +698,11 @@ export function GlobeViewport({
         startLng: lon - 150,
         endLat: -51.6,
         endLng: lon + 30,
-        color: ["#f59e0b", "#10b981"],
+        color: isEcostress ? ["#00f0ff", "#38bdf8"] : ["#f59e0b", "#10b981"],
         name: "ISS ECOSTRESS 51.6° Orbit",
       },
     ];
-  }, [lat, lon]);
+  }, [lat, lon, activeLayer]);
 
   // 3D Dynamic Concentric Hazard Pulse Rings (Low-profile, no cluttering giant radar rings)
   const dynamicHazardRings = useMemo(() => {
@@ -1407,19 +1482,25 @@ export function GlobeViewport({
           onFailure={() => setViewMode("2d")}
         >
           <div className="absolute inset-0">
+            {/* Multi-Layer Cosmic Starfield Background */}
+            <div className="cosmic-starfield-canvas">
+              <div className="cosmic-stars-1" />
+              <div className="cosmic-stars-2" />
+              <div className="cosmic-stars-3" />
+            </div>
             <GlobeComponent
               ref={globeRef}
               width={containerDimensions.width}
               height={containerDimensions.height}
-              backgroundColor="#050811"
-              globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-              bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+              backgroundColor="rgba(0,0,0,0)"
+              globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+              bumpImageUrl="https://unpkg.com/three-globe/example/img/earth-topology.png"
               globeTileEngineUrl={(x: number, y: number, l: number) =>
                 `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`
               }
               rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
               atmosphereColor="#00e5ff"
-              atmosphereAltitude={0.22}
+              atmosphereAltitude={0.24}
               arcsData={orbitArcsData}
               arcColor={(d: unknown) =>
                 (d as { color?: string[] })?.color || ["#00e5ff", "#10b981"]
@@ -1546,6 +1627,15 @@ export function GlobeViewport({
         </SafeGlobeErrorBoundary>
       ) : null}
 
+      {/* ---------------- LIVE SATELLITE OVERPASS HUD READOUT ---------------- */}
+      <div className="pointer-events-none absolute top-3.5 left-4 z-20 hidden md:flex items-center gap-2 rounded-full border border-cyan-500/35 bg-[#090D16]/90 px-3 py-1 font-mono text-[10px] text-cyan-300 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+        <Satellite className="size-3 text-cyan-400 animate-pulse" />
+        <span>
+          {activeSatelliteConfig.sensorName.toUpperCase()} OVERPASS IN{" "}
+          <strong className="text-white font-bold tabular-nums">{overpassTimerStr}</strong>
+        </span>
+      </div>
+
       {/* ---------------- TOP-CENTER ZOOM STAGE INDICATOR PILL ---------------- */}
       <div
         data-hud-overlay="zoom-stage-pill"
@@ -1570,6 +1660,21 @@ export function GlobeViewport({
           ({zoomStageInfo.detail})
         </span>
       </div>
+
+      {/* ---------------- TARGET LOCKED RETICLE BANNER OVERLAY ---------------- */}
+      {targetLockedBanner.visible && (
+        <div className="pointer-events-none absolute top-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-cyan-400/60 bg-slate-950/90 px-4 py-1 backdrop-blur-xl shadow-[0_0_25px_rgba(34,211,238,0.45)] text-xs font-mono animate-in fade-in zoom-in-95 duration-200">
+          <span className="relative flex size-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-80" />
+            <span className="relative inline-flex rounded-full size-2 bg-cyan-400" />
+          </span>
+          <span className="font-bold text-cyan-300 tracking-wider">
+            [ TARGET LOCKED: {Math.abs(targetLockedBanner.lat).toFixed(4)}°{" "}
+            {targetLockedBanner.lat >= 0 ? "N" : "S"}, {Math.abs(targetLockedBanner.lon).toFixed(4)}
+            ° {targetLockedBanner.lon >= 0 ? "E" : "W"} ]
+          </span>
+        </div>
+      )}
 
       {/* ---------------- 2D FIELD GIS MODE (LEAFLET + NASA GIBS + HAZARDS) ---------------- */}
       {viewMode === "2d" && LeafletComp && mounted ? (
@@ -2118,9 +2223,57 @@ export function GlobeViewport({
           <div className="mt-1 flex items-center justify-between font-mono text-[9px] text-muted-foreground">
             <span className="truncate">{activeSatelliteConfig.colorRamp.minLabel}</span>
             <span className="px-1.5 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/30 text-cyan text-[10px] tabular-nums">
-              FIELD: {reading.value} {reading.unit}
+              FIELD: {temporalReadingValue} {reading.unit}
             </span>
             <span className="truncate text-right">{activeSatelliteConfig.colorRamp.maxLabel}</span>
+          </div>
+
+          {/* Temporal Time-Machine Scrubber Bar */}
+          <div className="mt-2 pt-1.5 border-t border-border/40 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsPlayingTimeline((p) => !p)}
+                className={`size-6 flex items-center justify-center rounded-md border transition-all cursor-pointer ${
+                  isPlayingTimeline
+                    ? "bg-cyan-500/30 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
+                    : "bg-white/5 text-slate-300 border-white/10 hover:text-white"
+                }`}
+                title={isPlayingTimeline ? "Pause Time-Machine" : "Play Time-Machine"}
+              >
+                {isPlayingTimeline ? (
+                  <Pause className="size-3" />
+                ) : (
+                  <Play className="size-3 fill-current ml-0.5" />
+                )}
+              </button>
+              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wide">
+                TEMPORAL:
+              </span>
+              <span className="text-[9.5px] text-cyan-100 font-semibold px-1.5 py-0.5 rounded bg-black/60 border border-cyan-500/30">
+                {currentTemporal.dateLabel}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {TEMPORAL_STEPS.map((step, idx) => {
+                const isCur = temporalIdx === idx;
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setTemporalIdx(idx)}
+                    className={`px-2 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer ${
+                      isCur
+                        ? "bg-cyan-500/25 text-cyan-300 border border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.3)] font-bold"
+                        : "bg-black/30 text-muted-foreground border border-white/5 hover:text-slate-200"
+                    }`}
+                  >
+                    {step.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
