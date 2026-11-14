@@ -9,14 +9,15 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { translator, type Lang } from "@/i18n/translations";
 import { FARM_PRESETS, type DashboardTab, type FarmPreset } from "@/types/agroSpace";
 
-export const TABS: { id: DashboardTab; label: string; icon: typeof Leaf }[] = [
-  { id: "overview", label: "HUD Overview", icon: LayoutDashboard },
-  { id: "plant-health", label: "Plant Health (6-Pillar)", icon: Leaf },
-  { id: "groundwater", label: "Groundwater & Crops", icon: Droplets },
-  { id: "hazards", label: "Hazard Center (8 Alerts)", icon: TriangleAlert },
-  { id: "granules", label: "NASA Granule Inspector", icon: Satellite },
+export const TABS: { id: DashboardTab; labelKey: string; icon: typeof Leaf }[] = [
+  { id: "overview", labelKey: "nav.overview", icon: LayoutDashboard },
+  { id: "plant-health", labelKey: "nav.plantHealth", icon: Leaf },
+  { id: "groundwater", labelKey: "nav.groundwater", icon: Droplets },
+  { id: "hazards", labelKey: "nav.hazards", icon: TriangleAlert },
+  { id: "granules", labelKey: "nav.granules", icon: Satellite },
 ];
 
 export function DashboardSidebar({
@@ -28,6 +29,7 @@ export function DashboardSidebar({
   lon,
   onPreset,
   activeHazards,
+  lang,
 }: {
   collapsed: boolean;
   onToggle: () => void;
@@ -37,7 +39,9 @@ export function DashboardSidebar({
   lon: number;
   onPreset: (p: FarmPreset) => void;
   activeHazards: number;
+  lang: Lang;
 }) {
+  const t = translator(lang);
   return (
     <aside
       className={cn(
@@ -58,9 +62,10 @@ export function DashboardSidebar({
       </div>
 
       <nav className="flex flex-col gap-1 p-2" aria-label="Dashboard sections">
-        {!collapsed && <div className="hud-label px-2 pb-1 pt-2">Modules</div>}
-        {TABS.map(({ id, label, icon: Icon }) => {
+        {!collapsed && <div className="hud-label px-2 pb-1 pt-2">{t("nav.modules")}</div>}
+        {TABS.map(({ id, labelKey, icon: Icon }) => {
           const active = tab === id;
+          const label = t(labelKey);
           return (
             <button
               key={id}
@@ -96,7 +101,7 @@ export function DashboardSidebar({
       </nav>
 
       <div className="flex flex-col gap-1 border-t border-sidebar-border p-2">
-        {!collapsed && <div className="hud-label px-2 pb-1 pt-2">Preset Farms</div>}
+        {!collapsed && <div className="hud-label px-2 pb-1 pt-2">{t("nav.presets")}</div>}
         {FARM_PRESETS.map((p) => {
           const active = Math.abs(p.lat - lat) < 0.005 && Math.abs(p.lon - lon) < 0.005;
           return (
@@ -135,7 +140,7 @@ export function DashboardSidebar({
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {collapsed ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
-        {!collapsed && <span className="hud-label">Collapse</span>}
+        {!collapsed && <span className="hud-label">{t("nav.collapse")}</span>}
       </button>
     </aside>
   );

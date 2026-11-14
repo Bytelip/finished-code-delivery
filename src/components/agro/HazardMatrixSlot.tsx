@@ -1,38 +1,42 @@
 import {
-  CloudLightning,
   Flame,
   Mountain,
+  ShieldAlert,
   Sun,
   SunDim,
+  ThermometerSun,
+  Tornado,
   Waves,
   Wind,
-  Haze,
-  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HudCard, SEVERITY_STYLES, SeverityChip } from "@/components/agro/hud";
+import { HAZARD_NAME_KEY, SEVERITY_KEY, translator, type Lang } from "@/i18n/translations";
 import type { HazardAlert, HazardType, Severity } from "@/types/agroSpace";
 
 const ICONS: Record<HazardType, typeof Sun> = {
-  cyclone: Wind,
+  cyclone: Tornado,
   earthquake: Mountain,
   "solar-storm": Sun,
   eclipse: SunDim,
-  flood: Waves,
-  drought: CloudLightning,
   wildfire: Flame,
-  smoke: Haze,
+  flood: Waves,
+  thermal: ThermometerSun,
+  "wind-drift": Wind,
 };
 
 const RANK: Record<Severity, number> = { critical: 3, warning: 2, watch: 1, nominal: 0 };
 
 export function HazardMatrixSlot({
   hazards,
+  lang,
   variant = "summary",
 }: {
   hazards: HazardAlert[];
+  lang: Lang;
   variant?: "summary" | "full";
 }) {
+  const t = translator(lang);
   const counts = hazards.reduce((acc, h) => ({ ...acc, [h.severity]: acc[h.severity] + 1 }), {
     critical: 0,
     warning: 0,
@@ -45,15 +49,15 @@ export function HazardMatrixSlot({
   return (
     <section id="hazard-matrix-slot" aria-label="Hazard matrix">
       <HudCard
-        title="Hazard Matrix"
-        subtitle="8 multi-hazard feeds"
+        title={t("hud.hazardMatrix")}
+        subtitle={t("hud.hazardMatrix.sub")}
         icon={<ShieldAlert />}
         right={
           <div className="flex gap-1.5">
             {(["critical", "warning", "watch", "nominal"] as Severity[]).map((s) => (
               <span
                 key={s}
-                title={SEVERITY_STYLES[s].label}
+                title={t(SEVERITY_KEY(s))}
                 className={cn(
                   "grid min-w-7 place-items-center rounded border px-1.5 py-0.5 font-mono text-[10px]",
                   SEVERITY_STYLES[s].chip,
@@ -82,10 +86,10 @@ export function HazardMatrixSlot({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Icon className={cn("size-4", st.text)} />
-                    <h4 className="text-sm font-medium">{h.title}</h4>
+                    <Icon className={cn("size-4 shrink-0", st.text)} />
+                    <h4 className="text-sm font-medium">{t(HAZARD_NAME_KEY(h.type))}</h4>
                   </div>
-                  <SeverityChip severity={h.severity} />
+                  <SeverityChip severity={h.severity} label={t(SEVERITY_KEY(h.severity))} />
                 </div>
                 <div className={cn("mt-2 font-mono text-sm tabular-nums", st.text)}>{h.metric}</div>
                 {variant === "full" && (
