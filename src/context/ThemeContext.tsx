@@ -127,31 +127,25 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeId>(() => {
-    if (typeof window === "undefined") return DEFAULT_THEME;
+  const [theme, setThemeState] = useState<ThemeId>(DEFAULT_THEME);
+  const [customSettings, setCustomSettings] =
+    useState<CustomThemeSettings>(DEFAULT_CUSTOM_SETTINGS);
+
+  // Safely hydrate persisted theme and settings on client mount without SSR mismatch
+  useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as ThemeId | null;
       if (stored && (stored in THEME_CONFIGS || stored === "custom")) {
-        return stored;
+        setThemeState(stored);
+      }
+      const storedCustom = localStorage.getItem(CUSTOM_STORAGE_KEY);
+      if (storedCustom) {
+        setCustomSettings((prev) => ({ ...prev, ...JSON.parse(storedCustom) }));
       }
     } catch {
       // ignore storage errors
     }
-    return DEFAULT_THEME;
-  });
-
-  const [customSettings, setCustomSettings] = useState<CustomThemeSettings>(() => {
-    if (typeof window === "undefined") return DEFAULT_CUSTOM_SETTINGS;
-    try {
-      const stored = localStorage.getItem(CUSTOM_STORAGE_KEY);
-      if (stored) {
-        return { ...DEFAULT_CUSTOM_SETTINGS, ...JSON.parse(stored) };
-      }
-    } catch {
-      // ignore
-    }
-    return DEFAULT_CUSTOM_SETTINGS;
-  });
+  }, []);
 
   const setTheme = (nextTheme: ThemeId) => {
     if (nextTheme in THEME_CONFIGS || nextTheme === "custom") {

@@ -25,7 +25,10 @@ import {
 
 // Environment variable retrieval helper
 export function getEnvVar(key: string): string | undefined {
-  if (typeof import.meta !== "undefined" && (import.meta as unknown as { env?: Record<string, string> }).env) {
+  if (
+    typeof import.meta !== "undefined" &&
+    (import.meta as unknown as { env?: Record<string, string> }).env
+  ) {
     const val = (import.meta as unknown as { env?: Record<string, string> }).env?.[key];
     if (val && !val.toLowerCase().includes("your_")) return val.trim();
   }
@@ -174,7 +177,7 @@ interface OtpSessionRecord {
   hash: string;
   salt: string;
   expiresAt: number; // 5 minutes expiration
-  attempts: number;  // Max 5 attempts
+  attempts: number; // Max 5 attempts
 }
 
 let activeOtpRecord: OtpSessionRecord | null = null;
@@ -316,9 +319,7 @@ export async function verifyEmailOtp(
 
     const sbUser = data.user;
     const name =
-      customName ||
-      (sbUser?.user_metadata?.full_name as string) ||
-      cleanEmail.split("@")[0];
+      customName || (sbUser?.user_metadata?.full_name as string) || cleanEmail.split("@")[0];
 
     const profile = createInitialProfile(cleanEmail, "Email", name);
     profile.verified = true;
@@ -394,7 +395,8 @@ export async function processIncomingAuthCallback(): Promise<UserProfile | null>
         const u = data.session.user;
         const providerName = (u.app_metadata?.provider as string) || "Google";
         const cleanProvider: OAuthProvider =
-          providerName.toLowerCase().includes("azure") || providerName.toLowerCase().includes("microsoft")
+          providerName.toLowerCase().includes("azure") ||
+          providerName.toLowerCase().includes("microsoft")
             ? "Microsoft"
             : providerName.toLowerCase().includes("apple")
               ? "Apple"
@@ -406,7 +408,11 @@ export async function processIncomingAuthCallback(): Promise<UserProfile | null>
           u.email?.split("@")[0] ||
           "Commander";
 
-        const profile = createInitialProfile(u.email || "operator@agrospace.io", cleanProvider, profileName);
+        const profile = createInitialProfile(
+          u.email || "operator@agrospace.io",
+          cleanProvider,
+          profileName,
+        );
         profile.verified = true;
         profile.isVerified = true;
         saveStoredProfile(profile);

@@ -497,7 +497,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         {configError && (
           <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
             <div className="flex items-center gap-2 font-semibold text-amber-300">
-              <svg className="h-4 w-4 shrink-0 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+              <svg
+                className="h-4 w-4 shrink-0 text-amber-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
                 <path
                   fillRule="evenodd"
                   d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
@@ -545,7 +549,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5L1.6 17c1.9 3.9 5.8 7 10.4 7z"
                   />
                 </svg>
-                <span>{loadingOAuth === "Google" ? "Connecting to Google..." : "Continue with Google"}</span>
+                <span>
+                  {loadingOAuth === "Google" ? "Connecting to Google..." : "Continue with Google"}
+                </span>
               </button>
 
               <button
@@ -560,7 +566,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   <path fill="#05a6f0" d="M1 12h10v10H1z" />
                   <path fill="#ffba08" d="M12 12h10v10H12z" />
                 </svg>
-                <span>{loadingOAuth === "Microsoft" ? "Connecting to Microsoft..." : "Continue with Microsoft"}</span>
+                <span>
+                  {loadingOAuth === "Microsoft"
+                    ? "Connecting to Microsoft..."
+                    : "Continue with Microsoft"}
+                </span>
               </button>
 
               <button
@@ -572,7 +582,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 <svg className="absolute left-4 h-4 w-4 fill-current" viewBox="0 0 24 24">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
                 </svg>
-                <span>{loadingOAuth === "Apple" ? "Connecting to Apple..." : "Continue with Apple"}</span>
+                <span>
+                  {loadingOAuth === "Apple" ? "Connecting to Apple..." : "Continue with Apple"}
+                </span>
               </button>
             </div>
 
@@ -634,7 +646,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   <span>
                     Expires in{" "}
                     <span className="text-cyan-300 font-bold">
-                      {Math.floor(expireTimer / 60)}:{(expireTimer % 60).toString().padStart(2, "0")}
+                      {Math.floor(expireTimer / 60)}:
+                      {(expireTimer % 60).toString().padStart(2, "0")}
                     </span>
                   </span>
                 ) : (

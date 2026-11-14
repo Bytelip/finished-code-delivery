@@ -5,8 +5,8 @@ import { NasaMissionBriefModal } from "@/components/NasaMissionBriefModal";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
 
 const mockTelemetry = generateTelemetry({
-  lat: 13.175,
-  lon: 78.4192,
+  lat: 13.1718,
+  lon: 78.4416, // Mulabagilu, Karnataka
   borewellDepth: 60,
   season: "Kharif",
   scenario: "Nominal",
@@ -24,10 +24,41 @@ describe("AgroDecisionCard & NasaMissionBriefModal", () => {
     expect(screen.getByText(/Evapo ESI/i)).toBeDefined();
     expect(screen.getByText(/Rainfall/i)).toBeDefined();
 
+    // Verify zero undefined% bug: text must not contain undefined%
+    expect(screen.queryByText(/undefined%/i)).toBeNull();
+
+    // Verify Root Moisture renders a valid number %
+    expect(screen.getByText(/% vol/i)).toBeDefined();
+
+    // Verify Rainfall renders a valid number mm/mo
+    expect(screen.getByText(/mm\/mo/i)).toBeDefined();
+
     const exportBtn = screen.getByText(/Export NASA Field Report/i);
     expect(exportBtn).toBeDefined();
     fireEvent.click(exportBtn);
     expect(onExport).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders dynamic Best Crop Match and Top Recommended Crops strip", () => {
+    render(<AgroDecisionCard telemetry={mockTelemetry} />);
+
+    // Verify dynamic Best Crop Match pill
+    expect(screen.getByText(/Best Crop Match:/i)).toBeDefined();
+    expect(screen.getByText(/Water Saved vs\. Paddy:/i)).toBeDefined();
+
+    // Verify Top Recommended Crops strip
+    expect(screen.getByText(/Top Recommended Crops for/i)).toBeDefined();
+
+    // Verify that recommended crop cards exist
+    const cropButtons = screen.getAllByRole("button");
+    const cropCard = cropButtons.find((btn) => btn.textContent?.includes("Water:"));
+    expect(cropCard).toBeDefined();
+
+    // Click on a crop card to select it
+    if (cropCard) {
+      fireEvent.click(cropCard);
+      expect(screen.getByText(/Best Crop Match:/i)).toBeDefined();
+    }
   });
 
   it("renders NasaMissionBriefModal with satellite constellations and tab navigation", () => {

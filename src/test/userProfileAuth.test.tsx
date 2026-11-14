@@ -91,7 +91,8 @@ describe("User Profile & Authentication System", () => {
   it("displays setup notice when OAuth provider credentials are not configured", async () => {
     vi.spyOn(authService, "initiateOAuthLogin").mockResolvedValue({
       success: false,
-      error: "Google OAuth is not configured. Please provide VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY.",
+      error:
+        "Google OAuth is not configured. Please provide VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY.",
     });
 
     render(<CosmicAuthPage />);
@@ -195,11 +196,7 @@ describe("User Profile & Authentication System", () => {
   });
 
   it("renders OperatorProfileDropdown with avatar, online indicator, and opens quick menu", () => {
-    const mockProfile = createInitialProfile(
-      "commander@agrospace.io",
-      "Email",
-      "Commander Naren",
-    );
+    const mockProfile = createInitialProfile("commander@agrospace.io", "Email", "Commander Naren");
     const onOpenSettings = vi.fn();
     const onSignOut = vi.fn();
     const onNavigateHome = vi.fn();
