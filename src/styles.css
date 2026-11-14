@@ -25,6 +25,8 @@
 @theme inline {
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-orbitron: "Orbitron", "Space Grotesk", sans-serif;
+  --font-space: "Space Grotesk", sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -157,16 +159,20 @@
   }
 
   body {
-    background-color: var(--color-background);
+    background-color: #02040a;
     background-image:
-      /* Radial deep nebula lights */
-      radial-gradient(circle 900px at 50% -20%, oklch(0.79 0.17 210 / 0.12), transparent 70%),
-      radial-gradient(circle 600px at 100% 100%, oklch(0.82 0.22 152 / 0.07), transparent 70%),
-      radial-gradient(circle 500px at 0% 50%, oklch(0.67 0.25 25 / 0.04), transparent 60%),
-      /* Micro telemetry matrix grid dots */
-      radial-gradient(oklch(0.79 0.17 210 / 0.12) 1px, transparent 1px);
+      /* Ambient Cosmic Nebula Glow */
+      radial-gradient(
+        circle at 50% 50%,
+        rgba(14, 165, 233, 0.14) 0%,
+        rgba(88, 28, 135, 0.08) 45%,
+        #02040a 100%
+      ),
+      /* Upper Cockpit Horizon Glow */
+        radial-gradient(circle 900px at 50% -15%, rgba(6, 182, 212, 0.15), transparent 70%),
+      /* Micro Telemetry Matrix Grid Dots */
+        radial-gradient(rgba(34, 211, 238, 0.12) 1px, transparent 1px);
     background-size:
-      100% 100%,
       100% 100%,
       100% 100%,
       32px 32px;
@@ -405,7 +411,6 @@
 }
 
 @keyframes beacon-strobe {
-
   0%,
   100% {
     opacity: 1;
@@ -555,12 +560,31 @@
   width: 1px;
   height: 1px;
   background: transparent;
-  box-shadow: 24px 45px #fff, 120px 80px #38bdf8, 300px 150px #fff, 450px 220px #e0f2fe,
-    600px 80px #fff, 850px 320px #7dd3fc, 1100px 90px #fff, 1350px 240px #e0f2fe,
-    150px 500px #fff, 400px 600px #38bdf8, 700px 750px #fff, 950px 520px #fff,
-    1200px 640px #7dd3fc, 1450px 800px #fff, 300px 950px #e0f2fe, 650px 1100px #fff,
-    1000px 1250px #38bdf8, 1300px 1150px #fff, 100px 1400px #e0f2fe, 500px 1500px #fff,
-    850px 1650px #7dd3fc, 1200px 1750px #fff, 350px 1850px #fff, 750px 1950px #38bdf8;
+  box-shadow:
+    24px 45px #fff,
+    120px 80px #38bdf8,
+    300px 150px #fff,
+    450px 220px #e0f2fe,
+    600px 80px #fff,
+    850px 320px #7dd3fc,
+    1100px 90px #fff,
+    1350px 240px #e0f2fe,
+    150px 500px #fff,
+    400px 600px #38bdf8,
+    700px 750px #fff,
+    950px 520px #fff,
+    1200px 640px #7dd3fc,
+    1450px 800px #fff,
+    300px 950px #e0f2fe,
+    650px 1100px #fff,
+    1000px 1250px #38bdf8,
+    1300px 1150px #fff,
+    100px 1400px #e0f2fe,
+    500px 1500px #fff,
+    850px 1650px #7dd3fc,
+    1200px 1750px #fff,
+    350px 1850px #fff,
+    750px 1950px #38bdf8;
   animation: animStarfield 150s linear infinite;
   position: absolute;
 }
@@ -569,9 +593,19 @@
   width: 2px;
   height: 2px;
   background: transparent;
-  box-shadow: 80px 120px #38bdf8, 350px 280px #fff, 720px 180px #a5f3fc, 1150px 340px #fff,
-    250px 650px #fff, 680px 820px #38bdf8, 1050px 720px #a5f3fc, 1400px 920px #fff,
-    180px 1250px #fff, 550px 1420px #38bdf8, 920px 1350px #fff, 1300px 1600px #a5f3fc;
+  box-shadow:
+    80px 120px #38bdf8,
+    350px 280px #fff,
+    720px 180px #a5f3fc,
+    1150px 340px #fff,
+    250px 650px #fff,
+    680px 820px #38bdf8,
+    1050px 720px #a5f3fc,
+    1400px 920px #fff,
+    180px 1250px #fff,
+    550px 1420px #38bdf8,
+    920px 1350px #fff,
+    1300px 1600px #a5f3fc;
   animation: animStarfield 90s linear infinite;
   position: absolute;
 }
@@ -581,10 +615,180 @@
   height: 3px;
   border-radius: 50%;
   background: transparent;
-  box-shadow: 180px 240px #e0f2fe, 600px 450px #67e8f9, 1250px 500px #fff, 400px 1050px #67e8f9,
-    980px 1150px #e0f2fe, 1350px 1400px #fff, 300px 1700px #67e8f9, 850px 1850px #fff;
+  box-shadow:
+    180px 240px #e0f2fe,
+    600px 450px #67e8f9,
+    1250px 500px #fff,
+    400px 1050px #67e8f9,
+    980px 1150px #e0f2fe,
+    1350px 1400px #fff,
+    300px 1700px #67e8f9,
+    850px 1850px #fff;
   animation: animStarfield 50s linear infinite;
   position: absolute;
+}
+
+/* ==========================================================================
+   SpaceX Dragon & NASA Orion Cockpit - Antigravity UI Design System
+   ========================================================================== */
+.font-orbitron {
+  font-family: var(--font-orbitron);
+}
+
+.font-space {
+  font-family: var(--font-space);
+}
+
+@keyframes antigravityFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes antigravityFloatSlow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(0.12deg);
+  }
+}
+
+@keyframes shootingStar {
+  0% {
+    transform: translateX(0) translateY(0) rotate(-35deg) scaleX(0);
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+    transform: translateX(50px) translateY(35px) rotate(-35deg) scaleX(1);
+  }
+  14% {
+    transform: translateX(450px) translateY(315px) rotate(-35deg) scaleX(2.2);
+    opacity: 0.9;
+  }
+  20% {
+    transform: translateX(700px) translateY(490px) rotate(-35deg) scaleX(0.2);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(700px) translateY(490px) rotate(-35deg) scaleX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes laserScanlineSweep {
+  0% {
+    top: -10%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  85% {
+    opacity: 0.8;
+  }
+  100% {
+    top: 110%;
+    opacity: 0;
+  }
+}
+
+.shooting-star-1 {
+  animation: shootingStar 16s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.shooting-star-2 {
+  animation: shootingStar 21s ease-in-out infinite;
+  animation-delay: 11s;
+}
+
+.antigravity-float-1 {
+  animation: antigravityFloat 6.5s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.antigravity-float-2 {
+  animation: antigravityFloat 7.5s ease-in-out infinite;
+  animation-delay: 1.2s;
+}
+
+.antigravity-float-3 {
+  animation: antigravityFloat 8.5s ease-in-out infinite;
+  animation-delay: 2.4s;
+}
+
+/* Holographic Spacecraft Glass Surfaces */
+.hologram-cockpit-card {
+  background: rgba(4, 9, 20, 0.72) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(6, 182, 212, 0.28) !important;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.85),
+    inset 0 1px 1px rgba(125, 211, 252, 0.2) !important;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.hologram-cockpit-card:hover {
+  border-color: rgba(34, 211, 238, 0.6) !important;
+  box-shadow:
+    0 0 35px rgba(34, 211, 238, 0.25),
+    0 20px 60px rgba(0, 0, 0, 0.9),
+    inset 0 1px 1px rgba(125, 211, 252, 0.35) !important;
+}
+
+/* Subtle Animated Laser Scanline */
+.laser-scanline-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.laser-scanline-panel::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 25px;
+  background: linear-gradient(to bottom, transparent, rgba(34, 211, 238, 0.04), transparent);
+  pointer-events: none;
+  animation: laserScanlineSweep 9s linear infinite;
+}
+
+/* Chamfered Sci-Fi Corner Bracket Accents */
+.chamfered-card-frame {
+  position: relative;
+}
+
+.chamfered-card-frame::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid rgba(34, 211, 238, 0.85);
+  border-left: 2px solid rgba(34, 211, 238, 0.85);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.chamfered-card-frame::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-bottom: 2px solid rgba(34, 211, 238, 0.85);
+  border-right: 2px solid rgba(34, 211, 238, 0.85);
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* ==========================================================================

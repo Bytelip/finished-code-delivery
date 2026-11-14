@@ -1463,16 +1463,33 @@ export function GlobeViewport({
       data-layer={activeLayer}
       className="relative w-full h-[540px] rounded-xl border border-cyan/40 bg-[#03060d] overflow-hidden select-none shadow-[0_0_35px_rgba(0,0,0,0.8),inset_0_0_50px_rgba(0,240,255,0.05)]"
     >
-      {/* Aerospace Tactical Corner Frame Ticks */}
-      <div className="pointer-events-none absolute inset-0 z-10 border border-cyan/20">
-        <span className="absolute top-2 left-2 size-3 border-t-2 border-l-2 border-cyan/80" />
-        <span className="absolute top-2 right-2 size-3 border-t-2 border-r-2 border-cyan/80" />
-        <span className="absolute bottom-2 left-2 size-3 border-b-2 border-l-2 border-cyan/80" />
-        <span className="absolute bottom-2 right-2 size-3 border-b-2 border-r-2 border-cyan/80" />
-        {/* Subtle center crosshair watermark */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-8 pointer-events-none opacity-20">
-          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-cyan" />
-          <div className="absolute left-0 right-0 top-1/2 h-px bg-cyan" />
+      {/* Aerospace Tactical Corner Frame Ticks & Animated Sci-Fi Reticle */}
+      <div className="pointer-events-none absolute inset-0 z-10 border border-cyan/25">
+        <span className="absolute top-2 left-2 size-3 border-t-2 border-l-2 border-cyan-400" />
+        <span className="absolute top-2 right-2 size-3 border-t-2 border-r-2 border-cyan-400" />
+        <span className="absolute bottom-2 left-2 size-3 border-b-2 border-l-2 border-cyan-400" />
+        <span className="absolute bottom-2 right-2 size-3 border-b-2 border-r-2 border-cyan-400" />
+
+        {/* Center Sci-Fi Orbital Targeting Reticle */}
+        <div
+          data-hud-overlay="reticle"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-24 pointer-events-none flex items-center justify-center select-none opacity-80"
+        >
+          {/* Rotating outer dashed ring */}
+          <div className="absolute inset-0 rounded-full border border-dashed border-cyan-400/50 animate-spin-slow" />
+          {/* Inner concentric ring */}
+          <div className="absolute inset-3 rounded-full border border-cyan-400/30" />
+          {/* 4 Precision Rangefinder Tick Marks */}
+          <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-0.5 bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-0.5 bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+          <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-0.5 h-2 bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+          <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-0.5 h-2 bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+          {/* Crosshair lines */}
+          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-cyan-400/40" />
+          <div className="absolute left-0 right-0 top-1/2 h-px bg-cyan-400/40" />
+          {/* Pulsing center target beacon */}
+          <span className="size-2 rounded-full bg-cyan-300 animate-ping opacity-75" />
+          <span className="size-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
         </div>
       </div>
       {/* ---------------- 3D ORBITAL GLOBE MODE (NASA GIBS WMTS + THREE.JS OVERLAYS) ---------------- */}
@@ -1570,6 +1587,42 @@ export function GlobeViewport({
                   const mesh = new THREE.Mesh(geom, mat);
                   mesh.visible = item.opacity > 0.01;
                   group.add(mesh);
+
+                  // 1. Delicate 3D LEO Orbit Ring (ISS ECOSTRESS 51.6° Inclination)
+                  const issRingGeom = new THREE.RingGeometry(103.8, 104.2, 96);
+                  const issRingMat = new THREE.MeshBasicMaterial({
+                    color: 0x00f0ff,
+                    transparent: true,
+                    opacity: 0.4,
+                    side: THREE.DoubleSide,
+                  });
+                  const issRingMesh = new THREE.Mesh(issRingGeom, issRingMat);
+                  issRingMesh.rotation.x = Math.PI / 2;
+                  issRingMesh.rotation.y = (51.6 * Math.PI) / 180;
+                  group.add(issRingMesh);
+
+                  // 2. Delicate 3D Sun-Synchronous Polar Orbit Ring (MODIS / SMAP 98° Inclination)
+                  const polarRingGeom = new THREE.RingGeometry(106.8, 107.2, 96);
+                  const polarRingMat = new THREE.MeshBasicMaterial({
+                    color: 0xa855f7,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.DoubleSide,
+                  });
+                  const polarRingMesh = new THREE.Mesh(polarRingGeom, polarRingMat);
+                  polarRingMesh.rotation.x = Math.PI / 2;
+                  polarRingMesh.rotation.y = (98 * Math.PI) / 180;
+                  group.add(polarRingMesh);
+
+                  // 3. Orbiting Satellite Beacon on ISS Ring
+                  const satGeom = new THREE.SphereGeometry(0.85, 16, 16);
+                  const satMat = new THREE.MeshBasicMaterial({
+                    color: 0x00f0ff,
+                  });
+                  const satMesh = new THREE.Mesh(satGeom, satMat);
+                  satMesh.name = "orbitingSatBeacon";
+                  satMesh.position.set(104, 0, 0);
+                  group.add(satMesh);
                 }
                 return group;
               }}
@@ -1583,6 +1636,11 @@ export function GlobeViewport({
                 if (mesh?.material) {
                   mesh.material.opacity = item.opacity;
                   mesh.visible = item.opacity > 0.01;
+                }
+                const satBeacon = group?.getObjectByName("orbitingSatBeacon");
+                if (satBeacon) {
+                  const t = Date.now() * 0.0008;
+                  satBeacon.position.set(104 * Math.cos(t), 25 * Math.sin(t), 104 * Math.sin(t));
                 }
               }}
               htmlElementsData={dynamicGlobeHtmlMarkers}

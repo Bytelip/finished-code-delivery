@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   Crosshair,
   Loader2,
@@ -12,6 +12,9 @@ import {
   Globe2,
   SlidersHorizontal,
   Rocket,
+  Clock,
+  Radio,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -111,6 +114,8 @@ export function CommandBar({
   onSignOut,
   onUpdateUser,
   onOpenMissionBrief,
+  cockpitHudActive = true,
+  onToggleCockpitHud,
 }: {
   lat: number;
   lon: number;
@@ -131,7 +136,25 @@ export function CommandBar({
   onSignOut?: () => void;
   onUpdateUser?: (u: UserProfile) => void;
   onOpenMissionBrief?: () => void;
+  cockpitHudActive?: boolean;
+  onToggleCockpitHud?: () => void;
 }) {
+  const [metSeconds, setMetSeconds] = useState(142 * 3600 + 18 * 60 + 22);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMetSeconds((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const metFormatted = useMemo(() => {
+    const h = Math.floor(metSeconds / 3600);
+    const m = Math.floor((metSeconds % 3600) / 60);
+    const s = metSeconds % 60;
+    return `T+ ${String(h).padStart(3, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }, [metSeconds]);
+
   const [locating, setLocating] = useState(false);
   const [accuracyBadge, setAccuracyBadge] = useState<{
     text: string;
@@ -573,6 +596,42 @@ export function CommandBar({
 
         {/* ---------------- OPERATOR PROFILE ICON & QUICK MENU (TOP-RIGHT NAVBAR) ---------------- */}
         <div className="ml-auto flex items-center gap-2 pl-1 shrink-0">
+          {/* Mission Elapsed Time */}
+          <div
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-cyan-500/30 bg-[#040c1a]/85 text-[11px] font-mono text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.2)] select-none"
+            title="Mission Elapsed Time (MET)"
+          >
+            <Clock className="size-3 text-cyan-400 animate-pulse" />
+            <span className="font-semibold">{metFormatted}</span>
+          </div>
+
+          {/* Telemetry Downlink Health */}
+          <div
+            className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-950/40 text-[11px] font-mono text-emerald-300 select-none"
+            title="Orbital Downlink Telemetry Health"
+          >
+            <Radio className="size-3 text-emerald-400 animate-pulse" />
+            <span>LINK: 99.8% NOMINAL</span>
+          </div>
+
+          {/* Cockpit HUD Visor Toggle */}
+          <Button
+            type="button"
+            size="sm"
+            onClick={onToggleCockpitHud}
+            className={cn(
+              "h-7 px-2.5 text-[11px] font-mono font-bold tracking-wider rounded-full border transition-all flex items-center gap-1.5 cursor-pointer",
+              cockpitHudActive
+                ? "bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border-indigo-400/50 shadow-[0_0_14px_rgba(99,102,241,0.3)]"
+                : "bg-muted/40 hover:bg-muted/60 text-muted-foreground border-border/60",
+            )}
+            title="Toggle Sci-Fi Cockpit HUD Visor & Overlays"
+          >
+            <Eye className="size-3 text-indigo-400" />
+            <span className="hidden lg:inline">🛸 HUD: {cockpitHudActive ? "ON" : "OFF"}</span>
+            <span className="lg:hidden">HUD</span>
+          </Button>
+
           <Button
             type="button"
             size="sm"
