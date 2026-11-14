@@ -62,6 +62,7 @@ import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/core/animated-background";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
+export const TELEMETRY_TABS = MAP_LAYERS;
 
 interface GlobeMethods {
   pointOfView: (
@@ -2139,7 +2140,7 @@ export function GlobeViewport({
             }}
             enableHover
           >
-            {MAP_LAYERS.map((tab) => {
+            {TELEMETRY_TABS.map((tab) => {
               const isSelected = activeLayer === tab;
               return (
                 <button
