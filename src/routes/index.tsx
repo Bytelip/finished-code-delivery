@@ -18,6 +18,12 @@ import { PlantPillarList } from "@/components/agro/PlantPillarList";
 import { SeverityChip } from "@/components/agro/hud";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
 import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiService";
+import {
+  getStoredLocation,
+  getUrlCoords,
+  saveStoredLocation,
+  syncUrlCoords,
+} from "@/utils/preciseLocation";
 import type {
   AgroTelemetry,
   DashboardTab,
@@ -67,6 +73,23 @@ function AgroSpaceDashboard() {
     if (isMobile) setCollapsed(true);
   }, [isMobile]);
 
+  // Synchronize initial location from URL query (?lat=...&lon=...) or localStorage
+  useEffect(() => {
+    const urlCoords = getUrlCoords();
+    if (urlCoords) {
+      setLat(urlCoords.lat);
+      setLon(urlCoords.lon);
+      saveStoredLocation(urlCoords.lat, urlCoords.lon);
+    } else {
+      const stored = getStoredLocation();
+      if (stored) {
+        setLat(stored.lat);
+        setLon(stored.lon);
+        syncUrlCoords(stored.lat, stored.lon);
+      }
+    }
+  }, []);
+
   const fallbackTelemetry = useMemo(
     () => generateTelemetry({ lat, lon, borewellDepth, season, scenario, irrigation }),
     [lat, lon, borewellDepth, season, scenario, irrigation],
@@ -105,9 +128,13 @@ function AgroSpaceDashboard() {
 
   const telemetry = liveTelemetry ?? fallbackTelemetry;
 
-  const setLocation = (la: number, lo: number) => {
-    setLat(la);
-    setLon(lo);
+  const setLocation = (la: number, lo: number, label?: string) => {
+    const fixedLat = Math.round(la * 10000) / 10000;
+    const fixedLon = Math.round(lo * 10000) / 10000;
+    setLat(fixedLat);
+    setLon(fixedLon);
+    saveStoredLocation(fixedLat, fixedLon, label);
+    syncUrlCoords(fixedLat, fixedLon);
   };
   const activeHazards = telemetry.hazards.filter(
     (h) => h.severity === "critical" || h.severity === "warning",
@@ -123,7 +150,7 @@ function AgroSpaceDashboard() {
         onTab={setTab}
         lat={lat}
         lon={lon}
-        onPreset={(p) => setLocation(p.lat, p.lon)}
+        onPreset={(p) => setLocation(p.lat, p.lon, p.name)}
         activeHazards={activeHazards}
       />
 

@@ -53,6 +53,10 @@ interface LeafletBundle {
   Marker: ComponentType<{
     position: [number, number];
     icon?: unknown;
+    draggable?: boolean;
+    eventHandlers?: {
+      dragend?: (e: { target: { getLatLng: () => { lat: number; lng: number } } }) => void;
+    };
     children?: ReactNode;
   }>;
   Popup: ComponentType<{
@@ -361,8 +365,8 @@ export function GlobeViewport({
     const ex = (e.clientX - r.left) / r.width;
     const ey = (e.clientY - r.top) / r.height;
     return {
-      lat: Math.round((90 - ey * 180) * 100) / 100,
-      lon: Math.round((ex * 360 - 180) * 100) / 100,
+      lat: Math.round((90 - ey * 180) * 10000) / 10000,
+      lon: Math.round((ex * 360 - 180) * 10000) / 10000,
     };
   };
 
@@ -482,7 +486,7 @@ export function GlobeViewport({
               pointAltitude={0.04}
               pointRadius={0.7}
               onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
-                onPick(Math.round(clickLat * 100) / 100, Math.round(clickLng * 100) / 100);
+                onPick(Math.round(clickLat * 10000) / 10000, Math.round(clickLng * 10000) / 10000);
               }}
             />
           </div>
@@ -515,14 +519,26 @@ export function GlobeViewport({
               attribution="NASA GIBS WMTS"
             />
 
-            {/* Interactive Farm Marker Pin */}
+            {/* Interactive & Draggable Farm Marker Pin */}
             <LeafletComp.Marker
               position={[lat, lon]}
+              draggable={true}
+              eventHandlers={{
+                dragend: (e) => {
+                  const latlng = e?.target?.getLatLng();
+                  if (latlng) {
+                    onPick(
+                      Math.round(latlng.lat * 10000) / 10000,
+                      Math.round(latlng.lng * 10000) / 10000,
+                    );
+                  }
+                },
+              }}
               icon={
                 new LeafletComp.L.DivIcon({
                   className: "custom-farm-pin",
                   html: `
-                    <div style="position:relative; width:28px; height:28px;">
+                    <div style="position:relative; width:28px; height:28px; cursor:grab;">
                       <span style="position:absolute; inset:0; border-radius:50%; background:#00e5ff; opacity:0.4; animation:ping 2s infinite;"></span>
                       <span style="position:absolute; inset:4px; border-radius:50%; background:#06b6d4; border:2px solid #ffffff; box-shadow:0 0 10px #00e5ff;"></span>
                     </div>
@@ -718,7 +734,7 @@ function LeafletClickHandler({
   useMapEvents({
     click(e) {
       if (e?.latlng) {
-        onPick(Math.round(e.latlng.lat * 1000) / 1000, Math.round(e.latlng.lng * 1000) / 1000);
+        onPick(Math.round(e.latlng.lat * 10000) / 10000, Math.round(e.latlng.lng * 10000) / 10000);
       }
     },
   });

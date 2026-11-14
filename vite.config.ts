@@ -8,11 +8,21 @@
 // hosting already compresses at the edge.
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import basicSsl from "@vitejs/plugin-basic-ssl";
+
+const isHttps = process.env.VITE_HTTPS === "true";
 
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+  },
+  vite: {
+    plugins: isHttps ? [basicSsl()] : [],
+    server: {
+      host: "0.0.0.0",
+      port: 8080,
+    },
   },
 });
