@@ -99,6 +99,15 @@ export function CropEngineSlot({ crop }: { crop: CropRecommendation }) {
           <Gauge className="size-4 shrink-0 mt-0.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
           <p>{crop.advisory}</p>
         </div>
+
+        {/* Field Shift Atlas Badge Link */}
+        <div className="mt-3 flex items-center justify-between text-xs font-mono text-muted-foreground pt-2 border-t border-border/30">
+          <span className="flex items-center gap-1.5 text-cyan">
+            <span className="size-1.5 rounded-full bg-cyan shadow-[0_0_6px_#00f0ff] animate-pulse" />
+            Field Shift Atlas: 89 Crops Active
+          </span>
+          <span className="text-[11px] text-emerald">5-Factor Scoring Loaded</span>
+        </div>
       </HudCard>
     </section>
   );

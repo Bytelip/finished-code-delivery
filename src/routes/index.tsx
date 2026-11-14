@@ -29,6 +29,7 @@ import {
 } from "@/components/agro/TelemetryCharts";
 import { HazardMatrixSlot } from "@/components/agro/HazardMatrixSlot";
 import { CropEngineSlot } from "@/components/agro/CropEngineSlot";
+import { FieldShiftCropAdvisor } from "@/components/agro/FieldShiftCropAdvisor";
 import { GranuleInspector } from "@/components/agro/GranuleInspector";
 import { PlantPillarList } from "@/components/agro/PlantPillarList";
 import { SeverityChip } from "@/components/agro/hud";
@@ -453,7 +454,16 @@ function AgroSpaceDashboard() {
                   <CropEngineSlot crop={telemetry.crop} />
                 </div>
               </div>
+              <div className="antigravity-float-2">
+                <FieldShiftCropAdvisor telemetry={telemetry} />
+              </div>
             </>
+          )}
+
+          {tab === "crop-atlas" && (
+            <div className="antigravity-float-1">
+              <FieldShiftCropAdvisor telemetry={telemetry} />
+            </div>
           )}
 
           {tab === "plant-health" && (
@@ -467,11 +477,16 @@ function AgroSpaceDashboard() {
           )}
 
           {tab === "groundwater" && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
-              <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
-              <div className="lg:col-span-2">
-                <CropEngineSlot crop={telemetry.crop} />
+            <div className="space-y-4">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
+                <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
+                <div className="lg:col-span-2">
+                  <CropEngineSlot crop={telemetry.crop} />
+                </div>
+              </div>
+              <div className="antigravity-float-2">
+                <FieldShiftCropAdvisor telemetry={telemetry} />
               </div>
             </div>
           )}
