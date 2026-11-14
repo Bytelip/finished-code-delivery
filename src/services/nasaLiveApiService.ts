@@ -678,10 +678,11 @@ export async function fetchLiveTelemetry(
           : isWatch
             ? "watch"
             : "nominal";
+      const eventTitle = closest.title || "Storm System";
       return {
         ...h,
         severity: sev,
-        metric: `${closest.distKm} km: ${closest.title.slice(0, 24)}`,
+        metric: `${closest.distKm} km: ${eventTitle.slice(0, 24)}`,
         detail: `Tracked by EONET ${closest.distKm} km from field pin.`,
       };
     }
@@ -699,7 +700,7 @@ export async function fetchLiveTelemetry(
         ...h,
         severity: sev,
         metric: `M${quakeData.maxMag} · ${quakeData.depthKm} km depth`,
-        detail: `Epicentre ${quakeData.nearestDistKm} km away (${quakeData.place}).`,
+        detail: `Epicentre ${quakeData.nearestDistKm} km away (${quakeData.place || "local"}).`,
       };
     }
 
@@ -728,7 +729,7 @@ export async function fetchLiveTelemetry(
           ...h,
           severity: closest.distKm < 100 ? "critical" : "warning",
           metric: `${closest.distKm} km away`,
-          detail: `EONET flood event: ${closest.title}`,
+          detail: `EONET flood event: ${closest.title || "Flash flood detected"}`,
         };
       }
     }
@@ -740,7 +741,7 @@ export async function fetchLiveTelemetry(
           ...h,
           severity: closest.distKm < 50 ? "critical" : "warning",
           metric: `${closest.distKm} km away`,
-          detail: `Active wildfire alert: ${closest.title}`,
+          detail: `Active wildfire alert: ${closest.title || "Thermal hotspot cluster"}`,
         };
       }
     }

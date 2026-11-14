@@ -7,8 +7,20 @@
  *   and click-to-pick geolocation.
  * - 2D Field GIS: Leaflet / react-leaflet high-zoom satellite imagery overlaid with live
  *   NASA GIBS WMTS raster tiles for the 8 agricultural layers with dynamic opacity.
+ * - Fully fault-tolerant: Safe ErrorBoundary and WebGL feature detection prevent any 3D/WebGL
+ *   driver failures from breaking the page, gracefully falling back to 2D GIS or coordinate grid.
  */
-import { useEffect, useMemo, useRef, useState, type ComponentType, type MouseEvent } from "react";
+import {
+  Component,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type ErrorInfo,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { Globe as GlobeIcon, Map as MapIcon, Layers, Radar, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -29,7 +41,7 @@ interface LeafletBundle {
     zoom: number;
     scrollWheelZoom?: boolean;
     style?: React.CSSProperties;
-    children: React.ReactNode;
+    children: ReactNode;
   }>;
   TileLayer: ComponentType<{
     url: string;
@@ -41,11 +53,11 @@ interface LeafletBundle {
   Marker: ComponentType<{
     position: [number, number];
     icon?: unknown;
-    children?: React.ReactNode;
+    children?: ReactNode;
   }>;
   Popup: ComponentType<{
     className?: string;
-    children?: React.ReactNode;
+    children?: ReactNode;
   }>;
   useMap: () => { panTo: (coords: [number, number], options?: { animate?: boolean }) => void };
   useMapEvents: (handlers: {
@@ -59,6 +71,55 @@ interface LeafletBundle {
       iconAnchor?: [number, number];
     }) => unknown;
   };
+}
+
+/** Check if WebGL context can be created in current browser environment */
+function hasWebGLSupport(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      window.WebGLRenderingContext &&
+      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl")),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Safe Error Boundary for 3D WebGL Globe to catch GPU context creation errors */
+class SafeGlobeErrorBoundary extends Component<
+  {
+    fallback: ReactNode;
+    children: ReactNode;
+    onFailure?: () => void;
+  },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: ReactNode; children: ReactNode; onFailure?: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    console.warn(
+      "3D WebGL Globe failed to render, auto-reverting to 2D GIS map:",
+      error,
+      errorInfo,
+    );
+    this.props.onFailure?.();
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
 }
 
 const LAYER_TONE: Record<MapLayer, string> = {
@@ -98,8 +159,9 @@ export function GlobeViewport({
   const { meta, hazards } = telemetry;
   const reading = telemetry.layers[activeLayer];
 
-  const [viewMode, setViewMode] = useState<"3d" | "2d">("3d");
+  const [viewMode, setViewMode] = useState<"3d" | "2d">("2d");
   const [mounted, setMounted] = useState(false);
+  const [webGLSupported, setWebGLSupported] = useState(false);
   const [globeModule, setGlobeModule] = useState<ComponentType<Record<string, unknown>> | null>(
     null,
   );
@@ -113,12 +175,20 @@ export function GlobeViewport({
   // Safe client-side dynamic loading of WebGL & Leaflet to keep SSR 100% deterministic
   useEffect(() => {
     setMounted(true);
+    const hasGL = hasWebGLSupport();
+    setWebGLSupported(hasGL);
+    // If WebGL is supported, start in 3D Orbital mode; otherwise, 2D Field GIS mode
+    if (hasGL) {
+      setViewMode("3d");
+    }
+
     let active = true;
 
-    Promise.all([import("react-globe.gl"), import("react-leaflet"), import("leaflet")])
-      .then(([gMod, rLeafletMod, lMod]) => {
+    // Load leaflet for 2D GIS
+    import("react-leaflet")
+      .then(async (rLeafletMod) => {
+        const lMod = await import("leaflet");
         if (!active) return;
-        setGlobeModule(() => gMod.default as unknown as ComponentType<Record<string, unknown>>);
         setLeafletModule({
           MapContainer: rLeafletMod.MapContainer as unknown as LeafletBundle["MapContainer"],
           TileLayer: rLeafletMod.TileLayer as unknown as LeafletBundle["TileLayer"],
@@ -130,8 +200,21 @@ export function GlobeViewport({
         });
       })
       .catch((err) => {
-        console.warn("Client map engines fallback to equirectangular grid:", err);
+        console.warn("Leaflet map load warning:", err);
       });
+
+    // Load react-globe.gl only if WebGL is supported
+    if (hasGL) {
+      import("react-globe.gl")
+        .then((gMod) => {
+          if (!active) return;
+          setGlobeModule(() => gMod.default as unknown as ComponentType<Record<string, unknown>>);
+        })
+        .catch((err) => {
+          console.warn("3D Globe load warning, defaulting to 2D:", err);
+          setViewMode("2d");
+        });
+    }
 
     return () => {
       active = false;
@@ -156,8 +239,16 @@ export function GlobeViewport({
 
   // Center 3D Globe camera on current farm coords whenever lat/lon changes
   useEffect(() => {
-    if (viewMode === "3d" && globeRef.current) {
-      globeRef.current.pointOfView({ lat, lng: lon, altitude: 2.2 }, 1000);
+    if (
+      viewMode === "3d" &&
+      globeRef.current &&
+      typeof globeRef.current.pointOfView === "function"
+    ) {
+      try {
+        globeRef.current.pointOfView({ lat, lng: lon, altitude: 2.2 }, 1000);
+      } catch {
+        // ignore pointOfView transition timing
+      }
     }
   }, [lat, lon, viewMode]);
 
@@ -278,6 +369,76 @@ export function GlobeViewport({
   const GlobeComponent = globeModule;
   const LeafletComp = leafletModule;
 
+  // Coordinate grid fallback for SSR and non-WebGL environments
+  const graticuleGridFallback = (
+    <div
+      data-hud-overlay="coordinate-grid"
+      role="button"
+      tabIndex={0}
+      aria-label="Coordinate grid. Click to set latitude and longitude."
+      className="hud-graticule absolute inset-0 cursor-crosshair"
+      onClick={(e) => {
+        const p = fromEvent(e);
+        onPick(p.lat, p.lon);
+      }}
+      onMouseMove={(e) => setHover(fromEvent(e))}
+      onMouseLeave={() => setHover(null)}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 transition-[background] duration-500"
+        style={{
+          background: `radial-gradient(circle at ${x}% ${y}%, color-mix(in oklab, ${tone} ${tintStrength}%, transparent) 0%, transparent 28%)`,
+        }}
+      />
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-cyan/25" />
+      <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-cyan/25" />
+
+      <div
+        className="pointer-events-none absolute inset-x-0 h-px bg-cyan/50"
+        style={{ top: `${y}%` }}
+      />
+      <div
+        className="pointer-events-none absolute inset-y-0 w-px bg-cyan/50"
+        style={{ left: `${x}%` }}
+      />
+      <div
+        className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+        style={{ left: `${x}%`, top: `${y}%` }}
+      >
+        <span
+          className="absolute inset-0 m-auto size-3 rounded-full animate-ping-slow"
+          style={{ background: tone }}
+        />
+        <span
+          className="relative block size-3 rounded-full border-2 border-background"
+          style={{ background: tone }}
+        />
+        <span className="absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan/60" />
+      </div>
+
+      {LON_TICKS.map((t) => (
+        <span
+          key={`lon-${t}`}
+          className="pointer-events-none absolute top-1 -translate-x-1/2 font-mono text-[9px] text-muted-foreground/70"
+          style={{ left: `${toX(t)}%` }}
+        >
+          {t}°
+        </span>
+      ))}
+      {LAT_TICKS.map((t) => (
+        <span
+          key={`lat-${t}`}
+          className="pointer-events-none absolute right-1.5 -translate-y-1/2 font-mono text-[9px] text-muted-foreground/70"
+          style={{ top: `${toY(t)}%` }}
+        >
+          {t}°
+        </span>
+      ))}
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 animate-scan bg-gradient-to-b from-transparent via-cyan/5 to-transparent" />
+    </div>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -287,38 +448,45 @@ export function GlobeViewport({
       data-layer={activeLayer}
       className="relative w-full h-[480px] rounded-xl border border-cyan-500/30 bg-[#050811] overflow-hidden select-none"
     >
-      {/* ---------------- 3D ORBITAL GLOBE MODE ---------------- */}
-      {viewMode === "3d" && GlobeComponent && mounted ? (
-        <div className="absolute inset-0">
-          <GlobeComponent
-            ref={globeRef}
-            width={containerDimensions.width}
-            height={containerDimensions.height}
-            backgroundColor="#050811"
-            globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-            atmosphereColor="#00e5ff"
-            atmosphereAltitude={0.22}
-            arcsData={orbitArcsData}
-            arcColor="color"
-            arcDashLength={0.4}
-            arcDashGap={0.2}
-            arcDashAnimateTime={3000}
-            arcAltitude={0.28}
-            ringsData={hazardRingsData}
-            ringColor={(d: unknown) => () => (d as { color?: string })?.color || "#00e5ff"}
-            ringMaxRadius="maxR"
-            ringPropagationSpeed="propagationSpeed"
-            ringRepeatPeriod="repeatPeriod"
-            pointsData={globePointsData}
-            pointColor="color"
-            pointAltitude={0.04}
-            pointRadius={0.7}
-            onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
-              onPick(Math.round(clickLat * 100) / 100, Math.round(clickLng * 100) / 100);
-            }}
-          />
-        </div>
+      {/* ---------------- 3D ORBITAL GLOBE MODE (WITH ERROR BOUNDARY) ---------------- */}
+      {viewMode === "3d" && GlobeComponent && mounted && webGLSupported ? (
+        <SafeGlobeErrorBoundary
+          fallback={graticuleGridFallback}
+          onFailure={() => setViewMode("2d")}
+        >
+          <div className="absolute inset-0">
+            <GlobeComponent
+              ref={globeRef}
+              width={containerDimensions.width}
+              height={containerDimensions.height}
+              backgroundColor="#050811"
+              globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+              bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+              atmosphereColor="#00e5ff"
+              atmosphereAltitude={0.22}
+              arcsData={orbitArcsData}
+              arcColor={(d: unknown) =>
+                (d as { color?: string[] })?.color || ["#00e5ff", "#10b981"]
+              }
+              arcDashLength={0.4}
+              arcDashGap={0.2}
+              arcDashAnimateTime={3000}
+              arcAltitude={0.28}
+              ringsData={hazardRingsData}
+              ringColor={(d: unknown) => (d as { color?: string })?.color || "#00e5ff"}
+              ringMaxRadius="maxR"
+              ringPropagationSpeed="propagationSpeed"
+              ringRepeatPeriod="repeatPeriod"
+              pointsData={globePointsData}
+              pointColor={(d: unknown) => (d as { color?: string })?.color || "#00e5ff"}
+              pointAltitude={0.04}
+              pointRadius={0.7}
+              onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
+                onPick(Math.round(clickLat * 100) / 100, Math.round(clickLng * 100) / 100);
+              }}
+            />
+          </div>
+        </SafeGlobeErrorBoundary>
       ) : null}
 
       {/* ---------------- 2D FIELD GIS MODE (LEAFLET + NASA GIBS WMTS) ---------------- */}
@@ -385,78 +553,9 @@ export function GlobeViewport({
 
       {/* ---------------- SSR & ENGINE LOADING FALLBACK GRID ---------------- */}
       {(!mounted ||
-        (viewMode === "3d" && !GlobeComponent) ||
-        (viewMode === "2d" && !LeafletComp)) && (
-        <div
-          data-hud-overlay="coordinate-grid"
-          role="button"
-          tabIndex={0}
-          aria-label="Coordinate grid. Click to set latitude and longitude."
-          className="hud-graticule absolute inset-0 cursor-crosshair"
-          onClick={(e) => {
-            const p = fromEvent(e);
-            onPick(p.lat, p.lon);
-          }}
-          onMouseMove={(e) => setHover(fromEvent(e))}
-          onMouseLeave={() => setHover(null)}
-        >
-          <div
-            className="pointer-events-none absolute inset-0 transition-[background] duration-500"
-            style={{
-              background: `radial-gradient(circle at ${x}% ${y}%, color-mix(in oklab, ${tone} ${tintStrength}%, transparent) 0%, transparent 28%)`,
-            }}
-          />
-          {/* Equator & prime meridian */}
-          <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-cyan/25" />
-          <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-cyan/25" />
-
-          {/* Crosshair on current target */}
-          <div
-            className="pointer-events-none absolute inset-x-0 h-px bg-cyan/50"
-            style={{ top: `${y}%` }}
-          />
-          <div
-            className="pointer-events-none absolute inset-y-0 w-px bg-cyan/50"
-            style={{ left: `${x}%` }}
-          />
-          <div
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-            style={{ left: `${x}%`, top: `${y}%` }}
-          >
-            <span
-              className="absolute inset-0 m-auto size-3 rounded-full animate-ping-slow"
-              style={{ background: tone }}
-            />
-            <span
-              className="relative block size-3 rounded-full border-2 border-background"
-              style={{ background: tone }}
-            />
-            <span className="absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan/60" />
-          </div>
-
-          {/* Graticule labels */}
-          {LON_TICKS.map((t) => (
-            <span
-              key={`lon-${t}`}
-              className="pointer-events-none absolute top-1 -translate-x-1/2 font-mono text-[9px] text-muted-foreground/70"
-              style={{ left: `${toX(t)}%` }}
-            >
-              {t}°
-            </span>
-          ))}
-          {LAT_TICKS.map((t) => (
-            <span
-              key={`lat-${t}`}
-              className="pointer-events-none absolute right-1.5 -translate-y-1/2 font-mono text-[9px] text-muted-foreground/70"
-              style={{ top: `${toY(t)}%` }}
-            >
-              {t}°
-            </span>
-          ))}
-
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 animate-scan bg-gradient-to-b from-transparent via-cyan/5 to-transparent" />
-        </div>
-      )}
+        (viewMode === "3d" && (!GlobeComponent || !webGLSupported)) ||
+        (viewMode === "2d" && !LeafletComp)) &&
+        graticuleGridFallback}
 
       {/* ---------------- TOP-LEFT RETICLE BADGE ---------------- */}
       <div
@@ -494,13 +593,20 @@ export function GlobeViewport({
             type="button"
             size="sm"
             variant="ghost"
+            disabled={!webGLSupported}
+            title={
+              webGLSupported
+                ? "3D Orbital Globe View"
+                : "3D WebGL is unavailable in your browser environment"
+            }
             className={cn(
               "h-7 px-2.5 font-mono text-xs transition-all",
               viewMode === "3d"
                 ? "bg-cyan/25 text-cyan border border-cyan/60 font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)]"
                 : "text-muted-foreground hover:text-foreground",
+              !webGLSupported && "opacity-50 cursor-not-allowed",
             )}
-            onClick={() => setViewMode("3d")}
+            onClick={() => webGLSupported && setViewMode("3d")}
           >
             <GlobeIcon className="mr-1.5 size-3.5 text-cyan" /> 3D Orbital
           </Button>

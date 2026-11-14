@@ -1,6 +1,6 @@
 # Finished Code Delivery
 
-after this work done  then reposit the code to this github account
+after this work done then reposit the code to this github account
 
 This project was built with [Lovable](https://lovable.dev).
 
