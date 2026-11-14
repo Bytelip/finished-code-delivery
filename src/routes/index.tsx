@@ -12,11 +12,15 @@ import {
   WaterBudgetChart,
 } from "@/components/agro/TelemetryCharts";
 import { HazardMatrixSlot } from "@/components/agro/HazardMatrixSlot";
+import { HazardAlertCenter } from "@/components/agro/HazardAlertCenter";
 import { CropEngineSlot } from "@/components/agro/CropEngineSlot";
+import { FarmerAdvisoryModal } from "@/components/agro/FarmerAdvisoryModal";
 import { GranuleInspector } from "@/components/agro/GranuleInspector";
 import { PlantPillarList } from "@/components/agro/PlantPillarList";
 import { SeverityChip } from "@/components/agro/hud";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
+import { evaluateCropSuitability } from "@/utils/cropSuitabilityEngine";
+import { SEVERITY_KEY, translator, type Lang } from "@/i18n/translations";
 import type { DashboardTab, Irrigation, MapLayer, Scenario, Season } from "@/types/agroSpace";
 
 export const Route = createFileRoute("/")({
@@ -45,6 +49,8 @@ function AgroSpaceDashboard() {
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState<DashboardTab>("overview");
+  const [lang, setLang] = useState<Lang>("en");
+  const [advisoryOpen, setAdvisoryOpen] = useState(false);
 
   const [lat, setLat] = useState(13.13);
   const [lon, setLon] = useState(78.13);
@@ -63,6 +69,7 @@ function AgroSpaceDashboard() {
     () => generateTelemetry({ lat, lon, borewellDepth, season, scenario, irrigation }),
     [lat, lon, borewellDepth, season, scenario, irrigation],
   );
+  const cropMatches = useMemo(() => evaluateCropSuitability(telemetry), [telemetry]);
 
   const setLocation = (la: number, lo: number) => {
     setLat(la);
@@ -71,7 +78,8 @@ function AgroSpaceDashboard() {
   const activeHazards = telemetry.hazards.filter(
     (h) => h.severity === "critical" || h.severity === "warning",
   ).length;
-  const tabLabel = TABS.find((t) => t.id === tab)?.label;
+  const t = translator(lang);
+  const tabLabel = t(TABS.find((x) => x.id === tab)?.labelKey ?? "nav.overview");
 
   return (
     <div className="flex min-h-screen">
@@ -84,6 +92,7 @@ function AgroSpaceDashboard() {
         lon={lon}
         onPreset={(p) => setLocation(p.lat, p.lon)}
         activeHazards={activeHazards}
+        lang={lang}
       />
 
       <main className="min-w-0 flex-1">
@@ -94,6 +103,9 @@ function AgroSpaceDashboard() {
           irrigation={irrigation}
           season={season}
           scenario={scenario}
+          lang={lang}
+          onLang={setLang}
+          onOpenAdvisory={() => setAdvisoryOpen(true)}
           onLocation={setLocation}
           onDepth={setBorewellDepth}
           onIrrigation={setIrrigation}
@@ -114,13 +126,16 @@ function AgroSpaceDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <div className="hud-label">Field Health</div>
+                <div className="hud-label">{t("hud.fieldHealth")}</div>
                 <div className="font-mono text-2xl font-semibold tabular-nums text-emerald">
                   {telemetry.plantHealth.overall}
                   <span className="text-sm text-muted-foreground">/100</span>
                 </div>
               </div>
-              <SeverityChip severity={telemetry.plantHealth.status} />
+              <SeverityChip
+                severity={telemetry.plantHealth.status}
+                label={t(SEVERITY_KEY(telemetry.plantHealth.status))}
+              />
               {scenario !== "Nominal" && (
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-crimson/50 bg-crimson/10 px-2.5 py-1 font-mono text-[11px] text-crimson">
                   <Activity className="size-3.5" /> SIM · {scenario}
@@ -146,10 +161,8 @@ function AgroSpaceDashboard() {
                 <PlantHealthRadar health={telemetry.plantHealth} />
                 <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
               </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <HazardMatrixSlot hazards={telemetry.hazards} variant="summary" />
-                <CropEngineSlot crop={telemetry.crop} />
-              </div>
+              <HazardMatrixSlot hazards={telemetry.hazards} lang={lang} variant="summary" />
+              <CropEngineSlot crop={telemetry.crop} matches={cropMatches} lang={lang} />
             </>
           )}
 
@@ -164,20 +177,28 @@ function AgroSpaceDashboard() {
           )}
 
           {tab === "groundwater" && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
-              <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
-              <div className="lg:col-span-2">
-                <CropEngineSlot crop={telemetry.crop} />
+            <div className="space-y-4">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
+                <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
               </div>
+              <CropEngineSlot crop={telemetry.crop} matches={cropMatches} lang={lang} />
             </div>
           )}
 
-          {tab === "hazards" && <HazardMatrixSlot hazards={telemetry.hazards} variant="full" />}
+          {tab === "hazards" && <HazardAlertCenter hazards={telemetry.hazards} lang={lang} />}
 
           {tab === "granules" && <GranuleInspector telemetry={telemetry} />}
         </div>
       </main>
+
+      <FarmerAdvisoryModal
+        open={advisoryOpen}
+        onOpenChange={setAdvisoryOpen}
+        telemetry={telemetry}
+        matches={cropMatches}
+        lang={lang}
+      />
     </div>
   );
 }

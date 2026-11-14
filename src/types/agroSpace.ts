@@ -87,6 +87,14 @@ export interface PowerDailyPoint {
   EVPTRNS: number;
   /** Bias-corrected precipitation, mm/day */
   PRECTOTCORR: number;
+  /** Mean air temperature at 2 m, °C (POWER T2M) */
+  T2M: number;
+  /** Skin / canopy temperature, °C — TS − T2M is canopy fever */
+  TS: number;
+  /** Relative humidity at 2 m, % (POWER RH2M) */
+  RH2M: number;
+  /** Wind speed at 2 m, m/s (POWER WS2M) */
+  WS2M: number;
 }
 
 /** Multi-depth soil moisture, % saturation. */
@@ -98,6 +106,24 @@ export interface SoilMoisturePoint {
   GWETPROF: number;
   /** Share of aquifer reachable by the borewell, % */
   borewellAccess: number;
+}
+
+/** ISRIC SoilGrids surface chemistry and texture (0–30 cm). */
+export interface SoilChemistry {
+  /** pH in 1:2.5 soil:water */
+  pH: number;
+  /** Soil organic carbon, g/kg */
+  soc: number;
+  /** Available nitrogen, kg/ha */
+  nitrogen: number;
+  /** Cation exchange capacity, cmol(+)/kg */
+  cec: number;
+  /** Clay fraction, % */
+  clay: number;
+  /** Sand fraction, % */
+  sand: number;
+  /** Silt fraction, % */
+  silt: number;
 }
 
 export type PlantPillarKey = "ndvi" | "parUv" | "hydration" | "rootMoisture" | "blight" | "soil";
@@ -127,7 +153,14 @@ export interface WaterBudgetStage {
 }
 
 export type HazardType =
-  "cyclone" | "earthquake" | "solar-storm" | "eclipse" | "flood" | "drought" | "wildfire" | "smoke";
+  | "cyclone"
+  | "earthquake"
+  | "solar-storm"
+  | "eclipse"
+  | "wildfire"
+  | "flood"
+  | "thermal"
+  | "wind-drift";
 
 export interface HazardAlert {
   id: string;
@@ -137,6 +170,8 @@ export interface HazardAlert {
   severity: Severity;
   metric: string;
   detail: string;
+  /** Farmer mitigation checklist — i18n keys resolved against `src/i18n/translations.ts` */
+  actions: string[];
 }
 
 export interface NasaGranule {
@@ -174,6 +209,7 @@ export interface AgroTelemetry {
   meta: LocationMeta;
   power: PowerDailyPoint[];
   soil: SoilMoisturePoint[];
+  soilChemistry: SoilChemistry;
   plantHealth: PlantHealth;
   waterBudget: WaterBudgetStage[];
   hazards: HazardAlert[];

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Crosshair, Loader2 } from "lucide-react";
+import { Crosshair, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { LANGUAGES, translator, type Lang } from "@/i18n/translations";
 import {
   BOREWELL_DEPTH_RANGE,
   IRRIGATION_TYPES,
@@ -76,6 +77,9 @@ export function CommandBar({
   irrigation,
   season,
   scenario,
+  lang,
+  onLang,
+  onOpenAdvisory,
   onLocation,
   onDepth,
   onIrrigation,
@@ -88,6 +92,9 @@ export function CommandBar({
   irrigation: Irrigation;
   season: Season;
   scenario: Scenario;
+  lang: Lang;
+  onLang: (l: Lang) => void;
+  onOpenAdvisory: () => void;
   onLocation: (lat: number, lon: number) => void;
   onDepth: (d: number) => void;
   onIrrigation: (i: Irrigation) => void;
@@ -95,6 +102,7 @@ export function CommandBar({
   onScenario: (s: Scenario) => void;
 }) {
   const [locating, setLocating] = useState(false);
+  const t = translator(lang);
   const locate = () => {
     if (!("geolocation" in navigator)) {
       toast.error("GPS isn't available in this browser.");
@@ -227,6 +235,38 @@ export function CommandBar({
           </Select>
           {alert && <span className="size-2 animate-pulse rounded-full bg-crimson" aria-hidden />}
         </Field>
+
+        <Field label={t("lang.label")}>
+          <div
+            className="flex rounded-md border border-border bg-background/60 p-0.5"
+            role="radiogroup"
+            aria-label="Report language"
+          >
+            {LANGUAGES.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                role="radio"
+                aria-checked={lang === l.id}
+                onClick={() => onLang(l.id)}
+                title={l.label}
+                className={cn(
+                  "rounded px-2 py-1 text-xs transition-colors",
+                  lang === l.id
+                    ? "bg-cyan/15 text-cyan"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Button variant="hud" size="sm" onClick={onOpenAdvisory} className="ml-auto">
+          <Printer />
+          {t("advisory.open")}
+        </Button>
       </div>
     </div>
   );

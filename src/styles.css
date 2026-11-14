@@ -225,3 +225,57 @@
     opacity: 0;
   }
 }
+
+/*
+ * Farmer Advisory report — the modal renders a light "paper" sheet. When the user
+ * prints or saves a PDF, everything except that sheet is hidden so the printout is
+ * a clean, ink-light field document.
+ */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #farmer-advisory-report,
+  #farmer-advisory-report * {
+    visibility: visible;
+  }
+
+  #farmer-advisory-report {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 14mm;
+    background: #fff !important;
+    color: #111 !important;
+    font-size: 11pt;
+  }
+
+  #farmer-advisory-report * {
+    color: #111 !important;
+    border-color: #bbb !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  #farmer-advisory-report h2 {
+    font-size: 16pt;
+  }
+
+  #farmer-advisory-report h3 {
+    font-size: 12pt;
+  }
+
+  #farmer-advisory-report section > div,
+  #farmer-advisory-report section > ul {
+    break-inside: avoid;
+  }
+}

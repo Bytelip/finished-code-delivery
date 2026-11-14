@@ -17,6 +17,7 @@ import {
   type Scenario,
   type Season,
   type Severity,
+  type SoilChemistry,
   type SoilMoisturePoint,
   type TelemetryInput,
   type WaterBudgetStage,
@@ -198,12 +199,28 @@ function generatePower(c: Climate, scenario: Scenario, rng: () => number): Power
     }
     vpd = clamp(vpd, 0.15, 5.5);
     const et = clamp(1 + par / 45 + vpd * 0.9 - (rain > 40 ? 1.2 : 0), 0.4, 9.5);
+    const t2m = clamp(
+      13 + c.heat * 17 + (rng() - 0.5) * 4 - (inEvent && scenario === "Solar Eclipse" ? 2 : 0),
+      -6,
+      47,
+    );
+    const rh2m = clamp(94 - vpd * 15 + c.wetness * 8 + (rng() - 0.5) * 8, 12, 99);
+    const ws2m =
+      inEvent && scenario === "Cat-4 Cyclone"
+        ? clamp(12 + rng() * 8, 8, 26)
+        : clamp(1.2 + c.heat * 2.6 + rng() * 2.6, 0.3, 14);
+    // Canopy runs hotter than the air when VPD is high and sky is clear.
+    const ts = t2m + 0.8 + c.heat * 2.4 + vpd * 0.6 - cloud * 1.4;
     out.push({
       day: `D-${DAYS - 1 - i}`,
       PAR: round(par, 1),
       VPD: round(vpd, 2),
       EVPTRNS: round(et, 2),
       PRECTOTCORR: round(rain, 1),
+      T2M: round(t2m, 1),
+      TS: round(ts, 1),
+      RH2M: round(rh2m),
+      WS2M: round(ws2m, 1),
     });
   }
   const last = out[DAYS - 1];
@@ -303,26 +320,43 @@ function generateLayers(
   };
 }
 
+/** Site-level SoilGrids chemistry — depends only on location, never on season/scenario. */
+function generateSoilChemistry(c: Climate, siteRng: () => number): SoilChemistry {
+  const clay = round(clamp(14 + c.wetness * 16 + (siteRng() - 0.5) * 10, 6, 52));
+  const sand = round(clamp(60 - clay * 0.75 + (siteRng() - 0.5) * 12, 12, 82));
+  return {
+    pH: round(5.2 + siteRng() * 3.2, 1),
+    soc: round(2 + c.wetness * 7 + siteRng() * 3, 1),
+    nitrogen: Math.round(140 + siteRng() * 260),
+    cec: round(6 + clay * 0.35 + c.wetness * 6 + siteRng() * 3, 1),
+    clay,
+    sand,
+    silt: round(clamp(100 - clay - sand, 3, 60)),
+  };
+}
+
 function generatePlantHealth(
   power: PowerDailyPoint[],
   soil: SoilMoisturePoint[],
   layers: Record<MapLayer, LayerReading>,
   input: TelemetryInput,
-  siteRng: () => number,
+  chem: SoilChemistry,
 ): PlantHealth {
   const recent = power.slice(-10);
   const par = avg(recent.map((p) => p.PAR));
   const vpd = avg(recent.map((p) => p.VPD));
   const rain = avg(recent.map((p) => p.PRECTOTCORR));
+  const rh2m = avg(recent.map((p) => p.RH2M));
   const root = avg(soil.slice(-10).map((s) => s.sm28_100));
-  const ph = round(5.2 + siteRng() * 3.2, 1);
-  const n = Math.round(140 + siteRng() * 260);
+  const ph = chem.pH;
+  const n = chem.nitrogen;
 
   let parUv = 100 - Math.abs(par - 115) * 0.9;
   if (input.scenario === "G4 Solar Storm") parUv -= 22;
   if (input.scenario === "Solar Eclipse") parUv -= 14;
 
-  const humidityProxy = clamp(1.6 - vpd, 0, 1.6) / 1.6;
+  // Fungal pressure tracks leaf wetness: high RH2M plus rain.
+  const humidityProxy = clamp((rh2m - 45) / 50, 0, 1);
   const blightRisk = clamp(
     humidityProxy * 60 +
       rain * 0.9 +
@@ -526,9 +560,13 @@ function generateHazards(
 ): HazardAlert[] {
   const s = input.scenario;
   const maxRain = Math.max(...power.map((p) => p.PRECTOTCORR));
-  const root = avg(soil.slice(-7).map((x) => x.sm28_100));
+  const gwetRoot = avg(soil.slice(-7).map((x) => x.GWETPROF)) / 100;
   const fires = layers["FIRMS Fires"].value;
   const aod = layers["Smoke AOD"].value;
+  const maxWind = Math.max(...power.map((p) => p.WS2M));
+  const canopyFever = avg(power.map((p) => p.TS - p.T2M));
+  const minTemp = Math.min(...power.map((p) => p.T2M));
+  const rh2m = avg(power.map((p) => p.RH2M));
   const distKm = Math.round(40 + rng() * 90);
   const kpBase = round(1 + rng() * 2, 1);
 
@@ -537,30 +575,35 @@ function generateHazards(
       ? {
           id: "hz-cyclone",
           type: "cyclone",
-          title: "Tropical Cyclone",
-          source: "GPM IMERG · JTWC",
+          title: "Cyclone & Severe Storm",
+          source: "NASA EONET · GPM IMERG",
           severity: "critical",
-          metric: "Cat-4 · 230 km/h",
-          detail: `Eye ${distKm} km offshore, landfall T-18h. Harvest standing crop, secure pumps.`,
+          metric: `Cat-4 · 230 km/h · ${distKm} km`,
+          detail: `Eye ${distKm} km offshore, landfall T-18h, wind shear 28 m/s. Stake tall crops and brace pump houses.`,
+          actions: ["hz.cyclone.a1", "hz.cyclone.a2", "hz.cyclone.a3", "hz.cyclone.a4"],
         }
       : c.tropical > 0.6 && input.season === "Kharif"
         ? {
             id: "hz-cyclone",
             type: "cyclone",
-            title: "Tropical Cyclone",
-            source: "GPM IMERG · JTWC",
+            title: "Cyclone & Severe Storm",
+            source: "NASA EONET · GPM IMERG",
             severity: "watch",
-            metric: "Low-pressure area",
-            detail: "Monsoon depression probability 22% over 7 days.",
+            metric: `Low-pressure · peak ${maxWind.toFixed(1)} m/s`,
+            detail:
+              "Monsoon depression probability 22% over 7 days. Keep windbreaks and trellis anchors inspected.",
+            actions: ["hz.cyclone.a1", "hz.cyclone.a2", "hz.cyclone.a3", "hz.cyclone.a4"],
           }
         : {
             id: "hz-cyclone",
             type: "cyclone",
-            title: "Tropical Cyclone",
-            source: "GPM IMERG · JTWC",
+            title: "Cyclone & Severe Storm",
+            source: "NASA EONET · GPM IMERG",
             severity: "nominal",
-            metric: "No systems",
-            detail: "No tropical systems within 1,000 km.",
+            metric: `No systems · peak ${maxWind.toFixed(1)} m/s`,
+            detail:
+              "No tropical systems within 1,000 km. Field wind loads are within the lodging-safe envelope.",
+            actions: ["hz.cyclone.a1", "hz.cyclone.a2", "hz.cyclone.a3", "hz.cyclone.a4"],
           };
 
   const quake: HazardAlert =
@@ -568,20 +611,23 @@ function generateHazards(
       ? {
           id: "hz-quake",
           type: "earthquake",
-          title: "Seismic Activity",
+          title: "Earthquake & Liquefaction",
           source: "USGS ComCat",
           severity: "critical",
-          metric: "M6.2 · 18 km depth",
-          detail: `Epicentre ${distKm} km away. Borewell casing and aquifer turbidity checks advised.`,
+          metric: `M6.2 · 18 km depth · ${distKm} km`,
+          detail: `Epicentre ${distKm} km away. Liquefaction likely in saturated sandy soils; check borewell casing and canal bunds.`,
+          actions: ["hz.earthquake.a1", "hz.earthquake.a2", "hz.earthquake.a3", "hz.earthquake.a4"],
         }
       : {
           id: "hz-quake",
           type: "earthquake",
-          title: "Seismic Activity",
+          title: "Earthquake & Liquefaction",
           source: "USGS ComCat",
           severity: "nominal",
-          metric: `M${round(1.8 + rng(), 1)} max`,
-          detail: "Background micro-seismicity only.",
+          metric: `M${round(1.8 + rng(), 1)} max · 32 km depth`,
+          detail:
+            "Background micro-seismicity only. No liquefaction trigger expected in this window.",
+          actions: ["hz.earthquake.a1", "hz.earthquake.a2", "hz.earthquake.a3", "hz.earthquake.a4"],
         };
 
   const solar: HazardAlert =
@@ -589,20 +635,36 @@ function generateHazards(
       ? {
           id: "hz-solar",
           type: "solar-storm",
-          title: "Geomagnetic Storm",
-          source: "NOAA SWPC · DSCOVR",
+          title: "Solar Winds, CME & Geomagnetic Storm",
+          source: "NASA DONKI GST/FLR · NOAA SWPC Kp",
           severity: "critical",
-          metric: "Kp 8 · G4 Severe",
-          detail: "GNSS drift ±3 m. Pause RTK auto-steer and drone spraying.",
+          metric: `G4 · Kp 8 · FLR M5.2`,
+          detail:
+            "CME shock arrives T-09h. RTK-GPS auto-steer drift ±3 m, LoRaWAN sensor packet loss up 35%, UV-B leaf scorch risk high.",
+          actions: [
+            "hz.solar-storm.a1",
+            "hz.solar-storm.a2",
+            "hz.solar-storm.a3",
+            "hz.solar-storm.a4",
+          ],
         }
       : {
           id: "hz-solar",
           type: "solar-storm",
-          title: "Geomagnetic Storm",
-          source: "NOAA SWPC · DSCOVR",
-          severity: "nominal",
-          metric: `Kp ${kpBase}`,
-          detail: "Quiet geomagnetic field. GNSS nominal.",
+          title: "Solar Winds, CME & Geomagnetic Storm",
+          source: "NASA DONKI GST/FLR · NOAA SWPC Kp",
+          severity: kpBase >= 5 ? "watch" : "nominal",
+          metric: `Kp ${kpBase} · no CME`,
+          detail:
+            kpBase >= 5
+              ? "Minor geomagnetic unrest. Verify RTK base-station fix before auto-steer passes."
+              : "Quiet geomagnetic field. GNSS guidance and LoRaWAN telemetry nominal.",
+          actions: [
+            "hz.solar-storm.a1",
+            "hz.solar-storm.a2",
+            "hz.solar-storm.a3",
+            "hz.solar-storm.a4",
+          ],
         };
 
   const eclipse: HazardAlert =
@@ -610,115 +672,107 @@ function generateHazards(
       ? {
           id: "hz-eclipse",
           type: "eclipse",
-          title: "Solar Eclipse",
-          source: "NASA SVS Eclipse Atlas",
+          title: "Solar Eclipse Photoperiod Dip",
+          source: "USNO Eclipse Atlas · NASA SVS",
           severity: "watch",
-          metric: "78% obscuration",
-          detail: "PAR drops 62% for 2h 14m. Expect a brief stomatal-closure dip.",
+          metric: "78% obscuration · 2h 14m",
+          detail:
+            "PAR drops 62% mid-morning. Expect stomatal closure and a pollinator activity pause.",
+          actions: ["hz.eclipse.a1", "hz.eclipse.a2", "hz.eclipse.a3", "hz.eclipse.a4"],
         }
       : {
           id: "hz-eclipse",
           type: "eclipse",
-          title: "Solar Eclipse",
-          source: "NASA SVS Eclipse Atlas",
+          title: "Solar Eclipse Photoperiod Dip",
+          source: "USNO Eclipse Atlas · NASA SVS",
           severity: "nominal",
           metric: "None in 30 d",
-          detail: "No eclipse path over this field.",
+          detail: "No eclipse path over this field in the forecast window.",
+          actions: ["hz.eclipse.a1", "hz.eclipse.a2", "hz.eclipse.a3", "hz.eclipse.a4"],
         };
-
-  const flood: HazardAlert =
-    s === "Flash Flood"
-      ? {
-          id: "hz-flood",
-          type: "flood",
-          title: "Flash Flood",
-          source: "GPM IMERG · SMAP",
-          severity: "critical",
-          metric: `${Math.round(maxRain)} mm/24h`,
-          detail: "Topsoil saturated. Open field drains, delay fertiliser.",
-        }
-      : maxRain > 80
-        ? {
-            id: "hz-flood",
-            type: "flood",
-            title: "Flash Flood",
-            source: "GPM IMERG · SMAP",
-            severity: "warning",
-            metric: `${Math.round(maxRain)} mm/24h`,
-            detail: "Heavy rain event recorded; runoff risk on slopes.",
-          }
-        : {
-            id: "hz-flood",
-            type: "flood",
-            title: "Flash Flood",
-            source: "GPM IMERG · SMAP",
-            severity: "nominal",
-            metric: `${Math.round(maxRain)} mm peak`,
-            detail: "Rainfall within absorbable range.",
-          };
-
-  const drought: HazardAlert =
-    s === "Severe Drought" || root < 18
-      ? {
-          id: "hz-drought",
-          type: "drought",
-          title: "Agricultural Drought",
-          source: "SMAP L4 · ECOSTRESS ESI",
-          severity: "critical",
-          metric: `${Math.round(root)}% root zone`,
-          detail: "Root-zone moisture below wilting threshold. Prioritise survival irrigation.",
-        }
-      : root < 35
-        ? {
-            id: "hz-drought",
-            type: "drought",
-            title: "Agricultural Drought",
-            source: "SMAP L4 · ECOSTRESS ESI",
-            severity: "watch",
-            metric: `${Math.round(root)}% root zone`,
-            detail: "Drying trend. Monitor ESI over the next pass.",
-          }
-        : {
-            id: "hz-drought",
-            type: "drought",
-            title: "Agricultural Drought",
-            source: "SMAP L4 · ECOSTRESS ESI",
-            severity: "nominal",
-            metric: `${Math.round(root)}% root zone`,
-            detail: "Root-zone moisture adequate.",
-          };
 
   const fireSev: Severity =
     fires >= 14 ? "critical" : fires >= 7 ? "warning" : fires >= 3 ? "watch" : "nominal";
-  const wildfire: HazardAlert = {
-    id: "hz-fire",
-    type: "wildfire",
-    title: "Active Fires",
-    source: "FIRMS VIIRS 375m",
-    severity: fireSev,
-    metric: `${fires} hotspots / 50 km`,
-    detail:
-      fireSev === "nominal"
-        ? "No significant thermal anomalies."
-        : "Stubble or wildland fires detected upwind.",
-  };
-
   const smokeSev: Severity =
     aod >= 1.2 ? "critical" : aod >= 0.7 ? "warning" : aod >= 0.4 ? "watch" : "nominal";
-  const smoke: HazardAlert = {
-    id: "hz-smoke",
-    type: "smoke",
-    title: "Smoke & Aerosols",
-    source: "MODIS MAIAC AOD",
-    severity: smokeSev,
-    metric: `AOD ${aod.toFixed(2)}`,
+  const fireRank: Record<Severity, number> = { nominal: 0, watch: 1, warning: 2, critical: 3 };
+  const fire: HazardAlert = {
+    id: "hz-fire",
+    type: "wildfire",
+    title: "Stubble Fire & Smoke Dimming",
+    source: "NASA FIRMS VIIRS 375m · MODIS MAIAC AOD",
+    severity: fireRank[fireSev] >= fireRank[smokeSev] ? fireSev : smokeSev,
+    metric: `${fires} hotspots / 50 km · ${
+      layers["FIRMS Fires"].value >= 3 ? `FRP ${round(6 + fires * 2.4, 1)} MW` : "FRP —"
+    } · AOD ${aod.toFixed(2)}`,
     detail:
-      smokeSev === "nominal"
-        ? "Clear-sky aerosol load."
-        : "Diffuse light rising; PAR reduced, check worker exposure.",
+      fireSev === "nominal" && smokeSev === "nominal"
+        ? "No thermal anomalies upwind. Aerosol load is clear-sky."
+        : "Stubble burning detected upwind; smoke AOD is dimming canopy PAR and raising PM2.5.",
+    actions: ["hz.wildfire.a1", "hz.wildfire.a2", "hz.wildfire.a3", "hz.wildfire.a4"],
   };
 
-  return [cyclone, quake, solar, eclipse, flood, drought, wildfire, smoke];
+  const floodSev: Severity =
+    s === "Flash Flood" || maxRain > 65 || gwetRoot > 0.85
+      ? "critical"
+      : maxRain > 45 || gwetRoot > 0.75
+        ? "warning"
+        : maxRain > 25
+          ? "watch"
+          : "nominal";
+  const flood: HazardAlert = {
+    id: "hz-flood",
+    type: "flood",
+    title: "Flood & Root Hypoxia",
+    source: "GPM IMERG · SMAP L4 GWETROOT",
+    severity: floodSev,
+    metric: `${Math.round(maxRain)} mm/24h · GWETROOT ${gwetRoot.toFixed(2)}`,
+    detail:
+      floodSev === "nominal"
+        ? "Rainfall within the soil's absorbable range; no ponding expected."
+        : "Root zone near saturation. Nitrogen leaching and root-rot risk in the next 48–72 h.",
+    actions: ["hz.flood.a1", "hz.flood.a2", "hz.flood.a3", "hz.flood.a4"],
+  };
+
+  const thermalSev: Severity =
+    (s === "Severe Drought" && canopyFever > 3) || (canopyFever > 3 && rh2m > 85) || minTemp < 2
+      ? "critical"
+      : canopyFever > 3 || minTemp < 4 || rh2m > 85
+        ? "warning"
+        : canopyFever > 2 || minTemp < 7 || rh2m > 78
+          ? "watch"
+          : "nominal";
+  const thermal: HazardAlert = {
+    id: "hz-thermal",
+    type: "thermal",
+    title: "Heatwave, Frost & Fungal Blight",
+    source: "POWER T2M/TS/RH2M · ECOSTRESS",
+    severity: thermalSev,
+    metric: `TS−T2M ${canopyFever.toFixed(1)}°C · RH ${Math.round(rh2m)}% · min ${minTemp.toFixed(1)}°C`,
+    detail:
+      thermalSev === "nominal"
+        ? "Canopy temperature, humidity and night minima are inside the crop comfort band."
+        : "Canopy fever, radiative frost or >85% RH is stressing the crop and opening a fungal infection window.",
+    actions: ["hz.thermal.a1", "hz.thermal.a2", "hz.thermal.a3", "hz.thermal.a4"],
+  };
+
+  const windSev: Severity =
+    maxWind > 9 ? "critical" : maxWind > 6.5 ? "warning" : maxWind > 5 ? "watch" : "nominal";
+  const windDrift: HazardAlert = {
+    id: "hz-wind-drift",
+    type: "wind-drift",
+    title: "High Wind Spray Drift",
+    source: "POWER WS2M · on-farm anemometer",
+    severity: windSev,
+    metric: `WS2M ${maxWind.toFixed(1)} m/s · gust ${(maxWind * 1.4).toFixed(1)} m/s`,
+    detail:
+      windSev === "nominal"
+        ? "Spray window open: wind speed inside the 3–6 m/s safe band."
+        : "Spray drift carries beyond the field boundary. Halt pesticide application until wind drops below 4 m/s.",
+    actions: ["hz.wind-drift.a1", "hz.wind-drift.a2", "hz.wind-drift.a3", "hz.wind-drift.a4"],
+  };
+
+  return [cyclone, quake, solar, eclipse, fire, flood, thermal, windDrift];
 }
 
 function generateGranules(input: TelemetryInput, rng: () => number): NasaGranule[] {
@@ -811,7 +865,8 @@ export function generateTelemetry(raw: TelemetryInput): AgroTelemetry {
   const power = generatePower(c, input.scenario, rng);
   const soil = generateSoil(power, c, input, input.scenario);
   const layers = generateLayers(power, soil, c, input.scenario, rng);
-  const plantHealth = generatePlantHealth(power, soil, layers, input, siteRng);
+  const soilChemistry = generateSoilChemistry(c, siteRng);
+  const plantHealth = generatePlantHealth(power, soil, layers, input, soilChemistry);
   const { stages, crop } = generateWaterBudget(power, soil, c, input);
   const hazards = generateHazards(power, soil, layers, c, input, rng);
   const granules = generateGranules(input, rng);
@@ -832,6 +887,7 @@ export function generateTelemetry(raw: TelemetryInput): AgroTelemetry {
     },
     power,
     soil,
+    soilChemistry,
     plantHealth,
     waterBudget: stages,
     hazards,

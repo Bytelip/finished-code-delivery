@@ -68,7 +68,7 @@ export const SEVERITY_STYLES: Record<
   },
 };
 
-export function SeverityChip({ severity }: { severity: Severity }) {
+export function SeverityChip({ severity, label }: { severity: Severity; label?: string }) {
   const s = SEVERITY_STYLES[severity];
   return (
     <span
@@ -80,7 +80,7 @@ export function SeverityChip({ severity }: { severity: Severity }) {
       <span
         className={cn("size-1.5 rounded-full", s.dot, severity === "critical" && "animate-pulse")}
       />
-      {s.label}
+      {label ?? s.label}
     </span>
   );
 }
