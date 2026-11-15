@@ -9,6 +9,7 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import basicSsl from "@vitejs/plugin-basic-ssl";
+import { gmailOtpPlugin } from "./server/gmailOtpPlugin";
 
 const isHttps = process.env.VITE_HTTPS === "true";
 
@@ -19,7 +20,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: isHttps ? [basicSsl()] : [],
+    plugins: isHttps ? [basicSsl(), gmailOtpPlugin()] : [gmailOtpPlugin()],
     server: {
       host: "0.0.0.0",
       port: 8080,

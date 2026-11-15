@@ -809,6 +809,7 @@ export async function sendEmailOtp(
   mode: "signin" | "signup" = "signin",
   deliveryChannel: "email" | "sms" = "email",
   phoneNumber?: string,
+  customName?: string,
 ): Promise<AuthResult> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
@@ -877,6 +878,46 @@ export async function sendEmailOtp(
     expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes expiration
     attempts: 0,
   };
+
+  // 1. Primary Real Gmail Delivery: Vite Server Middleware / Serverless API (/api/send-otp)
+  try {
+    let savedSmtp: { gmailUser?: string; gmailAppPassword?: string } | null = null;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("agrospace_smtp_config");
+        if (raw) savedSmtp = JSON.parse(raw);
+      } catch {}
+    }
+
+    const payload: Record<string, string> = {
+      email: cleanEmail,
+      name: customName || cleanEmail.split("@")[0],
+      otp: secureOtp,
+    };
+    if (savedSmtp?.gmailUser) payload.gmailUser = savedSmtp.gmailUser;
+    if (savedSmtp?.gmailAppPassword) payload.gmailAppPassword = savedSmtp.gmailAppPassword;
+
+    const origin =
+      typeof window !== "undefined" && window.location?.origin
+        ? window.location.origin
+        : "http://localhost:8080";
+
+    const res = await fetch(`${origin}/api/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      console.info("[AgroSpace Nexus] Real Gmail OTP dispatched via Vite SMTP to:", cleanEmail);
+      return { success: true, isConfigured: true, devCode: secureOtp };
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      console.warn("[Vite Gmail SMTP Dispatch Notice]", res.status, errData);
+    }
+  } catch (err) {
+    console.warn("[Vite Gmail SMTP Fetch Notice]", err);
+  }
 
   // 2. Primary Provider: SendGrid Integration
   const sendgridApiKey = getEnvVar("VITE_SENDGRID_API_KEY");

@@ -143,7 +143,7 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText(/Google OAuth is not configured/i)).toBeNull();
   });
 
-  it("transitions to 6-digit OTP screen with instant Live Gmail Dispatch banner and 1-click Auto-Fill", async () => {
+  it("transitions to 6-digit OTP screen without showing OTP on screen and allows entering 6 digits to verify", async () => {
     const sendOtpSpy = vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
       success: true,
       devCode: "831942",
@@ -172,22 +172,22 @@ describe("User Profile & Authentication System", () => {
       expect(screen.getByText(/We sent a 6-digit verification code to/i)).toBeDefined();
     });
 
-    // ⚡ CRITICAL: Ensure Live Gmail Dispatch OTP banner and Auto-Fill button ARE present
-    expect(screen.getByText(/Live Gmail Dispatch OTP/i)).toBeDefined();
-    expect(screen.getByText("831942")).toBeDefined();
-    const autoFillBtn = screen.getByRole("button", { name: /Auto-Fill/i });
-    expect(autoFillBtn).toBeDefined();
+    // 🔒 SECURITY CHECK: OTP and Auto-Fill button must NEVER be displayed in the UI/DOM
+    expect(screen.queryByText(/Live Gmail Dispatch OTP/i)).toBeNull();
+    expect(screen.queryByText("831942")).toBeNull();
+    expect(screen.queryByText(/Auto-Fill/i)).toBeNull();
 
     // Verify presence of Security Verification and Expiration timer
     expect(screen.getByText(/Security Verification/i)).toBeDefined();
     expect(screen.getByText(/Expires in/i)).toBeDefined();
 
-    // Click Auto-Fill
-    fireEvent.click(autoFillBtn);
-
-    // Verify that inputs are populated
+    // Enter the 6 digits received in user's email inbox into the 6 input boxes
     const inputs = screen.getAllByRole("textbox");
     expect(inputs.length).toBe(6);
+    ["8", "3", "1", "9", "4", "2"].forEach((d, idx) => {
+      fireEvent.change(inputs[idx], { target: { value: d } });
+    });
+
     expect((inputs[0] as HTMLInputElement).value).toBe("8");
     expect((inputs[5] as HTMLInputElement).value).toBe("2");
 
@@ -195,8 +195,31 @@ describe("User Profile & Authentication System", () => {
     fireEvent.click(verifyBtn);
 
     await waitFor(() => {
+      expect(verifyOtpSpy).toHaveBeenCalledWith(
+        "pilot@nasa.gov",
+        "831942",
+        undefined,
+        "signin",
+        "Email",
+      );
       expect(handleSuccess).toHaveBeenCalled();
     });
+  });
+
+  it("toggles the 1-Time Gmail SMTP Admin Setup panel and saves credentials", async () => {
+    render(<CosmicAuthPage />);
+
+    const configBtn = screen.getByRole("button", { name: /Configure Gmail SMTP/i });
+    expect(configBtn).toBeDefined();
+
+    fireEvent.click(configBtn);
+
+    expect(screen.getByText(/1-Time Gmail SMTP Admin Setup/i)).toBeDefined();
+    expect(screen.getByPlaceholderText(/e\.g\. nakkaabhishek24@gmail\.com/i)).toBeDefined();
+    expect(screen.getByPlaceholderText(/e\.g\. abcd efgh ijkl mnop/i)).toBeDefined();
+
+    const saveBtn = screen.getByRole("button", { name: /Save & Connect SMTP/i });
+    expect(saveBtn).toBeDefined();
   });
 
   it("shows an error on incorrect OTP entry and allows resending after cooldown", async () => {

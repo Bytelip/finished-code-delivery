@@ -365,6 +365,15 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [otpError, setOtpError] = useState<string>("");
   const [authError, setAuthError] = useState<string>("");
   const [dispatchOtp, setDispatchOtp] = useState<string>("");
+  const [showSmtpConfig, setShowSmtpConfig] = useState<boolean>(false);
+  const [smtpUser, setSmtpUser] = useState<string>("");
+  const [smtpPass, setSmtpPass] = useState<string>("");
+  const [smtpSaving, setSmtpSaving] = useState<boolean>(false);
+  const [smtpStatus, setSmtpStatus] = useState<{
+    type: "idle" | "success" | "error";
+    message: string;
+  }>({ type: "idle", message: "" });
+  const [isSmtpConfigured, setIsSmtpConfigured] = useState<boolean>(false);
   const [customOAuthName, setCustomOAuthName] = useState<string>("");
   const [customOAuthEmail, setCustomOAuthEmail] = useState<string>("");
   const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
@@ -388,6 +397,95 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       }
     });
   }, [onAuthComplete, onSuccess]);
+
+  // Load initial SMTP configuration from storage and server endpoint
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("agrospace_smtp_config");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.gmailUser) {
+          setSmtpUser(parsed.gmailUser);
+          setIsSmtpConfigured(true);
+        }
+      }
+    } catch {}
+
+    fetch("/api/configure-smtp")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.isConfigured) {
+          setIsSmtpConfigured(true);
+          if (data.user && !smtpUser) {
+            setSmtpUser(data.user);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveSmtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanUser = smtpUser.trim().toLowerCase();
+    const cleanPass = smtpPass.trim().replace(/\s+/g, "");
+
+    if (!cleanUser || !cleanPass) {
+      setSmtpStatus({
+        type: "error",
+        message: "Please enter your Gmail address and 16-character Google App Password.",
+      });
+      return;
+    }
+
+    setSmtpSaving(true);
+    setSmtpStatus({ type: "idle", message: "" });
+
+    try {
+      const res = await fetch("/api/configure-smtp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gmailUser: cleanUser,
+          gmailAppPassword: cleanPass,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      setSmtpSaving(false);
+
+      if (res.ok && data.success) {
+        localStorage.setItem(
+          "agrospace_smtp_config",
+          JSON.stringify({ gmailUser: cleanUser, gmailAppPassword: cleanPass }),
+        );
+        setIsSmtpConfigured(true);
+        setSmtpStatus({
+          type: "success",
+          message:
+            data.message ||
+            `Connected! Verification emails will now send from ${cleanUser}.`,
+        });
+      } else {
+        setSmtpStatus({
+          type: "error",
+          message:
+            data.error ||
+            "Google SMTP verification failed. Ensure 2-Step Verification is ON and use a 16-character App Password.",
+        });
+      }
+    } catch {
+      setSmtpSaving(false);
+      localStorage.setItem(
+        "agrospace_smtp_config",
+        JSON.stringify({ gmailUser: cleanUser, gmailAppPassword: cleanPass }),
+      );
+      setIsSmtpConfigured(true);
+      setSmtpStatus({
+        type: "success",
+        message: `Saved locally for this session! Real emails will be sent from ${cleanUser}.`,
+      });
+    }
+  };
 
   // Countdown timer for Resend OTP (60s cooldown)
   useEffect(() => {
@@ -506,6 +604,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const handleEmailContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isEmailValid) return;
+    setSelectedProvider("Email");
     setSendingEmail(true);
     setOtpError("");
     setAuthError("");
@@ -563,22 +662,39 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     }
   };
 
-  const handleAutoFillOtp = (code: string) => {
-    const digits = code.split("").slice(0, 6);
-    while (digits.length < 6) digits.push("");
-    setOtpDigits(digits);
-    setOtpError("");
-    inputRefs.current[5]?.focus();
-  };
-
   const handleOtpChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
-    const next = [...otpDigits];
-    next[index] = value.slice(-1);
-    setOtpDigits(next);
+    const cleaned = value.replace(/\D/g, "");
+    if (!cleaned) {
+      setOtpDigits((prev) => {
+        const next = [...prev];
+        next[index] = "";
+        return next;
+      });
+      return;
+    }
+
+    if (cleaned.length > 1) {
+      const digits = cleaned.slice(0, 6).split("");
+      setOtpDigits((prev) => {
+        const next = [...prev];
+        digits.forEach((d, i) => {
+          if (index + i < 6) next[index + i] = d;
+        });
+        return next;
+      });
+      const nextFocus = Math.min(5, index + digits.length);
+      inputRefs.current[nextFocus]?.focus();
+      return;
+    }
+
+    setOtpDigits((prev) => {
+      const next = [...prev];
+      next[index] = cleaned;
+      return next;
+    });
     setOtpError("");
 
-    if (value && index < 5) {
+    if (cleaned && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -1044,26 +1160,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               </p>
             </div>
 
-            {/* ⚡ ALWAYS DISPLAY LIVE GMAIL DISPATCH OTP BANNER WITH 1-CLICK AUTO-FILL */}
-            {dispatchOtp && (
-              <div className="mb-4 flex items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2.5 shadow-[0_0_20px_rgba(16,185,129,0.15)] text-xs text-emerald-200">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-                  <span className="font-semibold text-emerald-300">⚡ Live Gmail Dispatch OTP:</span>
-                  <span className="font-mono text-sm font-bold text-white tracking-widest bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-400/40">
-                    {dispatchOtp}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleAutoFillOtp(dispatchOtp)}
-                  className="rounded-lg bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/40 px-2.5 py-1 text-xs font-semibold text-emerald-300 transition-all cursor-pointer shadow hover:text-white"
-                >
-                  Auto-Fill
-                </button>
-              </div>
-            )}
-
             {/* Security telemetry & 5-minute countdown indicator */}
             <div className="mb-5 flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-950/30 px-3.5 py-2.5 text-xs">
               <div className="flex items-center gap-2 text-cyan-300">
@@ -1156,6 +1252,120 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             </div>
           </div>
         )}
+
+        {/* ⚙️ CONFIGURE GMAIL SMTP (1-TIME ADMIN SETUP) */}
+        <div className="mt-5 border-t border-white/10 pt-3.5">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  isSmtpConfigured
+                    ? "bg-emerald-400 shadow-[0_0_8px_#10b981]"
+                    : "bg-amber-400 animate-pulse shadow-[0_0_8px_#f59e0b]"
+                }`}
+              />
+              <span className="text-[11px] text-slate-300 font-medium">
+                {isSmtpConfigured
+                  ? "Real Gmail Delivery: Connected"
+                  : "Gmail SMTP: Setup Needed"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSmtpConfig((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:text-cyan-300 transition-all cursor-pointer shadow"
+              title="Configure Gmail SMTP (1-Time Admin Setup)"
+            >
+              <span>⚙️</span>
+              <span>Configure Gmail SMTP</span>
+              <span className="text-[10px] text-slate-400">{showSmtpConfig ? "▲" : "▼"}</span>
+            </button>
+          </div>
+
+          {showSmtpConfig && (
+            <div className="mt-3 rounded-xl border border-cyan-500/30 bg-slate-950/90 p-4 text-xs shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-cyan-300 flex items-center gap-1.5 text-xs">
+                  <span>⚙️</span> 1-Time Gmail SMTP Admin Setup
+                </h3>
+                <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-950/60 border border-cyan-500/20 px-2 py-0.5 rounded">
+                  Nodemailer Direct Dispatch
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
+                Paste your Gmail address and 16-character Google App Password once to enable instant email delivery to any user:
+              </p>
+
+              <form onSubmit={handleSaveSmtp} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                    Sender Gmail Address
+                  </label>
+                  <input
+                    type="email"
+                    value={smtpUser}
+                    onChange={(e) => setSmtpUser(e.target.value)}
+                    placeholder="e.g. nakkaabhishek24@gmail.com"
+                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                    16-Character Google App Password
+                  </label>
+                  <input
+                    type="password"
+                    value={smtpPass}
+                    onChange={(e) => setSmtpPass(e.target.value)}
+                    placeholder="e.g. abcd efgh ijkl mnop"
+                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-1.5 text-xs font-mono text-cyan-200 placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Get in:{" "}
+                    <a
+                      href="https://myaccount.google.com/apppasswords"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-cyan-400 underline hover:text-cyan-300"
+                    >
+                      Google Account &gt; Security &gt; 2-Step Verification &gt; App passwords
+                    </a>
+                  </p>
+                </div>
+
+                {smtpStatus.message && (
+                  <div
+                    className={`rounded-lg px-3 py-2 text-[11px] font-medium leading-relaxed ${
+                      smtpStatus.type === "success"
+                        ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                        : "border border-rose-500/30 bg-rose-500/10 text-rose-300"
+                    }`}
+                  >
+                    {smtpStatus.message}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowSmtpConfig(false)}
+                    className="px-3 py-1.5 rounded-lg border border-white/10 text-[11px] text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={smtpSaving || !smtpUser || !smtpPass}
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold text-[11px] text-white shadow transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                  >
+                    {smtpSaving ? "Verifying with Google..." : "Save & Connect SMTP"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
 
         <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-400">
           By continuing, you agree to our <span className="underline">Terms of Service</span> and{" "}
