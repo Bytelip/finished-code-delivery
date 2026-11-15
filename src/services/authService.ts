@@ -255,20 +255,68 @@ export interface AuthResult {
   devCode?: string;
 }
 
+export function getGoogleClientId(): string | undefined {
+  if (typeof window !== "undefined") {
+    const local = localStorage.getItem("agrospace_google_client_id");
+    if (local && local.trim()) return local.trim();
+  }
+  return getEnvVar("VITE_GOOGLE_CLIENT_ID");
+}
+
+export function setLocalGoogleClientId(clientId: string): void {
+  if (typeof window !== "undefined") {
+    if (clientId.trim()) {
+      localStorage.setItem("agrospace_google_client_id", clientId.trim());
+    } else {
+      localStorage.removeItem("agrospace_google_client_id");
+    }
+  }
+}
+
+export async function loadGoogleIdentityServices(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if ((window as any).google?.accounts?.oauth2) return true;
+
+  return new Promise((resolve) => {
+    const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    if (existing) {
+      if ((window as any).google?.accounts?.oauth2) {
+        resolve(true);
+        return;
+      }
+      existing.addEventListener("load", () => resolve(true));
+      existing.addEventListener("error", () => resolve(false));
+      setTimeout(() => resolve(Boolean((window as any).google?.accounts?.oauth2)), 2000);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+}
+
 /**
  * Initiates direct official OAuth authentication for Google, Microsoft, or Apple.
  * Does NOT generate an OTP, does NOT show OTP screen, redirects straight through provider
- * or opens the provider's official account selector dialog.
+ * or opens the provider's authentic account chooser dialog.
  */
 export async function initiateOAuthLogin(
   provider: OAuthProvider,
   redirectToOrigin?: string,
+  mode: "signin" | "signup" = "signin",
+  onSuccess?: (user: UserProfile) => void,
+  onError?: (error: string) => void,
 ): Promise<AuthResult> {
   const origin = redirectToOrigin || (typeof window !== "undefined" ? window.location.origin : "");
   const redirectUrl = `${origin}/auth`;
 
+  // 1. Primary: Supabase OAuth
   const supabase = getSupabaseClient();
-
   if (supabase) {
     const supabaseProviderMap: Record<OAuthProvider, "google" | "azure" | "apple"> = {
       Google: "google",
@@ -287,18 +335,112 @@ export async function initiateOAuthLogin(
     });
 
     if (error) {
+      onError?.(error.message);
       return { success: false, error: error.message };
     }
 
     return { success: true, redirecting: true };
   }
 
-  // Check for standalone OAuth Client IDs if configured
-  const googleClientId = getEnvVar("VITE_GOOGLE_CLIENT_ID");
-  const msClientId = getEnvVar("VITE_MICROSOFT_CLIENT_ID");
-  const appleClientId = getEnvVar("VITE_APPLE_CLIENT_ID");
+  // 2. Google OAuth: Use official Google Identity Services (GIS) SDK popup flow
+  if (provider === "Google") {
+    const googleClientId = getGoogleClientId();
+    if (!googleClientId) {
+      const errorMsg =
+        "Google OAuth is not configured. Please provide VITE_GOOGLE_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
+      onError?.(errorMsg);
+      return {
+        success: false,
+        isConfigured: false,
+        error: errorMsg,
+      };
+    }
 
-  if (provider === "Google" && googleClientId) {
+    const isLoaded = await loadGoogleIdentityServices();
+    if (isLoaded && (window as any).google?.accounts?.oauth2) {
+      return new Promise<AuthResult>((resolve) => {
+        try {
+          const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+            client_id: googleClientId,
+            scope: "openid profile email",
+            prompt: "select_account",
+            callback: async (tokenResponse: { access_token?: string; error?: string }) => {
+              if (tokenResponse.error || !tokenResponse.access_token) {
+                const err = tokenResponse.error || "Google authentication was cancelled.";
+                onError?.(err);
+                resolve({ success: false, error: err });
+                return;
+              }
+
+              try {
+                // Fetch verified identity from Google
+                const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                if (!res.ok) {
+                  const err = "Failed to fetch user profile from Google.";
+                  onError?.(err);
+                  resolve({ success: false, error: err });
+                  return;
+                }
+                const googleUser = await res.json();
+                const cleanEmail = googleUser.email?.trim().toLowerCase();
+                const displayName =
+                  googleUser.name || googleUser.given_name || cleanEmail?.split("@")[0] || "Commander Naren";
+
+                if (!cleanEmail) {
+                  const err = "No verified email returned from Google.";
+                  onError?.(err);
+                  resolve({ success: false, error: err });
+                  return;
+                }
+
+                // Strict database verification: Prevent ghost accounts in signin mode
+                const exists = await checkUserExistsInDatabase(cleanEmail);
+
+                if (mode === "signin" && !exists) {
+                  const ghostError = `Account not found for ${cleanEmail}. Please switch to "Create Account" first.`;
+                  onError?.(ghostError);
+                  resolve({ success: false, error: ghostError });
+                  return;
+                }
+
+                let profile: UserProfile;
+                if (exists) {
+                  const found = await getUserFromDatabase(cleanEmail);
+                  profile = found || createInitialProfile(cleanEmail, "Google", displayName);
+                  profile.verified = true;
+                  profile.isVerified = true;
+                } else {
+                  // Signup mode: register new user in database
+                  profile = createInitialProfile(cleanEmail, "Google", displayName);
+                  profile.verified = true;
+                  profile.isVerified = true;
+                  await saveUserToDatabase(profile);
+                }
+
+                saveStoredProfile(profile);
+                onSuccess?.(profile);
+                resolve({ success: true, user: profile });
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                onError?.(msg);
+                resolve({ success: false, error: msg });
+              }
+            },
+          });
+
+          // Open Google's authentic account chooser popup dialog
+          tokenClient.requestAccessToken({ prompt: "select_account" });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          onError?.(msg);
+          resolve({ success: false, error: msg });
+        }
+      });
+    }
+
+    // Direct OAuth redirect fallback if GIS script is not directly available
     const nonce = Math.random().toString(36).substring(2);
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
       googleClientId,
@@ -311,7 +453,19 @@ export async function initiateOAuthLogin(
     return { success: true, redirecting: true };
   }
 
-  if (provider === "Microsoft" && msClientId) {
+  // 3. Microsoft Azure OAuth
+  const msClientId = getEnvVar("VITE_MICROSOFT_CLIENT_ID");
+  if (provider === "Microsoft") {
+    if (!msClientId) {
+      const errorMsg =
+        "Microsoft OAuth is not configured. Please provide VITE_MICROSOFT_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
+      onError?.(errorMsg);
+      return {
+        success: false,
+        isConfigured: false,
+        error: errorMsg,
+      };
+    }
     const nonce = Math.random().toString(36).substring(2);
     const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
       msClientId,
@@ -324,7 +478,19 @@ export async function initiateOAuthLogin(
     return { success: true, redirecting: true };
   }
 
-  if (provider === "Apple" && appleClientId) {
+  // 4. Apple Sign-In OAuth
+  const appleClientId = getEnvVar("VITE_APPLE_CLIENT_ID");
+  if (provider === "Apple") {
+    if (!appleClientId) {
+      const errorMsg =
+        "Apple OAuth is not configured. Please provide VITE_APPLE_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
+      onError?.(errorMsg);
+      return {
+        success: false,
+        isConfigured: false,
+        error: errorMsg,
+      };
+    }
     const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(
       appleClientId,
     )}&redirect_uri=${encodeURIComponent(
@@ -336,13 +502,7 @@ export async function initiateOAuthLogin(
     return { success: true, redirecting: true };
   }
 
-  // When external cloud IDs are not in .env, launch the provider's official account selection dialog
-  // so the operator is NEVER blocked or shown an error notice.
-  return {
-    success: true,
-    redirecting: false,
-    needsAccountSelection: true,
-  };
+  return { success: false, error: `Unsupported provider: ${provider}` };
 }
 
 /**

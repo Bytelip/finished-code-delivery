@@ -175,6 +175,50 @@ async function sendViaSendGrid(toEmail: string, otp: string): Promise<{ success:
   }
 }
 
+async function sendViaResend(toEmail: string, otp: string): Promise<{ success: boolean; error?: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return { success: false, error: "RESEND_API_KEY is not configured on server." };
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM_EMAIL || "AgroSpace Nexus <onboarding@resend.dev>",
+        to: [toEmail],
+        subject: `Your AgroSpace Verification Code: ${otp}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0b111e; color: #ffffff; padding: 40px; border-radius: 16px;">
+            <h2 style="color: #22d3ee; margin-top: 0;">AgroSpace Nexus Mission Control</h2>
+            <p style="color: #94a3b8; font-size: 14px;">Your 6-digit access clearance verification code is:</p>
+            <div style="background-color: #0f172a; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+              <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #38bdf8; font-family: monospace;">${otp}</span>
+            </div>
+            <p style="color: #64748b; font-size: 12px; margin-bottom: 0;">This code is valid for 5 minutes. If you did not initiate this sign-in request, please secure your account immediately.</p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[Resend Error ${res.status}]`, errText);
+      return { success: false, error: `Resend failed with status ${res.status}: ${errText}` };
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[Resend Exception]", msg);
+    return { success: false, error: msg };
+  }
+}
+
 async function sendViaTwilioSms(phoneNumber: string, otp: string): Promise<{ success: boolean; error?: string }> {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
@@ -295,9 +339,15 @@ export async function handleSendCode(
     console.info(`[Auth Audit] Dispatching OTP via SendGrid to email: ${maskEmail(cleanEmail)}`);
     dispatchResult = await sendViaSendGrid(cleanEmail, otp);
 
-    // Fallback to Twilio SMS if email delivery fails and user provided phone
+    // Fallback 1: Resend API
+    if (!dispatchResult.success) {
+      console.info(`[Auth Fallback] SendGrid failed or unconfigured. Attempting Resend API for ${maskEmail(cleanEmail)}`);
+      dispatchResult = await sendViaResend(cleanEmail, otp);
+    }
+
+    // Fallback 2: Twilio SMS if email delivery fails and user provided phone
     if (!dispatchResult.success && phoneNumber) {
-      console.warn(`[Auth Fallback] SendGrid failed. Attempting SMS fallback to ${phoneNumber.slice(0, 4)}***`);
+      console.warn(`[Auth Fallback] Email dispatch failed. Attempting SMS fallback to ${phoneNumber.slice(0, 4)}***`);
       dispatchResult = await sendViaTwilioSms(phoneNumber, otp);
     }
   }
@@ -415,6 +465,101 @@ export async function handleVerifyCode(
   const sessionToken = crypto.randomBytes(32).toString("hex");
 
   console.info(`[Auth Audit] User successfully authenticated: ${maskEmail(cleanEmail)} (ID: ${user.id})`);
+  return res.status(200).json({
+    success: true,
+    user,
+    token: sessionToken,
+  });
+}
+
+export interface GoogleAuthRequest {
+  idToken?: string;
+  accessToken?: string;
+  mode: "signin" | "signup";
+}
+
+/**
+ * Controller: POST /api/auth/google
+ * 1. Validates Google token against Google's tokeninfo or userinfo API
+ * 2. Extracts verified email and user profile details
+ * 3. Enforces database verification to prevent ghost accounts in signin mode
+ * 4. Automatically creates user record in signup mode
+ * 5. Issues signed session token
+ */
+export async function handleGoogleAuth(
+  req: { body: GoogleAuthRequest },
+  res: { status: (code: number) => { json: (data: unknown) => void } },
+  userRepo: UserRepository,
+) {
+  const { idToken, accessToken, mode = "signin" } = req.body;
+
+  let email: string = "";
+  let name: string = "";
+
+  if (accessToken) {
+    try {
+      const googleRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!googleRes.ok) {
+        return res.status(401).json({ success: false, error: "Invalid Google access token." });
+      }
+      const info = (await googleRes.json()) as { email?: string; name?: string; given_name?: string };
+      email = info.email?.trim().toLowerCase() || "";
+      name = info.name || info.given_name || email.split("@")[0];
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return res.status(500).json({ success: false, error: `Google verification failed: ${msg}` });
+    }
+  } else if (idToken) {
+    try {
+      const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+      if (!googleRes.ok) {
+        return res.status(401).json({ success: false, error: "Invalid Google ID token." });
+      }
+      const info = (await googleRes.json()) as { email?: string; name?: string };
+      email = info.email?.trim().toLowerCase() || "";
+      name = info.name || email.split("@")[0];
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return res.status(500).json({ success: false, error: `Google verification failed: ${msg}` });
+    }
+  } else {
+    return res.status(400).json({ success: false, error: "Missing Google token." });
+  }
+
+  if (!email) {
+    return res.status(400).json({ success: false, error: "Unable to retrieve verified email from Google." });
+  }
+
+  // 1. Database Lookup - Strict Ghost Account Prevention
+  const existingUser = await userRepo.findByEmail(email);
+
+  if (mode === "signin" && !existingUser) {
+    // REJECT GHOST ACCOUNT
+    console.warn(`[Security Alert] Rejected Google login for unregistered email: ${maskEmail(email)}`);
+    return res.status(404).json({
+      success: false,
+      code: "ACCOUNT_NOT_FOUND",
+      error: `Account not found for ${email}. Please sign up first.`,
+    });
+  }
+
+  let user = existingUser;
+  if (mode === "signup" && !user) {
+    user = await userRepo.createUser({
+      email,
+      fullName: name,
+      role: "Mission Commander",
+      isVerified: true,
+    });
+  } else if (user) {
+    await userRepo.updateLastLogin(user.id);
+  }
+
+  const sessionToken = crypto.randomBytes(32).toString("hex");
+
+  console.info(`[Auth Audit] User successfully authenticated via Google: ${maskEmail(email)} (ID: ${user?.id})`);
   return res.status(200).json({
     success: true,
     user,
