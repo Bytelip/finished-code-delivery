@@ -213,6 +213,11 @@ export function getEnvVar(key: string): string | undefined {
 // 1. SUPABASE CLIENT INITIALIZATION & HELPERS
 // -------------------------------------------------------------
 let cachedSupabaseClient: SupabaseClient | null = null;
+let supabaseClientOverride: SupabaseClient | null | undefined = undefined;
+
+export function setSupabaseClientOverride(client: SupabaseClient | null | undefined): void {
+  supabaseClientOverride = client;
+}
 
 export function getSupabaseUrl(): string | undefined {
   if (typeof window !== "undefined") {
@@ -254,6 +259,7 @@ export function setLocalSupabaseCredentials(url: string, key: string): void {
 }
 
 export function getSupabaseClient(): SupabaseClient | null {
+  if (supabaseClientOverride !== undefined) return supabaseClientOverride;
   if (cachedSupabaseClient) return cachedSupabaseClient;
 
   const url = getSupabaseUrl();
@@ -730,17 +736,19 @@ export async function sendEmailOtp(
       options: { shouldCreateUser: mode === "signup" },
     });
 
-    if (error) {
-      if (
-        error.message.toLowerCase().includes("signups not allowed") ||
-        error.message.toLowerCase().includes("user not found")
-      ) {
-        return { success: false, error: "Account not found. Please sign up first." };
-      }
-      return { success: false, error: error.message };
+    if (!error) {
+      return { success: true, isConfigured: true };
     }
 
-    return { success: true, isConfigured: true };
+    if (
+      error.message.toLowerCase().includes("signups not allowed") ||
+      error.message.toLowerCase().includes("user not found")
+    ) {
+      return { success: false, error: "Account not found. Please sign up first." };
+    }
+
+    console.warn("[Supabase Auth OTP Notice]", error.message);
+    // If Supabase hit email rate limit or SMTP not configured, proceed to secondary mailers / secure OTP flow
   }
 
   // Generate cryptographically secure 6-digit random code
@@ -768,7 +776,7 @@ export async function sendEmailOtp(
   const sendgridApiKey = getEnvVar("VITE_SENDGRID_API_KEY");
   const sendgridFromEmail = getEnvVar("VITE_SENDGRID_FROM_EMAIL") || "no-reply@agrospace.nasa.gov";
 
-  if (sendgridApiKey) {
+  if (sendgridApiKey && !sendgridApiKey.includes("your_sendgrid_api_key")) {
     try {
       const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
         method: "POST",
@@ -804,7 +812,15 @@ export async function sendEmailOtp(
   const twilioAuthToken = getEnvVar("VITE_TWILIO_AUTH_TOKEN");
   const twilioFromPhone = getEnvVar("VITE_TWILIO_PHONE_NUMBER");
 
-  if (deliveryChannel === "sms" && phoneNumber && twilioSid && twilioAuthToken && twilioFromPhone) {
+  if (
+    deliveryChannel === "sms" &&
+    phoneNumber &&
+    twilioSid &&
+    !twilioSid.includes("your_twilio") &&
+    twilioAuthToken &&
+    !twilioAuthToken.includes("your_twilio") &&
+    twilioFromPhone
+  ) {
     try {
       const bodyParams = new URLSearchParams({
         To: phoneNumber,
@@ -836,7 +852,7 @@ export async function sendEmailOtp(
 
   // 4. Secondary Provider: Resend Integration
   const resendApiKey = getEnvVar("VITE_RESEND_API_KEY");
-  if (resendApiKey) {
+  if (resendApiKey && !resendApiKey.includes("your_resend_api_key")) {
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -926,37 +942,39 @@ export async function verifyEmailOtp(
   }
 
   const supabase = getSupabaseClient();
-  if (supabase) {
+  if (supabase && (!activeOtpRecord || activeOtpRecord.email !== cleanEmail)) {
     const { data, error } = await supabase.auth.verifyOtp({
       email: cleanEmail,
       token: cleanOtp,
       type: "email",
     });
 
-    if (error) {
+    if (!error) {
+      if (mode === "signin") {
+        const existing = await getUserFromDatabase(cleanEmail);
+        if (!existing) {
+          return { success: false, error: "Account not found. Please sign up first." };
+        }
+        saveStoredProfile(existing);
+        return { success: true, user: existing };
+      }
+
+      const sbUser = data.user;
+      const name =
+        customName || (sbUser?.user_metadata?.full_name as string) || cleanEmail.split("@")[0];
+
+      const profile = createInitialProfile(cleanEmail, "Email", name);
+      profile.verified = true;
+      profile.isVerified = true;
+      await saveUserToDatabase(profile);
+      saveStoredProfile(profile);
+
+      return { success: true, user: profile };
+    }
+
+    if (!activeOtpRecord || activeOtpRecord.email !== cleanEmail) {
       return { success: false, error: error.message };
     }
-
-    if (mode === "signin") {
-      const existing = await getUserFromDatabase(cleanEmail);
-      if (!existing) {
-        return { success: false, error: "Account not found. Please sign up first." };
-      }
-      saveStoredProfile(existing);
-      return { success: true, user: existing };
-    }
-
-    const sbUser = data.user;
-    const name =
-      customName || (sbUser?.user_metadata?.full_name as string) || cleanEmail.split("@")[0];
-
-    const profile = createInitialProfile(cleanEmail, "Email", name);
-    profile.verified = true;
-    profile.isVerified = true;
-    await saveUserToDatabase(profile);
-    saveStoredProfile(profile);
-
-    return { success: true, user: profile };
   }
 
   // Active secure session record verification

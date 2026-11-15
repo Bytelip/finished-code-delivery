@@ -375,6 +375,11 @@ describe("User Profile & Authentication System", () => {
   });
 
   it("submitting in Create Account tab executes registration flow without rejecting non-existent accounts", async () => {
+    const sendOtpSpy = vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
+      success: true,
+      isConfigured: true,
+    });
+
     render(<CosmicAuthPage />);
 
     // Switch to Create Account tab
@@ -391,12 +396,20 @@ describe("User Profile & Authentication System", () => {
 
     // In signup mode, it transitions to OTP screen instead of showing "Account not found"
     await waitFor(() => {
+      expect(sendOtpSpy).toHaveBeenCalledWith(
+        "fresh.cadet@agrospace.nasa.gov",
+        "signup",
+        "email",
+        "",
+      );
       expect(screen.queryByText(/Account not found\. Please sign up first\./i)).toBeNull();
       expect(screen.getByText(/Check your Gmail/i)).toBeDefined();
     });
   });
 
   it("registers new account in signup mode and allows subsequent signin", async () => {
+    authService.setSupabaseClientOverride(null);
+
     // 1. Sign up a new user
     const newEmail = "new.cadet@agrospace.nasa.gov";
     const signUpResult = await authService.sendEmailOtp(newEmail, "signup");
@@ -414,5 +427,7 @@ describe("User Profile & Authentication System", () => {
     // 2. Now user exists in database: subsequent signin mode succeeds
     const signInResult = await authService.sendEmailOtp(newEmail, "signin");
     expect(signInResult.success).toBe(true);
+
+    authService.setSupabaseClientOverride(undefined);
   });
 });
