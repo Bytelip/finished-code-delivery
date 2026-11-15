@@ -628,8 +628,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       }
 
       if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
-      const code = result.devCode || Math.floor(100000 + Math.random() * 900000).toString();
-      setDispatchOtp(code);
+      if (result.devCode) {
+        setDispatchOtp(result.devCode);
+      } else {
+        setDispatchOtp("");
+      }
       setStep("otp");
       setResendTimer(60);
       setExpireTimer(300);
@@ -688,6 +691,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
       if (result.devCode) {
         setDispatchOtp(result.devCode);
+      } else {
+        setDispatchOtp("");
       }
       setResendTimer(60);
       setExpireTimer(300);
