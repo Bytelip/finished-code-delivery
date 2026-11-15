@@ -1009,13 +1009,19 @@ export function GlobeViewport({
         });
       }
       for (const o of STAGE1_MAJOR_OCEANS) {
-        labels.push({
-          id: o.id,
-          lat: o.lat,
-          lng: o.lng,
-          priority: 3,
-          html: renderOceanHtml(o.text, isLight),
-        });
+        const camLat = lastPovRef.current?.lat ?? lat;
+        const camLng = lastPovRef.current?.lng ?? lon;
+        const angDist = getAngularDistanceDeg(o.lat, o.lng, camLat, camLng);
+        // Large Ocean labels cull at 52° from camera center so PACIFIC OCEAN never projects over Asia/India
+        if (angDist <= 52) {
+          labels.push({
+            id: o.id,
+            lat: o.lat,
+            lng: o.lng,
+            priority: 3,
+            html: renderOceanHtml(o.text, isLight),
+          });
+        }
       }
       return labels;
     }
@@ -1201,10 +1207,15 @@ export function GlobeViewport({
       const labelLat = Number(label.dataset.lat);
       const labelLng = Number(label.dataset.lng);
 
-      // Back-hemisphere occlusion check: if label is > 75° away from camera center, hide immediately
+      // Back-hemisphere occlusion check: if label is > 75° (or > 52° for oceans) away from camera center, hide immediately
       if (priority > 1 && !isNaN(labelLat) && !isNaN(labelLng)) {
         const angDist = getAngularDistanceDeg(labelLat, labelLng, camLat, camLng);
-        if (angDist > 75) {
+        const isOcean =
+          label.dataset.labelId?.startsWith("oc-") ||
+          label.innerText?.includes("OCEAN") ||
+          label.innerText?.includes("SEA");
+        const maxAngle = isOcean ? 52 : 75;
+        if (angDist > maxAngle) {
           label.style.display = "none";
           label.style.opacity = "0";
           label.style.pointerEvents = "none";
@@ -1776,7 +1787,7 @@ export function GlobeViewport({
       data-lat={lat}
       data-lon={lon}
       data-layer={activeLayer}
-      className="relative w-full h-[640px] lg:h-[680px] rounded-2xl border border-cyan-500/25 bg-[#03060d] overflow-hidden select-none shadow-[0_0_35px_rgba(0,0,0,0.8),inset_0_0_50px_rgba(0,240,255,0.05)] mb-6"
+      className="relative w-full h-[calc(100vh-210px)] min-h-[520px] max-h-[760px] rounded-2xl border border-cyan-500/25 bg-[#03060d] overflow-hidden select-none shadow-[0_0_35px_rgba(0,0,0,0.8),inset_0_0_50px_rgba(0,240,255,0.05)] mb-4"
     >
       {/* Ambient Radiant Orbital Glows (Google Stitch) */}
       <div
@@ -1787,18 +1798,6 @@ export function GlobeViewport({
         aria-hidden="true"
         className="pointer-events-none absolute -bottom-32 -right-32 size-96 rounded-full bg-emerald-500/10 blur-[130px] z-10"
       />
-
-      {/* Top Flight HUD Overlay Chips (Google Stitch Global Observatory) */}
-      <div className="pointer-events-none absolute top-3.5 left-4 z-20 hidden md:flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0b0f19]/80 border border-white/10 backdrop-blur-md shadow-lg text-[10px] font-mono text-amber-300">
-          <Satellite className="size-3 text-amber-400" />
-          <span>ORBITAL PASS: LANDSAT-9 T-00:14:22</span>
-        </div>
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0b0f19]/80 border border-white/10 backdrop-blur-md shadow-lg text-[10px] font-mono text-cyan-300">
-          <GlobeIcon className="size-3 text-cyan-400" />
-          <span>RES: 10m/px MULTISPECTRAL</span>
-        </div>
-      </div>
 
       {/* Aerospace Tactical Corner Frame Ticks & Animated Sci-Fi Reticle */}
       <div className="pointer-events-none absolute inset-0 z-10 border border-cyan/25">
@@ -2118,31 +2117,6 @@ export function GlobeViewport({
         </SafeGlobeErrorBoundary>
       ) : null}
 
-      {/* ---------------- TOP-CENTER ZOOM STAGE INDICATOR PILL ---------------- */}
-      <div
-        data-hud-overlay="zoom-stage-pill"
-        className="pointer-events-none absolute top-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none transition-all duration-300"
-      >
-        <span
-          className="size-2 rounded-full animate-pulse"
-          style={{ background: zoomStageInfo.color, boxShadow: `0 0 8px ${zoomStageInfo.color}` }}
-        />
-        <span
-          className={cn(
-            "rounded px-1.5 py-0.5 text-[9px] font-bold border tracking-wider uppercase",
-            zoomStageInfo.badgeColor,
-          )}
-        >
-          {zoomStageInfo.stage}
-        </span>
-        <span className="font-semibold text-slate-200 tracking-wide text-[11px]">
-          {zoomStageInfo.label}
-        </span>
-        <span className="text-[10px] text-muted-foreground tabular-nums">
-          ({zoomStageInfo.detail})
-        </span>
-      </div>
-
       {/* ---------------- TARGET LOCKED RETICLE BANNER OVERLAY ---------------- */}
       {targetLockedBanner.visible && (
         <div className="pointer-events-none absolute top-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-cyan-400/60 bg-slate-950/90 px-4 py-1 backdrop-blur-xl shadow-[0_0_25px_rgba(34,211,238,0.45)] text-xs font-mono animate-in fade-in zoom-in-95 duration-200">
@@ -2426,166 +2400,174 @@ export function GlobeViewport({
         viewMode={viewMode}
       />
 
-      {/* ---------------- TOP-LEFT RETICLE BADGE ---------------- */}
-      <div
-        data-hud-overlay="reticle"
-        className="hud-card pointer-events-none absolute left-3.5 top-3.5 w-68 p-3.5 z-20 backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)]"
-      >
-        <div className="flex items-center gap-2 border-b border-cyan/20 pb-2">
-          <Radar className="size-3.5 text-cyan animate-spin" style={{ animationDuration: "8s" }} />
-          <span className="hud-label font-bold text-cyan/90 text-[10px]">Target Reticle Lock</span>
-          <span className="ml-auto size-2 rounded-full bg-emerald shadow-[0_0_8px_#00ff9d] animate-pulse" />
-        </div>
-        <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5 font-mono text-[11px]">
-          <span className="text-muted-foreground/80 font-medium">LATITUDE</span>
-          <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
-            {formatCoord(lat, "lat")}
-          </span>
-          <span className="text-muted-foreground/80 font-medium">LONGITUDE</span>
-          <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
-            {formatCoord(lon, "lon")}
-          </span>
-          <span className="text-muted-foreground/80 font-medium">ELEVATION</span>
-          <span className="text-right tabular-nums font-semibold">{meta.elevationM} m ASL</span>
-          <span className="text-muted-foreground/80 font-medium">PASS</span>
-          <span className="text-right text-emerald font-semibold truncate">
-            {meta.satellitePass}
-          </span>
-          <span className="text-muted-foreground/80 font-medium">NEXT WINDOW</span>
-          <span className="text-right tabular-nums text-amber font-semibold">
-            T-{meta.nextPassMin} min
-          </span>
-        </div>
-
-        {/* Integrated Sensor Metric Readout in Reticle Card */}
-        <div className="mt-2.5 pt-2 border-t border-cyan/20 flex items-center justify-between text-xs font-mono">
-          <span className="text-cyan font-bold">{activeLayer}</span>
-          <span
-            className="font-extrabold tabular-nums drop-shadow-[0_0_8px_currentColor]"
-            style={{ color: tone }}
-          >
-            {reading.value} {reading.unit}
-          </span>
-        </div>
-
-        {/* 4-Day Adaptive Meteorological Mini-Forecast Strip */}
-        <div className="mt-2.5 pt-2 border-t border-cyan/20">
-          <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground uppercase mb-1">
-            <span className="flex items-center gap-1 text-slate-300 font-semibold">
-              <span>📅</span> 4-Day Forecast
-            </span>
-            <span className="text-cyan font-bold">
-              {basemapStyle === "temperature"
-                ? "MIN / MAX °C"
-                : basemapStyle === "wind"
-                  ? "MIN / GUSTS km/h"
-                  : basemapStyle === "pressure"
-                    ? "PRESSURE hPa"
-                    : basemapStyle === "precipitation" || basemapStyle === "radar"
-                      ? "RAIN mm"
-                      : basemapStyle === "humidity"
-                        ? "RH %"
-                        : "TEMP °C"}
-            </span>
-          </div>
-          <div className="grid grid-cols-4 gap-1 text-center font-mono">
-            {(weatherForecast?.daily || []).map((day) => {
-              let displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
-              if (basemapStyle === "temperature") {
-                displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
-              } else if (basemapStyle === "wind") {
-                displayVal = `${Math.round(day.windSpeedMax)}/${Math.round(day.windGustsMax)}k`;
-              } else if (basemapStyle === "pressure") {
-                displayVal = `${day.pressure}`;
-              } else if (basemapStyle === "precipitation" || basemapStyle === "radar") {
-                displayVal = `${day.precipitationSum}mm`;
-              } else if (basemapStyle === "humidity") {
-                displayVal = `${Math.round(weatherForecast?.current?.relativeHumidity ?? 50)}%`;
-              }
-
-              return (
-                <div
-                  key={day.date}
-                  className="bg-black/40 rounded px-1 py-0.5 border border-cyan-500/20"
-                >
-                  <div className="text-[8.5px] text-slate-400 font-semibold">{day.label}</div>
-                  <div className="text-[9.5px] text-cyan-300 font-bold tracking-tight">
-                    {displayVal}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- TOP-RIGHT 3D/2D VIEW SWITCHER ---------------- */}
-      <div className="absolute right-4 top-3.5 z-20 flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)]">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={!webGLSupported}
-          title={
-            webGLSupported
-              ? "3D Orbital Globe View"
-              : "3D WebGL is unavailable in your browser environment"
-          }
-          className={cn(
-            "h-7 px-3 font-mono text-xs transition-all",
-            viewMode === "3d"
-              ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-              : "text-muted-foreground hover:text-foreground",
-            !webGLSupported && "opacity-50 cursor-not-allowed",
-          )}
-          onClick={handleSwitchTo3D}
-        >
-          <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 3D
-          Orbital
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className={cn(
-            "h-7 px-3 font-mono text-xs transition-all",
-            viewMode === "2d"
-              ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          onClick={handleSwitchTo2D}
-        >
-          <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 2D Field
-          GIS
-        </Button>
-      </div>
-
-      {/* ---------------- ACTIVE SENSOR METRIC READOUT CARD (POSITIONED LEFT OF ZOOM BAR) ---------------- */}
-      <div
-        data-hud-overlay="layer-readout"
-        className="hud-card pointer-events-none absolute right-20 top-20 w-52 p-3 text-right backdrop-blur-xl bg-background/90 border border-cyan/40 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] z-20"
-      >
-        <div className="flex items-center justify-end gap-1.5 border-b border-cyan/20 pb-1.5">
-          <Radio className="size-3 text-emerald animate-pulse drop-shadow-[0_0_6px_#00ff9d]" />
-          <span className="hud-label font-bold text-foreground">{activeLayer}</span>
-        </div>
+      {/* ---------------- TOP UNIFIED HUD CONTROL HEADER ROW (ZERO COLLISION FLEXBOX) ---------------- */}
+      <div className="absolute top-3 inset-x-3 flex items-start justify-between pointer-events-none z-20 gap-2">
+        {/* Left: TARGET RETICLE LOCK CARD */}
         <div
-          className="mt-1.5 font-mono text-3xl font-extrabold tabular-nums tracking-tight"
-          style={{ color: tone, textShadow: `0 0 14px ${tone}` }}
+          data-hud-overlay="reticle"
+          className="hud-card pointer-events-auto w-64 p-3 backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl"
         >
-          {reading.value}
-        </div>
-        <div className="font-mono text-[10px] text-muted-foreground/80 font-medium">
-          {reading.unit}
-        </div>
-        <div className="mt-1 font-mono text-[9px] text-cyan/80 truncate">
-          GIBS: {activeSatelliteConfig.gibsLayerName}
-        </div>
-        {hover && (
-          <div className="mt-2 border-t border-border/50 pt-1 font-mono text-[10px] text-muted-foreground">
-            cursor {hover.lat.toFixed(2)}°, {hover.lon.toFixed(2)}°
+          <div className="flex items-center gap-2 border-b border-cyan/20 pb-1.5">
+            <Radar className="size-3.5 text-cyan animate-spin" style={{ animationDuration: "8s" }} />
+            <span className="hud-label font-bold text-cyan/90 text-[10px]">Target Reticle Lock</span>
+            <span className="ml-auto size-2 rounded-full bg-emerald shadow-[0_0_8px_#00ff9d] animate-pulse" />
           </div>
-        )}
+          <div className="mt-2 grid grid-cols-2 gap-x-2.5 gap-y-1 font-mono text-[10.5px]">
+            <span className="text-muted-foreground/80 font-medium">LATITUDE</span>
+            <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
+              {formatCoord(lat, "lat")}
+            </span>
+            <span className="text-muted-foreground/80 font-medium">LONGITUDE</span>
+            <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
+              {formatCoord(lon, "lon")}
+            </span>
+            <span className="text-muted-foreground/80 font-medium">ELEVATION</span>
+            <span className="text-right tabular-nums font-semibold">{meta.elevationM} m ASL</span>
+            <span className="text-muted-foreground/80 font-medium">PASS</span>
+            <span className="text-right text-emerald font-semibold truncate">
+              {meta.satellitePass}
+            </span>
+            <span className="text-muted-foreground/80 font-medium">NEXT WINDOW</span>
+            <span className="text-right tabular-nums text-amber font-semibold">
+              T-{meta.nextPassMin} min
+            </span>
+          </div>
+
+          {/* Integrated Sensor Metric Readout in Reticle Card (data-hud-overlay="layer-readout") */}
+          <div
+            data-hud-overlay="layer-readout"
+            className="mt-2 pt-1.5 border-t border-cyan/20 flex items-center justify-between text-xs font-mono"
+          >
+            <span className="text-cyan font-bold">{activeLayer}</span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="font-extrabold tabular-nums drop-shadow-[0_0_8px_currentColor]"
+                style={{ color: tone }}
+              >
+                {reading.value} {reading.unit}
+              </span>
+              <span className="text-[9px] text-muted-foreground font-mono">
+                [{activeSatelliteConfig.sensorName}]
+              </span>
+            </div>
+          </div>
+
+          {/* 4-Day Adaptive Meteorological Mini-Forecast Strip */}
+          <div className="mt-2 pt-1.5 border-t border-cyan/20">
+            <div className="flex items-center justify-between text-[8.5px] font-mono text-muted-foreground uppercase mb-1">
+              <span className="flex items-center gap-1 text-slate-300 font-semibold">
+                <span>📅</span> 4-Day Forecast
+              </span>
+              <span className="text-cyan font-bold">
+                {basemapStyle === "temperature"
+                  ? "MIN / MAX °C"
+                  : basemapStyle === "wind"
+                    ? "MIN / GUSTS km/h"
+                    : basemapStyle === "pressure"
+                      ? "PRESSURE hPa"
+                      : basemapStyle === "precipitation" || basemapStyle === "radar"
+                        ? "RAIN mm"
+                        : basemapStyle === "humidity"
+                          ? "RH %"
+                          : "TEMP °C"}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-1 text-center font-mono">
+              {(weatherForecast?.daily || []).map((day) => {
+                let displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
+                if (basemapStyle === "temperature") {
+                  displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
+                } else if (basemapStyle === "wind") {
+                  displayVal = `${Math.round(day.windSpeedMax)}/${Math.round(day.windGustsMax)}k`;
+                } else if (basemapStyle === "pressure") {
+                  displayVal = `${day.pressure}`;
+                } else if (basemapStyle === "precipitation" || basemapStyle === "radar") {
+                  displayVal = `${day.precipitationSum}mm`;
+                } else if (basemapStyle === "humidity") {
+                  displayVal = `${Math.round(weatherForecast?.current?.relativeHumidity ?? 50)}%`;
+                }
+
+                return (
+                  <div
+                    key={day.date}
+                    className="bg-black/40 rounded px-1 py-0.5 border border-cyan-500/20"
+                  >
+                    <div className="text-[8px] text-slate-400 font-semibold">{day.label}</div>
+                    <div className="text-[9px] text-cyan-300 font-bold tracking-tight">
+                      {displayVal}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Center: STAGE 1 ORBITAL VIEW PILL */}
+        <div
+          data-hud-overlay="zoom-stage-pill"
+          className="pointer-events-auto hidden sm:flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none whitespace-nowrap transition-all duration-300 shrink-0"
+        >
+          <span
+            className="size-2 rounded-full animate-pulse shrink-0"
+            style={{ background: zoomStageInfo.color, boxShadow: `0 0 8px ${zoomStageInfo.color}` }}
+          />
+          <span
+            className={cn(
+              "rounded px-1.5 py-0.5 text-[9px] font-bold border tracking-wider uppercase",
+              zoomStageInfo.badgeColor,
+            )}
+          >
+            {zoomStageInfo.stage}
+          </span>
+          <span className="font-semibold text-slate-200 tracking-wide text-[11px]">
+            {zoomStageInfo.label}
+          </span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            ({zoomStageInfo.detail})
+          </span>
+        </div>
+
+        {/* Right: 3D ORBITAL | 2D FIELD GIS TOGGLE */}
+        <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!webGLSupported}
+            title={
+              webGLSupported
+                ? "3D Orbital Globe View"
+                : "3D WebGL is unavailable in your browser environment"
+            }
+            className={cn(
+              "h-7 px-3 font-mono text-xs transition-all",
+              viewMode === "3d"
+                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
+                : "text-muted-foreground hover:text-foreground",
+              !webGLSupported && "opacity-50 cursor-not-allowed",
+            )}
+            onClick={handleSwitchTo3D}
+          >
+            <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 3D
+            Orbital
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className={cn(
+              "h-7 px-3 font-mono text-xs transition-all",
+              viewMode === "2d"
+                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={handleSwitchTo2D}
+          >
+            <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 2D Field
+            GIS
+          </Button>
+        </div>
       </div>
 
       {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}

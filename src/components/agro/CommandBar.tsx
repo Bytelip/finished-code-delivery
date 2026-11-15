@@ -360,25 +360,19 @@ export function CommandBar({
       )}
 
       {/* ---------------- 1. TOP STATUS NAVBAR (3-COLUMN FLEX LAYOUT) ---------------- */}
-      <div className="flex items-center justify-between px-4 sm:px-6 h-14 border-b border-white/10 bg-background/90 backdrop-blur-xl">
-        {/* Left: App Brand Logo + HUD Overview active breadcrumb */}
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          <div className="grid size-8 place-items-center rounded-lg border border-cyan/60 bg-cyan/15 text-cyan shadow-[0_0_12px_rgba(0,240,255,0.35)]">
-            <Satellite className="size-4 animate-pulse text-cyan" />
+      <div className="flex items-center justify-between px-3 sm:px-5 h-12 border-b border-white/10 bg-background/90 backdrop-blur-xl">
+        {/* Left: Section breadcrumb (no duplicate AgroSpace Nexus title) */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="grid size-7 place-items-center rounded-lg border border-cyan/60 bg-cyan/15 text-cyan shadow-[0_0_12px_rgba(0,240,255,0.35)]">
+            <Satellite className="size-3.5 animate-pulse text-cyan" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-sans text-sm font-bold tracking-tight text-foreground truncate">
-              AgroSpace Nexus
-            </span>
-            <span className="text-muted-foreground/40 hidden sm:inline">/</span>
-            <span className="hidden sm:inline rounded bg-cyan/15 border border-cyan/40 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan tracking-wider truncate">
-              HUD Overview
-            </span>
-          </div>
+          <span className="rounded bg-cyan/15 border border-cyan/40 px-2 py-0.5 font-mono text-xs font-bold text-cyan tracking-wider truncate">
+            HUD Overview
+          </span>
         </div>
 
-        {/* Center: Compact status capsule */}
-        <div className="hidden lg:flex items-center gap-2.5 px-3.5 py-1 rounded-full border border-white/10 bg-[#040C18]/80 text-xs font-mono shadow-inner select-none">
+        {/* Center: Compact status capsule (1-line whitespace-nowrap, no duplicate orbital pill) */}
+        <div className="hidden lg:flex items-center gap-2.5 px-3 py-1 rounded-full border border-white/10 bg-[#040C18]/80 text-xs font-mono shadow-inner select-none whitespace-nowrap shrink-0">
           <div className="flex items-center gap-1.5 text-cyan-300">
             <Clock className="size-3 text-cyan-400 animate-pulse" />
             <span className="font-semibold">{metFormatted}</span>
@@ -388,22 +382,17 @@ export function CommandBar({
             <Radio className="size-3 text-emerald-400 animate-pulse" />
             <span className="font-semibold">LINK: 99.8% NOMINAL</span>
           </div>
-          <span className="text-white/20">•</span>
-          <div className="flex items-center gap-1.5 text-cyan-300 font-semibold">
-            <Globe2 className="size-3 text-cyan-400" />
-            <span>STAGE 1 ORBITAL VIEW</span>
-          </div>
         </div>
 
         {/* Right: Theme Switcher pill + Mission Brief button + Single Profile Avatar */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <ThemeSwitcher />
 
           <Button
             type="button"
             size="sm"
             onClick={onOpenMissionBrief}
-            className="h-8 px-2.5 sm:px-3 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1.5 cursor-pointer"
+            className="h-7.5 px-2.5 sm:px-3 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1.5 cursor-pointer"
             title="Open NASA Space Apps Mission Brief"
           >
             <Rocket className="size-3.5 text-cyan-400 animate-pulse" />
@@ -431,10 +420,10 @@ export function CommandBar({
       </div>
 
       {/* ---------------- 2. SIMULATION & LOCATION PARAMETERS ROW ---------------- */}
-      <div className="p-3 bg-[#060D18]/90 border-b border-white/10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-12 gap-2.5 items-center">
-          {/* Cell 1 (xl: 4 cols): Lat / Lon / Accuracy / GPS Trigger */}
-          <div className="xl:col-span-4 flex items-center gap-1.5 min-w-0 flex-wrap sm:flex-nowrap">
+      <div className="p-2 sm:px-4 bg-[#060D18]/90 border-b border-white/10">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Cluster 1: Lat / Lon / Accuracy / GPS / Search */}
+          <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap min-w-0">
             <CoordInput
               label="Lat"
               value={lat}
@@ -454,7 +443,7 @@ export function CommandBar({
             {accuracyBadge !== null && (
               <span
                 className={cn(
-                  "hidden sm:inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider shrink-0",
+                  "hidden sm:inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[9.5px] font-semibold tracking-wider shrink-0",
                   accuracyBadge.type === "pinned"
                     ? "border-emerald-500/60 bg-emerald-500/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)]"
                     : accuracyBadge.type === "high"
@@ -483,134 +472,133 @@ export function CommandBar({
               onClick={locate}
               disabled={locating}
               aria-label="Acquire high-precision GPS location"
-              className="h-7.5 px-2.5 text-xs font-mono font-semibold shrink-0"
+              className="h-7 px-2 text-xs font-mono font-semibold shrink-0"
               title="Acquire multi-sample high-precision GPS lock"
             >
               {locating ? (
-                <Loader2 className="size-3.5 animate-spin mr-1 text-cyan" />
+                <Loader2 className="size-3 animate-spin mr-1 text-cyan" />
               ) : (
-                <Crosshair className="size-3.5 mr-1 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
+                <Crosshair className="size-3 mr-1 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
               )}
               GPS
             </Button>
-          </div>
 
-          {/* Cell 2 (xl: 3 cols): Place Search Input & Dropdown */}
-          <div ref={searchContainerRef} className="xl:col-span-3 relative min-w-0">
-            <div className="relative flex items-center">
-              <span className="pointer-events-none absolute left-2.5 text-muted-foreground">
-                {searching ? (
-                  <Loader2 className="size-3.5 animate-spin text-cyan" />
-                ) : (
-                  <Search className="size-3.5 text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
-                )}
-              </span>
-              <Input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => {
-                  isInputFocused.current = true;
-                  if (searchResults.length > 0) setDropdownOpen(true);
-                }}
-                onBlur={() => {
-                  isInputFocused.current = false;
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="Search village, town, pincode..."
-                className="h-8 w-full pl-8 pr-7 font-mono text-xs bg-card/90 text-foreground placeholder:text-muted-foreground/50 border-cyan/40 focus:border-cyan focus:ring-1 focus:ring-cyan shadow-[0_0_12px_rgba(0,240,255,0.15)] truncate"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSearchResults([]);
-                    setDropdownOpen(false);
+            {/* Place Search Input & Dropdown */}
+            <div ref={searchContainerRef} className="relative w-44 sm:w-52 shrink-0">
+              <div className="relative flex items-center">
+                <span className="pointer-events-none absolute left-2 text-muted-foreground">
+                  {searching ? (
+                    <Loader2 className="size-3.5 animate-spin text-cyan" />
+                  ) : (
+                    <Search className="size-3.5 text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+                  )}
+                </span>
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => {
+                    isInputFocused.current = true;
+                    if (searchResults.length > 0) setDropdownOpen(true);
                   }}
-                  className="absolute right-2 text-muted-foreground hover:text-cyan"
-                  title="Clear search"
-                >
-                  <X className="size-3.5" />
-                </button>
+                  onBlur={() => {
+                    isInputFocused.current = false;
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search village, town, pincode..."
+                  className="h-7 w-full pl-7 pr-6 font-mono text-xs bg-card/90 text-foreground placeholder:text-muted-foreground/50 border-cyan/40 focus:border-cyan focus:ring-1 focus:ring-cyan shadow-[0_0_12px_rgba(0,240,255,0.15)] truncate"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSearchResults([]);
+                      setDropdownOpen(false);
+                    }}
+                    className="absolute right-2 text-muted-foreground hover:text-cyan"
+                    title="Clear search"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* High-z-index Dark Aerospace HUD Dropdown Suggestions */}
+              {dropdownOpen && searchResults.length > 0 && (
+                <div className="absolute left-0 top-full z-[1000] mt-1.5 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan/50 bg-[#060a14]/95 p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+                  <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider border-b border-border/40">
+                    <span className="flex items-center gap-1.5 text-cyan font-semibold">
+                      <Globe2 className="size-3 text-cyan" /> Dual Geocoder Target Locks
+                    </span>
+                    <span className="text-[9px] text-muted-foreground/70">Enter to lock</span>
+                  </div>
+                  <ul className="divide-y divide-border/25 mt-1">
+                    {searchResults.map((place, idx) => {
+                      const isHighlighted = idx === selectedIndex;
+                      return (
+                        <li
+                          key={place.id}
+                          onClick={() => selectPlace(place)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectPlace(place);
+                          }}
+                          onMouseEnter={() => setSelectedIndex(idx)}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-all",
+                            isHighlighted
+                              ? "bg-cyan/20 text-cyan border border-cyan/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]"
+                              : "hover:bg-card/70 border border-transparent",
+                          )}
+                        >
+                          <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-1">
+                              <span className="font-semibold text-foreground truncate">
+                                {place.name}
+                              </span>
+                              <span className="shrink-0 font-mono text-[10px] text-cyan font-bold">
+                                [{place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°]
+                              </span>
+                            </div>
+                            <div className="font-mono text-[10px] text-muted-foreground truncate">
+                              {place.subtitle}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
             </div>
-
-            {/* High-z-index Dark Aerospace HUD Dropdown Suggestions */}
-            {dropdownOpen && searchResults.length > 0 && (
-              <div className="absolute left-0 top-full z-[1000] mt-1.5 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan/50 bg-[#060a14]/95 p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-                <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider border-b border-border/40">
-                  <span className="flex items-center gap-1.5 text-cyan font-semibold">
-                    <Globe2 className="size-3 text-cyan" /> Dual Geocoder Target Locks
-                  </span>
-                  <span className="text-[9px] text-muted-foreground/70">Enter to lock</span>
-                </div>
-                <ul className="divide-y divide-border/25 mt-1">
-                  {searchResults.map((place, idx) => {
-                    const isHighlighted = idx === selectedIndex;
-                    return (
-                      <li
-                        key={place.id}
-                        onClick={() => selectPlace(place)}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectPlace(place);
-                        }}
-                        onMouseEnter={() => setSelectedIndex(idx)}
-                        className={cn(
-                          "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-all",
-                          isHighlighted
-                            ? "bg-cyan/20 text-cyan border border-cyan/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]"
-                            : "hover:bg-card/70 border border-transparent",
-                        )}
-                      >
-                        <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline justify-between gap-1">
-                            <span className="font-semibold text-foreground truncate">
-                              {place.name}
-                            </span>
-                            <span className="shrink-0 font-mono text-[10px] text-cyan font-bold">
-                              [{place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°]
-                            </span>
-                          </div>
-                          <div className="font-mono text-[10px] text-muted-foreground truncate">
-                            {place.subtitle}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
           </div>
 
-          {/* Cell 3 (xl: 2 cols): Borewell Depth Slider */}
-          <div className="xl:col-span-2 min-w-0">
-            <Field label="Borewell" className="w-full justify-between">
+          {/* Cluster 2: Borewell Depth, Irrigation, Season, Sim Scenario (Clipped text fully fixed) */}
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            {/* Borewell Depth Slider */}
+            <Field label="Borewell" className="shrink-0 whitespace-nowrap">
               <Slider
                 aria-label="Borewell depth"
-                className="w-14 sm:w-20"
+                className="w-14 sm:w-16"
                 min={BOREWELL_DEPTH_RANGE.min}
                 max={BOREWELL_DEPTH_RANGE.max}
                 step={1}
                 value={[borewellDepth]}
                 onValueChange={([v]) => v !== undefined && onDepth(v)}
               />
-              <span className="w-12 text-right font-mono text-xs font-bold tabular-nums text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
+              <span className="w-10 text-right font-mono text-xs font-bold tabular-nums text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
                 {borewellDepth}m
               </span>
             </Field>
-          </div>
 
-          {/* Cell 4 (xl: 1 col): Irrigation Select */}
-          <div className="xl:col-span-1 min-w-0">
-            <Field label="Irrig" className="w-full">
+            {/* Irrigation Select (Ample width for Borewell/Canal/Rainfed/Drip) */}
+            <Field label="Irrigation" className="shrink-0 whitespace-nowrap min-w-[125px]">
               <Select value={irrigation} onValueChange={(v) => onIrrigation(v as Irrigation)}>
                 <SelectTrigger
                   aria-label="Irrigation"
-                  className="h-7 w-full bg-background/80 text-xs font-mono border-border/60"
+                  className="h-7 w-28 bg-background/80 text-xs font-mono border-border/60 shrink-0"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -623,11 +611,9 @@ export function CommandBar({
                 </SelectContent>
               </Select>
             </Field>
-          </div>
 
-          {/* Cell 5 (xl: 2 cols): Season & Sim Scenario */}
-          <div className="xl:col-span-2 flex items-center gap-1.5 min-w-0">
-            <Field label="Season" className="min-w-0">
+            {/* Season Radios */}
+            <Field label="Season" className="shrink-0 whitespace-nowrap">
               <div
                 className="flex rounded border border-border/50 bg-background/80 p-0.5"
                 role="radiogroup"
@@ -641,7 +627,7 @@ export function CommandBar({
                     aria-checked={season === s}
                     onClick={() => onSeason(s)}
                     className={cn(
-                      "rounded px-1.5 py-0.5 text-[11px] transition-all font-mono font-semibold",
+                      "rounded px-1.5 py-0.5 text-[10.5px] transition-all font-mono font-semibold cursor-pointer",
                       season === s
                         ? "bg-emerald/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)] border border-emerald/50"
                         : "text-muted-foreground hover:text-foreground border border-transparent",
@@ -653,12 +639,13 @@ export function CommandBar({
               </div>
             </Field>
 
-            <Field label="Sim" className="min-w-0">
+            {/* Sim Scenario Select */}
+            <Field label="Sim Scenario" className="shrink-0 whitespace-nowrap min-w-[130px]">
               <Select value={scenario} onValueChange={(v) => onScenario(v as Scenario)}>
                 <SelectTrigger
                   aria-label="Scenario simulator"
                   className={cn(
-                    "h-7 w-20 sm:w-24 bg-background/80 text-xs font-mono font-semibold truncate",
+                    "h-7 w-28 bg-background/80 text-xs font-mono font-semibold truncate shrink-0",
                     alert
                       ? "border-crimson/70 text-crimson shadow-[0_0_12px_rgba(255,46,86,0.35)]"
                       : "border-border/60",
