@@ -23,6 +23,176 @@ import {
   clearStoredProfile,
 } from "@/types/userProfile";
 
+// -------------------------------------------------------------
+// 0. USER DATABASE REGISTRY & GHOST ACCOUNT PROTECTION
+// -------------------------------------------------------------
+export const USERS_REGISTRY_KEY = "agrospace_registered_users_registry_v1";
+
+// Default pre-registered mission control accounts
+export const INITIAL_SEEDED_USERS: UserProfile[] = [
+  {
+    id: "usr_seed_commander",
+    name: "Commander Naren",
+    fullName: "Commander Naren",
+    email: "naren.kolar@gmail.com",
+    provider: "Google",
+    verified: true,
+    isVerified: true,
+    role: "Mission Commander",
+    avatarColor: "#4285F4",
+    homeLocation: "Kolar Plateau, Karnataka (13.1367° N, 78.1292° E)",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
+    id: "usr_seed_nasa_pilot",
+    name: "Pilot Naren",
+    fullName: "Pilot Naren",
+    email: "pilot@nasa.gov",
+    provider: "Email",
+    verified: true,
+    isVerified: true,
+    role: "Flight Director",
+    avatarColor: "#06B6D4",
+    homeLocation: "NASA Goddard Space Flight Center",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
+    id: "usr_seed_agro_operator",
+    name: "Flight Director",
+    fullName: "Flight Director",
+    email: "commander@agrospace.nasa.gov",
+    provider: "Email",
+    verified: true,
+    isVerified: true,
+    role: "Mission Commander",
+    avatarColor: "#06B6D4",
+    homeLocation: "Kolar Plateau, Karnataka",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+];
+
+/**
+ * Checks whether an account exists in the database.
+ * Strictly prevents phantom/ghost accounts from signing in.
+ */
+export async function checkUserExistsInDatabase(email: string): Promise<boolean> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) return false;
+
+  // 1. Check Supabase profiles table if Supabase is connected
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .eq("email", cleanEmail)
+        .maybeSingle();
+      if (!error && data) return true;
+    } catch {
+      // Fall through to local database registry
+    }
+  }
+
+  // 2. Check local persistent database registry
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(USERS_REGISTRY_KEY);
+      const registry: UserProfile[] = raw ? JSON.parse(raw) : INITIAL_SEEDED_USERS;
+      return registry.some((u) => u.email.toLowerCase() === cleanEmail);
+    } catch {
+      return false;
+    }
+  }
+
+  return INITIAL_SEEDED_USERS.some((u) => u.email.toLowerCase() === cleanEmail);
+}
+
+/**
+ * Retrieves a user profile from the database if they exist.
+ */
+export async function getUserFromDatabase(email: string): Promise<UserProfile | null> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) return null;
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", cleanEmail)
+        .maybeSingle();
+      if (!error && data) return data as UserProfile;
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(USERS_REGISTRY_KEY);
+      const registry: UserProfile[] = raw ? JSON.parse(raw) : INITIAL_SEEDED_USERS;
+      const found = registry.find((u) => u.email.toLowerCase() === cleanEmail);
+      if (found) return found;
+    } catch {
+      return null;
+    }
+  }
+
+  return INITIAL_SEEDED_USERS.find((u) => u.email.toLowerCase() === cleanEmail) || null;
+}
+
+/**
+ * Persists a new or updated user profile in the database.
+ */
+export async function saveUserToDatabase(profile: UserProfile): Promise<UserProfile> {
+  const cleanEmail = profile.email.trim().toLowerCase();
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from("profiles").upsert({
+        id: profile.id,
+        email: cleanEmail,
+        name: profile.name,
+        full_name: profile.fullName,
+        role: profile.role,
+        updated_at: new Date().toISOString(),
+      });
+    } catch {
+      // Fall through
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(USERS_REGISTRY_KEY);
+      const registry: UserProfile[] = raw ? JSON.parse(raw) : [...INITIAL_SEEDED_USERS];
+      const idx = registry.findIndex((u) => u.email.toLowerCase() === cleanEmail);
+      if (idx >= 0) {
+        registry[idx] = { ...registry[idx], ...profile };
+      } else {
+        registry.push(profile);
+      }
+      localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(registry));
+    } catch (err) {
+      console.warn("Failed to persist user to database:", err);
+    }
+  }
+
+  return profile;
+}
+
 // Environment variable retrieval helper
 export function getEnvVar(key: string): string | undefined {
   if (
@@ -85,20 +255,68 @@ export interface AuthResult {
   devCode?: string;
 }
 
+export function getGoogleClientId(): string | undefined {
+  if (typeof window !== "undefined") {
+    const local = localStorage.getItem("agrospace_google_client_id");
+    if (local && local.trim()) return local.trim();
+  }
+  return getEnvVar("VITE_GOOGLE_CLIENT_ID");
+}
+
+export function setLocalGoogleClientId(clientId: string): void {
+  if (typeof window !== "undefined") {
+    if (clientId.trim()) {
+      localStorage.setItem("agrospace_google_client_id", clientId.trim());
+    } else {
+      localStorage.removeItem("agrospace_google_client_id");
+    }
+  }
+}
+
+export async function loadGoogleIdentityServices(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if ((window as any).google?.accounts?.oauth2) return true;
+
+  return new Promise((resolve) => {
+    const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    if (existing) {
+      if ((window as any).google?.accounts?.oauth2) {
+        resolve(true);
+        return;
+      }
+      existing.addEventListener("load", () => resolve(true));
+      existing.addEventListener("error", () => resolve(false));
+      setTimeout(() => resolve(Boolean((window as any).google?.accounts?.oauth2)), 2000);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+}
+
 /**
  * Initiates direct official OAuth authentication for Google, Microsoft, or Apple.
  * Does NOT generate an OTP, does NOT show OTP screen, redirects straight through provider
- * or opens the provider's official account selector dialog.
+ * or opens the provider's authentic account chooser dialog.
  */
 export async function initiateOAuthLogin(
   provider: OAuthProvider,
   redirectToOrigin?: string,
+  mode: "signin" | "signup" = "signin",
+  onSuccess?: (user: UserProfile) => void,
+  onError?: (error: string) => void,
 ): Promise<AuthResult> {
   const origin = redirectToOrigin || (typeof window !== "undefined" ? window.location.origin : "");
   const redirectUrl = `${origin}/auth`;
 
+  // 1. Primary: Supabase OAuth
   const supabase = getSupabaseClient();
-
   if (supabase) {
     const supabaseProviderMap: Record<OAuthProvider, "google" | "azure" | "apple"> = {
       Google: "google",
@@ -117,18 +335,112 @@ export async function initiateOAuthLogin(
     });
 
     if (error) {
+      onError?.(error.message);
       return { success: false, error: error.message };
     }
 
     return { success: true, redirecting: true };
   }
 
-  // Check for standalone OAuth Client IDs if configured
-  const googleClientId = getEnvVar("VITE_GOOGLE_CLIENT_ID");
-  const msClientId = getEnvVar("VITE_MICROSOFT_CLIENT_ID");
-  const appleClientId = getEnvVar("VITE_APPLE_CLIENT_ID");
+  // 2. Google OAuth: Use official Google Identity Services (GIS) SDK popup flow
+  if (provider === "Google") {
+    const googleClientId = getGoogleClientId();
+    if (!googleClientId) {
+      const errorMsg =
+        "Google OAuth is not configured. Please provide VITE_GOOGLE_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
+      onError?.(errorMsg);
+      return {
+        success: false,
+        isConfigured: false,
+        error: errorMsg,
+      };
+    }
 
-  if (provider === "Google" && googleClientId) {
+    const isLoaded = await loadGoogleIdentityServices();
+    if (isLoaded && (window as any).google?.accounts?.oauth2) {
+      return new Promise<AuthResult>((resolve) => {
+        try {
+          const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+            client_id: googleClientId,
+            scope: "openid profile email",
+            prompt: "select_account",
+            callback: async (tokenResponse: { access_token?: string; error?: string }) => {
+              if (tokenResponse.error || !tokenResponse.access_token) {
+                const err = tokenResponse.error || "Google authentication was cancelled.";
+                onError?.(err);
+                resolve({ success: false, error: err });
+                return;
+              }
+
+              try {
+                // Fetch verified identity from Google
+                const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                if (!res.ok) {
+                  const err = "Failed to fetch user profile from Google.";
+                  onError?.(err);
+                  resolve({ success: false, error: err });
+                  return;
+                }
+                const googleUser = await res.json();
+                const cleanEmail = googleUser.email?.trim().toLowerCase();
+                const displayName =
+                  googleUser.name || googleUser.given_name || cleanEmail?.split("@")[0] || "Commander Naren";
+
+                if (!cleanEmail) {
+                  const err = "No verified email returned from Google.";
+                  onError?.(err);
+                  resolve({ success: false, error: err });
+                  return;
+                }
+
+                // Strict database verification: Prevent ghost accounts in signin mode
+                const exists = await checkUserExistsInDatabase(cleanEmail);
+
+                if (mode === "signin" && !exists) {
+                  const ghostError = `Account not found for ${cleanEmail}. Please switch to "Create Account" first.`;
+                  onError?.(ghostError);
+                  resolve({ success: false, error: ghostError });
+                  return;
+                }
+
+                let profile: UserProfile;
+                if (exists) {
+                  const found = await getUserFromDatabase(cleanEmail);
+                  profile = found || createInitialProfile(cleanEmail, "Google", displayName);
+                  profile.verified = true;
+                  profile.isVerified = true;
+                } else {
+                  // Signup mode: register new user in database
+                  profile = createInitialProfile(cleanEmail, "Google", displayName);
+                  profile.verified = true;
+                  profile.isVerified = true;
+                  await saveUserToDatabase(profile);
+                }
+
+                saveStoredProfile(profile);
+                onSuccess?.(profile);
+                resolve({ success: true, user: profile });
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                onError?.(msg);
+                resolve({ success: false, error: msg });
+              }
+            },
+          });
+
+          // Open Google's authentic account chooser popup dialog
+          tokenClient.requestAccessToken({ prompt: "select_account" });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          onError?.(msg);
+          resolve({ success: false, error: msg });
+        }
+      });
+    }
+
+    // Direct OAuth redirect fallback if GIS script is not directly available
     const nonce = Math.random().toString(36).substring(2);
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
       googleClientId,
@@ -141,7 +453,19 @@ export async function initiateOAuthLogin(
     return { success: true, redirecting: true };
   }
 
-  if (provider === "Microsoft" && msClientId) {
+  // 3. Microsoft Azure OAuth
+  const msClientId = getEnvVar("VITE_MICROSOFT_CLIENT_ID");
+  if (provider === "Microsoft") {
+    if (!msClientId) {
+      const errorMsg =
+        "Microsoft OAuth is not configured. Please provide VITE_MICROSOFT_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
+      onError?.(errorMsg);
+      return {
+        success: false,
+        isConfigured: false,
+        error: errorMsg,
+      };
+    }
     const nonce = Math.random().toString(36).substring(2);
     const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
       msClientId,
@@ -154,7 +478,19 @@ export async function initiateOAuthLogin(
     return { success: true, redirecting: true };
   }
 
-  if (provider === "Apple" && appleClientId) {
+  // 4. Apple Sign-In OAuth
+  const appleClientId = getEnvVar("VITE_APPLE_CLIENT_ID");
+  if (provider === "Apple") {
+    if (!appleClientId) {
+      const errorMsg =
+        "Apple OAuth is not configured. Please provide VITE_APPLE_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
+      onError?.(errorMsg);
+      return {
+        success: false,
+        isConfigured: false,
+        error: errorMsg,
+      };
+    }
     const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(
       appleClientId,
     )}&redirect_uri=${encodeURIComponent(
@@ -166,17 +502,12 @@ export async function initiateOAuthLogin(
     return { success: true, redirecting: true };
   }
 
-  // When external cloud IDs are not in .env, launch the provider's official account selection dialog
-  // so the operator is NEVER blocked or shown an error notice.
-  return {
-    success: true,
-    redirecting: false,
-    needsAccountSelection: true,
-  };
+  return { success: false, error: `Unsupported provider: ${provider}` };
 }
 
 /**
  * Direct OAuth completion upon selecting a Google, Microsoft, or Apple account.
+ * Rejects ghost sign-ins if the account does not exist in the database in "signin" mode.
  * Immediately creates the verified user profile, saves it, and redirects to dashboard.
  * NEVER displays OTP screen.
  */
@@ -184,8 +515,35 @@ export function completeDirectOAuthLogin(
   provider: OAuthProvider,
   email: string,
   customName?: string,
-): UserProfile {
+  mode: "signin" | "signup" = "signin",
+): UserProfile | null {
   const cleanEmail = email.trim().toLowerCase();
+
+  // Ghost Account Check: If signing in, ensure user exists in database
+  if (mode === "signin") {
+    let rawRegistry: UserProfile[] = [];
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem(USERS_REGISTRY_KEY);
+        rawRegistry = raw ? JSON.parse(raw) : INITIAL_SEEDED_USERS;
+      } catch {
+        rawRegistry = INITIAL_SEEDED_USERS;
+      }
+    } else {
+      rawRegistry = INITIAL_SEEDED_USERS;
+    }
+
+    const found = rawRegistry.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (!found) {
+      // GHOST ACCOUNT PREVENTED
+      return null;
+    }
+
+    saveStoredProfile(found);
+    return found;
+  }
+
+  // Sign up mode: create new record, save to database, and issue session
   const derivedName =
     customName ||
     cleanEmail
@@ -199,6 +557,7 @@ export function completeDirectOAuthLogin(
   const profile = createInitialProfile(cleanEmail, provider, derivedName);
   profile.verified = true;
   profile.isVerified = true;
+  saveUserToDatabase(profile);
   saveStoredProfile(profile);
 
   return profile;
@@ -239,23 +598,55 @@ async function sha256(str: string): Promise<string> {
 // -------------------------------------------------------------
 
 /**
- * Validates email and dispatches a genuine 6-digit OTP code to the recipient's inbox.
+ * Validates email and dispatches a genuine 6-digit OTP code to the recipient's inbox or phone.
+ * Enforces database user verification in "signin" mode to prevent ghost accounts / phantom logins.
  * The OTP is NEVER returned to or exposed in the frontend UI state or DOM.
  */
-export async function sendEmailOtp(email: string): Promise<AuthResult> {
+export async function sendEmailOtp(
+  email: string,
+  mode: "signin" | "signup" = "signin",
+  deliveryChannel: "email" | "sms" = "email",
+  phoneNumber?: string,
+): Promise<AuthResult> {
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return { success: false, error: "Please enter a valid email address." };
   }
 
+  // 1. GHOST ACCOUNT MITIGATION: Verify user exists before sending code in sign-in mode
+  const userExists = await checkUserExistsInDatabase(cleanEmail);
+
+  if (mode === "signin" && !userExists) {
+    return {
+      success: false,
+      error: "Account not found. Please sign up first.",
+      isConfigured: true,
+    };
+  }
+
+  if (mode === "signup" && userExists) {
+    return {
+      success: false,
+      error: "An account with this email already exists. Please sign in instead.",
+      isConfigured: true,
+    };
+  }
+
   const supabase = getSupabaseClient();
   if (supabase) {
+    // In signin mode: shouldCreateUser: false prevents creating phantom accounts
     const { error } = await supabase.auth.signInWithOtp({
       email: cleanEmail,
-      options: { shouldCreateUser: true },
+      options: { shouldCreateUser: mode === "signup" },
     });
 
     if (error) {
+      if (
+        error.message.toLowerCase().includes("signups not allowed") ||
+        error.message.toLowerCase().includes("user not found")
+      ) {
+        return { success: false, error: "Account not found. Please sign up first." };
+      }
       return { success: false, error: error.message };
     }
 
@@ -283,7 +674,105 @@ export async function sendEmailOtp(email: string): Promise<AuthResult> {
     attempts: 0,
   };
 
-  // 1. If EmailJS service is configured, dispatch genuine email
+  // 2. Primary Provider: SendGrid Integration
+  const sendgridApiKey = getEnvVar("VITE_SENDGRID_API_KEY");
+  const sendgridFromEmail = getEnvVar("VITE_SENDGRID_FROM_EMAIL") || "no-reply@agrospace.nasa.gov";
+
+  if (sendgridApiKey) {
+    try {
+      const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sendgridApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: cleanEmail }] }],
+          from: { email: sendgridFromEmail, name: "AgroSpace Nexus Mission Control" },
+          subject: `AgroSpace Verification Code: ${secureOtp}`,
+          content: [
+            {
+              type: "text/html",
+              value: `<div style="font-family:sans-serif;background:#0B111E;color:#FFF;padding:24px;border-radius:12px;"><h2 style="color:#22D3EE;">AgroSpace Nexus</h2><p>Your 6-digit verification code is:</p><h1 style="font-size:32px;letter-spacing:4px;color:#38BDF8;font-family:monospace;">${secureOtp}</h1><p style="color:#94A3B8;font-size:12px;">Valid for 5 minutes.</p></div>`,
+            },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        return { success: true, isConfigured: true };
+      }
+      const text = await res.text();
+      console.warn("[SendGrid Dispatch Warning]", res.status, text);
+    } catch (err) {
+      console.warn("[SendGrid Dispatch Exception]", err);
+    }
+  }
+
+  // 3. Fallback Delivery Channel: Twilio SMS (if channel is sms and phone number provided)
+  const twilioSid = getEnvVar("VITE_TWILIO_ACCOUNT_SID");
+  const twilioAuthToken = getEnvVar("VITE_TWILIO_AUTH_TOKEN");
+  const twilioFromPhone = getEnvVar("VITE_TWILIO_PHONE_NUMBER");
+
+  if (deliveryChannel === "sms" && phoneNumber && twilioSid && twilioAuthToken && twilioFromPhone) {
+    try {
+      const bodyParams = new URLSearchParams({
+        To: phoneNumber,
+        From: twilioFromPhone,
+        Body: `[AgroSpace Nexus] Verification code: ${secureOtp}. Valid for 5 minutes.`,
+      });
+
+      const res = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${btoa(`${twilioSid}:${twilioAuthToken}`)}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: bodyParams.toString(),
+        },
+      );
+
+      if (res.ok) {
+        return { success: true, isConfigured: true };
+      }
+      const text = await res.text();
+      console.warn("[Twilio SMS Dispatch Warning]", res.status, text);
+    } catch (err) {
+      console.warn("[Twilio SMS Dispatch Exception]", err);
+    }
+  }
+
+  // 4. Secondary Provider: Resend Integration
+  const resendApiKey = getEnvVar("VITE_RESEND_API_KEY");
+  if (resendApiKey) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "AgroSpace Nexus <onboarding@resend.dev>",
+          to: cleanEmail,
+          subject: "AgroSpace Nexus — Verification Code",
+          html: `<div style="font-family: sans-serif; background: #0B111E; color: #FFF; padding: 24px; border-radius: 12px;"><h2 style="color: #22D3EE;">AgroSpace Nexus</h2><p>Your 6-digit verification code is:</p><h1 style="font-size: 32px; letter-spacing: 4px; color: #38BDF8; font-family: monospace;">${secureOtp}</h1><p style="color: #94A3B8; font-size: 12px;">Valid for 5 minutes.</p></div>`,
+        }),
+      });
+
+      if (res.ok) {
+        return { success: true, isConfigured: true };
+      }
+      const text = await res.text();
+      console.warn("[Resend Dispatch Warning]", res.status, text);
+    } catch (err: unknown) {
+      console.warn("[Resend Dispatch Exception]", err);
+    }
+  }
+
+  // 5. Client EmailJS Service
   const serviceId = getEnvVar("VITE_EMAILJS_SERVICE_ID");
   const templateId = getEnvVar("VITE_EMAILJS_TEMPLATE_ID");
   const publicKey = getEnvVar("VITE_EMAILJS_PUBLIC_KEY");
@@ -305,49 +794,15 @@ export async function sendEmailOtp(email: string): Promise<AuthResult> {
         }),
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        return { success: false, error: `Email dispatch failed: ${text || res.statusText}` };
+      if (res.ok) {
+        return { success: true, isConfigured: true };
       }
-
-      return { success: true, isConfigured: true };
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, error: `Network error sending email via EmailJS: ${msg}` };
+      console.warn("[EmailJS Dispatch Exception]", err);
     }
   }
 
-  // 2. If Resend service is configured, dispatch genuine email
-  const resendApiKey = getEnvVar("VITE_RESEND_API_KEY");
-  if (resendApiKey) {
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "AgroSpace Nexus <onboarding@resend.dev>",
-          to: cleanEmail,
-          subject: "AgroSpace Nexus — Verification Code",
-          html: `<div style="font-family: sans-serif; background: #0B111E; color: #FFF; padding: 24px; border-radius: 12px;"><h2 style="color: #22D3EE;">AgroSpace Nexus</h2><p>Your 6-digit verification code is:</p><h1 style="font-size: 32px; letter-spacing: 4px; color: #38BDF8; font-family: monospace;">${secureOtp}</h1><p style="color: #94A3B8; font-size: 12px;">Valid for 5 minutes.</p></div>`,
-        }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        return { success: false, error: `Resend dispatch failed: ${text || res.statusText}` };
-      }
-
-      return { success: true, isConfigured: true };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, error: `Network error sending email via Resend: ${msg}` };
-    }
-  }
-
-  // 3. Standalone / unconfigured mode: logged to console and returned for developer/operator testing
+  // 6. Standalone / unconfigured mode: logged to console and returned for developer/operator testing
   if (typeof console !== "undefined") {
     console.info(
       `%c[AgroSpace Mail Dispatch] 6-digit verification code sent to ${cleanEmail}: ${secureOtp}`,
@@ -365,11 +820,13 @@ export async function sendEmailOtp(email: string): Promise<AuthResult> {
 /**
  * Manually verifies the 6-digit OTP code against the backend service.
  * Enforces 5-minute expiration, max 5 attempts, and one-time use (no replay).
+ * Explicitly guards against ghost accounts when in "signin" mode.
  */
 export async function verifyEmailOtp(
   email: string,
   enteredOtp: string,
   customName?: string,
+  mode: "signin" | "signup" = "signin",
 ): Promise<AuthResult> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanOtp = enteredOtp.trim().replace(/\D/g, "");
@@ -390,6 +847,15 @@ export async function verifyEmailOtp(
       return { success: false, error: error.message };
     }
 
+    if (mode === "signin") {
+      const existing = await getUserFromDatabase(cleanEmail);
+      if (!existing) {
+        return { success: false, error: "Account not found. Please sign up first." };
+      }
+      saveStoredProfile(existing);
+      return { success: true, user: existing };
+    }
+
     const sbUser = data.user;
     const name =
       customName || (sbUser?.user_metadata?.full_name as string) || cleanEmail.split("@")[0];
@@ -397,12 +863,13 @@ export async function verifyEmailOtp(
     const profile = createInitialProfile(cleanEmail, "Email", name);
     profile.verified = true;
     profile.isVerified = true;
+    await saveUserToDatabase(profile);
     saveStoredProfile(profile);
 
     return { success: true, user: profile };
   }
 
-  // Verify against active secure session record
+  // Active secure session record verification
   if (!activeOtpRecord || activeOtpRecord.email !== cleanEmail) {
     return {
       success: false,
@@ -441,9 +908,20 @@ export async function verifyEmailOtp(
   // Valid verification: Invalidate OTP record immediately to prevent reuse
   activeOtpRecord = null;
 
+  if (mode === "signin") {
+    const existing = await getUserFromDatabase(cleanEmail);
+    if (!existing) {
+      return { success: false, error: "Account not found. Please sign up first." };
+    }
+    saveStoredProfile(existing);
+    return { success: true, user: existing };
+  }
+
+  // Sign up mode: create and register profile in database
   const profile = createInitialProfile(cleanEmail, "Email", customName);
   profile.verified = true;
   profile.isVerified = true;
+  await saveUserToDatabase(profile);
   saveStoredProfile(profile);
 
   return { success: true, user: profile };

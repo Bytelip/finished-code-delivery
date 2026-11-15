@@ -88,7 +88,15 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText(/Gmail Dispatch OTP/i)).toBeNull();
   });
 
-  it("opens Google account selector and authenticates directly without any error banner or OTP screen", async () => {
+  it("authenticates with Google directly without any fake modal or OTP screen", async () => {
+    const mockGoogleUser = createInitialProfile("naren.kolar@gmail.com", "Google", "Commander Naren");
+    const initiateOAuthSpy = vi.spyOn(authService, "initiateOAuthLogin").mockImplementation(
+      async (_provider, _origin, _mode, onSuccess) => {
+        onSuccess?.(mockGoogleUser);
+        return { success: true, user: mockGoogleUser };
+      },
+    );
+
     const handleSuccess = vi.fn();
     render(<CosmicAuthPage onSuccess={handleSuccess} />);
 
@@ -96,26 +104,17 @@ describe("User Profile & Authentication System", () => {
     const googleBtn = screen.getByRole("button", { name: /Continue with Google/i });
     fireEvent.click(googleBtn);
 
-    // Verify Google Account Selector modal opens
-    await waitFor(() => {
-      expect(screen.getByText(/Sign in with Google/i)).toBeDefined();
-      expect(screen.getByText(/to continue to AgroSpace Nexus/i)).toBeDefined();
-    });
+    // Verify initiateOAuthLogin was called with Google
+    expect(initiateOAuthSpy).toHaveBeenCalledWith("Google");
 
-    // Verify there is NO error banner and NO OTP screen
+    // Verify there is NO fake modal, NO error banner, and NO OTP screen
+    expect(screen.queryByText(/Instant Clearance/i)).toBeNull();
     expect(screen.queryByText(/Authentication Setup Notice/i)).toBeNull();
     expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
 
-    // Click the detected account to sign in directly
-    const accountOption = screen.getByText(/Instant Clearance/i);
-    fireEvent.click(accountOption);
-
     // Verify user is immediately authenticated and redirected
     await waitFor(() => {
-      expect(handleSuccess).toHaveBeenCalledTimes(1);
-      const user = handleSuccess.mock.calls[0][0] as UserProfile;
-      expect(user.provider).toBe("Google");
-      expect(user.verified).toBe(true);
+      expect(handleSuccess).toHaveBeenCalledWith(mockGoogleUser);
     });
   });
 
@@ -327,5 +326,36 @@ describe("User Profile & Authentication System", () => {
     // Click Sign Out
     fireEvent.click(screen.getByText(/Sign Out of Mission Control/i));
     expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it("strictly rejects ghost accounts / phantom logins when user does not exist in database during signin", async () => {
+    // Attempting to send OTP in signin mode for an unregistered ghost email
+    const result = await authService.sendEmailOtp("ghost.operator@unknown.com", "signin");
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Account not found\. Please sign up first\./i);
+
+    // Attempting direct OAuth signin for an unregistered ghost email
+    const oauthProfile = authService.completeDirectOAuthLogin(
+      "Google",
+      "ghost.operator@unknown.com",
+      "Ghost Operator",
+      "signin",
+    );
+    expect(oauthProfile).toBeNull();
+  });
+
+  it("registers new account in signup mode and allows subsequent signin", async () => {
+    // 1. Sign up a new user
+    const newEmail = "new.cadet@agrospace.nasa.gov";
+    const signUpResult = await authService.sendEmailOtp(newEmail, "signup");
+    expect(signUpResult.success).toBe(true);
+
+    const verifiedProfile = await authService.verifyEmailOtp(newEmail, signUpResult.devCode || "123456", "Cadet Rao", "signup");
+    expect(verifiedProfile.success).toBe(true);
+    expect(verifiedProfile.user?.email).toBe(newEmail);
+
+    // 2. Now user exists in database: subsequent signin mode succeeds
+    const signInResult = await authService.sendEmailOtp(newEmail, "signin");
+    expect(signInResult.success).toBe(true);
   });
 });
