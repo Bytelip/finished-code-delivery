@@ -7,6 +7,8 @@ import {
   processIncomingAuthCallback,
   getGoogleClientId,
   setLocalGoogleClientId,
+  getSupabaseUrl,
+  setLocalSupabaseCredentials,
   type OAuthProvider,
 } from "@/services/authService";
 
@@ -297,6 +299,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [configError, setConfigError] = useState<string>("");
   const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
   const [inputGoogleClientId, setInputGoogleClientId] = useState<string>(() => getGoogleClientId() || "");
+  const [inputSupabaseUrl, setInputSupabaseUrl] = useState<string>(() => getSupabaseUrl() || "");
+  const [inputSupabaseAnonKey, setInputSupabaseAnonKey] = useState<string>("");
   const [sendingEmail, setSendingEmail] = useState<boolean>(false);
   const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
   const [resendTimer, setResendTimer] = useState<number>(0);
@@ -577,6 +581,45 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   >
                     Connect
                   </button>
+                </div>
+              </div>
+            )}
+
+            {(configError.includes("VITE_SUPABASE") || configError.includes("Supabase")) && (
+              <div className="mt-3 pt-3 border-t border-rose-500/20">
+                <p className="text-[11px] text-slate-300 mb-2">
+                  Or enter your Supabase credentials to activate full cloud authentication:
+                </p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="https://your-project.supabase.co"
+                    value={inputSupabaseUrl}
+                    onChange={(e) => setInputSupabaseUrl(e.target.value)}
+                    className="w-full rounded-xl border border-white/20 bg-slate-900/90 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none font-mono"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="eyJhbGciOi... (Supabase Anon Key)"
+                      value={inputSupabaseAnonKey}
+                      onChange={(e) => setInputSupabaseAnonKey(e.target.value)}
+                      className="flex-1 rounded-xl border border-white/20 bg-slate-900/90 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (inputSupabaseUrl.trim() && inputSupabaseAnonKey.trim()) {
+                          setLocalSupabaseCredentials(inputSupabaseUrl.trim(), inputSupabaseAnonKey.trim());
+                          setConfigError("");
+                          window.location.reload();
+                        }
+                      }}
+                      className="rounded-xl bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 cursor-pointer shadow"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

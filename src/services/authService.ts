@@ -200,29 +200,79 @@ export function getEnvVar(key: string): string | undefined {
     (import.meta as unknown as { env?: Record<string, string> }).env
   ) {
     const val = (import.meta as unknown as { env?: Record<string, string> }).env?.[key];
-    if (val && !val.toLowerCase().includes("your_")) return val.trim();
+    if (typeof val === "string" && val.trim() !== "") return val.trim();
   }
   if (typeof process !== "undefined" && process.env?.[key]) {
     const val = process.env[key];
-    if (val && !val.toLowerCase().includes("your_")) return val.trim();
+    if (typeof val === "string" && val.trim() !== "") return val.trim();
   }
   return undefined;
 }
 
 // -------------------------------------------------------------
-// 1. SUPABASE CLIENT INITIALIZATION
+// 1. SUPABASE CLIENT INITIALIZATION & HELPERS
 // -------------------------------------------------------------
 let cachedSupabaseClient: SupabaseClient | null = null;
+
+export function getSupabaseUrl(): string | undefined {
+  if (typeof window !== "undefined") {
+    const local = localStorage.getItem("agrospace_supabase_url");
+    if (local && local.trim()) return local.trim();
+  }
+  return (
+    (typeof import.meta !== "undefined" && (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_URL) ||
+    getEnvVar("VITE_SUPABASE_URL")
+  );
+}
+
+export function getSupabaseAnonKey(): string | undefined {
+  if (typeof window !== "undefined") {
+    const local = localStorage.getItem("agrospace_supabase_anon_key");
+    if (local && local.trim()) return local.trim();
+  }
+  return (
+    (typeof import.meta !== "undefined" &&
+      ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_ANON_KEY ||
+        (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_PUBLISHABLE_KEY)) ||
+    getEnvVar("VITE_SUPABASE_ANON_KEY") ||
+    getEnvVar("VITE_SUPABASE_PUBLISHABLE_KEY")
+  );
+}
+
+export function setLocalSupabaseCredentials(url: string, key: string): void {
+  if (typeof window !== "undefined") {
+    if (url.trim() && key.trim()) {
+      localStorage.setItem("agrospace_supabase_url", url.trim());
+      localStorage.setItem("agrospace_supabase_anon_key", key.trim());
+      cachedSupabaseClient = null;
+    } else {
+      localStorage.removeItem("agrospace_supabase_url");
+      localStorage.removeItem("agrospace_supabase_anon_key");
+      cachedSupabaseClient = null;
+    }
+  }
+}
 
 export function getSupabaseClient(): SupabaseClient | null {
   if (cachedSupabaseClient) return cachedSupabaseClient;
 
-  const url = getEnvVar("VITE_SUPABASE_URL");
-  const anonKey = getEnvVar("VITE_SUPABASE_ANON_KEY") || getEnvVar("VITE_SUPABASE_PUBLISHABLE_KEY");
+  const url = getSupabaseUrl();
+  const anonKey = getSupabaseAnonKey();
 
   if (url && anonKey) {
+    // Only attempt createClient if it's a valid URL format (http/https or contains dot domain)
+    // Prevents throwing an error if it's a placeholder like "your_supabase_project_url"
+    const validUrl =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? url
+        : url.includes(".")
+          ? `https://${url}`
+          : null;
+
+    if (!validUrl) return null;
+
     try {
-      cachedSupabaseClient = createClient(url, anonKey, {
+      cachedSupabaseClient = createClient(validUrl, anonKey, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
@@ -259,6 +309,13 @@ export function getGoogleClientId(): string | undefined {
   if (typeof window !== "undefined") {
     const local = localStorage.getItem("agrospace_google_client_id");
     if (local && local.trim()) return local.trim();
+  }
+  if (
+    typeof import.meta !== "undefined" &&
+    (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_GOOGLE_CLIENT_ID
+  ) {
+    const envVal = (import.meta as unknown as { env?: Record<string, string> }).env.VITE_GOOGLE_CLIENT_ID;
+    if (typeof envVal === "string" && envVal.trim()) return envVal.trim();
   }
   return getEnvVar("VITE_GOOGLE_CLIENT_ID");
 }
