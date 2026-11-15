@@ -4,13 +4,16 @@ export type LiveMapLayerId = "satellite" | "radar";
 
 export type AtmosphericLayerId = "precipitation" | "wind" | "temperature" | "humidity" | "pressure";
 
-export type ZoomEarthLayerId = LiveMapLayerId | AtmosphericLayerId | MapLayer;
+export type TerrainVectorLayerId = "terrain" | "default" | "dark";
 
+export type ZoomEarthLayerId = LiveMapLayerId | AtmosphericLayerId | TerrainVectorLayerId | MapLayer;
+
+export type SatelliteSubOption = "satellite_live" | "satellite_hd";
 export type WindSubOption = "wind_speed" | "wind_gusts";
 export type TempSubOption = "temp_actual" | "temp_feels";
 export type HumiditySubOption = "hum_relative" | "hum_dewpoint" | "hum_wetbulb";
 
-export type SubLayerId = WindSubOption | TempSubOption | HumiditySubOption;
+export type SubLayerId = SatelliteSubOption | WindSubOption | TempSubOption | HumiditySubOption;
 
 export interface ColorScaleStop {
   value: number | string;
@@ -50,6 +53,11 @@ export const ZOOM_EARTH_LAYERS_META: Record<string, LayerMetadata> = {
     title: "Satellite Imagery",
     description:
       "High-resolution true-color Earth optical imagery seamlessly composited with real-time cloud cover and atmospheric water vapor layers.",
+    defaultSubOption: "satellite_live",
+    subOptions: [
+      { id: "satellite_live", label: "Live", description: "Real-time satellite imagery + cloud cover overlay" },
+      { id: "satellite_hd", label: "HD", description: "Ultra-crisp Esri World Imagery + place labels" },
+    ],
     colorScale: {
       unit: "Reflectance",
       title: "Optical Albedo",
@@ -124,11 +132,10 @@ export const ZOOM_EARTH_LAYERS_META: Record<string, LayerMetadata> = {
       unit: "km/h",
       title: "Surface Wind Speed",
       stops: [
-        { value: "20", color: "#06b6d4", label: "20" },
-        { value: "40", color: "#10b981", label: "40" },
-        { value: "60", color: "#eab308", label: "60" },
-        { value: "80", color: "#f97316", label: "80" },
-        { value: "100", color: "#ef4444", label: "100" },
+        { value: "40", color: "#06b6d4", label: "40" },
+        { value: "60", color: "#10b981", label: "60" },
+        { value: "80", color: "#eab308", label: "80" },
+        { value: "100", color: "#f97316", label: "100" },
         { value: "120+", color: "#d946ef", label: "120" },
       ],
       gradientCss:
@@ -152,16 +159,15 @@ export const ZOOM_EARTH_LAYERS_META: Record<string, LayerMetadata> = {
       unit: "°C",
       title: "2m Air Temperature",
       stops: [
-        { value: "-10", color: "#38bdf8", label: "-10" },
+        { value: "-30", color: "#38bdf8", label: "-30" },
         { value: "0", color: "#06b6d4", label: "0" },
-        { value: "10", color: "#10b981", label: "10" },
-        { value: "20", color: "#84cc16", label: "20" },
+        { value: "20", color: "#10b981", label: "20" },
         { value: "30", color: "#eab308", label: "30" },
         { value: "40", color: "#f97316", label: "40" },
         { value: "50", color: "#ef4444", label: "50" },
       ],
       gradientCss:
-        "linear-gradient(to right, #38bdf8, #06b6d4, #10b981, #84cc16, #eab308, #f97316, #ef4444)",
+        "linear-gradient(to right, #38bdf8, #06b6d4, #10b981, #eab308, #f97316, #ef4444)",
     },
   },
   humidity: {
@@ -209,13 +215,74 @@ export const ZOOM_EARTH_LAYERS_META: Record<string, LayerMetadata> = {
       unit: "hPa",
       title: "Mean Sea-Level Pressure (MSLP)",
       stops: [
-        { value: "980", color: "#8b5cf6", label: "980" },
-        { value: "995", color: "#3b82f6", label: "995" },
-        { value: "1013", color: "#f8fafc", label: "1013" },
+        { value: "990", color: "#38bdf8", label: "990" },
+        { value: "1005", color: "#06b6d4", label: "1005" },
+        { value: "1015", color: "#f8fafc", label: "1015" },
         { value: "1025", color: "#f97316", label: "1025" },
-        { value: "1035+", color: "#ef4444", label: "1035" },
+        { value: "1040", color: "#ef4444", label: "1040" },
       ],
-      gradientCss: "linear-gradient(to right, #8b5cf6, #3b82f6, #f8fafc, #f97316, #ef4444)",
+      gradientCss: "linear-gradient(to right, #38bdf8, #06b6d4, #f8fafc, #f97316, #ef4444)",
+    },
+  },
+  terrain: {
+    id: "terrain",
+    name: "Terrain",
+    category: "live",
+    iconName: "Mountain",
+    emoji: "⛰️",
+    title: "Topographic & Elevation Relief",
+    description:
+      "Keyless Esri World Topographic relief contours combined with 3D elevation morphology for watershed and slope analysis.",
+    colorScale: {
+      unit: "m ASL",
+      title: "Elevation Relief",
+      stops: [
+        { value: "0", color: "#1b281d", label: "0m" },
+        { value: "500", color: "#2d5a37", label: "500m" },
+        { value: "1500", color: "#d97706", label: "1500m" },
+        { value: "3000+", color: "#f8fafc", label: "3000m+" },
+      ],
+      gradientCss: "linear-gradient(to right, #1b281d, #2d5a37, #d97706, #f8fafc)",
+    },
+  },
+  default: {
+    id: "default",
+    name: "Default (Map)",
+    category: "live",
+    iconName: "Map",
+    emoji: "🗺️",
+    title: "Street & District Cartography",
+    description:
+      "Keyless Esri World Street cartography with high-contrast district boundaries, road networks, and agricultural mandals.",
+    colorScale: {
+      unit: "Infra",
+      title: "Cartographic Layers",
+      stops: [
+        { value: "Rural", color: "#1f2937", label: "Rural" },
+        { value: "Arterial", color: "#3b82f6", label: "Arterial" },
+        { value: "Urban", color: "#f59e0b", label: "Urban" },
+      ],
+      gradientCss: "linear-gradient(to right, #1f2937, #3b82f6, #f59e0b)",
+    },
+  },
+  dark: {
+    id: "dark",
+    name: "Dark Telemetry",
+    category: "live",
+    iconName: "Moon",
+    emoji: "🌑",
+    title: "Dark Telemetry Canvas",
+    description:
+      "Ultra-high contrast obsidian basemap engineered for NASA GIBS spectral overlay visibility and low-light operations.",
+    colorScale: {
+      unit: "Obsidian",
+      title: "Telemetry Contrast",
+      stops: [
+        { value: "Void", color: "#05070c", label: "Void" },
+        { value: "Grid", color: "#1e293b", label: "Grid" },
+        { value: "Active", color: "#06b6d4", label: "Active" },
+      ],
+      gradientCss: "linear-gradient(to right, #05070c, #1e293b, #06b6d4)",
     },
   },
   NDVI: {

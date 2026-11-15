@@ -63,7 +63,20 @@ import {
 } from "@/services/gibsLayers";
 import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/core/animated-background";
-import { MapLayerSwitcher, type BasemapStyle } from "@/components/map/MapLayerSwitcher";
+import {
+  MapLayerSwitcher,
+  type BasemapStyle,
+  type SubOptionId,
+} from "@/components/map/MapLayerSwitcher";
+import { LayerInfoModal } from "@/components/hud/LayerInfoModal";
+import { DynamicColorScaleBar } from "@/components/hud/DynamicColorScaleBar";
+import { MeteorologicalCanvasOverlay } from "@/components/hud/MeteorologicalCanvasOverlay";
+import {
+  fetchMeteorologicalForecast,
+  generateDeterministicForecast,
+  type MeteorologicalForecast,
+} from "@/services/meteorologicalService";
+import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 export const TELEMETRY_TABS = MAP_LAYERS;
@@ -546,12 +559,50 @@ export function GlobeViewport({
   const [leafletModule, setLeafletModule] = useState<LeafletBundle | null>(null);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
 
-  // Basemap & Layer Switcher State
+  // Basemap & Layer Switcher State (Zoom Earth Meteorological Modes)
   const [basemapStyle, setBasemapStyle] = useState<BasemapStyle>(
     initialBasemapStyle || "satellite",
   );
+  const [basemapSubOption, setBasemapSubOption] = useState<SubOptionId>("satellite_live");
   const [showLabels, setShowLabels] = useState(true);
   const [enable3dTerrain, setEnable3dTerrain] = useState(true);
+
+  // Center Layer Info Modal
+  const [showLayerInfoModal, setShowLayerInfoModal] = useState(false);
+  const [infoModalLayerId, setInfoModalLayerId] = useState<ZoomEarthLayerId | null>(null);
+  const seenLayersRef = useRef<Set<string>>(new Set(["satellite"]));
+
+  // Live Open-Meteo Weather & 4-Day Forecast
+  const [weatherForecast, setWeatherForecast] = useState<MeteorologicalForecast>(() =>
+    generateDeterministicForecast(lat, lon),
+  );
+
+  useEffect(() => {
+    let active = true;
+    fetchMeteorologicalForecast(lat, lon).then((data) => {
+      if (active) setWeatherForecast(data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [lat, lon]);
+
+  const handleBasemapStyleChange = useCallback((newStyle: BasemapStyle) => {
+    setBasemapStyle(newStyle);
+    const atmosphericModes = [
+      "wind",
+      "temperature",
+      "humidity",
+      "pressure",
+      "precipitation",
+      "radar",
+    ];
+    if (atmosphericModes.includes(newStyle) && !seenLayersRef.current.has(newStyle)) {
+      seenLayersRef.current.add(newStyle);
+      setInfoModalLayerId(newStyle as ZoomEarthLayerId);
+      setShowLayerInfoModal(true);
+    }
+  }, []);
 
   // Zoom & LOD control state
   const [orbitalAltitude, setOrbitalAltitude] = useState(1.4);
@@ -738,11 +789,32 @@ export function GlobeViewport({
       `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
     let atmoColor = "#00e5ff";
 
-    if (basemapStyle === "dark") {
+    if (
+      basemapStyle === "dark" ||
+      basemapStyle === "wind" ||
+      basemapStyle === "humidity" ||
+      basemapStyle === "temperature" ||
+      basemapStyle === "precipitation" ||
+      basemapStyle === "radar"
+    ) {
       bgImg = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
       tileFn = (x: number, y: number, l: number) =>
         `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${l}/${y}/${x}`;
-      atmoColor = "#818cf8";
+      atmoColor =
+        basemapStyle === "wind"
+          ? "#a855f7"
+          : basemapStyle === "temperature"
+            ? "#f97316"
+            : basemapStyle === "humidity"
+              ? "#06b6d4"
+              : basemapStyle === "precipitation" || basemapStyle === "radar"
+                ? "#38bdf8"
+                : "#818cf8";
+    } else if (basemapStyle === "pressure") {
+      bgImg = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+      tileFn = (x: number, y: number, l: number) =>
+        `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${l}/${y}/${x}`;
+      atmoColor = "#38bdf8";
     } else if (basemapStyle === "terrain") {
       bgImg = "https://unpkg.com/three-globe/example/img/earth-topology.png";
       tileFn = (x: number, y: number, l: number) =>
@@ -919,7 +991,8 @@ export function GlobeViewport({
 
   // Multi-zoom Google Earth-style dynamic 4-Stage LOD place labels on 3D Orbital Globe
   const activePlaceLabels = useMemo(() => {
-    const isLight = basemapStyle === "terrain" || basemapStyle === "default";
+    const isLight =
+      basemapStyle === "terrain" || basemapStyle === "default" || basemapStyle === "pressure";
     const labels: GlobeHtmlMarkerItem[] = [];
 
     // Stage 1 — Global / Far Orbital View (altitude > 1.4):
@@ -1749,7 +1822,7 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
               <div className="cosmic-stars-3" />
             </div>
             <GlobeComponent
-              key={`globe-engine-${basemapStyle}-${showLabels}-${enable3dTerrain}`}
+              key={`globe-engine-${basemapStyle}-${basemapSubOption}-${showLabels}-${enable3dTerrain}`}
               ref={(inst: GlobeMethods | null) => {
                 globeRef.current = inst;
                 if (inst && typeof inst.pointOfView === "function") {
@@ -1781,7 +1854,12 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
               height={containerDimensions.height}
               backgroundColor="rgba(0,0,0,0)"
               globeImageUrl={
-                basemapStyle === "dark"
+                basemapStyle === "dark" ||
+                basemapStyle === "wind" ||
+                basemapStyle === "humidity" ||
+                basemapStyle === "temperature" ||
+                basemapStyle === "precipitation" ||
+                basemapStyle === "radar"
                   ? "https://unpkg.com/three-globe/example/img/earth-night.jpg"
                   : basemapStyle === "terrain"
                     ? "https://unpkg.com/three-globe/example/img/earth-topology.png"
@@ -1790,8 +1868,18 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
               bumpImageUrl="https://unpkg.com/three-globe/example/img/earth-topology.png"
               bumpScale={basemapStyle === "terrain" && enable3dTerrain ? 0.08 : 0.02}
               globeTileEngineUrl={(x: number, y: number, l: number) => {
-                if (basemapStyle === "dark") {
+                if (
+                  basemapStyle === "dark" ||
+                  basemapStyle === "wind" ||
+                  basemapStyle === "humidity" ||
+                  basemapStyle === "temperature" ||
+                  basemapStyle === "precipitation" ||
+                  basemapStyle === "radar"
+                ) {
                   return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${l}/${y}/${x}`;
+                }
+                if (basemapStyle === "pressure") {
+                  return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${l}/${y}/${x}`;
                 }
                 if (basemapStyle === "terrain") {
                   return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${l}/${y}/${x}`;
@@ -1803,13 +1891,19 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
               }}
               rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
               atmosphereColor={
-                basemapStyle === "dark"
-                  ? "#818cf8"
-                  : basemapStyle === "terrain"
-                    ? "#10b981"
-                    : basemapStyle === "default"
-                      ? "#38bdf8"
-                      : "#00e5ff"
+                basemapStyle === "wind"
+                  ? "#a855f7"
+                  : basemapStyle === "temperature"
+                    ? "#f97316"
+                    : basemapStyle === "humidity"
+                      ? "#06b6d4"
+                      : basemapStyle === "dark"
+                        ? "#818cf8"
+                        : basemapStyle === "terrain"
+                          ? "#10b981"
+                          : basemapStyle === "default"
+                            ? "#38bdf8"
+                            : "#00e5ff"
               }
               atmosphereAltitude={basemapStyle === "terrain" && enable3dTerrain ? 0.32 : 0.24}
               arcsData={orbitArcsData}
@@ -2059,13 +2153,20 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
             <LeafletComp.TileLayer
               key={`2d-base-${basemapStyle}`}
               url={
-                basemapStyle === "dark"
+                basemapStyle === "dark" ||
+                basemapStyle === "wind" ||
+                basemapStyle === "humidity" ||
+                basemapStyle === "temperature" ||
+                basemapStyle === "precipitation" ||
+                basemapStyle === "radar"
                   ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-                  : basemapStyle === "terrain"
-                    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
-                    : basemapStyle === "default"
-                      ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-                      : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  : basemapStyle === "pressure"
+                    ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                    : basemapStyle === "terrain"
+                      ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+                      : basemapStyle === "default"
+                        ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+                        : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               }
               maxZoom={18}
               attribution={
@@ -2078,6 +2179,17 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
                       : "Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
               }
             />
+
+            {/* Live Radar Reflectivity Layer in 2D */}
+            {basemapStyle === "radar" && (
+              <LeafletComp.TileLayer
+                key="2d-radar-reflectivity"
+                url="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GPM_3IMERGM_Precipitation/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png"
+                maxZoom={12}
+                zIndex={12}
+                opacity={0.8}
+              />
+            )}
 
             {/* Optional 100% Free Keyless ArcGIS Reference Place & Boundary Overlays */}
             {showLabels && (
@@ -2282,6 +2394,17 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
         (viewMode === "2d" && !LeafletComp)) &&
         graticuleGridFallback}
 
+      {/* ---------------- LIVE WEBGL / CANVAS METEOROLOGICAL OVERLAYS (WIND STREAMLINES, HEATMAPS, ISOBARS, RADAR) ---------------- */}
+      <MeteorologicalCanvasOverlay
+        activeLayer={basemapStyle as ZoomEarthLayerId}
+        activeSubLayer={basemapSubOption}
+        windStreamlinesActive={basemapStyle === "wind"}
+        centerLat={lat}
+        centerLon={lon}
+        zoomLevel={viewMode === "3d" ? 3 : gisZoom}
+        viewMode={viewMode}
+      />
+
       {/* ---------------- TOP-LEFT RETICLE BADGE ---------------- */}
       <div
         data-hud-overlay="reticle"
@@ -2322,6 +2445,56 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
           >
             {reading.value} {reading.unit}
           </span>
+        </div>
+
+        {/* 4-Day Adaptive Meteorological Mini-Forecast Strip */}
+        <div className="mt-2.5 pt-2 border-t border-cyan/20">
+          <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground uppercase mb-1">
+            <span className="flex items-center gap-1 text-slate-300 font-semibold">
+              <span>📅</span> 4-Day Forecast
+            </span>
+            <span className="text-cyan font-bold">
+              {basemapStyle === "temperature"
+                ? "MIN / MAX °C"
+                : basemapStyle === "wind"
+                  ? "MIN / GUSTS km/h"
+                  : basemapStyle === "pressure"
+                    ? "PRESSURE hPa"
+                    : basemapStyle === "precipitation" || basemapStyle === "radar"
+                      ? "RAIN mm"
+                      : basemapStyle === "humidity"
+                        ? "RH %"
+                        : "TEMP °C"}
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-1 text-center font-mono">
+            {(weatherForecast?.daily || []).map((day) => {
+              let displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
+              if (basemapStyle === "temperature") {
+                displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
+              } else if (basemapStyle === "wind") {
+                displayVal = `${Math.round(day.windSpeedMax)}/${Math.round(day.windGustsMax)}k`;
+              } else if (basemapStyle === "pressure") {
+                displayVal = `${day.pressure}`;
+              } else if (basemapStyle === "precipitation" || basemapStyle === "radar") {
+                displayVal = `${day.precipitationSum}mm`;
+              } else if (basemapStyle === "humidity") {
+                displayVal = `${Math.round(weatherForecast?.current?.relativeHumidity ?? 50)}%`;
+              }
+
+              return (
+                <div
+                  key={day.date}
+                  className="bg-black/40 rounded px-1 py-0.5 border border-cyan-500/20"
+                >
+                  <div className="text-[8.5px] text-slate-400 font-semibold">{day.label}</div>
+                  <div className="text-[9.5px] text-cyan-300 font-bold tracking-tight">
+                    {displayVal}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -2588,14 +2761,47 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
       {/* ---------------- FLOATING BASEMAP & TERRAIN SWITCHER (BOTTOM-LEFT ALIGNED) ---------------- */}
       <MapLayerSwitcher
         currentStyle={basemapStyle}
-        onStyleChange={setBasemapStyle}
+        onStyleChange={handleBasemapStyleChange}
+        activeSubOption={basemapSubOption}
+        onSubOptionChange={setBasemapSubOption}
+        onOpenInfoModal={(style) => {
+          setInfoModalLayerId(style as ZoomEarthLayerId);
+          setShowLayerInfoModal(true);
+        }}
         showLabels={showLabels}
         onToggleLabels={setShowLabels}
         enable3dTerrain={enable3dTerrain}
         onToggle3dTerrain={setEnable3dTerrain}
         viewMode={viewMode}
-        className="absolute left-3 bottom-3 z-20"
+        className="absolute left-3 bottom-3 z-30"
       />
+
+      {/* ---------------- DYNAMIC COLOR SCALE STRIP (AUTOMATICALLY ADAPTS TO METEOROLOGICAL BASEMAP) ---------------- */}
+      {(basemapStyle === "wind" ||
+        basemapStyle === "temperature" ||
+        basemapStyle === "humidity" ||
+        basemapStyle === "pressure" ||
+        basemapStyle === "precipitation" ||
+        basemapStyle === "radar") && (
+        <DynamicColorScaleBar
+          activeLayer={basemapStyle as ZoomEarthLayerId}
+          activeSubLayer={basemapSubOption}
+          hoverValue={
+            basemapStyle === "wind"
+              ? weatherForecast?.current?.windSpeed
+              : basemapStyle === "temperature"
+                ? weatherForecast?.current?.temperature
+                : basemapStyle === "humidity"
+                  ? basemapSubOption === "hum_wetbulb"
+                    ? weatherForecast?.current?.wetBulb
+                    : weatherForecast?.current?.relativeHumidity
+                  : basemapStyle === "pressure"
+                    ? weatherForecast?.current?.pressure
+                    : weatherForecast?.current?.precipitation
+          }
+          className="absolute left-3 bottom-14 sm:bottom-3 sm:left-[116px] z-20"
+        />
+      )}
 
       {/* ---------------- UNIFIED 2-TIER BOTTOM TELEMETRY DOCK ---------------- */}
       <div
@@ -2738,6 +2944,14 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
           </AnimatedBackground>
         </div>
       </div>
+
+      {/* ---------------- CENTER LAYER EXPLANATION MODAL (WITH BLUE "OK" BUTTON) ---------------- */}
+      <LayerInfoModal
+        layerId={infoModalLayerId}
+        subLayerId={basemapSubOption}
+        open={showLayerInfoModal}
+        onClose={() => setShowLayerInfoModal(false)}
+      />
     </div>
   );
 }
