@@ -7,6 +7,8 @@ import {
   processIncomingAuthCallback,
   getGoogleClientId,
   setLocalGoogleClientId,
+  getSupabaseUrl,
+  setLocalSupabaseCredentials,
   type OAuthProvider,
 } from "@/services/authService";
 
@@ -299,6 +301,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [inputGoogleClientId, setInputGoogleClientId] = useState<string>(
     () => getGoogleClientId() || "",
   );
+  const [inputSupabaseUrl, setInputSupabaseUrl] = useState<string>(
+    () => getSupabaseUrl() || "",
+  );
+  const [inputSupabaseAnonKey, setInputSupabaseAnonKey] = useState<string>("");
   const [sendingEmail, setSendingEmail] = useState<boolean>(false);
   const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
   const [resendTimer, setResendTimer] = useState<number>(0);
@@ -343,6 +349,21 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     return () => clearInterval(timer);
   }, [step, expireTimer]);
 
+  // Tab-switching handler: immediately resets/clears active error and setup notice states
+  const handleTabSwitch = (newMode: "signin" | "signup") => {
+    setAuthMode(newMode);
+    setConfigError("");
+    setOtpError("");
+    setLoadingOAuth(null);
+    setSendingEmail(false);
+  };
+
+  // Clear any active error state whenever authMode changes
+  useEffect(() => {
+    setConfigError("");
+    setOtpError("");
+  }, [authMode]);
+
   // Direct Social OAuth Login (Google, Microsoft, Apple)
   // Real Google Sign-In with official Google Identity Services / Supabase OAuth popup
   // NEVER transitions to OTP screen, NEVER displays random OTP
@@ -350,7 +371,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setConfigError("");
     setLoadingOAuth(provider);
     try {
-      const result = await initiateOAuthLogin(provider);
+      const result =
+        authMode === "signin"
+          ? await initiateOAuthLogin(provider)
+          : await initiateOAuthLogin(provider, undefined, "signup");
       setLoadingOAuth(null);
 
       if (!result.success) {
@@ -543,10 +567,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             {configError.includes("sign up") && authMode === "signin" && (
               <button
                 type="button"
-                onClick={() => {
-                  setAuthMode("signup");
-                  setConfigError("");
-                }}
+                onClick={() => handleTabSwitch("signup")}
                 className="mt-2.5 inline-flex items-center gap-1 font-semibold text-cyan-300 underline hover:text-cyan-200 cursor-pointer"
               >
                 Click here to Create an Account →
@@ -582,6 +603,45 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 </div>
               </div>
             )}
+
+            {(configError.includes("VITE_SUPABASE") || configError.includes("Supabase")) && (
+              <div className="mt-3 pt-3 border-t border-rose-500/20">
+                <p className="text-[11px] text-slate-300 mb-2">
+                  Or enter your Supabase credentials to activate full cloud authentication:
+                </p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="https://your-project.supabase.co"
+                    value={inputSupabaseUrl}
+                    onChange={(e) => setInputSupabaseUrl(e.target.value)}
+                    className="w-full rounded-xl border border-white/20 bg-slate-900/90 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none font-mono"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="eyJhbGciOi... (Supabase Anon Key)"
+                      value={inputSupabaseAnonKey}
+                      onChange={(e) => setInputSupabaseAnonKey(e.target.value)}
+                      className="flex-1 rounded-xl border border-white/20 bg-slate-900/90 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (inputSupabaseUrl.trim() && inputSupabaseAnonKey.trim()) {
+                          setLocalSupabaseCredentials(inputSupabaseUrl.trim(), inputSupabaseAnonKey.trim());
+                          setConfigError("");
+                          window.location.reload();
+                        }
+                      }}
+                      className="rounded-xl bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 cursor-pointer shadow"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -591,11 +651,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-900/90 p-1 border border-white/10">
               <button
                 type="button"
-                onClick={() => {
-                  setAuthMode("signin");
-                  setConfigError("");
-                  setOtpError("");
-                }}
+                onClick={() => handleTabSwitch("signin")}
                 className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
                   authMode === "signin"
                     ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
@@ -606,11 +662,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setAuthMode("signup");
-                  setConfigError("");
-                  setOtpError("");
-                }}
+                onClick={() => handleTabSwitch("signup")}
                 className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
                   authMode === "signup"
                     ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
