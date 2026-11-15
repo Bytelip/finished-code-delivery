@@ -50,6 +50,8 @@ import {
   Play,
   Pause,
   Satellite,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -532,6 +534,7 @@ export interface GlobeViewportProps {
   onOpacity: (o: number) => void;
   onPick: (lat: number, lon: number) => void;
   initialBasemapStyle?: BasemapStyle;
+  onInteraction?: () => void;
 }
 
 export function GlobeViewport({
@@ -542,6 +545,7 @@ export function GlobeViewport({
   onOpacity,
   onPick,
   initialBasemapStyle,
+  onInteraction,
 }: GlobeViewportProps) {
   const { lat, lon } = telemetry.input;
   const { meta, hazards } = telemetry;
@@ -558,6 +562,23 @@ export function GlobeViewport({
   );
   const [leafletModule, setLeafletModule] = useState<LeafletBundle | null>(null);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
+
+  // HUD Card Minimization States
+  const [isReticleMinimized, setIsReticleMinimized] = useState(false);
+  const [isDockMinimized, setIsDockMinimized] = useState(false);
+
+  // Keyboard shortcut listener for 'L' (Toggle Telemetry Dock)
+  useEffect(() => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key.toLowerCase() === "l" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsDockMinimized((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Basemap & Layer Switcher State (Zoom Earth Meteorological Modes)
   const [basemapStyle, setBasemapStyle] = useState<BasemapStyle>(
@@ -1009,13 +1030,19 @@ export function GlobeViewport({
         });
       }
       for (const o of STAGE1_MAJOR_OCEANS) {
-        labels.push({
-          id: o.id,
-          lat: o.lat,
-          lng: o.lng,
-          priority: 3,
-          html: renderOceanHtml(o.text, isLight),
-        });
+        const camLat = lastPovRef.current?.lat ?? lat;
+        const camLng = lastPovRef.current?.lng ?? lon;
+        const angDist = getAngularDistanceDeg(o.lat, o.lng, camLat, camLng);
+        // Large Ocean labels cull at 52° from camera center so PACIFIC OCEAN never projects over Asia/India
+        if (angDist <= 52) {
+          labels.push({
+            id: o.id,
+            lat: o.lat,
+            lng: o.lng,
+            priority: 3,
+            html: renderOceanHtml(o.text, isLight),
+          });
+        }
       }
       return labels;
     }
@@ -1201,10 +1228,15 @@ export function GlobeViewport({
       const labelLat = Number(label.dataset.lat);
       const labelLng = Number(label.dataset.lng);
 
-      // Back-hemisphere occlusion check: if label is > 75° away from camera center, hide immediately
+      // Back-hemisphere occlusion check: if label is > 75° (or > 52° for oceans) away from camera center, hide immediately
       if (priority > 1 && !isNaN(labelLat) && !isNaN(labelLng)) {
         const angDist = getAngularDistanceDeg(labelLat, labelLng, camLat, camLng);
-        if (angDist > 75) {
+        const isOcean =
+          label.dataset.labelId?.startsWith("oc-") ||
+          label.innerText?.includes("OCEAN") ||
+          label.innerText?.includes("SEA");
+        const maxAngle = isOcean ? 52 : 75;
+        if (angDist > maxAngle) {
           label.style.display = "none";
           label.style.opacity = "0";
           label.style.pointerEvents = "none";
@@ -1776,7 +1808,8 @@ export function GlobeViewport({
       data-lat={lat}
       data-lon={lon}
       data-layer={activeLayer}
-      className="relative w-full h-[640px] lg:h-[680px] rounded-2xl border border-cyan-500/25 bg-[#03060d] overflow-hidden select-none shadow-[0_0_35px_rgba(0,0,0,0.8),inset_0_0_50px_rgba(0,240,255,0.05)] mb-6"
+      onPointerDown={() => onInteraction?.()}
+      className="relative w-full h-[calc(100vh-140px)] min-h-[580px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
     >
       {/* Ambient Radiant Orbital Glows (Google Stitch) */}
       <div
@@ -1787,18 +1820,6 @@ export function GlobeViewport({
         aria-hidden="true"
         className="pointer-events-none absolute -bottom-32 -right-32 size-96 rounded-full bg-emerald-500/10 blur-[130px] z-10"
       />
-
-      {/* Top Flight HUD Overlay Chips (Google Stitch Global Observatory) */}
-      <div className="pointer-events-none absolute top-3.5 left-4 z-20 hidden md:flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0b0f19]/80 border border-white/10 backdrop-blur-md shadow-lg text-[10px] font-mono text-amber-300">
-          <Satellite className="size-3 text-amber-400" />
-          <span>ORBITAL PASS: LANDSAT-9 T-00:14:22</span>
-        </div>
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0b0f19]/80 border border-white/10 backdrop-blur-md shadow-lg text-[10px] font-mono text-cyan-300">
-          <GlobeIcon className="size-3 text-cyan-400" />
-          <span>RES: 10m/px MULTISPECTRAL</span>
-        </div>
-      </div>
 
       {/* Aerospace Tactical Corner Frame Ticks & Animated Sci-Fi Reticle */}
       <div className="pointer-events-none absolute inset-0 z-10 border border-cyan/25">
@@ -2118,31 +2139,6 @@ export function GlobeViewport({
         </SafeGlobeErrorBoundary>
       ) : null}
 
-      {/* ---------------- TOP-CENTER ZOOM STAGE INDICATOR PILL ---------------- */}
-      <div
-        data-hud-overlay="zoom-stage-pill"
-        className="pointer-events-none absolute top-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none transition-all duration-300"
-      >
-        <span
-          className="size-2 rounded-full animate-pulse"
-          style={{ background: zoomStageInfo.color, boxShadow: `0 0 8px ${zoomStageInfo.color}` }}
-        />
-        <span
-          className={cn(
-            "rounded px-1.5 py-0.5 text-[9px] font-bold border tracking-wider uppercase",
-            zoomStageInfo.badgeColor,
-          )}
-        >
-          {zoomStageInfo.stage}
-        </span>
-        <span className="font-semibold text-slate-200 tracking-wide text-[11px]">
-          {zoomStageInfo.label}
-        </span>
-        <span className="text-[10px] text-muted-foreground tabular-nums">
-          ({zoomStageInfo.detail})
-        </span>
-      </div>
-
       {/* ---------------- TARGET LOCKED RETICLE BANNER OVERLAY ---------------- */}
       {targetLockedBanner.visible && (
         <div className="pointer-events-none absolute top-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-cyan-400/60 bg-slate-950/90 px-4 py-1 backdrop-blur-xl shadow-[0_0_25px_rgba(34,211,238,0.45)] text-xs font-mono animate-in fade-in zoom-in-95 duration-200">
@@ -2426,166 +2422,201 @@ export function GlobeViewport({
         viewMode={viewMode}
       />
 
-      {/* ---------------- TOP-LEFT RETICLE BADGE ---------------- */}
-      <div
-        data-hud-overlay="reticle"
-        className="hud-card pointer-events-none absolute left-3.5 top-3.5 w-68 p-3.5 z-20 backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)]"
-      >
-        <div className="flex items-center gap-2 border-b border-cyan/20 pb-2">
-          <Radar className="size-3.5 text-cyan animate-spin" style={{ animationDuration: "8s" }} />
-          <span className="hud-label font-bold text-cyan/90 text-[10px]">Target Reticle Lock</span>
-          <span className="ml-auto size-2 rounded-full bg-emerald shadow-[0_0_8px_#00ff9d] animate-pulse" />
-        </div>
-        <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5 font-mono text-[11px]">
-          <span className="text-muted-foreground/80 font-medium">LATITUDE</span>
-          <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
-            {formatCoord(lat, "lat")}
-          </span>
-          <span className="text-muted-foreground/80 font-medium">LONGITUDE</span>
-          <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
-            {formatCoord(lon, "lon")}
-          </span>
-          <span className="text-muted-foreground/80 font-medium">ELEVATION</span>
-          <span className="text-right tabular-nums font-semibold">{meta.elevationM} m ASL</span>
-          <span className="text-muted-foreground/80 font-medium">PASS</span>
-          <span className="text-right text-emerald font-semibold truncate">
-            {meta.satellitePass}
-          </span>
-          <span className="text-muted-foreground/80 font-medium">NEXT WINDOW</span>
-          <span className="text-right tabular-nums text-amber font-semibold">
-            T-{meta.nextPassMin} min
-          </span>
-        </div>
-
-        {/* Integrated Sensor Metric Readout in Reticle Card */}
-        <div className="mt-2.5 pt-2 border-t border-cyan/20 flex items-center justify-between text-xs font-mono">
-          <span className="text-cyan font-bold">{activeLayer}</span>
-          <span
-            className="font-extrabold tabular-nums drop-shadow-[0_0_8px_currentColor]"
-            style={{ color: tone }}
-          >
-            {reading.value} {reading.unit}
-          </span>
-        </div>
-
-        {/* 4-Day Adaptive Meteorological Mini-Forecast Strip */}
-        <div className="mt-2.5 pt-2 border-t border-cyan/20">
-          <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground uppercase mb-1">
-            <span className="flex items-center gap-1 text-slate-300 font-semibold">
-              <span>📅</span> 4-Day Forecast
-            </span>
-            <span className="text-cyan font-bold">
-              {basemapStyle === "temperature"
-                ? "MIN / MAX °C"
-                : basemapStyle === "wind"
-                  ? "MIN / GUSTS km/h"
-                  : basemapStyle === "pressure"
-                    ? "PRESSURE hPa"
-                    : basemapStyle === "precipitation" || basemapStyle === "radar"
-                      ? "RAIN mm"
-                      : basemapStyle === "humidity"
-                        ? "RH %"
-                        : "TEMP °C"}
-            </span>
-          </div>
-          <div className="grid grid-cols-4 gap-1 text-center font-mono">
-            {(weatherForecast?.daily || []).map((day) => {
-              let displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
-              if (basemapStyle === "temperature") {
-                displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
-              } else if (basemapStyle === "wind") {
-                displayVal = `${Math.round(day.windSpeedMax)}/${Math.round(day.windGustsMax)}k`;
-              } else if (basemapStyle === "pressure") {
-                displayVal = `${day.pressure}`;
-              } else if (basemapStyle === "precipitation" || basemapStyle === "radar") {
-                displayVal = `${day.precipitationSum}mm`;
-              } else if (basemapStyle === "humidity") {
-                displayVal = `${Math.round(weatherForecast?.current?.relativeHumidity ?? 50)}%`;
-              }
-
-              return (
-                <div
-                  key={day.date}
-                  className="bg-black/40 rounded px-1 py-0.5 border border-cyan-500/20"
-                >
-                  <div className="text-[8.5px] text-slate-400 font-semibold">{day.label}</div>
-                  <div className="text-[9.5px] text-cyan-300 font-bold tracking-tight">
-                    {displayVal}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- TOP-RIGHT 3D/2D VIEW SWITCHER ---------------- */}
-      <div className="absolute right-4 top-3.5 z-20 flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)]">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={!webGLSupported}
-          title={
-            webGLSupported
-              ? "3D Orbital Globe View"
-              : "3D WebGL is unavailable in your browser environment"
-          }
-          className={cn(
-            "h-7 px-3 font-mono text-xs transition-all",
-            viewMode === "3d"
-              ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-              : "text-muted-foreground hover:text-foreground",
-            !webGLSupported && "opacity-50 cursor-not-allowed",
-          )}
-          onClick={handleSwitchTo3D}
-        >
-          <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 3D
-          Orbital
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className={cn(
-            "h-7 px-3 font-mono text-xs transition-all",
-            viewMode === "2d"
-              ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          onClick={handleSwitchTo2D}
-        >
-          <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 2D Field
-          GIS
-        </Button>
-      </div>
-
-      {/* ---------------- ACTIVE SENSOR METRIC READOUT CARD (POSITIONED LEFT OF ZOOM BAR) ---------------- */}
-      <div
-        data-hud-overlay="layer-readout"
-        className="hud-card pointer-events-none absolute right-20 top-20 w-52 p-3 text-right backdrop-blur-xl bg-background/90 border border-cyan/40 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] z-20"
-      >
-        <div className="flex items-center justify-end gap-1.5 border-b border-cyan/20 pb-1.5">
-          <Radio className="size-3 text-emerald animate-pulse drop-shadow-[0_0_6px_#00ff9d]" />
-          <span className="hud-label font-bold text-foreground">{activeLayer}</span>
-        </div>
+      {/* ---------------- TOP UNIFIED HUD CONTROL HEADER ROW (ZERO COLLISION FLEXBOX) ---------------- */}
+      <div className="absolute top-3 inset-x-3 flex items-start justify-between pointer-events-none z-20 gap-2">
+        {/* Left: TARGET RETICLE LOCK CARD */}
         <div
-          className="mt-1.5 font-mono text-3xl font-extrabold tabular-nums tracking-tight"
-          style={{ color: tone, textShadow: `0 0 14px ${tone}` }}
+          data-hud-overlay="reticle"
+          className={cn(
+            "hud-card pointer-events-auto backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl transition-all",
+            isReticleMinimized ? "w-52 p-2" : "w-64 p-3"
+          )}
         >
-          {reading.value}
-        </div>
-        <div className="font-mono text-[10px] text-muted-foreground/80 font-medium">
-          {reading.unit}
-        </div>
-        <div className="mt-1 font-mono text-[9px] text-cyan/80 truncate">
-          GIBS: {activeSatelliteConfig.gibsLayerName}
-        </div>
-        {hover && (
-          <div className="mt-2 border-t border-border/50 pt-1 font-mono text-[10px] text-muted-foreground">
-            cursor {hover.lat.toFixed(2)}°, {hover.lon.toFixed(2)}°
+          <div className="flex items-center gap-2 border-b border-cyan/20 pb-1.5">
+            <Radar className="size-3.5 text-cyan animate-spin shrink-0" style={{ animationDuration: "8s" }} />
+            <span className="hud-label font-bold text-cyan/90 text-[10px] truncate">Target Reticle Lock</span>
+            <span className="ml-auto size-2 rounded-full bg-emerald shadow-[0_0_8px_#00ff9d] animate-pulse shrink-0" />
+            <button
+              type="button"
+              onClick={() => setIsReticleMinimized((prev) => !prev)}
+              className="p-0.5 rounded text-white/50 hover:text-cyan hover:bg-white/10 cursor-pointer ml-1 shrink-0"
+              title={isReticleMinimized ? "Expand Target Reticle" : "Minimize Target Reticle"}
+            >
+              {isReticleMinimized ? <Plus className="size-3" /> : <Minus className="size-3" />}
+            </button>
           </div>
-        )}
+          {!isReticleMinimized ? (
+            <>
+              <div className="mt-2 grid grid-cols-2 gap-x-2.5 gap-y-1 font-mono text-[10.5px]">
+                <span className="text-muted-foreground/80 font-medium">LATITUDE</span>
+                <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
+                  {formatCoord(lat, "lat")}
+                </span>
+                <span className="text-muted-foreground/80 font-medium">LONGITUDE</span>
+                <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
+                  {formatCoord(lon, "lon")}
+                </span>
+                <span className="text-muted-foreground/80 font-medium">ELEVATION</span>
+                <span className="text-right tabular-nums font-semibold">{meta.elevationM} m ASL</span>
+                <span className="text-muted-foreground/80 font-medium">PASS</span>
+                <span className="text-right text-emerald font-semibold truncate">
+                  {meta.satellitePass}
+                </span>
+                <span className="text-muted-foreground/80 font-medium">NEXT WINDOW</span>
+                <span className="text-right tabular-nums text-amber font-semibold">
+                  T-{meta.nextPassMin} min
+                </span>
+              </div>
+
+              {/* Integrated Sensor Metric Readout in Reticle Card (data-hud-overlay="layer-readout") */}
+              <div
+                data-hud-overlay="layer-readout"
+                className="mt-2 pt-1.5 border-t border-cyan/20 flex items-center justify-between text-xs font-mono"
+              >
+                <span className="text-cyan font-bold">{activeLayer}</span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="font-extrabold tabular-nums drop-shadow-[0_0_8px_currentColor]"
+                    style={{ color: tone }}
+                  >
+                    {reading.value} {reading.unit}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground font-mono">
+                    [{activeSatelliteConfig.sensorName}]
+                  </span>
+                </div>
+              </div>
+
+              {/* 4-Day Adaptive Meteorological Mini-Forecast Strip */}
+              <div className="mt-2 pt-1.5 border-t border-cyan/20">
+                <div className="flex items-center justify-between text-[8.5px] font-mono text-muted-foreground uppercase mb-1">
+                  <span className="flex items-center gap-1 text-slate-300 font-semibold">
+                    <span>📅</span> 4-Day Forecast
+                  </span>
+                  <span className="text-cyan font-bold">
+                    {basemapStyle === "temperature"
+                      ? "MIN / MAX °C"
+                      : basemapStyle === "wind"
+                        ? "MIN / GUSTS km/h"
+                        : basemapStyle === "pressure"
+                          ? "PRESSURE hPa"
+                          : basemapStyle === "precipitation" || basemapStyle === "radar"
+                            ? "RAIN mm"
+                            : basemapStyle === "humidity"
+                              ? "RH %"
+                              : "TEMP °C"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1 text-center font-mono">
+                  {(weatherForecast?.daily || []).map((day) => {
+                    let displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
+                    if (basemapStyle === "temperature") {
+                      displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
+                    } else if (basemapStyle === "wind") {
+                      displayVal = `${Math.round(day.windSpeedMax)}/${Math.round(day.windGustsMax)}k`;
+                    } else if (basemapStyle === "pressure") {
+                      displayVal = `${day.pressure}`;
+                    } else if (basemapStyle === "precipitation" || basemapStyle === "radar") {
+                      displayVal = `${day.precipitationSum}mm`;
+                    } else if (basemapStyle === "humidity") {
+                      displayVal = `${Math.round(weatherForecast?.current?.relativeHumidity ?? 50)}%`;
+                    }
+
+                    return (
+                      <div
+                        key={day.date}
+                        className="bg-black/40 rounded px-1 py-0.5 border border-cyan-500/20"
+                      >
+                        <div className="text-[8px] text-slate-400 font-semibold">{day.label}</div>
+                        <div className="text-[9px] text-cyan-300 font-bold tracking-tight">
+                          {displayVal}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div
+              data-hud-overlay="layer-readout"
+              className="mt-1 pt-1 flex items-center justify-between text-[11px] font-mono"
+            >
+              <span className="text-cyan font-semibold">
+                {lat.toFixed(2)}°, {lon.toFixed(2)}°
+              </span>
+              <span className="font-bold text-emerald-400">
+                {reading.value} {reading.unit}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Center: STAGE 1 ORBITAL VIEW PILL */}
+        <div
+          data-hud-overlay="zoom-stage-pill"
+          className="pointer-events-auto hidden sm:flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none whitespace-nowrap transition-all duration-300 shrink-0"
+        >
+          <span
+            className="size-2 rounded-full animate-pulse shrink-0"
+            style={{ background: zoomStageInfo.color, boxShadow: `0 0 8px ${zoomStageInfo.color}` }}
+          />
+          <span
+            className={cn(
+              "rounded px-1.5 py-0.5 text-[9px] font-bold border tracking-wider uppercase",
+              zoomStageInfo.badgeColor,
+            )}
+          >
+            {zoomStageInfo.stage}
+          </span>
+          <span className="font-semibold text-slate-200 tracking-wide text-[11px]">
+            {zoomStageInfo.label}
+          </span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            ({zoomStageInfo.detail})
+          </span>
+        </div>
+
+        {/* Right: 3D ORBITAL | 2D FIELD GIS TOGGLE */}
+        <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!webGLSupported}
+            title={
+              webGLSupported
+                ? "3D Orbital Globe View"
+                : "3D WebGL is unavailable in your browser environment"
+            }
+            className={cn(
+              "h-7 px-3 font-mono text-xs transition-all",
+              viewMode === "3d"
+                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
+                : "text-muted-foreground hover:text-foreground",
+              !webGLSupported && "opacity-50 cursor-not-allowed",
+            )}
+            onClick={handleSwitchTo3D}
+          >
+            <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 3D
+            Orbital
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className={cn(
+              "h-7 px-3 font-mono text-xs transition-all",
+              viewMode === "2d"
+                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={handleSwitchTo2D}
+          >
+            <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 2D Field
+            GIS
+          </Button>
+        </div>
       </div>
 
       {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}
@@ -2829,140 +2860,184 @@ export function GlobeViewport({
         data-hud-overlay="layer-switcher"
         className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-[calc(100%-260px)] w-auto pointer-events-auto select-none py-1 px-3"
       >
-        {/* Tier 1: Upper Slim Row (Compact Legend + Temporal Controls in ONE line, max height 38px) */}
-        <div className="h-[38px] max-h-[38px] py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/92 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2.5 sm:gap-3 text-xs font-mono">
-          {/* Left Side: Active Sensor + Compact Gradient + Field Reading + Glow */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <div className="flex items-center gap-1.5 font-bold text-cyan">
-              <Radio className="size-3 text-emerald animate-pulse shrink-0" />
-              <span className="truncate max-w-24 sm:max-w-36">
-                {activeSatelliteConfig.sensorName}
-              </span>
-            </div>
-
-            <div className="hidden md:flex items-center gap-1 shrink-0">
-              <span className="text-[9px] text-muted-foreground font-mono">
-                {activeSatelliteConfig.colorRamp.minLabel}
-              </span>
-              <div
-                className="h-1.5 w-14 sm:w-20 rounded-full border border-white/10 shadow-inner"
-                style={{ background: activeSatelliteConfig.colorRamp.gradient }}
-              />
-              <span className="text-[9px] text-muted-foreground font-mono">
-                {activeSatelliteConfig.colorRamp.maxLabel}
-              </span>
-            </div>
-
-            <span className="px-1.5 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/40 text-cyan text-[10px] tabular-nums shrink-0">
-              FIELD: {temporalReadingValue} {reading.unit}
+        {/* Minimized Compact Floating Capsule Pill */}
+        {isDockMinimized && (
+          <button
+            type="button"
+            onClick={() => setIsDockMinimized(false)}
+            className="h-9 px-4 rounded-full bg-[#0a0f1d]/90 backdrop-blur-2xl border border-white/20 text-cyan-200 font-mono text-xs flex items-center gap-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.85)] hover:border-cyan-400/60 hover:bg-[#0f172a]/95 transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-200"
+            title="Open Orbital Layers Dock (L)"
+          >
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
+            <span className="font-semibold text-white">
+              {activeLayer}: {temporalReadingValue} {reading.unit}
             </span>
+            <span className="text-white/30">•</span>
+            <span className="text-cyan-300 font-medium">{currentTemporal.dateLabel}</span>
+            <span className="text-white/30">•</span>
+            <span className="text-cyan-400 font-bold flex items-center gap-1">
+              <ChevronUp className="size-3.5" /> Open Orbital Layers
+            </span>
+            <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-black/50 border border-white/10 text-[9px] text-white/50 font-sans">
+              L
+            </kbd>
+          </button>
+        )}
 
-            <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-              <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
-              <Slider
-                aria-label="Layer opacity"
-                className="w-14 sm:w-16"
-                min={0}
-                max={100}
-                step={1}
-                value={[opacity]}
-                onValueChange={([v]) => v !== undefined && onOpacity(v)}
-              />
-              <span className="text-[10px] text-cyan tabular-nums w-7 text-right font-bold">
-                {opacity}%
+        <div
+          className={cn(
+            "transition-all duration-300 flex flex-col items-center gap-1.5",
+            isDockMinimized
+              ? "max-h-0 opacity-0 pointer-events-none overflow-hidden scale-95"
+              : "max-h-[220px] opacity-100 scale-100"
+          )}
+        >
+          {/* Tier 1: Upper Slim Row (Compact Legend + Temporal Controls in ONE line, max height 38px) */}
+          <div className="h-[38px] max-h-[38px] py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/92 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2.5 sm:gap-3 text-xs font-mono">
+            {/* Left Side: Active Sensor + Compact Gradient + Field Reading + Glow */}
+            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+              <div className="flex items-center gap-1.5 font-bold text-cyan">
+                <Radio className="size-3 text-emerald animate-pulse shrink-0" />
+                <span className="truncate max-w-24 sm:max-w-36">
+                  {activeSatelliteConfig.sensorName}
+                </span>
+              </div>
+
+              <div className="hidden md:flex items-center gap-1 shrink-0">
+                <span className="text-[9px] text-muted-foreground font-mono">
+                  {activeSatelliteConfig.colorRamp.minLabel}
+                </span>
+                <div
+                  className="h-1.5 w-14 sm:w-20 rounded-full border border-white/10 shadow-inner"
+                  style={{ background: activeSatelliteConfig.colorRamp.gradient }}
+                />
+                <span className="text-[9px] text-muted-foreground font-mono">
+                  {activeSatelliteConfig.colorRamp.maxLabel}
+                </span>
+              </div>
+
+              <span className="px-1.5 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/40 text-cyan text-[10px] tabular-nums shrink-0">
+                FIELD: {temporalReadingValue} {reading.unit}
               </span>
+
+              <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
+                <Slider
+                  aria-label="Layer opacity"
+                  className="w-14 sm:w-16"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[opacity]}
+                  onValueChange={([v]) => v !== undefined && onOpacity(v)}
+                />
+                <span className="text-[10px] text-cyan tabular-nums w-7 text-right font-bold">
+                  {opacity}%
+                </span>
+              </div>
+            </div>
+
+            {/* 1px Vertical Divider */}
+            <div className="h-4 w-px bg-cyan-500/30 shrink-0" />
+
+            {/* Right Side: Play button, date label, compact step pills, and Minimize button */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsPlayingTimeline((p) => !p)}
+                className={`size-6 flex items-center justify-center rounded border transition-all cursor-pointer ${
+                  isPlayingTimeline
+                    ? "bg-cyan-500/30 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
+                    : "bg-white/5 text-slate-300 border-white/10 hover:text-white hover:bg-white/10"
+                }`}
+                title={isPlayingTimeline ? "Pause Time-Machine" : "Play Time-Machine"}
+              >
+                {isPlayingTimeline ? (
+                  <Pause className="size-2.5" />
+                ) : (
+                  <Play className="size-2.5 fill-current ml-0.5" />
+                )}
+              </button>
+
+              <span className="text-[9.5px] text-cyan-100 font-semibold px-2 py-0.5 rounded bg-black/60 border border-cyan-500/30 whitespace-nowrap">
+                {currentTemporal.dateLabel}
+              </span>
+
+              <div className="flex items-center gap-1">
+                {TEMPORAL_STEPS.map((step, idx) => {
+                  const isCur = temporalIdx === idx;
+                  return (
+                    <button
+                      key={step.id}
+                      type="button"
+                      onClick={() => setTemporalIdx(idx)}
+                      className={`px-1.5 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer ${
+                        isCur
+                          ? "bg-cyan-500/25 text-cyan-300 border border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.3)] font-bold"
+                          : "bg-black/30 text-muted-foreground border border-white/5 hover:text-slate-200"
+                      }`}
+                    >
+                      {step.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Minimize Dock Button */}
+              <button
+                type="button"
+                onClick={() => setIsDockMinimized(true)}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[9.5px] font-mono text-slate-300 hover:text-white cursor-pointer ml-1"
+                title="Minimize Telemetry Dock (L)"
+              >
+                <ChevronDown className="size-3 text-cyan-400" />
+                <span className="hidden sm:inline">Minimize</span>
+              </button>
             </div>
           </div>
 
-          {/* 1px Vertical Divider */}
-          <div className="h-4 w-px bg-cyan-500/30 shrink-0" />
-
-          {/* Right Side: Play button, date label, and compact step pills */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsPlayingTimeline((p) => !p)}
-              className={`size-6 flex items-center justify-center rounded border transition-all cursor-pointer ${
-                isPlayingTimeline
-                  ? "bg-cyan-500/30 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
-                  : "bg-white/5 text-slate-300 border-white/10 hover:text-white hover:bg-white/10"
-              }`}
-              title={isPlayingTimeline ? "Pause Time-Machine" : "Play Time-Machine"}
+          {/* Tier 2: Lower Slim Row (The 8 NASA Layer Pills with AnimatedBackground) */}
+          <div
+            role="radiogroup"
+            aria-label="Map layer"
+            className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-[calc(100vw-2rem)]"
+          >
+            <AnimatedBackground
+              defaultValue={activeLayer}
+              className="rounded-full bg-cyan-500/15 border border-cyan-400/50 shadow-[0_0_16px_rgba(34,211,238,0.3)]"
+              transition={{
+                type: "spring",
+                bounce: 0.2,
+                duration: 0.3,
+              }}
+              enableHover
             >
-              {isPlayingTimeline ? (
-                <Pause className="size-2.5" />
-              ) : (
-                <Play className="size-2.5 fill-current ml-0.5" />
-              )}
-            </button>
-
-            <span className="text-[9.5px] text-cyan-100 font-semibold px-2 py-0.5 rounded bg-black/60 border border-cyan-500/30 whitespace-nowrap">
-              {currentTemporal.dateLabel}
-            </span>
-
-            <div className="flex items-center gap-1">
-              {TEMPORAL_STEPS.map((step, idx) => {
-                const isCur = temporalIdx === idx;
+              {TELEMETRY_TABS.map((tab) => {
+                const isSelected = activeLayer === tab;
                 return (
                   <button
-                    key={step.id}
+                    key={tab}
+                    data-id={tab}
                     type="button"
-                    onClick={() => setTemporalIdx(idx)}
-                    className={`px-1.5 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer ${
-                      isCur
-                        ? "bg-cyan-500/25 text-cyan-300 border border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.3)] font-bold"
-                        : "bg-black/30 text-muted-foreground border border-white/5 hover:text-slate-200"
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={tab}
+                    onClick={() => onLayer(tab)}
+                    className={`px-3 py-1 font-mono text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
+                        : "text-slate-400 hover:text-cyan-100 border border-white/5"
                     }`}
                   >
-                    {step.label}
+                    {isSelected && (
+                      <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee] animate-pulse" />
+                    )}
+                    <span>{tab}</span>
                   </button>
                 );
               })}
-            </div>
+            </AnimatedBackground>
           </div>
-        </div>
-
-        {/* Tier 2: Lower Slim Row (The 8 NASA Layer Pills with AnimatedBackground) */}
-        <div
-          role="radiogroup"
-          aria-label="Map layer"
-          className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-[calc(100vw-2rem)]"
-        >
-          <AnimatedBackground
-            defaultValue={activeLayer}
-            className="rounded-full bg-cyan-500/15 border border-cyan-400/50 shadow-[0_0_16px_rgba(34,211,238,0.3)]"
-            transition={{
-              type: "spring",
-              bounce: 0.2,
-              duration: 0.3,
-            }}
-            enableHover
-          >
-            {TELEMETRY_TABS.map((tab) => {
-              const isSelected = activeLayer === tab;
-              return (
-                <button
-                  key={tab}
-                  data-id={tab}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  aria-label={tab}
-                  onClick={() => onLayer(tab)}
-                  className={`px-3 py-1 font-mono text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
-                    isSelected
-                      ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
-                      : "text-slate-400 hover:text-cyan-100 border border-white/5"
-                  }`}
-                >
-                  {isSelected && (
-                    <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee] animate-pulse" />
-                  )}
-                  <span>{tab}</span>
-                </button>
-              );
-            })}
-          </AnimatedBackground>
         </div>
       </div>
 
