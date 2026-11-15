@@ -302,6 +302,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
   const [resendTimer, setResendTimer] = useState<number>(0);
   const [expireTimer, setExpireTimer] = useState<number>(0);
+  const [devCode, setDevCode] = useState<string>("");
+  const [isServiceConfigured, setIsServiceConfigured] = useState<boolean>(true);
 
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -392,6 +394,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         setConfigError(result.error || "Failed to send verification code.");
         return;
       }
+      setIsServiceConfigured(result.isConfigured !== false);
+      setDevCode(result.devCode || "");
       // Genuine OTP sent; transition to manual OTP verification screen
       setStep("otp");
       setResendTimer(45);
@@ -418,6 +422,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         setOtpError(result.error || "Failed to resend verification code.");
         return;
       }
+      setIsServiceConfigured(result.isConfigured !== false);
+      setDevCode(result.devCode || "");
       setResendTimer(45);
       setExpireTimer(300);
       setOtpDigits(["", "", "", "", "", ""]);
@@ -668,6 +674,32 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 <span className="font-mono text-cyan-300 font-semibold">{email}</span>
               </p>
             </div>
+
+            {/* Email Gateway Notice when external provider (EmailJS / Supabase) is unconfigured */}
+            {!isServiceConfigured && (
+              <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
+                <div className="flex items-center justify-between font-semibold text-amber-300">
+                  <span className="flex items-center gap-1.5">
+                    <svg className="h-4 w-4 shrink-0 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path
+                        fillRule="evenodd"
+                        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Email Gateway Not Connected</span>
+                  </span>
+                  {devCode && (
+                    <span className="font-mono bg-amber-400/20 px-2 py-0.5 rounded text-amber-200 font-bold tracking-widest text-[11px]">
+                      DEV CODE: {devCode}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-amber-200/90">
+                  Because no mail service (EmailJS or Supabase) is set in <code className="text-amber-100 font-mono">.env</code>, an email cannot reach Google's Gmail servers. Enter the 6-digit dev code above into the boxes below to test verification, or configure <code className="text-amber-100 font-mono">VITE_EMAILJS_*</code> in <code className="text-amber-100 font-mono">.env</code> for live Gmail delivery.
+                </p>
+              </div>
+            )}
 
             {/* Security telemetry & 5-minute countdown indicator (No fake OTP banner, No auto-fill) */}
             <div className="mb-5 flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-950/30 px-3.5 py-2.5 text-xs">
