@@ -19,7 +19,7 @@ import { useLanguage } from "@/context/LanguageContext";
 
 export const TABS: { id: DashboardTab; label: string; icon: typeof Leaf }[] = [
   { id: "overview", label: "HUD Overview", icon: LayoutDashboard },
-  { id: "crop-atlas", label: "Field Shift Atlas (89 Crops)", icon: Sprout },
+  { id: "crop-atlas", label: "Global Crop Atlas (600 Crops)", icon: Sprout },
   { id: "plant-health", label: "Plant Health (6-Pillar)", icon: Leaf },
   { id: "groundwater", label: "Groundwater & Crops", icon: Droplets },
   { id: "hazards", label: "Hazard Center (8 Alerts)", icon: TriangleAlert },

@@ -22,6 +22,7 @@ import {
   Wheat,
   CloudSun,
   SunMedium,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BorderBeam } from "@/components/ui/BorderBeam";
@@ -35,11 +36,13 @@ import {
 import { toast } from "sonner";
 import type { AgroTelemetry } from "@/types/agroSpace";
 import {
-  CROP_SUITABILITY_ATLAS,
-  detectAgroClimaticZone,
-  evaluateCropSuitability,
-  type EvaluatedCropSuitability,
-} from "@/data/cropSuitabilityAtlas";
+  GLOBAL_CROP_ATLAS_600,
+  resolveAgroZoneAndWorldRegion,
+  evaluateCrop600Suitability,
+  getCropSuitabilityColor,
+  type EvaluatedCrop600,
+  type Crop600Category,
+} from "@/data/globalCropAtlas600";
 import { cn } from "@/lib/utils";
 
 interface AgroDecisionCardProps {
@@ -49,14 +52,26 @@ interface AgroDecisionCardProps {
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
-  "cereals-millets": "🌾",
-  pulses: "🫘",
-  oilseeds: "🌻",
-  "commercial-cash": "🌱",
-  "horticulture-fruits": "🥭",
-  "horticulture-vegetables": "🥬",
-  "plantation-spices": "🌿",
+  "All Open-Field": "🌱",
+  "Cereals & Millets": "🌾",
+  Pulses: "🫘",
+  Oilseeds: "🌻",
+  "Vegetables & Fruits": "🥬",
+  "Spices & Medicinal": "🌿",
+  Agroforestry: "🌳",
+  "Controlled / Mushrooms": "🍄",
 };
+
+const CATEGORY_PILLS: { id: Crop600Category; label: string; icon: string }[] = [
+  { id: "All Open-Field", label: "All Open-Field", icon: "🌱" },
+  { id: "Cereals & Millets", label: "Cereals & Millets", icon: "🌾" },
+  { id: "Pulses", label: "Pulses", icon: "🫘" },
+  { id: "Oilseeds", label: "Oilseeds", icon: "🌻" },
+  { id: "Vegetables & Fruits", label: "Vegetables & Fruits", icon: "🥬" },
+  { id: "Spices & Medicinal", label: "Spices & Medicinal", icon: "🌿" },
+  { id: "Agroforestry", label: "Agroforestry", icon: "🌳" },
+  { id: "Controlled / Mushrooms", label: "Controlled / Mushrooms", icon: "🍄" },
+];
 
 export function AgroDecisionCard({
   telemetry,
@@ -112,37 +127,73 @@ export function AgroDecisionCard({
 
   const healthScore = Math.min(100, Math.max(0, plantHealth.overall));
 
-  // ---------------- 2. FIELD SHIFT 5-FACTOR ATLAS SUITABILITY ENGINE ----------------
-  const zone = useMemo(() => detectAgroClimaticZone(input.lat, input.lon), [input.lat, input.lon]);
+  // ---------------- 2. GLOBAL CROP ATLAS 600 & ZONE RESOLUTION ----------------
+  const zoneInfo = useMemo(() => {
+    return resolveAgroZoneAndWorldRegion(
+      input.lat,
+      input.lon,
+      meta.regionLabel,
+      "India",
+      meta.elevationM || 680,
+    );
+  }, [input.lat, input.lon, meta.regionLabel, meta.elevationM]);
 
-  const rankedCrops = useMemo(() => {
-    return CROP_SUITABILITY_ATLAS.map((c) =>
-      evaluateCropSuitability(c, zone, {
-        smapMoisture: soilMoisturePct,
-        ecostressESI: esiRatio,
-        gpmRainMm: rainMm,
-        borewellDepthM: input.borewellDepth,
-        scenario: input.scenario,
-        isDrought: input.scenario === "Severe Drought" || soilMoisturePct < 22,
-      }),
-    ).sort((a, b) => b.adjustedScore - a.adjustedScore);
-  }, [zone, soilMoisturePct, esiRatio, rainMm, input.borewellDepth, input.scenario]);
+  // Selected Category filter pill
+  const [selectedCategory, setSelectedCategory] = useState<Crop600Category>("All Open-Field");
 
-  const top5Crops = useMemo(() => rankedCrops.slice(0, 5), [rankedCrops]);
+  // Evaluate all 600 crops using live NASA + Open-Meteo context
+  const evaluated600Crops = useMemo(() => {
+    const ctx = {
+      smapMoisture: soilMoisturePct,
+      gpmRainMm: rainMm,
+      borewellDepthM: input.borewellDepth,
+      ecostressESI: esiRatio,
+      elevationM: meta.elevationM || 680,
+      isDrought: input.scenario === "Severe Drought" || soilMoisturePct < 28,
+      scenario: input.scenario,
+      indiaZone: zoneInfo.indiaZone,
+      worldRegion: zoneInfo.worldRegion,
+    };
+    return GLOBAL_CROP_ATLAS_600.map((c) => evaluateCrop600Suitability(c, ctx));
+  }, [
+    soilMoisturePct,
+    rainMm,
+    input.borewellDepth,
+    esiRatio,
+    meta.elevationM,
+    input.scenario,
+    zoneInfo.indiaZone,
+    zoneInfo.worldRegion,
+  ]);
+
+  // Filter crops based on category pill
+  const filteredRankedCrops = useMemo(() => {
+    let list = evaluated600Crops;
+    if (selectedCategory === "All Open-Field") {
+      list = list.filter((c) => !c.isIndoorControlled);
+    } else if (selectedCategory === "Controlled / Mushrooms") {
+      list = list.filter((c) => c.isIndoorControlled);
+    } else {
+      list = list.filter((c) => c.category === selectedCategory);
+    }
+    return [...list].sort((a, b) => b.adjustedScore - a.adjustedScore);
+  }, [evaluated600Crops, selectedCategory]);
+
+  const top5Crops = useMemo(() => filteredRankedCrops.slice(0, 5), [filteredRankedCrops]);
 
   // Selected or #1 best-matched crop state
   const [selectedCropId, setSelectedCropId] = useState<string | null>(null);
 
   // Modal inspection state for 1-click Compare & Simulate Shift
-  const [modalCrop, setModalCrop] = useState<EvaluatedCropSuitability | null>(null);
+  const [modalCrop, setModalCrop] = useState<EvaluatedCrop600 | null>(null);
 
-  const activeCrop: EvaluatedCropSuitability = useMemo(() => {
+  const activeCrop: EvaluatedCrop600 = useMemo(() => {
     if (selectedCropId) {
-      const match = rankedCrops.find((c) => c.id === selectedCropId);
+      const match = evaluated600Crops.find((c) => c.id === selectedCropId);
       if (match) return match;
     }
-    return rankedCrops[0];
-  }, [selectedCropId, rankedCrops]);
+    return filteredRankedCrops[0] || evaluated600Crops[0];
+  }, [selectedCropId, filteredRankedCrops, evaluated600Crops]);
 
   // Water savings vs baseline high-water crop (Paddy Rice requires 1250mm)
   const waterSavedVsPaddy = Math.max(
@@ -229,7 +280,7 @@ export function AgroDecisionCard({
             </div>
             <div className="flex items-center gap-1.5">
               <span className="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-[10px]">
-                AI MODEL v5.8
+                600 CROPS v6.0
               </span>
             </div>
           </div>
@@ -418,27 +469,57 @@ export function AgroDecisionCard({
         {/* ========================================================================= */}
         {/* CARD B: FIELD SHIFT: TOP 5 CROPS LEADERBOARD (Col-span 5)                 */}
         {/* ========================================================================= */}
-        <div className="xl:col-span-5 rounded-2xl bg-[#0b0f19]/90 border border-white/10 p-5 shadow-2xl flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
+        <div className="xl:col-span-5 rounded-2xl bg-[#0b0f19]/90 border border-white/10 p-5 shadow-2xl flex flex-col gap-3.5 backdrop-blur-2xl relative overflow-hidden">
           <BorderBeam size={220} duration={16} borderWidth={1.5} colorFrom="#10b981" colorTo="#38bdf8" />
 
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg border border-emerald-400/40 bg-emerald-500/15 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
-                <Wheat className="size-4 text-emerald-400" />
+          <div className="flex flex-col gap-2 border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex size-7 items-center justify-center rounded-lg border border-emerald-400/40 bg-emerald-500/15 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                  <Wheat className="size-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-300">
+                    🌾 Top Recommended Crops for {meta.regionLabel}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                    <span className="font-mono text-[9px] text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-1.5 py-0.2 rounded font-semibold">
+                      {zoneInfo.zoneDisplay}
+                    </span>
+                    <span className="font-mono text-[9px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.2 rounded font-semibold">
+                      Region: {zoneInfo.worldRegion}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-300">
-                  🌾 Top Recommended Crops for {meta.regionLabel}
-                </h3>
-                <span className="font-mono text-[9px] text-muted-foreground">
-                  Biome Adaptation • Zone {zone.zoneNumber}: {zone.name}
-                </span>
-              </div>
+              <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-[10px]">
+                600 ATLAS
+              </span>
             </div>
-            <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-[10px]">
-              BIOME ADAPTATION
-            </span>
+
+            {/* Quick Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+              {CATEGORY_PILLS.map((pill) => {
+                const isSelected = selectedCategory === pill.id;
+                return (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(pill.id)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-[10px] font-mono whitespace-nowrap transition-all border flex items-center gap-1 cursor-pointer shrink-0",
+                      isSelected
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)] font-bold"
+                        : "bg-white/5 text-muted-foreground border-white/10 hover:border-white/20 hover:text-white"
+                    )}
+                  >
+                    <span>{pill.icon}</span>
+                    <span>{pill.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="font-sans text-xs text-muted-foreground">
@@ -475,7 +556,7 @@ export function AgroDecisionCard({
                     onClick={() => setSelectedCropId(crop.id)}
                     className="w-full text-left cursor-pointer focus:outline-none flex flex-col gap-2"
                   >
-                    {/* Header Row: Rank, Crop Name, Shift Score */}
+                    {/* Header Row: Rank, Crop Name, Botanical Name, Shift Score */}
                     <div className="flex items-center justify-between w-full">
                       <div className="flex items-center gap-2">
                         <span
@@ -489,21 +570,41 @@ export function AgroDecisionCard({
                           {idx + 1}
                         </span>
                         <div>
-                          <span className="font-mono text-xs font-bold text-white">
-                            {crop.name.split("/")[0].trim()}
-                          </span>
-                          <span className="text-muted-foreground text-[10px] font-mono ml-1.5">
-                            ({categoryIcon} {crop.season})
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs font-bold text-white">
+                              {crop.name.split("/")[0].trim()}
+                            </span>
+                            <span className="text-muted-foreground text-[10px] font-mono">
+                              ({categoryIcon} {crop.season})
+                            </span>
+                          </div>
+                          {crop.botanicalName && (
+                            <span className="text-[9px] font-mono text-cyan-400/80 italic block">
+                              {crop.botanicalName}
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-extrabold text-emerald-400">
-                          {crop.adjustedScore}/100
-                        </span>
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground">
-                          SHIFT SCORE
+                      <div className="flex flex-col items-end gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="font-mono text-xs font-extrabold"
+                            style={{ color: crop.tierColorHex }}
+                          >
+                            Live NASA: {crop.adjustedScore}%
+                          </span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/5 border border-white/10 text-muted-foreground">
+                            Atlas: {crop.baseScore}%
+                          </span>
+                        </div>
+                        <span
+                          className={cn(
+                            "text-[8px] font-mono px-1.5 py-0.2 rounded font-bold uppercase",
+                            crop.tierBadgeClass
+                          )}
+                        >
+                          {crop.suitabilityTier}
                         </span>
                       </div>
                     </div>
@@ -519,7 +620,7 @@ export function AgroDecisionCard({
                       </div>
 
                       <div className="flex flex-col gap-0.5" title={`Soil: ${crop.factors.soil}/100`}>
-                        <span className="text-muted-foreground text-[8px]">SOIL</span>
+                        <span className="text-muted-foreground text-[8px]">Soil: {crop.factors.soil}%</span>
                         <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden">
                           <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${crop.factors.soil}%` }} />
                         </div>
@@ -527,7 +628,7 @@ export function AgroDecisionCard({
                       </div>
 
                       <div className="flex flex-col gap-0.5" title={`Terrain: ${crop.factors.terrain}/100`}>
-                        <span className="text-muted-foreground text-[8px]">TERRAIN</span>
+                        <span className="text-muted-foreground text-[8px]">Terrain: {crop.factors.terrain}%</span>
                         <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden">
                           <div className="bg-amber-400 h-full rounded-full" style={{ width: `${crop.factors.terrain}%` }} />
                         </div>
@@ -535,7 +636,7 @@ export function AgroDecisionCard({
                       </div>
 
                       <div className="flex flex-col gap-0.5" title={`Climate: ${crop.factors.climate}/100`}>
-                        <span className="text-muted-foreground text-[8px]">CLIMATE</span>
+                        <span className="text-muted-foreground text-[8px]">Climate: {crop.factors.climate}%</span>
                         <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden">
                           <div className="bg-sky-400 h-full rounded-full" style={{ width: `${crop.factors.climate}%` }} />
                         </div>
@@ -543,7 +644,7 @@ export function AgroDecisionCard({
                       </div>
 
                       <div className="flex flex-col gap-0.5" title={`Economics: ${crop.factors.economics}/100`}>
-                        <span className="text-muted-foreground text-[8px]">ECON</span>
+                        <span className="text-muted-foreground text-[8px]">Econ: {crop.factors.economics}%</span>
                         <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden">
                           <div className="bg-purple-400 h-full rounded-full" style={{ width: `${crop.factors.economics}%` }} />
                         </div>
@@ -723,8 +824,8 @@ export function AgroDecisionCard({
                 </span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Target Agro-Climatic Zone: {zone.name} (Zone {zone.zoneNumber}) • Field Coordinates: [
-                {input.lat.toFixed(3)}, {input.lon.toFixed(3)}]
+                {zoneInfo.zoneDisplay} • Field Coordinates: [
+                {input.lat.toFixed(3)}, {input.lon.toFixed(3)}] • Elevation: {zoneInfo.elevationM}m ASL
               </DialogDescription>
             </DialogHeader>
 
@@ -775,7 +876,7 @@ export function AgroDecisionCard({
                   <div className="flex justify-between py-1 border-b border-emerald-500/20">
                     <span className="text-muted-foreground">Suitability Index:</span>
                     <span className="font-mono font-bold text-emerald-300">
-                      {modalCrop.adjustedScore} / 100 (+{Math.max(0, modalCrop.adjustedScore - 48)}{" "}
+                      {modalCrop.adjustedScore} / 100 (+{Math.max(0, Math.round(modalCrop.adjustedScore - 48))}{" "}
                       pts)
                     </span>
                   </div>
@@ -814,14 +915,14 @@ export function AgroDecisionCard({
                   NASA 5-Factor Suitability Breakdown
                 </span>
                 <span className="text-[10px] text-muted-foreground font-normal">
-                  Formula-calibrated
+                  Formula-calibrated (Water weight: {modalCrop.waterWeightPct}%)
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-muted-foreground">💧 Water Suitability (26% weight)</span>
+                    <span className="text-muted-foreground">💧 Water Suitability ({modalCrop.waterWeightPct}% weight)</span>
                     <span className="text-cyan-300 font-bold">{modalCrop.factors.water}/100</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
@@ -835,7 +936,7 @@ export function AgroDecisionCard({
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
                     <span className="text-muted-foreground">
-                      🌱 Soil Chemistry & Depth (22% weight)
+                      🌱 Soil Chemistry & Depth (20% weight)
                     </span>
                     <span className="text-emerald-300 font-bold">{modalCrop.factors.soil}/100</span>
                   </div>
@@ -849,7 +950,7 @@ export function AgroDecisionCard({
 
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-muted-foreground">⛰️ Terrain & Slope (14% weight)</span>
+                    <span className="text-muted-foreground">⛰️ Terrain & Slope (20% weight)</span>
                     <span className="text-amber-300 font-bold">{modalCrop.factors.terrain}/100</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
@@ -863,7 +964,7 @@ export function AgroDecisionCard({
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
                     <span className="text-muted-foreground">
-                      ☀️ Climate & Thermal ESI (23% weight)
+                      ☀️ Climate & Thermal ESI (20% weight)
                     </span>
                     <span className="text-sky-300 font-bold">{modalCrop.factors.climate}/100</span>
                   </div>
@@ -879,7 +980,7 @@ export function AgroDecisionCard({
               <div className="pt-1">
                 <div className="flex justify-between text-[11px] font-mono mb-1">
                   <span className="text-muted-foreground">
-                    💰 Economic Yield & Market Margin (15% weight)
+                    💰 Economic Yield & Market Margin (20% weight)
                   </span>
                   <span className="text-purple-300 font-bold">
                     {modalCrop.factors.economics}/100

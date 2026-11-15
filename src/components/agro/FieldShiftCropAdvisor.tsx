@@ -15,22 +15,69 @@ import {
   ChevronUp,
   Activity,
   Layers,
+  Search,
+  Filter,
+  Globe,
+  CheckCircle2,
 } from "lucide-react";
 import { HudCard } from "@/components/agro/hud";
 import { AnimatedBackground } from "@/components/core/animated-background";
 import { cn } from "@/lib/utils";
 import {
-  CROP_SUITABILITY_ATLAS,
-  detectAgroClimaticZone,
-  evaluateCropSuitability,
+  GLOBAL_CROP_ATLAS_600,
+  resolveAgroZoneAndWorldRegion,
+  evaluateCrop600Suitability,
+  INDIA_ZONES,
+  type CropAtlas600Entry,
+  type EvaluatedCrop600,
+  type IndiaZoneCode,
+  type Crop600Category,
+} from "@/data/globalCropAtlas600";
+import {
   generateSustainableRotationPlan,
-  type CropAtlasEntry,
-  type EvaluatedCropSuitability,
+  detectAgroClimaticZone,
 } from "@/data/cropSuitabilityAtlas";
 import type { AgroTelemetry } from "@/types/agroSpace";
 
 const SEASON_TABS = ["ALL", "KHARIF", "RABI", "ZAID", "PERENNIAL"] as const;
 type SeasonFilter = (typeof SEASON_TABS)[number];
+
+const ALL_ZONES: { code: string; label: string }[] = [
+  { code: "ALL", label: "Auto-Detect Local Zone (Appendix C)" },
+  { code: "DEC", label: "Zone DEC · Deccan Plateau (Kolar/Harohalli/Bengaluru)" },
+  { code: "HIM", label: "Zone HIM · Western & Central Himalayas" },
+  { code: "NW", label: "Zone NW · Northwestern Semi-Arid Plains" },
+  { code: "IGP", label: "Zone IGP · Indo-Gangetic Basin" },
+  { code: "EST", label: "Zone EST · Eastern Plateau & Delta" },
+  { code: "NE", label: "Zone NE · Northeastern Hills & Brahmaputra" },
+  { code: "CEN", label: "Zone CEN · Central Plateau & Vindhyan" },
+  { code: "ARD", label: "Zone ARD · Arid Thar Desert & Kutch" },
+  { code: "WST", label: "Zone WST · Western Deccan Traps & Coast" },
+  { code: "SOU", label: "Zone SOU · Southern Coastal & Peninsular Tip" },
+  { code: "ISL", label: "Zone ISL · Tropical Island Archipelagos" },
+];
+
+const CATEGORY_FILTERS = [
+  { id: "ALL", label: "All Categories (600 Crops)" },
+  { id: "All Open-Field", label: "Open-Field Crops" },
+  { id: "Cereals & Millets", label: "🌾 Cereals & Millets" },
+  { id: "Pulses", label: "🫘 Pulses & Legumes" },
+  { id: "Oilseeds", label: "🌻 Oilseeds" },
+  { id: "Vegetables & Fruits", label: "🥬 Vegetables & Fruits" },
+  { id: "Spices & Medicinal", label: "🌿 Spices & Medicinal" },
+  { id: "Agroforestry", label: "🌳 Agroforestry & Trees" },
+  { id: "Controlled / Mushrooms", label: "🍄 Controlled / Mushrooms" },
+];
+
+const SORT_OPTIONS = [
+  { id: "adjustedScore", label: "Live NASA Match Score" },
+  { id: "baseScore", label: "Atlas Baseline %" },
+  { id: "water", label: "Water Efficiency" },
+  { id: "soil", label: "Soil Nutrient Score" },
+  { id: "terrain", label: "Terrain & Drainage Match" },
+  { id: "climate", label: "Climate & Thermal Score" },
+  { id: "economics", label: "Economic Yield & Margin" },
+];
 
 interface FieldShiftCropAdvisorProps {
   telemetry: AgroTelemetry;
@@ -46,58 +93,125 @@ export function FieldShiftCropAdvisor({
   variant = "full",
 }: FieldShiftCropAdvisorProps) {
   const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>("ALL");
-  const [selectedCropId, setSelectedCropId] = useState<string>("finger-millet");
+  const [selectedCropId, setSelectedCropId] = useState<string>("finger-millet-ragi");
   const [showAllCrops, setShowAllCrops] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedZoneFilter, setSelectedZoneFilter] = useState<string>("ALL");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("ALL");
+  const [sortBy, setSortBy] = useState<string>("adjustedScore");
+  const [showExperimental, setShowExperimental] = useState(false);
 
   // Simulator state: baseline crop vs recommended shift crop
   const [baselineCropId, setBaselineCropId] = useState<string>("sugarcane");
-  const [targetCropId, setTargetCropId] = useState<string>("finger-millet");
+  const [targetCropId, setTargetCropId] = useState<string>("finger-millet-ragi");
 
-  // 1. Detect Agro-Climatic Zone from lat/lon
+  // 1. Detect Agro-Climatic Zone & World Region using the 11 Zones & 20 Regions Atlas resolver
+  const resolvedRegion = useMemo(() => {
+    return resolveAgroZoneAndWorldRegion(
+      telemetry.input.lat,
+      telemetry.input.lon,
+      telemetry.meta.regionLabel,
+      "India",
+      telemetry.meta.elevationM || 680,
+    );
+  }, [telemetry.input.lat, telemetry.input.lon, telemetry.meta.regionLabel, telemetry.meta.elevationM]);
+
+  // Backward-compatible zone for rotation plan
   const zone = useMemo(() => {
     return detectAgroClimaticZone(telemetry.input.lat, telemetry.input.lon);
   }, [telemetry.input.lat, telemetry.input.lon]);
 
   // 2. Extract NASA live telemetry values for Hard Feasibility Filtering
   const telemetryContext = useMemo(() => {
-    const smapMoisture = telemetry.soil[0]?.surfaceMoisture ?? 30;
+    const rawSmap = telemetry.layers?.["SMAP Moisture"]?.value ?? telemetry.soil[0]?.surfaceMoisture ?? 30;
+    const smapMoisture = typeof rawSmap === "number" && rawSmap <= 1 ? rawSmap * 100 : rawSmap;
     const isDroughtScenario =
       telemetry.input.scenario === "Severe Drought" ||
-      telemetry.hazards.some((h) => h.id === "drought" && h.severity !== "nominal");
+      telemetry.hazards.some((h) => h.id === "drought" && h.severity !== "nominal") ||
+      smapMoisture < 28;
     const borewellDepthM = telemetry.input.borewellDepth;
-    const ndviVal = telemetry.layers?.NDVI?.value ?? 0.55;
+    const rawEsi = telemetry.layers?.["ECOSTRESS ESI"]?.value ?? 0.74;
+
+    const activeZone =
+      selectedZoneFilter === "ALL" ? resolvedRegion.indiaZone : (selectedZoneFilter as IndiaZoneCode);
 
     return {
       smapMoisture,
-      isDrought: isDroughtScenario,
+      gpmRainMm: telemetry.layers?.["GPM Rain"]?.value ? telemetry.layers["GPM Rain"].value * 24 * 30 : 68,
       borewellDepthM,
+      ecostressESI: rawEsi,
+      elevationM: telemetry.meta.elevationM || 680,
+      isDrought: isDroughtScenario,
       scenario: telemetry.input.scenario,
-      ndvi: ndviVal,
+      indiaZone: activeZone,
+      worldRegion: resolvedRegion.worldRegion,
+      showExperimental,
     };
-  }, [telemetry]);
+  }, [telemetry, resolvedRegion, selectedZoneFilter, showExperimental]);
 
-  // 3. Evaluate and rank all 89 crops for the active coordinate
+  // 3. Evaluate and rank all 600 crops for the active coordinate
   const evaluatedCrops = useMemo(() => {
-    const list = CROP_SUITABILITY_ATLAS.map((crop) =>
-      evaluateCropSuitability(crop, zone, telemetryContext),
+    return GLOBAL_CROP_ATLAS_600.map((crop) =>
+      evaluateCrop600Suitability(crop, telemetryContext),
     );
+  }, [telemetryContext]);
 
-    // Sort by adjusted score descending
-    return list.sort((a, b) => b.adjustedScore - a.adjustedScore);
-  }, [zone, telemetryContext]);
-
-  // 4. Filter by selected season
+  // 4. Search, Filter, and Sort the 600 crops
   const filteredCrops = useMemo(() => {
-    if (seasonFilter === "ALL") return evaluatedCrops;
-    return evaluatedCrops.filter((crop) => {
-      if (seasonFilter === "PERENNIAL") return crop.season === "Perennial";
-      if (seasonFilter === "KHARIF")
-        return crop.season === "Kharif" || crop.season === "Multi-season";
-      if (seasonFilter === "RABI") return crop.season === "Rabi" || crop.season === "Multi-season";
-      if (seasonFilter === "ZAID") return crop.season === "Zaid" || crop.season === "Multi-season";
-      return true;
+    let list = evaluatedCrops;
+
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.botanicalName.toLowerCase().includes(q) ||
+          c.category.toLowerCase().includes(q) ||
+          c.section.toLowerCase().includes(q) ||
+          c.agronomicNotes.toLowerCase().includes(q),
+      );
+    }
+
+    // Category filter
+    if (selectedCategoryFilter === "All Open-Field") {
+      list = list.filter((c) => !c.isIndoorControlled);
+    } else if (selectedCategoryFilter === "Controlled / Mushrooms") {
+      list = list.filter((c) => c.isIndoorControlled);
+    } else if (selectedCategoryFilter !== "ALL") {
+      list = list.filter((c) => c.category === selectedCategoryFilter);
+    }
+
+    // Season filter
+    if (seasonFilter !== "ALL") {
+      list = list.filter((crop) => {
+        if (seasonFilter === "PERENNIAL") return crop.season === "Perennial";
+        if (seasonFilter === "KHARIF")
+          return crop.season === "Kharif" || crop.season === "Multi-season";
+        if (seasonFilter === "RABI") return crop.season === "Rabi" || crop.season === "Multi-season";
+        if (seasonFilter === "ZAID") return crop.season === "Zaid" || crop.season === "Multi-season";
+        return true;
+      });
+    }
+
+    // Zone filter (when explicitly selected)
+    if (selectedZoneFilter !== "ALL") {
+      list = list.filter(
+        (c) => c.indiaZones.includes("ALL") || c.indiaZones.includes(selectedZoneFilter),
+      );
+    }
+
+    // Sort order
+    return [...list].sort((a, b) => {
+      if (sortBy === "baseScore") return b.baseScore - a.baseScore;
+      if (sortBy === "water") return b.factors.water - a.factors.water;
+      if (sortBy === "soil") return b.factors.soil - a.factors.soil;
+      if (sortBy === "terrain") return b.factors.terrain - a.factors.terrain;
+      if (sortBy === "climate") return b.factors.climate - a.factors.climate;
+      if (sortBy === "economics") return b.factors.economics - a.factors.economics;
+      return b.adjustedScore - a.adjustedScore;
     });
-  }, [evaluatedCrops, seasonFilter]);
+  }, [evaluatedCrops, searchQuery, selectedCategoryFilter, seasonFilter, selectedZoneFilter, sortBy]);
 
   // 5. Selected Crop for 5-Factor Breakdown
   const selectedCrop = useMemo(() => {
@@ -127,27 +241,27 @@ export function FieldShiftCropAdvisor({
   );
   const capitalSafetyGain = Math.max(
     0,
-    targetCrop.capitalSafetyScore - baselineCrop.capitalSafetyScore,
+    targetCrop.factors.economics - baselineCrop.factors.economics,
   );
 
-  const displayedCrops = showAllCrops ? filteredCrops : filteredCrops.slice(0, 5);
+  const displayedCrops = showAllCrops ? filteredCrops.slice(0, 40) : filteredCrops.slice(0, 5);
 
   return (
     <div className={cn("space-y-4", className)}>
       <HudCard
-        title="Field Shift: India Crop Suitability Atlas"
-        subtitle="15 Agro-Climatic Zones · 5-Factor Scoring · NASA Satellite Feasibility"
+        title="Field Shift: Global Crop Atlas (600 Crops)"
+        subtitle="11 India Zones · 20 World Regions · 5-Factor Scoring · NASA Satellite Feasibility"
         icon={<Sprout className="text-emerald" />}
         className="hologram-cockpit-card chamfered-card-frame border-cyan/40 shadow-[0_0_35px_rgba(0,0,0,0.7)]"
         right={
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-cyan/40 bg-cyan/15 px-2.5 py-0.5 font-mono text-[10px] font-bold text-cyan">
               <Layers className="size-3 text-cyan" />
-              Zone {zone.zoneNumber}: {zone.code}
+              {resolvedRegion.zoneDisplay}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald/40 bg-emerald/15 px-2.5 py-0.5 font-mono text-[10px] font-bold text-emerald shadow-[0_0_8px_rgba(0,255,157,0.3)]">
               <Activity className="size-3 text-emerald animate-pulse" />
-              89 Crops Atlas
+              600 Crops Atlas Active
             </span>
           </div>
         }
@@ -158,15 +272,16 @@ export function FieldShiftCropAdvisor({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-mono text-sm font-bold text-cyan-300">
-                  Zone {zone.zoneNumber}: {zone.name}
+                  {resolvedRegion.zoneDisplay}
                 </h4>
                 <span className="text-[10px] font-mono text-muted-foreground">
-                  ({zone.statesCovered[0]})
+                  (Region: {resolvedRegion.worldRegion})
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                {zone.description} Dominant:{" "}
-                <span className="text-foreground/90 font-medium">{zone.dominantSoil}</span>.
+                {resolvedRegion.zoneInfo?.regionalDescription || zone.description} Dominant:{" "}
+                <span className="text-foreground/90 font-medium">{zone.dominantSoil}</span>. Elevation:{" "}
+                <span className="text-cyan-300 font-mono font-medium">{resolvedRegion.elevationM}m ASL</span>.
               </p>
             </div>
 
@@ -187,48 +302,139 @@ export function FieldShiftCropAdvisor({
               {telemetryContext.isDrought && (
                 <div className="inline-flex items-center gap-1 rounded border border-crimson/50 bg-crimson/20 px-2 py-1 text-crimson font-bold shadow-[0_0_8px_rgba(255,46,86,0.3)] animate-pulse">
                   <ShieldAlert className="size-3 text-crimson" />
-                  Hard Feasibility Active
+                  Hard Feasibility Active (Water Weight: 35%)
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* ---------------- SEASON FILTER PILL DOCK (ANIMATED BACKGROUND) ---------------- */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1 rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-            <AnimatedBackground
-              defaultValue={seasonFilter}
-              onValueChange={(val) => val && setSeasonFilter(val as SeasonFilter)}
-              className="rounded-full bg-cyan-500/20 border border-cyan-400/50 shadow-[0_0_12px_rgba(34,211,238,0.3)]"
-              transition={{ type: "spring", bounce: 0.2, duration: 0.3 }}
-              enableHover
-            >
-              {SEASON_TABS.map((tab) => {
-                const isSelected = seasonFilter === tab;
-                return (
-                  <button
-                    key={tab}
-                    data-id={tab}
-                    type="button"
-                    onClick={() => setSeasonFilter(tab)}
-                    className={cn(
-                      "px-3 py-1 font-mono text-[11px] font-bold tracking-wider rounded-full transition-colors duration-200 cursor-pointer",
-                      isSelected
-                        ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
-                        : "text-slate-400 hover:text-cyan-100 border border-transparent",
-                    )}
-                  >
-                    {tab}
-                  </button>
-                );
-              })}
-            </AnimatedBackground>
+        {/* ---------------- COMPREHENSIVE SEARCH & MULTI-CRITERIA FILTER DOCK ---------------- */}
+        <div className="mt-4 p-3 rounded-xl border border-white/10 bg-[#060c18]/90 flex flex-col gap-3">
+          {/* Row 1: Search bar + Zone selector + Category selector */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
+            {/* Search input */}
+            <div className="md:col-span-5 relative">
+              <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search 600 crops (e.g. Ragi, Oyster Mushroom, Saffron, Flax)..."
+                className="w-full bg-[#0a1426] border border-white/15 focus:border-cyan-400 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-muted-foreground font-mono focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* India Zone filter selector */}
+            <div className="md:col-span-4">
+              <select
+                value={selectedZoneFilter}
+                onChange={(e) => setSelectedZoneFilter(e.target.value)}
+                className="w-full bg-[#0a1426] border border-white/15 focus:border-cyan-400 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 font-mono focus:outline-none"
+              >
+                {ALL_ZONES.map((z) => (
+                  <option key={z.code} value={z.code}>
+                    {z.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sort selector */}
+            <div className="md:col-span-3">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full bg-[#0a1426] border border-white/15 focus:border-cyan-400 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-mono focus:outline-none"
+              >
+                {SORT_OPTIONS.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    Sort: {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="font-mono text-xs text-muted-foreground">
-            Showing <span className="text-cyan font-bold">{filteredCrops.length}</span> ranked crops
-            for {zone.code}
+          {/* Row 2: Category Selector + Season Tabs + Experimental Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/5">
+            {/* Category Dropdown */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono text-muted-foreground uppercase">Section:</span>
+              <select
+                value={selectedCategoryFilter}
+                onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                className="bg-[#0a1426] border border-white/15 focus:border-cyan-400 rounded-lg px-2.5 py-1 text-xs text-white font-mono focus:outline-none"
+              >
+                {CATEGORY_FILTERS.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Season Filter Pill Dock */}
+            <div className="flex items-center gap-1 rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl">
+              <AnimatedBackground
+                defaultValue={seasonFilter}
+                onValueChange={(val) => val && setSeasonFilter(val as SeasonFilter)}
+                className="rounded-full bg-cyan-500/20 border border-cyan-400/50 shadow-[0_0_12px_rgba(34,211,238,0.3)]"
+                transition={{ type: "spring", bounce: 0.2, duration: 0.3 }}
+                enableHover
+              >
+                {SEASON_TABS.map((tab) => {
+                  const isSelected = seasonFilter === tab;
+                  return (
+                    <button
+                      key={tab}
+                      data-id={tab}
+                      type="button"
+                      onClick={() => setSeasonFilter(tab)}
+                      className={cn(
+                        "px-3 py-1 font-mono text-[11px] font-bold tracking-wider rounded-full transition-colors duration-200 cursor-pointer",
+                        isSelected
+                          ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
+                          : "text-slate-400 hover:text-cyan-100 border border-transparent",
+                      )}
+                    >
+                      {tab}
+                    </button>
+                  );
+                })}
+              </AnimatedBackground>
+            </div>
+
+            {/* Experimental / Global Crops Toggle */}
+            <label className="flex items-center gap-2 text-xs font-mono text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showExperimental}
+                onChange={(e) => setShowExperimental(e.target.checked)}
+                className="rounded border-white/20 bg-[#0a1426] text-cyan-400 focus:ring-0 size-3.5 cursor-pointer"
+              />
+              <span className={showExperimental ? "text-cyan-300 font-bold" : ""}>
+                Show Global / Experimental Crops
+              </span>
+            </label>
+          </div>
+
+          <div className="flex justify-between items-center text-[11px] font-mono text-muted-foreground pt-1">
+            <span>
+              Showing <span className="text-cyan font-bold">{filteredCrops.length}</span> ranked crops (out of 600 total)
+            </span>
+            <span>
+              Target Zone: <span className="text-emerald-300 font-bold">{telemetryContext.indiaZone || "DEC"}</span>
+            </span>
           </div>
         </div>
 
@@ -238,10 +444,10 @@ export function FieldShiftCropAdvisor({
           <div className="space-y-2.5 lg:col-span-7">
             {displayedCrops.map((crop, idx) => {
               const isSelected = crop.id === selectedCropId;
-              const isVeryHigh = crop.suitabilityTier === "VERY HIGH";
-              const isHigh = crop.suitabilityTier === "HIGH";
-              const isModerate = crop.suitabilityTier === "MODERATE";
-              const isLow = crop.suitabilityTier === "LOW / INFEASIBLE";
+              const isVeryHigh = crop.suitabilityTier === "OPTIMAL / VERY HIGH";
+              const isHigh = crop.suitabilityTier === "FAVOURABLE / HIGH";
+              const isModerate = crop.suitabilityTier === "MODERATE / CONDITIONAL";
+              const isLow = crop.suitabilityTier === "UNSUITABLE / HIGH RISK";
 
               return (
                 <div
@@ -277,23 +483,30 @@ export function FieldShiftCropAdvisor({
                         <span className="font-semibold text-foreground text-sm tracking-tight truncate group-hover:text-cyan transition-colors">
                           {crop.name}
                         </span>
-                        {crop.localName && (
-                          <span className="text-[11px] font-mono text-muted-foreground/80">
-                            ({crop.localName})
+                        {crop.botanicalName && (
+                          <span className="text-[11px] font-mono text-muted-foreground/80 italic">
+                            ({crop.botanicalName})
                           </span>
                         )}
                         <span className="rounded bg-muted/40 border border-border/40 px-1.5 py-0.2 font-mono text-[9px] text-muted-foreground uppercase">
                           {crop.season}
                         </span>
+                        {crop.isIndoorControlled && (
+                          <span className="rounded bg-purple-500/20 border border-purple-500/40 px-1.5 py-0.2 font-mono text-[9px] text-purple-300">
+                            🍄 Controlled
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] font-mono text-muted-foreground">
                         <span>Water: ~{crop.waterRequirementMm}mm</span>
                         <span>•</span>
                         <span>Dur: {crop.durationDays}d</span>
-                        {crop.nitrogenFixing && (
+                        <span>•</span>
+                        <span>Atlas Base: {crop.baseScore}%</span>
+                        {crop.droughtTolerance === "High" && (
                           <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                            🌱 N-Fixing
+                            🌱 Drought-Hardy
                           </span>
                         )}
                       </div>
@@ -311,13 +524,8 @@ export function FieldShiftCropAdvisor({
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0 pl-9 sm:pl-0">
                     <div className="flex items-baseline gap-1">
                       <span
-                        className={cn(
-                          "font-mono text-lg font-extrabold tabular-nums",
-                          isVeryHigh && "text-emerald drop-shadow-[0_0_8px_#00ff9d]",
-                          isHigh && "text-cyan drop-shadow-[0_0_8px_#00f0ff]",
-                          isModerate && "text-amber",
-                          isLow && "text-crimson",
-                        )}
+                        className="font-mono text-lg font-extrabold tabular-nums"
+                        style={{ color: crop.tierColorHex }}
                       >
                         {crop.adjustedScore.toFixed(1)}
                       </span>
@@ -327,10 +535,7 @@ export function FieldShiftCropAdvisor({
                     <span
                       className={cn(
                         "rounded px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider border",
-                        isVeryHigh && "border-emerald-500/50 bg-emerald-500/15 text-emerald",
-                        isHigh && "border-cyan-500/50 bg-cyan-500/15 text-cyan",
-                        isModerate && "border-amber-500/50 bg-amber-500/15 text-amber",
-                        isLow && "border-crimson/50 bg-crimson-500/15 text-crimson",
+                        crop.tierBadgeClass,
                       )}
                     >
                       {crop.suitabilityTier}
@@ -352,8 +557,7 @@ export function FieldShiftCropAdvisor({
                   </>
                 ) : (
                   <>
-                    <ChevronDown className="size-3.5" /> View All {filteredCrops.length} Ranked
-                    Crops
+                    <ChevronDown className="size-3.5" /> View Extended {Math.min(40, filteredCrops.length)} Ranked Crops
                   </>
                 )}
               </button>
@@ -376,31 +580,45 @@ export function FieldShiftCropAdvisor({
                       {selectedCrop.botanicalName}
                     </p>
                   )}
+                  <p className="text-[10px] font-mono text-cyan-300/80 mt-1">
+                    Section: {selectedCrop.section} • Duration: {selectedCrop.durationDays} days
+                  </p>
                 </div>
 
                 <div className="text-right">
-                  <div className="text-[10px] font-mono text-muted-foreground">Atlas Score</div>
-                  <div className="font-mono text-2xl font-extrabold text-cyan drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]">
-                    {selectedCrop.adjustedScore.toFixed(1)}
+                  <div className="text-[10px] font-mono text-muted-foreground">NASA Match</div>
+                  <div
+                    className="font-mono text-2xl font-extrabold drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]"
+                    style={{ color: selectedCrop.tierColorHex }}
+                  >
+                    {selectedCrop.adjustedScore.toFixed(1)}%
+                  </div>
+                  <div className="text-[9px] font-mono text-muted-foreground">
+                    Atlas Base: {selectedCrop.baseScore}%
                   </div>
                 </div>
               </div>
 
               {/* 5-Factor Breakdown Bars */}
               <div className="mt-3.5 space-y-2.5">
-                <div className="text-xs font-mono font-semibold text-cyan/90 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="size-3 text-cyan" /> 5-Factor Agro-Ecological Breakdown
+                <div className="text-xs font-mono font-semibold text-cyan/90 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="size-3 text-cyan" /> 5-Factor Agro-Ecological Breakdown
+                  </span>
+                  <span className="text-[9.5px] font-normal text-muted-foreground">
+                    Water weight: {selectedCrop.waterWeightPct}%
+                  </span>
                 </div>
 
-                {/* 1. Water (26%) */}
+                {/* 1. Water */}
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Droplets className="size-3 text-cyan" /> Water & Deficit Resilience (26%)
+                      <Droplets className="size-3 text-cyan" /> Water & Deficit Resilience ({selectedCrop.waterWeightPct}%)
                     </span>
                     <span className="font-bold text-cyan">
                       {selectedCrop.factors.water}/100 · +
-                      {(selectedCrop.factors.water * 0.26).toFixed(1)} pts
+                      {((selectedCrop.factors.water * selectedCrop.waterWeightPct) / 100).toFixed(1)} pts
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -411,15 +629,15 @@ export function FieldShiftCropAdvisor({
                   </div>
                 </div>
 
-                {/* 2. Soil (22%) */}
+                {/* 2. Soil */}
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Sprout className="size-3 text-emerald" /> Soil & Nutrient Compatibility (22%)
+                      <Sprout className="size-3 text-emerald" /> Soil & Nutrient Compatibility (20%)
                     </span>
                     <span className="font-bold text-emerald">
                       {selectedCrop.factors.soil}/100 · +
-                      {(selectedCrop.factors.soil * 0.22).toFixed(1)} pts
+                      {(selectedCrop.factors.soil * 0.2).toFixed(1)} pts
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -430,15 +648,15 @@ export function FieldShiftCropAdvisor({
                   </div>
                 </div>
 
-                {/* 3. Climate (23%) */}
+                {/* 3. Climate */}
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Sun className="size-3 text-amber" /> Climate & Thermal Zone Match (23%)
+                      <Sun className="size-3 text-amber" /> Climate & Thermal Zone Match (20%)
                     </span>
                     <span className="font-bold text-amber">
                       {selectedCrop.factors.climate}/100 · +
-                      {(selectedCrop.factors.climate * 0.23).toFixed(1)} pts
+                      {(selectedCrop.factors.climate * 0.2).toFixed(1)} pts
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -449,15 +667,15 @@ export function FieldShiftCropAdvisor({
                   </div>
                 </div>
 
-                {/* 4. Terrain (14%) */}
+                {/* 4. Terrain */}
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Mountain className="size-3 text-indigo-400" /> Terrain & Slope Drainage (14%)
+                      <Mountain className="size-3 text-indigo-400" /> Terrain & Slope Drainage (20%)
                     </span>
                     <span className="font-bold text-indigo-300">
                       {selectedCrop.factors.terrain}/100 · +
-                      {(selectedCrop.factors.terrain * 0.14).toFixed(1)} pts
+                      {(selectedCrop.factors.terrain * 0.2).toFixed(1)} pts
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -468,15 +686,15 @@ export function FieldShiftCropAdvisor({
                   </div>
                 </div>
 
-                {/* 5. Economics (15%) */}
+                {/* 5. Economics */}
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Coins className="size-3 text-yellow-400" /> Capital & Market Safety (15%)
+                      <Coins className="size-3 text-yellow-400" /> Capital & Market Safety (20%)
                     </span>
                     <span className="font-bold text-yellow-300">
                       {selectedCrop.factors.economics}/100 · +
-                      {(selectedCrop.factors.economics * 0.15).toFixed(1)} pts
+                      {(selectedCrop.factors.economics * 0.2).toFixed(1)} pts
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -491,9 +709,22 @@ export function FieldShiftCropAdvisor({
               {/* Agronomic Field Notes */}
               <div className="mt-4 rounded border border-border/40 bg-background/50 p-2.5 text-xs text-foreground/90 leading-relaxed backdrop-blur-sm">
                 <span className="font-mono text-[10px] text-cyan font-bold block mb-1">
-                  AGRONOMIC ADVISORY:
+                  AGRONOMIC ADVISORY & ATLAS PROFILE:
                 </span>
                 {selectedCrop.agronomicNotes}
+              </div>
+
+              {/* Geographic Zone Badges */}
+              <div className="mt-3 pt-2 border-t border-border/30 flex flex-wrap items-center gap-1.5 text-[9.5px] font-mono">
+                <span className="text-muted-foreground">Adapted Zones:</span>
+                {selectedCrop.indiaZones.map((z) => (
+                  <span
+                    key={z}
+                    className="px-1.5 py-0.2 rounded bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 font-bold"
+                  >
+                    {z}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -532,11 +763,12 @@ export function FieldShiftCropAdvisor({
                 onChange={(e) => setBaselineCropId(e.target.value)}
                 className="w-full bg-[#081224] border border-border/60 rounded px-2.5 py-1.5 font-mono text-xs font-semibold text-foreground focus:outline-none focus:border-cyan"
               >
-                <option value="sugarcane">Sugarcane (Perennial · Score 55.8)</option>
-                <option value="rice">Rice / Paddy (Kharif · Score 56.7)</option>
-                <option value="tomato">Tomato (Intensive · Score 63.2)</option>
-                <option value="cotton">Cotton (Kharif · Score 66.1)</option>
-                <option value="banana">Banana (Perennial · Score 60.1)</option>
+                <option value="sugarcane">Sugarcane (Perennial · ~1,800mm)</option>
+                <option value="paddy-rice-kharif">Rice / Paddy (Kharif · 1,250mm)</option>
+                <option value="tomato-hybrid">Tomato (Intensive · 650mm)</option>
+                <option value="cotton-bt">Cotton (Kharif · 850mm)</option>
+                <option value="banana-grand-naine">Banana (Perennial · 1,600mm)</option>
+                <option value="wheat-durum">Wheat (Rabi · 550mm)</option>
               </select>
               <div className="mt-2 text-[11px] font-mono text-muted-foreground">
                 Water need:{" "}
@@ -554,13 +786,11 @@ export function FieldShiftCropAdvisor({
                 onChange={(e) => setTargetCropId(e.target.value)}
                 className="w-full bg-[#081224] border border-cyan-400/50 rounded px-2.5 py-1.5 font-mono text-xs font-semibold text-cyan-300 focus:outline-none focus:border-cyan"
               >
-                <option value="finger-millet">Finger Millet / Ragi (Score 84.9 · Flagship)</option>
-                <option value="sorghum">Sorghum / Jowar (Score 87.5)</option>
-                <option value="pearl-millet">Pearl Millet / Bajra (Score 87.7)</option>
-                <option value="horse-gram">Horse Gram (Score 86.6 · Pulse)</option>
-                <option value="green-gram">Green Gram / Moong (Score 84.5)</option>
-                <option value="guar">Guar / Cluster Bean (Score 86.6)</option>
-                <option value="safflower">Safflower (Score 85.6)</option>
+                {filteredCrops.slice(0, 15).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.adjustedScore.toFixed(0)}% · {c.waterRequirementMm}mm)
+                  </option>
+                ))}
               </select>
               <div className="mt-2 text-[11px] font-mono text-muted-foreground">
                 Water need:{" "}
