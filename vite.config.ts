@@ -11,6 +11,8 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 
 const isHttps = process.env["VITE_HTTPS"] === "true";
+// Never enable HTTPS plugin during production builds — it breaks Vercel/Netlify bundling
+const isDev = process.env["NODE_ENV"] !== "production";
 
 export default defineConfig({
   tanstackStart: {
@@ -20,7 +22,7 @@ export default defineConfig({
   },
   vite: {
     base: "/",
-    plugins: isHttps ? [basicSsl()] : [],
+    plugins: isHttps && isDev ? [basicSsl()] : [],
     server: {
       host: "0.0.0.0",
       port: 8080,
