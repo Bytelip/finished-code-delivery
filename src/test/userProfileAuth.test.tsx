@@ -143,16 +143,9 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText(/Google OAuth is not configured/i)).toBeNull();
   });
 
-  it("transitions to 6-digit OTP screen without showing OTP on screen, shows webmail preview link, and allows entering 6 digits to verify", async () => {
-    const sendOtpSpy = vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
-      success: true,
-      devCode: "831942",
-      previewUrl: "https://ethereal.email/message/Waqmg4ddsoo123",
-      deliveryMethod: "ethereal_inbox",
-    });
-
+  it("authenticates via Email and Password login and immediately signs in to dashboard", async () => {
     const mockVerifiedUser = createInitialProfile("pilot@nasa.gov", "Email", "Pilot Naren");
-    const verifyOtpSpy = vi.spyOn(authService, "verifyEmailOtp").mockResolvedValue({
+    const signInSpy = vi.spyOn(authService, "signInWithEmailPassword").mockResolvedValue({
       success: true,
       user: mockVerifiedUser,
     });
@@ -160,104 +153,76 @@ describe("User Profile & Authentication System", () => {
     const handleSuccess = vi.fn();
     render(<CosmicAuthPage onSuccess={handleSuccess} />);
 
-    // Fill email
-    const emailInput = screen.getByPlaceholderText(/Enter your Gmail or email address/i);
+    // Fill email and password
+    const emailInput = screen.getByPlaceholderText(/Enter your email address/i);
+    const passwordInput = screen.getByPlaceholderText(/Enter your password/i);
     fireEvent.change(emailInput, { target: { value: "pilot@nasa.gov" } });
+    fireEvent.change(passwordInput, { target: { value: "missionPassword123" } });
 
-    // Submit email
-    const continueBtn = screen.getByRole("button", { name: /^Continue$/i });
-    fireEvent.click(continueBtn);
-
-    await waitFor(() => {
-      expect(sendOtpSpy).toHaveBeenCalledWith("pilot@nasa.gov");
-      expect(screen.getByText(/Check your Gmail/i)).toBeDefined();
-      expect(screen.getByText(/We sent a 6-digit verification code to/i)).toBeDefined();
-    });
-
-    // 🔒 SECURITY CHECK: OTP and Auto-Fill button must NEVER be displayed in the UI/DOM
-    expect(screen.queryByText(/Live Gmail Dispatch OTP/i)).toBeNull();
-    expect(screen.queryByText("831942")).toBeNull();
-    expect(screen.queryByText(/Auto-Fill/i)).toBeNull();
-
-    // 🔒 SECURITY CHECK: Fake webmail link must NEVER be displayed in the UI/DOM
-    expect(screen.queryByText(/Open Dispatched Email in Browser Inbox/i)).toBeNull();
-
-    // Verify presence of Security Verification and Expiration timer
-    expect(screen.getByText(/Security Verification/i)).toBeDefined();
-    expect(screen.getByText(/Expires in/i)).toBeDefined();
-
-    // Enter the 6 digits received in user's email inbox into the 6 input boxes
-    const inputs = screen.getAllByRole("textbox");
-    expect(inputs.length).toBe(6);
-    ["8", "3", "1", "9", "4", "2"].forEach((d, idx) => {
-      fireEvent.change(inputs[idx], { target: { value: d } });
-    });
-
-    expect((inputs[0] as HTMLInputElement).value).toBe("8");
-    expect((inputs[5] as HTMLInputElement).value).toBe("2");
-
-    const verifyBtn = screen.getByRole("button", { name: /Verify & Enter Orbit/i });
-    fireEvent.click(verifyBtn);
+    // Submit
+    const submitBtn = screen.getByRole("button", { name: /Sign In to Orbit/i });
+    fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(verifyOtpSpy).toHaveBeenCalledWith(
-        "pilot@nasa.gov",
-        "831942",
-        undefined,
-        "signin",
-        "Email",
-      );
-      expect(handleSuccess).toHaveBeenCalled();
+      expect(signInSpy).toHaveBeenCalledWith("pilot@nasa.gov", "missionPassword123");
+      expect(handleSuccess).toHaveBeenCalledWith(mockVerifiedUser);
+    });
+
+    // Verify NO OTP or SMTP modal exists
+    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+    expect(screen.queryByText(/⚙️ SMTP/i)).toBeNull();
+  });
+
+  it("registers a new user in Create Account mode via Email and Password and signs in immediately", async () => {
+    const mockNewUser = createInitialProfile("cadet@nasa.gov", "Email", "Cadet Rao");
+    const signUpSpy = vi.spyOn(authService, "signUpWithEmailPassword").mockResolvedValue({
+      success: true,
+      user: mockNewUser,
+    });
+
+    const handleSuccess = vi.fn();
+    render(<CosmicAuthPage onSuccess={handleSuccess} />);
+
+    // Switch to Create Account tab
+    const createAccountTab = screen.getByRole("button", { name: /Create Account/i });
+    fireEvent.click(createAccountTab);
+
+    // Fill details
+    const nameInput = screen.getByPlaceholderText(/Profile Name/i);
+    const emailInput = screen.getByPlaceholderText(/Enter your email address/i);
+    const passwordInput = screen.getByPlaceholderText(/Create password \(min 6 characters\)/i);
+
+    fireEvent.change(nameInput, { target: { value: "Cadet Rao" } });
+    fireEvent.change(emailInput, { target: { value: "cadet@nasa.gov" } });
+    fireEvent.change(passwordInput, { target: { value: "securePass456" } });
+
+    const submitBtn = screen.getByRole("button", { name: /Create Account & Enter Orbit/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(signUpSpy).toHaveBeenCalledWith("cadet@nasa.gov", "securePass456", "Cadet Rao");
+      expect(handleSuccess).toHaveBeenCalledWith(mockNewUser);
     });
   });
 
-  it("opens the compact ⚙️ SMTP setup modal and allows configuring credentials", async () => {
-    render(<CosmicAuthPage />);
-
-    const configBtn = screen.getByRole("button", { name: /SMTP/i });
-    expect(configBtn).toBeDefined();
-
-    fireEvent.click(configBtn);
-
-    expect(screen.getByText(/Configure Custom Gmail SMTP/i)).toBeDefined();
-    expect(screen.getByPlaceholderText(/e\.g\. nakkaabhishek24@gmail\.com/i)).toBeDefined();
-    expect(screen.getByPlaceholderText(/e\.g\. abcd efgh ijkl mnop/i)).toBeDefined();
-
-    const saveBtn = screen.getByRole("button", { name: /Save & Connect SMTP/i });
-    expect(saveBtn).toBeDefined();
-  });
-
-  it("shows an error on incorrect OTP entry and allows resending after cooldown", async () => {
-    vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({ success: true });
-    vi.spyOn(authService, "verifyEmailOtp").mockResolvedValue({
+  it("shows an error on failed signin credentials", async () => {
+    vi.spyOn(authService, "signInWithEmailPassword").mockResolvedValue({
       success: false,
-      error: "Invalid verification code. 4 attempts remaining.",
+      error: "Invalid login credentials. User account not found.",
     });
 
     render(<CosmicAuthPage />);
 
-    const emailInput = screen.getByPlaceholderText(/Enter your Gmail or email address/i);
-    fireEvent.change(emailInput, { target: { value: "pilot@nasa.gov" } });
+    const emailInput = screen.getByPlaceholderText(/Enter your email address/i);
+    const passwordInput = screen.getByPlaceholderText(/Enter your password/i);
+    fireEvent.change(emailInput, { target: { value: "unknown@nasa.gov" } });
+    fireEvent.change(passwordInput, { target: { value: "wrongPassword" } });
 
-    const continueBtn = screen.getByRole("button", { name: /^Continue$/i });
-    fireEvent.click(continueBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Check your Gmail/i)).toBeDefined();
-    });
-
-    const inputs = screen.getAllByRole("textbox");
-    ["0", "0", "0", "0", "0", "0"].forEach((digit, idx) => {
-      fireEvent.change(inputs[idx], { target: { value: digit } });
-    });
-
-    const verifyBtn = screen.getByRole("button", {
-      name: /Verify & (Create Account|Enter Orbit)/i,
-    });
-    fireEvent.click(verifyBtn);
+    const submitBtn = screen.getByRole("button", { name: /Sign In to Orbit/i });
+    fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Invalid verification code/i)).toBeDefined();
+      expect(screen.getByText(/Invalid login credentials\. User account not found\./i)).toBeDefined();
     });
   });
 
@@ -382,19 +347,26 @@ describe("User Profile & Authentication System", () => {
   });
 
   it("clears error state when switching between Sign In and Create Account tabs", async () => {
+    vi.spyOn(authService, "signInWithEmailPassword").mockResolvedValue({
+      success: false,
+      error: "Invalid login credentials. Account not found.",
+    });
+
     render(<CosmicAuthPage />);
 
-    // Type an unregistered email in Sign In tab
-    const emailInput = screen.getByPlaceholderText(/Enter your Gmail or email address/i);
+    // Type credentials in Sign In tab
+    const emailInput = screen.getByPlaceholderText(/Enter your email address/i);
+    const passwordInput = screen.getByPlaceholderText(/Enter your password/i);
     fireEvent.change(emailInput, { target: { value: "unregistered.cadet@agrospace.nasa.gov" } });
+    fireEvent.change(passwordInput, { target: { value: "secret123" } });
 
-    // Click Continue to trigger "Account not found" error
-    const continueBtn = screen.getByRole("button", { name: /^Continue$/i });
-    fireEvent.click(continueBtn);
+    // Click Sign In to trigger error
+    const submitBtn = screen.getByRole("button", { name: /Sign In to Orbit/i });
+    fireEvent.click(submitBtn);
 
     // Verify error banner is visible
     await waitFor(() => {
-      expect(screen.getByText(/Account not found\. Please sign up first\./i)).toBeDefined();
+      expect(screen.getByText(/Invalid login credentials\. Account not found\./i)).toBeDefined();
     });
 
     // Switch to "Create Account" tab
@@ -403,63 +375,67 @@ describe("User Profile & Authentication System", () => {
 
     // Verify error banner is immediately cleared
     await waitFor(() => {
-      expect(screen.queryByText(/Account not found\. Please sign up first\./i)).toBeNull();
+      expect(screen.queryByText(/Invalid login credentials\. Account not found\./i)).toBeNull();
     });
   });
 
-  it("submitting in Create Account tab executes registration flow without rejecting non-existent accounts", async () => {
-    const sendOtpSpy = vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
+  it("submitting in Create Account tab executes registration flow without requiring verification emails", async () => {
+    const mockUser = createInitialProfile("fresh.cadet@agrospace.nasa.gov", "Email", "Fresh Cadet");
+    const signUpSpy = vi.spyOn(authService, "signUpWithEmailPassword").mockResolvedValue({
       success: true,
-      isConfigured: true,
+      user: mockUser,
     });
 
-    render(<CosmicAuthPage />);
+    const handleSuccess = vi.fn();
+    render(<CosmicAuthPage onSuccess={handleSuccess} />);
 
     // Switch to Create Account tab
     const createAccountTab = screen.getByRole("button", { name: /Create Account/i });
     fireEvent.click(createAccountTab);
 
-    // Enter a new unregistered email
-    const emailInput = screen.getByPlaceholderText(/Enter your Gmail or email address/i);
+    // Enter details
+    const emailInput = screen.getByPlaceholderText(/Enter your email address/i);
+    const passwordInput = screen.getByPlaceholderText(/Create password \(min 6 characters\)/i);
     fireEvent.change(emailInput, { target: { value: "fresh.cadet@agrospace.nasa.gov" } });
+    fireEvent.change(passwordInput, { target: { value: "cadetPass123" } });
 
-    // Click Continue
-    const continueBtn = screen.getByRole("button", { name: /^Continue$/i });
-    fireEvent.click(continueBtn);
+    // Click submit
+    const submitBtn = screen.getByRole("button", { name: /Create Account & Enter Orbit/i });
+    fireEvent.click(submitBtn);
 
-    // In signup mode, it transitions to OTP screen instead of showing "Account not found"
+    // In signup mode, user is authenticated immediately without OTP screen
     await waitFor(() => {
-      expect(sendOtpSpy).toHaveBeenCalledWith(
+      expect(signUpSpy).toHaveBeenCalledWith(
         "fresh.cadet@agrospace.nasa.gov",
-        "signup",
-        "email",
-        "",
+        "cadetPass123",
+        undefined,
       );
-      expect(screen.queryByText(/Account not found\. Please sign up first\./i)).toBeNull();
-      expect(screen.getByText(/Check your Gmail/i)).toBeDefined();
+      expect(handleSuccess).toHaveBeenCalledWith(mockUser);
     });
+    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
   });
 
   it("registers new account in signup mode and allows subsequent signin", async () => {
     authService.setSupabaseClientOverride(null);
 
-    // 1. Sign up a new user
+    // 1. Sign up a new user with Email + Password
     const newEmail = "new.cadet@agrospace.nasa.gov";
-    const signUpResult = await authService.sendEmailOtp(newEmail, "signup");
-    expect(signUpResult.success).toBe(true);
-
-    const verifiedProfile = await authService.verifyEmailOtp(
+    const signUpResult = await authService.signUpWithEmailPassword(
       newEmail,
-      signUpResult.devCode || "123456",
+      "cadetSecret789",
       "Cadet Rao",
-      "signup",
     );
-    expect(verifiedProfile.success).toBe(true);
-    expect(verifiedProfile.user?.email).toBe(newEmail);
+    expect(signUpResult.success).toBe(true);
+    expect(signUpResult.user?.email).toBe(newEmail);
+    expect(signUpResult.user?.isVerified).toBe(true);
 
     // 2. Now user exists in database: subsequent signin mode succeeds
-    const signInResult = await authService.sendEmailOtp(newEmail, "signin");
+    const signInResult = await authService.signInWithEmailPassword(
+      newEmail,
+      "cadetSecret789",
+    );
     expect(signInResult.success).toBe(true);
+    expect(signInResult.user?.email).toBe(newEmail);
 
     authService.setSupabaseClientOverride(undefined);
   });

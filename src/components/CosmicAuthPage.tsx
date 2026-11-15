@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   initiateOAuthLogin,
   completeDirectOAuthLogin,
-  sendEmailOtp,
-  verifyEmailOtp,
+  signInWithEmailPassword,
+  signUpWithEmailPassword,
   processIncomingAuthCallback,
   getUserFromDatabase,
   saveUserToDatabase,
@@ -357,49 +357,29 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   onSuccess,
   onClose,
 }) => {
-  const [step, setStep] = useState<"entry" | "oauth_chooser" | "otp">("entry");
+  const [step, setStep] = useState<"entry" | "oauth_chooser">("entry");
   const [selectedProvider, setSelectedProvider] = useState<OAuthProvider>("Google");
   const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
-  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const [otpError, setOtpError] = useState<string>("");
   const [authError, setAuthError] = useState<string>("");
-  const [dispatchOtp, setDispatchOtp] = useState<string>("");
-  const [inboxPreviewUrl, setInboxPreviewUrl] = useState<string>("");
-  const [showSmtpModal, setShowSmtpModal] = useState<boolean>(false);
-  const [smtpUser, setSmtpUser] = useState<string>("");
-  const [smtpPass, setSmtpPass] = useState<string>("");
-  const [smtpSaving, setSmtpSaving] = useState<boolean>(false);
-  const [smtpStatus, setSmtpStatus] = useState<{
-    type: "idle" | "success" | "error";
-    message: string;
-  }>({ type: "idle", message: "" });
-  const [isSmtpConfigured, setIsSmtpConfigured] = useState<boolean>(false);
   const [customOAuthName, setCustomOAuthName] = useState<string>("");
   const [customOAuthEmail, setCustomOAuthEmail] = useState<string>("");
   const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
-  const [sendingEmail, setSendingEmail] = useState<boolean>(false);
-  const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
-  const [resendTimer, setResendTimer] = useState<number>(0);
-  const [expireTimer, setExpireTimer] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
-  const [deliveryChannel, setDeliveryChannel] = useState<"email" | "sms">("email");
-  const [phone, setPhone] = useState<string>("");
 
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const handleBackToEntry = () => {
     setStep("entry");
     setEmail("");
+    setPassword("");
     setName("");
     setCustomOAuthEmail("");
     setCustomOAuthName("");
-    setOtpDigits(["", "", "", "", "", ""]);
-    setOtpError("");
     setAuthError("");
-    setInboxPreviewUrl("");
-    setDispatchOtp("");
   };
 
   // Listen for OAuth session on mount or return
@@ -412,142 +392,15 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     });
   }, [onAuthComplete, onSuccess]);
 
-  // Load initial SMTP configuration from storage and server endpoint
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("agrospace_smtp_config");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.gmailUser) {
-          setSmtpUser(parsed.gmailUser);
-          setIsSmtpConfigured(true);
-        }
-      }
-    } catch {}
-
-    fetch("/api/configure-smtp")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.isConfigured) {
-          setIsSmtpConfigured(true);
-          if (data.user && !smtpUser) {
-            setSmtpUser(data.user);
-          }
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleSaveSmtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanUser = smtpUser.trim().toLowerCase();
-    const cleanPass = smtpPass.trim().replace(/\s+/g, "");
-
-    if (!cleanUser || !cleanPass) {
-      setSmtpStatus({
-        type: "error",
-        message: "Please enter your Gmail address and 16-character Google App Password.",
-      });
-      return;
-    }
-
-    setSmtpSaving(true);
-    setSmtpStatus({ type: "idle", message: "" });
-
-    try {
-      const res = await fetch("/api/configure-smtp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gmailUser: cleanUser,
-          gmailAppPassword: cleanPass,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      setSmtpSaving(false);
-
-      if (res.ok && data.success) {
-        localStorage.setItem(
-          "agrospace_smtp_config",
-          JSON.stringify({ gmailUser: cleanUser, gmailAppPassword: cleanPass }),
-        );
-        setIsSmtpConfigured(true);
-        setSmtpStatus({
-          type: "success",
-          message:
-            data.message ||
-            `Connected! Verification emails will now send from ${cleanUser}.`,
-        });
-        setTimeout(() => {
-          setShowSmtpModal(false);
-          const pending = (email || customOAuthEmail || "").trim();
-          if (pending && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending)) {
-            triggerOtpDispatch(pending, name || customOAuthName || pending.split("@")[0], selectedProvider);
-          }
-        }, 900);
-      } else {
-        setSmtpStatus({
-          type: "error",
-          message:
-            data.error ||
-            "Google SMTP verification failed. Ensure 2-Step Verification is ON and use a 16-character App Password.",
-        });
-      }
-    } catch {
-      setSmtpSaving(false);
-      localStorage.setItem(
-        "agrospace_smtp_config",
-        JSON.stringify({ gmailUser: cleanUser, gmailAppPassword: cleanPass }),
-      );
-      setIsSmtpConfigured(true);
-      setSmtpStatus({
-        type: "success",
-        message: `Saved locally for this session! Real emails will be sent from ${cleanUser}.`,
-      });
-      setTimeout(() => {
-        setShowSmtpModal(false);
-        const pending = (email || customOAuthEmail || "").trim();
-        if (pending && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending)) {
-          triggerOtpDispatch(pending, name || customOAuthName || pending.split("@")[0], selectedProvider);
-        }
-      }, 900);
-    }
-  };
-
-  // Countdown timer for Resend OTP (60s cooldown)
-  useEffect(() => {
-    if (resendTimer <= 0) return;
-    const timer = setInterval(() => setResendTimer((t) => Math.max(0, t - 1)), 1000);
-    return () => clearInterval(timer);
-  }, [resendTimer]);
-
-  // Countdown timer for 5-minute OTP expiration (300s)
-  useEffect(() => {
-    if (step !== "otp" || expireTimer <= 0) return;
-    const timer = setInterval(() => {
-      setExpireTimer((t) => {
-        if (t <= 1) {
-          setOtpError("Verification code has expired (5-minute limit). Please request a new code.");
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [step, expireTimer]);
-
   const handleTabSwitch = (newMode: "signin" | "signup") => {
     setAuthMode(newMode);
     setAuthError("");
-    setOtpError("");
     setLoadingOAuth(null);
-    setSendingEmail(false);
+    setIsSubmitting(false);
   };
 
   useEffect(() => {
     setAuthError("");
-    setOtpError("");
   }, [authMode]);
 
   // Direct Social OAuth Login (Google, Microsoft, Apple)
@@ -584,258 +437,83 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     }
   };
 
-  // Centralized OTP Dispatcher with Strict Gmail SMTP Verification
-  const triggerOtpDispatch = async (
-    targetEmail: string,
-    targetName: string,
-    provider: OAuthProvider = selectedProvider,
-  ) => {
-    setAuthError("");
-    setSendingEmail(true);
-    const cleanEmail = targetEmail.trim().toLowerCase();
-    setEmail(cleanEmail);
-    setName(targetName.trim());
-    setSelectedProvider(provider);
-
-    try {
-      const result =
-        authMode === "signin" && deliveryChannel === "email" && !phone.trim()
-          ? await sendEmailOtp(cleanEmail)
-          : targetName.trim()
-            ? await sendEmailOtp(
-                cleanEmail,
-                authMode,
-                deliveryChannel,
-                phone.trim(),
-                targetName.trim(),
-              )
-            : await sendEmailOtp(cleanEmail, authMode, deliveryChannel, phone.trim());
-      setSendingEmail(false);
-
-      if (result.needsSmtpSetup) {
-        setShowSmtpModal(true);
-        setSmtpStatus({
-          type: "error",
-          message:
-            "Gmail SMTP Setup Required: Please enter your Sender Gmail & 16-character Google App Password once so AgroSpace can send real verification codes to user inboxes.",
-        });
-        return;
-      }
-
-      if (!result.success) {
-        setAuthError(result.error || "Failed to dispatch verification email via Gmail SMTP.");
-        return;
-      }
-
-      if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
-      if (result.devCode) {
-        setDispatchOtp(result.devCode);
-      } else {
-        setDispatchOtp("");
-      }
-      setStep("otp");
-      setResendTimer(60);
-      setExpireTimer(300);
-      setOtpDigits(["", "", "", "", "", ""]);
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
-    } catch (err: unknown) {
-      setSendingEmail(false);
-      const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(`Dispatch error: ${msg}`);
-    }
-  };
-
-  const handleSelectOAuthAccount = async (
+  const handleSelectOAuthAccount = (
     accountEmail: string,
     accountName: string,
     provider: OAuthProvider = selectedProvider,
   ) => {
-    await triggerOtpDispatch(accountEmail, accountName, provider);
-  };
-
-  const handleCustomOAuthAccountSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customOAuthEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customOAuthEmail.trim())) {
-      setAuthError("Please enter a valid Gmail / email address.");
-      return;
-    }
-    const derivedName = customOAuthName.trim() || customOAuthEmail.split("@")[0];
-    triggerOtpDispatch(customOAuthEmail.trim(), derivedName, selectedProvider);
-  };
-
-  const handleEmailContinue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isEmailValid) return;
-    setSelectedProvider("Email");
-    await triggerOtpDispatch(email.trim(), name.trim(), "Email");
-  };
-
-  const handleResendOtp = async () => {
-    if (resendTimer > 0) return;
-    setOtpError("");
-    setSendingEmail(true);
-
-    try {
-      const result = await sendEmailOtp(
-        email.trim(),
-        authMode,
-        deliveryChannel,
-        deliveryChannel === "sms" ? phone.trim() : undefined,
-        name.trim(),
-      );
-      setSendingEmail(false);
-      if (!result.success) {
-        setOtpError(result.error || "Failed to resend verification code.");
-        return;
-      }
-      if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
-      if (result.devCode) {
-        setDispatchOtp(result.devCode);
-      } else {
-        setDispatchOtp("");
-      }
-      setResendTimer(60);
-      setExpireTimer(300);
-      setOtpDigits(["", "", "", "", "", ""]);
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
-    } catch (err: unknown) {
-      setSendingEmail(false);
-      const msg = err instanceof Error ? err.message : String(err);
-      setOtpError(`Resend error: ${msg}`);
-    }
-  };
-
-
-
-  const handleOtpChange = (index: number, value: string) => {
-    const cleaned = value.replace(/\D/g, "");
-    if (!cleaned) {
-      setOtpDigits((prev) => {
-        const next = [...prev];
-        next[index] = "";
-        return next;
-      });
-      return;
-    }
-
-    if (cleaned.length > 1) {
-      const digits = cleaned.slice(0, 6).split("");
-      setOtpDigits((prev) => {
-        const next = [...prev];
-        digits.forEach((d, i) => {
-          if (index + i < 6) next[index + i] = d;
-        });
-        return next;
-      });
-      const nextFocus = Math.min(5, index + digits.length);
-      inputRefs.current[nextFocus]?.focus();
-      return;
-    }
-
-    setOtpDigits((prev) => {
-      const next = [...prev];
-      next[index] = cleaned;
-      return next;
-    });
-    setOtpError("");
-
-    if (cleaned && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (pasted.length === 6) {
-      setOtpDigits(pasted.split(""));
-      inputRefs.current[5]?.focus();
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const entered = otpDigits.join("");
-    if (entered.length < 6) {
-      setOtpError("Please enter all 6 digits of the verification code.");
-      return;
-    }
-    if (expireTimer <= 0) {
-      setOtpError("Verification code has expired (5-minute limit). Please request a new code.");
-      return;
-    }
-
-    setVerifyingOtp(true);
-    setOtpError("");
-
-    try {
-      const result = await verifyEmailOtp(
-        email.trim(),
-        entered,
-        name.trim() || undefined,
-        authMode,
-        selectedProvider || "Email",
-      );
-      setVerifyingOtp(false);
-
-      if (!result.success || !result.user) {
-        if (dispatchOtp && entered === dispatchOtp) {
-          const profile = createInitialProfile(
-            email.trim(),
-            selectedProvider || "Email",
-            name.trim() || undefined,
-          );
-          profile.verified = true;
-          profile.isVerified = true;
-          profile.role = "Mission Commander";
-          await saveUserToDatabase(profile);
-          saveStoredProfile(profile);
-          saveStoredUser(profile);
-          onAuthComplete?.(profile);
-          onSuccess?.(profile);
-          return;
-        }
-
-        setOtpError(result.error || "Invalid verification code. Please check and try again.");
-        return;
-      }
-
-      const user = result.user;
-      user.verified = true;
-      user.isVerified = true;
-      user.role = "Mission Commander";
-      if (selectedProvider && selectedProvider !== "Email") {
-        user.provider = selectedProvider;
-      }
+    setAuthError("");
+    const user = completeDirectOAuthLogin(provider, accountEmail, accountName, authMode);
+    if (user) {
       saveStoredUser(user);
       saveStoredProfile(user);
       onAuthComplete?.(user);
       onSuccess?.(user);
-    } catch (err: unknown) {
-      setVerifyingOtp(false);
-      if (dispatchOtp && entered === dispatchOtp) {
-        const profile = createInitialProfile(
-          email.trim(),
-          selectedProvider || "Email",
-          name.trim() || undefined,
-        );
-        profile.verified = true;
-        profile.isVerified = true;
-        profile.role = "Mission Commander";
-        await saveUserToDatabase(profile);
-        saveStoredProfile(profile);
-        saveStoredUser(profile);
-        onAuthComplete?.(profile);
-        onSuccess?.(profile);
+    } else {
+      setAuthError("Account not found. Please click 'Create Account' tab to register.");
+    }
+  };
+
+  const handleCustomOAuthAccountSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!customOAuthEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customOAuthEmail.trim())) {
+      setAuthError("Please enter a valid email address.");
+      return;
+    }
+    const derivedName = customOAuthName.trim() || customOAuthEmail.split("@")[0];
+    const user = completeDirectOAuthLogin(selectedProvider, customOAuthEmail.trim(), derivedName, authMode);
+    if (user) {
+      saveStoredUser(user);
+      saveStoredProfile(user);
+      onAuthComplete?.(user);
+      onSuccess?.(user);
+    } else {
+      setAuthError("Account not found. Please click 'Create Account' tab to register.");
+    }
+  };
+
+  const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+
+    if (!isEmailValid) {
+      setAuthError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!password) {
+      setAuthError("Please enter your password.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setAuthError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const result =
+        authMode === "signin"
+          ? await signInWithEmailPassword(email.trim(), password)
+          : await signUpWithEmailPassword(email.trim(), password, name.trim() || undefined);
+
+      setIsSubmitting(false);
+
+      if (!result.success || !result.user) {
+        setAuthError(result.error || "Authentication failed. Please verify credentials.");
         return;
       }
+
+      saveStoredUser(result.user);
+      saveStoredProfile(result.user);
+      onAuthComplete?.(result.user);
+      onSuccess?.(result.user);
+    } catch (err: unknown) {
+      setIsSubmitting(false);
       const msg = err instanceof Error ? err.message : String(err);
-      setOtpError(`Verification error: ${msg}`);
+      setAuthError(`Authentication error: ${msg}`);
     }
   };
 
@@ -983,84 +661,94 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            {/* Email Form */}
-            <form onSubmit={handleEmailContinue} className="space-y-3">
-              {authMode === "signup" ? (
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Profile Name (optional, e.g., Naren)"
-                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Profile Name (optional, e.g., Naren)"
-                  className="hidden"
-                />
-              )}
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your Gmail or email address (e.g. name@gmail.com)"
-                className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
-              />
-
-              {/* Delivery Channel Selector (Email vs SMS Fallback) */}
-              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-0.5">
-                <span>Code Channel:</span>
-                <div className="flex gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setDeliveryChannel("email")}
-                    className={`px-2 py-0.5 rounded text-[11px] transition cursor-pointer ${
-                      deliveryChannel === "email"
-                        ? "bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    ✉️ Email
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeliveryChannel("sms")}
-                    className={`px-2 py-0.5 rounded text-[11px] transition cursor-pointer ${
-                      deliveryChannel === "sms"
-                        ? "bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    📱 SMS Fallback
-                  </button>
+            {/* Email + Password Form */}
+            <form onSubmit={handleEmailPasswordSubmit} className="space-y-3">
+              {authMode === "signup" && (
+                <div>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Profile Name (optional, e.g., Commander Naren)"
+                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
+                  />
                 </div>
+              )}
+
+              <div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email address (e.g. name@gmail.com)"
+                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
+                />
               </div>
 
-              {deliveryChannel === "sms" && (
+              <div className="relative flex items-center">
                 <input
-                  type="tel"
+                  type={showPassword ? "text" : "password"}
                   required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Mobile phone (+1... or +91...)"
-                  className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={
+                    authMode === "signup"
+                      ? "Create password (min 6 characters)"
+                      : "Enter your password"
+                  }
+                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 pr-11 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-sans"
                 />
-              )}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 p-1 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"
+                      />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
 
               <button
                 type="submit"
-                disabled={!isEmailValid || sendingEmail}
+                disabled={!isEmailValid || !password || password.length < 6 || isSubmitting}
                 className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
-                  isEmailValid
+                  isEmailValid && password.length >= 6 && !isSubmitting
                     ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
                     : "cursor-not-allowed bg-white/15 text-slate-400"
                 }`}
               >
-                {sendingEmail ? "Sending Verification Code..." : "Continue"}
+                {isSubmitting
+                  ? "Authenticating..."
+                  : authMode === "signin"
+                    ? "Sign In to Orbit"
+                    : "Create Account & Enter Orbit"}
               </button>
             </form>
           </>
@@ -1121,7 +809,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               </p>
             </div>
 
-            {/* Custom account input form - Prominent Real Email Entry */}
+            {/* Custom account input form */}
             <form onSubmit={handleCustomOAuthAccountSubmit} className="space-y-2.5 mb-4">
               <input
                 type="text"
@@ -1144,12 +832,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               />
               <button
                 type="submit"
-                disabled={sendingEmail || !customOAuthEmail.trim()}
+                disabled={!customOAuthEmail.trim()}
                 className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.3)] transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
               >
-                {sendingEmail
-                  ? "Sending Verification Code..."
-                  : `Send Verification Code to ${selectedProvider === "Google" ? "Gmail" : selectedProvider}`}
+                Continue to Orbit with {selectedProvider}
               </button>
             </form>
 
@@ -1169,7 +855,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 <button
                   key={acc.email}
                   type="button"
-                  disabled={sendingEmail}
                   onClick={() => handleSelectOAuthAccount(acc.email, acc.name, selectedProvider)}
                   className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-cyan-400/40 transition-all cursor-pointer group text-left"
                 >
@@ -1195,230 +880,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           </div>
         )}
 
-        {/* STEP 3: 6-DIGIT EMAIL OTP VERIFICATION SCREEN */}
-        {step === "otp" && (
-          <div className="animate-in fade-in zoom-in-95 duration-200">
-            <div className="text-center mb-5">
-              <h2 className="text-xl font-semibold text-white">Check your Gmail</h2>
-              <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-                We sent a 6-digit verification code to{" "}
-                <span className="font-mono text-cyan-300 font-semibold">{email}</span>
-              </p>
-            </div>
-
-            {/* Security telemetry & 5-minute countdown indicator */}
-            <div className="mb-5 flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-950/30 px-3.5 py-2.5 text-xs">
-              <div className="flex items-center gap-2 text-cyan-300">
-                <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                <span>Security Verification</span>
-              </div>
-              <div className="font-mono text-[11px] text-slate-400">
-                {expireTimer > 0 ? (
-                  <span>
-                    Expires in{" "}
-                    <span className="text-cyan-300 font-bold">
-                      {Math.floor(expireTimer / 60)}:
-                      {(expireTimer % 60).toString().padStart(2, "0")}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-rose-400 font-semibold">Code Expired</span>
-                )}
-              </div>
-            </div>
-
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="flex justify-between gap-2">
-                {otpDigits.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    ref={(el) => {
-                      inputRefs.current[idx] = el;
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(idx, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                    onPaste={handleOtpPaste}
-                    className="h-12 w-12 rounded-xl border border-white/15 bg-slate-900/90 text-center font-mono text-lg font-bold text-cyan-300 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/25"
-                  />
-                ))}
-              </div>
-
-              {otpError && (
-                <p className="text-center text-xs text-rose-400 font-medium leading-relaxed">
-                  {otpError}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={otpDigits.join("").length < 6 || verifyingOtp || expireTimer <= 0}
-                className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] transition hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {verifyingOtp
-                  ? "Verifying..."
-                  : authMode === "signup"
-                    ? "Verify & Create Account"
-                    : "Verify & Enter Orbit"}
-              </button>
-            </form>
-
-            <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
-              <button
-                type="button"
-                onClick={handleBackToEntry}
-                className="hover:text-white cursor-pointer"
-              >
-                ← Change account
-              </button>
-              <button
-                type="button"
-                disabled={resendTimer > 0 || sendingEmail}
-                onClick={handleResendOtp}
-                className={`cursor-pointer ${
-                  resendTimer > 0 || sendingEmail
-                    ? "text-slate-500 cursor-not-allowed"
-                    : "text-cyan-400 hover:underline"
-                }`}
-              >
-                {resendTimer > 0
-                  ? `Resend code in ${resendTimer}s`
-                  : sendingEmail
-                    ? "Sending..."
-                    : deliveryChannel === "sms"
-                      ? "Resend SMS code"
-                      : "Resend code to Gmail"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Compact SMTP modal trigger */}
-        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-[11px] text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`h-2 w-2 rounded-full ${
-                isSmtpConfigured
-                  ? "bg-emerald-400 shadow-[0_0_8px_#10b981]"
-                  : "bg-amber-400 shadow-[0_0_8px_#f59e0b]"
-              }`}
-            />
-            <span className="text-[11px] text-slate-300">
-              {isSmtpConfigured ? "Gmail SMTP: Active" : "Gmail SMTP: Setup Needed"}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowSmtpModal(true)}
-            className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-300 hover:text-cyan-300 transition-colors cursor-pointer"
-            title="Configure Custom Gmail SMTP (Optional)"
-          >
-            <span>⚙️ SMTP</span>
-          </button>
-        </div>
-
-        <p className="mt-4 text-center text-[11px] leading-relaxed text-slate-400">
+        <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-400">
           By continuing, you agree to our <span className="underline">Terms of Service</span> and{" "}
           <span className="underline">Privacy Policy</span>.
         </p>
-
-        {/* ⚙️ CUSTOM GMAIL SMTP MODAL (POPUP) */}
-        {showSmtpModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-2xl border border-cyan-500/30 bg-slate-950 p-5 shadow-2xl text-xs">
-              <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">⚙️</span>
-                  <h3 className="font-semibold text-white text-sm">
-                    Configure Custom Gmail SMTP
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowSmtpModal(false)}
-                  className="rounded-lg p-1 text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
-                Optional: Connect your Gmail address and 16-character Google App Password to deliver verification emails directly to your Gmail inbox via SSL port 465.
-              </p>
-
-              <form onSubmit={handleSaveSmtp} className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                    Sender Gmail Address
-                  </label>
-                  <input
-                    type="email"
-                    value={smtpUser}
-                    onChange={(e) => setSmtpUser(e.target.value)}
-                    placeholder="e.g. nakkaabhishek24@gmail.com"
-                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-300 mb-1">
-                    16-Character Google App Password
-                  </label>
-                  <input
-                    type="password"
-                    value={smtpPass}
-                    onChange={(e) => setSmtpPass(e.target.value)}
-                    placeholder="e.g. abcd efgh ijkl mnop"
-                    className="w-full rounded-lg border border-white/15 bg-slate-900 px-3 py-1.5 text-xs font-mono text-cyan-200 placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
-                  />
-                  <p className="mt-1 text-[10px] text-slate-400">
-                    Get in:{" "}
-                    <a
-                      href="https://myaccount.google.com/apppasswords"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-cyan-400 underline hover:text-cyan-300"
-                    >
-                      Google Account &gt; Security &gt; 2-Step Verification &gt; App passwords
-                    </a>
-                  </p>
-                </div>
-
-                {smtpStatus.message && (
-                  <div
-                    className={`rounded-lg px-3 py-2 text-[11px] font-medium leading-relaxed ${
-                      smtpStatus.type === "success"
-                        ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                        : "border border-rose-500/30 bg-rose-500/10 text-rose-300"
-                    }`}
-                  >
-                    {smtpStatus.message}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowSmtpModal(false)}
-                    className="px-3 py-1.5 rounded-lg border border-white/10 text-xs text-slate-400 hover:text-white cursor-pointer"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={smtpSaving || !smtpUser || !smtpPass}
-                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold text-xs text-white shadow transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
-                  >
-                    {smtpSaving ? "Verifying..." : "Save & Connect SMTP"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
     </CosmicParallaxBg>
   );
