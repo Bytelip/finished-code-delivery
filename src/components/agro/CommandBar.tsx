@@ -20,6 +20,8 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
+import { LanguageSelector } from "@/components/i18n/LanguageSelector";
+import { useLanguage } from "@/context/LanguageContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -196,8 +198,11 @@ export function CommandBar({
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const isInputFocused = useRef(false);
 
-  // Popover Drawer for Field Parameters & Search
+  const { t } = useLanguage();
+
+  // Popover Drawer for Field Parameters & Search (Closed by default!)
   const [isParamsDrawerOpen, setIsParamsDrawerOpen] = useState(false);
+  const paramsDrawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKey = (e: globalThis.KeyboardEvent) => {
@@ -205,10 +210,33 @@ export function CommandBar({
         e.preventDefault();
         setIsParamsDrawerOpen((prev) => !prev);
       }
+      if (e.key === "Escape" && isParamsDrawerOpen) {
+        setIsParamsDrawerOpen(false);
+      }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+  }, [isParamsDrawerOpen]);
+
+  // Click outside to close floating parameters drawer
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        isParamsDrawerOpen &&
+        paramsDrawerRef.current &&
+        !paramsDrawerRef.current.contains(e.target as Node)
+      ) {
+        const target = e.target as HTMLElement;
+        if (!target.closest("[data-params-trigger]")) {
+          setIsParamsDrawerOpen(false);
+        }
+      }
+    };
+    if (isParamsDrawerOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isParamsDrawerOpen]);
 
   // Synchronize location label into input if user is not typing
   useEffect(() => {
@@ -385,15 +413,15 @@ export function CommandBar({
       )}
 
       {/* ---------------- 1. SINGLE UNIFIED GLASS NAVBAR (h-14) ---------------- */}
-      <div className="h-14 px-3 sm:px-5 flex items-center justify-between border-b border-white/[0.08] bg-[#0a0f1d]/85 backdrop-blur-2xl">
+      <div className="h-14 px-3 flex items-center justify-between gap-2 overflow-visible whitespace-nowrap border-b border-white/[0.08] bg-[#0a0f1d]/85 backdrop-blur-2xl relative z-[100]">
         {/* Left: Orbital Dock trigger + Brand Emblem + Active Location Pill */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {onToggleSidebar && (
             <button
               type="button"
               onClick={onToggleSidebar}
               className={cn(
-                "h-8 px-2.5 rounded-full border text-xs font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm",
+                "h-8 px-2 sm:px-2.5 rounded-full border text-xs font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0",
                 sidebarCollapsed
                   ? "bg-white/[0.04] hover:bg-white/[0.08] text-white/80 border-white/10"
                   : "bg-cyan-500/15 border-cyan-400/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
@@ -401,16 +429,16 @@ export function CommandBar({
               title="Toggle Orbital Dock Sidebar (Tab or H)"
             >
               <Menu className="size-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">Orbital Dock</span>
+              <span className="hidden sm:inline">{t("orbital_dock", "Dock")}</span>
             </button>
           )}
 
           {/* Single Brand Emblem */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <div className="grid size-7 place-items-center rounded-lg border border-cyan/60 bg-cyan/15 text-cyan shadow-[0_0_12px_rgba(0,240,255,0.35)]">
               <Satellite className="size-3.5 animate-pulse text-cyan" />
             </div>
-            <span className="font-mono font-bold text-sm tracking-wider text-white hidden sm:inline-flex items-center">
+            <span className="font-mono font-bold text-sm tracking-wider text-white hidden sm:inline-flex items-center whitespace-nowrap">
               AgroSpace Nexus
               <span className="text-[10px] text-cyan-400 font-semibold px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 ml-1.5">
                 v2.4
@@ -419,42 +447,44 @@ export function CommandBar({
           </div>
 
           {/* Active Location Pill */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-xs font-mono text-muted-foreground">
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-xs font-mono text-muted-foreground shrink-0 max-w-[220px]">
             <MapPin className="size-3 text-cyan-400 shrink-0 drop-shadow-[0_0_6px_#00f0ff]" />
-            <span className="text-white font-semibold truncate max-w-[130px]">
-              {locationLabel || "Target Lock"}
+            <span className="text-white font-semibold truncate">
+              {locationLabel || "Harohalli, KA"}
             </span>
             <span className="text-white/30">•</span>
-            <span className="text-cyan-300/80">
+            <span className="text-cyan-300/80 shrink-0">
               {lat.toFixed(2)}°N, {lon.toFixed(2)}°E
             </span>
             {elevationM !== undefined && (
               <>
-                <span className="text-white/30">•</span>
-                <span className="text-emerald-400/80 font-bold">ELEV {elevationM}m</span>
+                <span className="text-white/30 hidden lg:inline">•</span>
+                <span className="text-emerald-400/80 font-bold shrink-0 hidden lg:inline">
+                  {elevationM}m
+                </span>
               </>
             )}
           </div>
         </div>
 
-        {/* Center: Command Search & Field Parameters Trigger Pill */}
-        <div className="flex items-center justify-center mx-2">
+        {/* Center: Command Search & Field Parameters Trigger Pill (Single Line Whitespace-Nowrap) */}
+        <div className="flex items-center justify-center shrink-0">
           <button
             type="button"
+            data-params-trigger="true"
             onClick={() => setIsParamsDrawerOpen((prev) => !prev)}
             className={cn(
-              "px-3.5 py-1.5 rounded-full border text-xs font-mono transition-all flex items-center gap-2 cursor-pointer shadow-inner",
+              "whitespace-nowrap inline-flex items-center gap-2 h-9 px-3 sm:px-3.5 rounded-full border text-xs font-mono font-semibold transition-all cursor-pointer shadow-inner shrink-0",
               isParamsDrawerOpen
                 ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-200 shadow-[0_0_18px_rgba(6,182,212,0.35)]"
                 : "bg-white/[0.04] hover:bg-white/[0.08] border-white/15 text-cyan-300/90 hover:border-cyan-500/40"
             )}
-            title="Search Place or Adjust Field Parameters (Cmd+K)"
+            title="Search & Field Params (Cmd+K)"
           >
             <Search className="size-3.5 text-cyan-400 shrink-0 drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
-            <span className="font-semibold hidden md:inline">
-              Search Place or Adjust Field Params
+            <span className="font-semibold whitespace-nowrap">
+              {t("search_field_params", "Search & Field Params")}
             </span>
-            <span className="font-semibold md:hidden">Field Params</span>
             <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-black/40 border border-white/10 text-[9.5px] text-white/50 font-sans">
               ⌘K
             </kbd>
@@ -466,60 +496,65 @@ export function CommandBar({
           </button>
         </div>
 
-        {/* Right: Health Badge + Clock + Theme Switcher + Mission Brief + Single Profile */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: Health Badge + Language Selector + Theme + Mission Brief + Single Profile */}
+        <div className="flex items-center gap-1.5 shrink-0 min-w-0">
           {plantHealthOverall !== undefined && (
-            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none">
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0">
               <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Health: {Math.round(plantHealthOverall)}/100</span>
+              <span>
+                {t("health", "Health")}: {Math.round(plantHealthOverall)}/100
+              </span>
             </div>
           )}
 
-          <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-[#040C18]/80 text-xs font-mono text-cyan-300 select-none">
-            <Clock className="size-3 text-cyan-400 animate-pulse" />
-            <span>{metFormatted}</span>
-          </div>
+          {/* 🌐 Prominent Language Selector Dropdown */}
+          <LanguageSelector />
 
+          {/* Theme Switcher */}
           <ThemeSwitcher />
 
+          {/* Mission Brief Button */}
           <Button
             type="button"
             size="sm"
             onClick={onOpenMissionBrief}
-            className="h-8 px-2.5 sm:px-3 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1.5 cursor-pointer"
+            className="h-8 px-2 sm:px-2.5 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1 cursor-pointer shrink-0"
             title="Open NASA Space Apps Mission Brief"
           >
             <Rocket className="size-3.5 text-cyan-400 animate-pulse" />
-            <span className="hidden sm:inline">🚀 Mission Brief</span>
-            <span className="sm:hidden">Brief</span>
+            <span className="hidden sm:inline">🚀 {t("brief", "Brief")}</span>
           </Button>
 
-          {profile ? (
-            <UserProfileNavbarWidget
-              user={profile}
-              onUpdateUser={(updated) => onUpdateUser?.(updated)}
-              onLogout={() => onSignOut?.()}
-              onNavigateHome={(locStr) => onNavigateHome?.(13.1367, 78.1292, locStr)}
-            />
-          ) : (
-            <OperatorProfileDropdown
-              profile={null}
-              onOpenAuth={onOpenAuth || (() => {})}
-              onOpenSettings={onOpenSettings || (() => {})}
-              onNavigateHome={onNavigateHome}
-              onSignOut={onSignOut || (() => {})}
-            />
-          )}
+          {/* Operator Profile Avatar + Dropdown (Strictly Kept Inside Viewport) */}
+          <div className="shrink-0">
+            {profile ? (
+              <UserProfileNavbarWidget
+                user={profile}
+                onUpdateUser={(updated) => onUpdateUser?.(updated)}
+                onLogout={() => onSignOut?.()}
+                onNavigateHome={(locStr) => onNavigateHome?.(12.6622, 77.4503, locStr)}
+              />
+            ) : (
+              <OperatorProfileDropdown
+                profile={null}
+                onOpenAuth={onOpenAuth || (() => {})}
+                onOpenSettings={onOpenSettings || (() => {})}
+                onNavigateHome={onNavigateHome}
+                onSignOut={onSignOut || (() => {})}
+              />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ---------------- 2. COLLAPSIBLE FIELD PARAMETERS DRAWER ---------------- */}
+      {/* ---------------- 2. FLOATING FIELD PARAMETERS DRAWER OVERLAY (ABSOLUTE POPOVER) ---------------- */}
       <div
+        ref={paramsDrawerRef}
         className={cn(
-          "transition-all duration-300 overflow-hidden bg-[#060D18]/95 border-b border-white/10 shadow-[0_20px_45px_rgba(0,0,0,0.85)] backdrop-blur-2xl",
+          "transition-all duration-300 z-50 absolute top-14 left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-2xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
           isParamsDrawerOpen
-            ? "max-h-[600px] opacity-100 py-3 px-3 sm:px-6"
-            : "max-h-0 opacity-0 py-0 px-3 sm:px-6 pointer-events-none"
+            ? "opacity-100 scale-100 pointer-events-auto visible"
+            : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0"
         )}
       >
         <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
@@ -535,7 +570,7 @@ export function CommandBar({
             className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white font-mono text-xs transition-colors cursor-pointer"
             title="Close Parameters Drawer"
           >
-            <X className="size-3.5" /> Done
+            <X className="size-3.5" /> {t("done", "Done")}
           </button>
         </div>
 

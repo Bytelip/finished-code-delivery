@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
 import { CommandBar } from "@/components/agro/CommandBar";
 import { GlobeContainer } from "@/components/agro/GlobeContainer";
+import { AuthGate } from "@/components/auth/AuthGate";
 import { CosmicAuthPage, getStoredUser, saveStoredUser } from "@/components/CosmicAuthPage";
 import { UserProfileModal } from "@/components/UserProfileModal";
 import {
@@ -70,10 +71,43 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: AgroSpaceDashboard,
+  component: AgroSpaceAppRoot,
 });
 
-function AgroSpaceDashboard() {
+function AgroSpaceAppRoot() {
+  const [liveFlyTarget, setLiveFlyTarget] = useState<{ lat: number; lon: number; label: string } | null>(null);
+
+  return (
+    <AuthGate
+      onLiveLocationAcquired={(lat, lon, label) => {
+        setLiveFlyTarget({ lat, lon, label });
+      }}
+    >
+      {({ user, onSignOut, onUpdateUser }) => (
+        <AgroSpaceDashboard
+          user={user}
+          onSignOut={onSignOut}
+          onUpdateUser={onUpdateUser}
+          liveTarget={liveFlyTarget}
+        />
+      )}
+    </AuthGate>
+  );
+}
+
+interface AgroSpaceDashboardProps {
+  user?: UserProfile | null;
+  onSignOut?: () => void;
+  onUpdateUser?: (u: UserProfile) => void;
+  liveTarget?: { lat: number; lon: number; label: string } | null;
+}
+
+function AgroSpaceDashboard({
+  user,
+  onSignOut,
+  onUpdateUser,
+  liveTarget,
+}: AgroSpaceDashboardProps) {
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(true);
   const [isPinned, setIsPinned] = useState(false);
@@ -113,7 +147,9 @@ function AgroSpaceDashboard() {
     elevationM: number;
   } | null>(null);
 
-  const [operator, setOperator] = useState<UserProfile | null>(null);
+  const [operator, setOperator] = useState<UserProfile | null>(
+    () => user || getStoredUser() || loadStoredProfile()
+  );
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showMissionBriefModal, setShowMissionBriefModal] = useState(false);
@@ -121,14 +157,23 @@ function AgroSpaceDashboard() {
   const [advisoryLanguage, setAdvisoryLanguage] = useState<"en" | "hi" | "kn">("en");
 
   useEffect(() => {
-    const stored = getStoredUser() || loadStoredProfile();
-    if (stored) setOperator(stored);
+    if (user) {
+      setOperator(user);
+    }
+  }, [user]);
 
+  useEffect(() => {
+    if (liveTarget) {
+      setLocation(liveTarget.lat, liveTarget.lon, liveTarget.label);
+    }
+  }, [liveTarget]);
+
+  useEffect(() => {
     // Also process any returning OAuth redirect sessions
-    processIncomingAuthCallback().then((user) => {
-      if (user) {
-        setOperator(user);
-        saveStoredProfile(user);
+    processIncomingAuthCallback().then((u) => {
+      if (u) {
+        setOperator(u);
+        saveStoredProfile(u);
       }
     });
   }, []);
@@ -297,13 +342,13 @@ function AgroSpaceDashboard() {
           onUpdateUser={(updated) => {
             setOperator(updated);
             saveStoredUser(updated);
+            saveStoredProfile(updated);
+            onUpdateUser?.(updated);
           }}
           onSignOut={() => {
             clearStoredProfile();
             setOperator(null);
-            toast.info("Operator Signed Out", {
-              description: "Mission Control session terminated.",
-            });
+            onSignOut?.();
           }}
           onToggleSidebar={() => setCollapsed((c) => !c)}
           sidebarCollapsed={collapsed}
@@ -491,14 +536,14 @@ function AgroSpaceDashboard() {
           onSave={(updated) => {
             setOperator(updated);
             saveStoredProfile(updated);
+            saveStoredUser(updated);
+            onUpdateUser?.(updated);
           }}
           onSignOut={() => {
             clearStoredProfile();
             setOperator(null);
             setShowSettingsModal(false);
-            toast.info("Operator Signed Out", {
-              description: "Mission Control session terminated.",
-            });
+            onSignOut?.();
           }}
           onNavigateHome={(hLat, hLon, hLabel) => {
             setLocation(hLat, hLon, hLabel);
