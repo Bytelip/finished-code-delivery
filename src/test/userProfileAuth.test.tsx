@@ -328,4 +328,35 @@ describe("User Profile & Authentication System", () => {
     fireEvent.click(screen.getByText(/Sign Out of Mission Control/i));
     expect(onLogout).toHaveBeenCalledTimes(1);
   });
+
+  it("strictly rejects ghost accounts / phantom logins when user does not exist in database during signin", async () => {
+    // Attempting to send OTP in signin mode for an unregistered ghost email
+    const result = await authService.sendEmailOtp("ghost.operator@unknown.com", "signin");
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Account not found\. Please sign up first\./i);
+
+    // Attempting direct OAuth signin for an unregistered ghost email
+    const oauthProfile = authService.completeDirectOAuthLogin(
+      "Google",
+      "ghost.operator@unknown.com",
+      "Ghost Operator",
+      "signin",
+    );
+    expect(oauthProfile).toBeNull();
+  });
+
+  it("registers new account in signup mode and allows subsequent signin", async () => {
+    // 1. Sign up a new user
+    const newEmail = "new.cadet@agrospace.nasa.gov";
+    const signUpResult = await authService.sendEmailOtp(newEmail, "signup");
+    expect(signUpResult.success).toBe(true);
+
+    const verifiedProfile = await authService.verifyEmailOtp(newEmail, signUpResult.devCode || "123456", "Cadet Rao", "signup");
+    expect(verifiedProfile.success).toBe(true);
+    expect(verifiedProfile.user?.email).toBe(newEmail);
+
+    // 2. Now user exists in database: subsequent signin mode succeeds
+    const signInResult = await authService.sendEmailOtp(newEmail, "signin");
+    expect(signInResult.success).toBe(true);
+  });
 });

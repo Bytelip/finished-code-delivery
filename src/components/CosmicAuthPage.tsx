@@ -304,6 +304,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [expireTimer, setExpireTimer] = useState<number>(0);
   const [devCode, setDevCode] = useState<string>("");
   const [isServiceConfigured, setIsServiceConfigured] = useState<boolean>(true);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [deliveryChannel, setDeliveryChannel] = useState<"email" | "sms">("email");
+  const [phone, setPhone] = useState<string>("");
 
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -370,10 +373,17 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   };
 
   // Complete OAuth login directly on account selection
+  // In signin mode: strictly validates against ghost accounts
   const handleSelectOAuthAccount = (targetEmail: string, targetName: string) => {
     if (!oauthModal) return;
-    const profile = completeDirectOAuthLogin(oauthModal, targetEmail, targetName);
+    const profile = completeDirectOAuthLogin(oauthModal, targetEmail, targetName, authMode);
     setOauthModal(null);
+    if (!profile) {
+      setConfigError(
+        `Account not found for ${targetEmail}. Please switch to "Create Account" first.`,
+      );
+      return;
+    }
     onAuthComplete?.(profile);
     onSuccess?.(profile);
   };
@@ -388,7 +398,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setConfigError("");
 
     try {
-      const result = await sendEmailOtp(email.trim());
+      const result =
+        authMode === "signin" && deliveryChannel === "email" && !phone.trim()
+          ? await sendEmailOtp(email.trim())
+          : await sendEmailOtp(email.trim(), authMode, deliveryChannel, phone.trim());
       setSendingEmail(false);
       if (!result.success) {
         setConfigError(result.error || "Failed to send verification code.");
@@ -398,7 +411,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       setDevCode(result.devCode || "");
       // Genuine OTP sent; transition to manual OTP verification screen
       setStep("otp");
-      setResendTimer(45);
+      setResendTimer(60); // 60s cooldown timer
       setExpireTimer(300); // 5 minutes expiration
       setOtpDigits(["", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
@@ -409,14 +422,17 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     }
   };
 
-  // Resend OTP handler with 45s cooldown
+  // Resend OTP handler with 60s cooldown timer
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
     setOtpError("");
     setSendingEmail(true);
 
     try {
-      const result = await sendEmailOtp(email.trim());
+      const result =
+        authMode === "signin" && deliveryChannel === "email" && !phone.trim()
+          ? await sendEmailOtp(email.trim())
+          : await sendEmailOtp(email.trim(), authMode, deliveryChannel, phone.trim());
       setSendingEmail(false);
       if (!result.success) {
         setOtpError(result.error || "Failed to resend verification code.");
@@ -424,7 +440,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       }
       setIsServiceConfigured(result.isConfigured !== false);
       setDevCode(result.devCode || "");
-      setResendTimer(45);
+      setResendTimer(60);
       setExpireTimer(300);
       setOtpDigits(["", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
@@ -478,7 +494,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setOtpError("");
 
     try {
-      const result = await verifyEmailOtp(email.trim(), entered, name.trim());
+      const result =
+        authMode === "signin"
+          ? await verifyEmailOtp(email.trim(), entered, name.trim())
+          : await verifyEmailOtp(email.trim(), entered, name.trim(), authMode);
       setVerifyingOtp(false);
 
       if (!result.success || !result.user) {
@@ -535,32 +554,82 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
         {/* Authentication Notice / Configuration Alert if explicitly raised */}
         {configError && (
-          <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
-            <div className="flex items-center gap-2 font-semibold text-amber-300">
+          <div className="mb-5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-200">
+            <div className="flex items-center gap-2 font-semibold text-rose-300">
               <svg
-                className="h-4 w-4 shrink-0 text-amber-400"
+                className="h-4 w-4 shrink-0 text-rose-400"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
                 <path
                   fillRule="evenodd"
-                  d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
                   clipRule="evenodd"
                 />
               </svg>
               <span>Authentication Setup Notice</span>
             </div>
-            <p className="mt-1.5 leading-relaxed text-amber-200/90">{configError}</p>
+            <p className="mt-1.5 leading-relaxed text-rose-200/90">{configError}</p>
+            {configError.includes("sign up") && authMode === "signin" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("signup");
+                  setConfigError("");
+                }}
+                className="mt-2.5 inline-flex items-center gap-1 font-semibold text-cyan-300 underline hover:text-cyan-200 cursor-pointer"
+              >
+                Click here to Create an Account →
+              </button>
+            )}
           </div>
         )}
 
         {step === "entry" ? (
           <>
+            {/* Mode Switcher: Sign In vs Create Account */}
+            <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-900/90 p-1 border border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("signin");
+                  setConfigError("");
+                  setOtpError("");
+                }}
+                className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
+                  authMode === "signin"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("signup");
+                  setConfigError("");
+                  setOtpError("");
+                }}
+                className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
+                  authMode === "signup"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Create Account
+              </button>
+            </div>
+
             <div className="text-center mb-6">
               <h1 className="text-2xl font-semibold tracking-tight text-white">
-                Welcome to AgroSpace
+                {authMode === "signin" ? "Sign in to AgroSpace" : "Create Mission Account"}
               </h1>
-              <p className="mt-1 text-sm text-slate-400">Sign in or sign up</p>
+              <p className="mt-1 text-sm text-slate-400">
+                {authMode === "signin"
+                  ? "Enter registered credentials for clearance verification"
+                  : "Register a new operator profile for mission clearance"}
+              </p>
             </div>
 
             {/* Social OAuth Buttons - Direct OAuth Flow, No OTP */}
@@ -636,13 +705,23 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
             {/* Email Form */}
             <form onSubmit={handleEmailContinue} className="space-y-3">
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Profile Name (optional, e.g., Naren)"
-                className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
-              />
+              {authMode === "signup" ? (
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Profile Name (optional, e.g., Naren)"
+                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Profile Name (optional, e.g., Naren)"
+                  className="hidden"
+                />
+              )}
               <input
                 type="email"
                 required
@@ -651,6 +730,47 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 placeholder="Enter your Gmail or email address"
                 className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
               />
+
+              {/* Delivery Channel Selector (Email vs SMS Fallback) */}
+              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-0.5">
+                <span>Code Channel:</span>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryChannel("email")}
+                    className={`px-2 py-0.5 rounded text-[11px] transition cursor-pointer ${
+                      deliveryChannel === "email"
+                        ? "bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    ✉️ Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryChannel("sms")}
+                    className={`px-2 py-0.5 rounded text-[11px] transition cursor-pointer ${
+                      deliveryChannel === "sms"
+                        ? "bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    📱 SMS Fallback
+                  </button>
+                </div>
+              </div>
+
+              {deliveryChannel === "sms" && (
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Mobile phone (+1... or +91...)"
+                  className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
+                />
+              )}
+
               <button
                 type="submit"
                 disabled={!isEmailValid || sendingEmail}
@@ -782,7 +902,27 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   ? `Resend code in ${resendTimer}s`
                   : sendingEmail
                     ? "Sending..."
-                    : "Resend code to Gmail"}
+                    : deliveryChannel === "sms"
+                      ? "Resend SMS code"
+                      : "Resend code to Gmail"}
+              </button>
+            </div>
+
+            {/* Fallback channel switcher if code did not arrive */}
+            <div className="mt-3.5 pt-3 border-t border-white/10 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliveryChannel((c) => (c === "email" ? "sms" : "email"));
+                  if (resendTimer <= 0) {
+                    handleResendOtp();
+                  }
+                }}
+                className="text-[11px] text-cyan-400/80 hover:text-cyan-300 underline cursor-pointer"
+              >
+                {deliveryChannel === "email"
+                  ? "Didn't receive code? Try SMS fallback channel"
+                  : "Didn't receive SMS? Try Email channel"}
               </button>
             </div>
           </div>
