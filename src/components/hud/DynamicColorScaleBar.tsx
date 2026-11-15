@@ -30,8 +30,8 @@ export function DynamicColorScaleBar({
         { value: "22", color: "#84cc16", label: "22" },
         { value: "26", color: "#eab308", label: "26" },
         { value: "30", color: "#f97316", label: "30" },
-        { value: "32", color: "#ef4444", label: "32" },
-        { value: "35+", color: "#831843", label: "35" },
+        { value: "34", color: "#ef4444", label: "34" },
+        { value: "36+", color: "#831843", label: "36" },
       ]
     : scale.stops;
 
