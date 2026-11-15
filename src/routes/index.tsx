@@ -32,6 +32,8 @@ import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiSe
 import { AgroDecisionCard } from "@/components/agro/AgroDecisionCard";
 import { NasaMissionBriefModal } from "@/components/NasaMissionBriefModal";
 import { FarmerAdvisoryModal } from "@/components/HazardAlertCenter";
+import { VibeCosmicBackground } from "@/components/ui/VibeCosmicBackground";
+import { SpotlightCard } from "@/components/ui/SpotlightCard";
 import {
   computeKoppenClimateZone,
   getStoredLocation,
@@ -234,6 +236,9 @@ function AgroSpaceDashboard() {
 
   return (
     <div className="flex min-h-screen relative">
+      {/* GitHub + Linear + DeepMind GPU-Accelerated Cosmic Background */}
+      <VibeCosmicBackground />
+
       <DashboardSidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
@@ -371,32 +376,46 @@ function AgroSpaceDashboard() {
             <>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="antigravity-float-2">
-                  <PowerChart data={telemetry.power} />
+                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
+                    <PowerChart data={telemetry.power} />
+                  </SpotlightCard>
                 </div>
                 <div className="antigravity-float-3">
-                  <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
+                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
+                    <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
+                  </SpotlightCard>
                 </div>
                 <div className="antigravity-float-1">
-                  <PlantHealthRadar health={telemetry.plantHealth} />
+                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
+                    <PlantHealthRadar health={telemetry.plantHealth} />
+                  </SpotlightCard>
                 </div>
                 <div className="antigravity-float-2">
-                  <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
+                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
+                    <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
+                  </SpotlightCard>
                 </div>
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="antigravity-float-3">
-                  <HazardMatrixSlot
-                    hazards={telemetry.hazards}
-                    telemetry={telemetry}
-                    variant="summary"
-                  />
+                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
+                    <HazardMatrixSlot
+                      hazards={telemetry.hazards}
+                      telemetry={telemetry}
+                      variant="summary"
+                    />
+                  </SpotlightCard>
                 </div>
                 <div className="antigravity-float-1">
-                  <CropEngineSlot crop={telemetry.crop} />
+                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
+                    <CropEngineSlot crop={telemetry.crop} />
+                  </SpotlightCard>
                 </div>
               </div>
               <div className="antigravity-float-2">
-                <FieldShiftCropAdvisor telemetry={telemetry} />
+                <SpotlightCard className="p-0 border-white/10 bg-transparent">
+                  <FieldShiftCropAdvisor telemetry={telemetry} />
+                </SpotlightCard>
               </div>
             </>
           )}

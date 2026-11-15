@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import {
   Sparkles,
   FileText,
@@ -8,13 +9,26 @@ import {
   CloudRain,
   Sprout,
   CheckCircle2,
-  AlertTriangle,
   TrendingUp,
   ArrowRight,
   ShieldCheck,
   ChevronRight,
+  Scale,
+  Zap,
+  BarChart3,
+  Layers,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BorderBeam } from "@/components/ui/BorderBeam";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import type { AgroTelemetry } from "@/types/agroSpace";
 import {
   CROP_SUITABILITY_ATLAS,
@@ -115,6 +129,9 @@ export function AgroDecisionCard({
   // Selected or #1 best-matched crop state
   const [selectedCropId, setSelectedCropId] = useState<string | null>(null);
 
+  // Modal inspection state for 1-click Compare & Simulate Shift
+  const [modalCrop, setModalCrop] = useState<EvaluatedCropSuitability | null>(null);
+
   const activeCrop: EvaluatedCropSuitability = useMemo(() => {
     if (selectedCropId) {
       const match = rankedCrops.find((c) => c.id === selectedCropId);
@@ -181,10 +198,13 @@ export function AgroDecisionCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-cyan-500/30 bg-[#070D1A]/90 p-5 backdrop-blur-xl shadow-[0_0_35px_rgba(6,182,212,0.12)] transition-all duration-300",
+        "relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#070D1A]/90 p-5 backdrop-blur-xl shadow-[0_0_35px_rgba(6,182,212,0.12)] transition-all duration-300",
         className,
       )}
     >
+      {/* Magic UI / Linear Glowing Border Beam */}
+      <BorderBeam size={280} duration={14} borderWidth={1.5} colorFrom="#38bdf8" colorTo="#10b981" />
+
       {/* Top accent lightline */}
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-cyan-400 via-emerald-400 to-transparent opacity-80" />
 
@@ -337,20 +357,23 @@ export function AgroDecisionCard({
 
           <p className="font-sans text-xs text-foreground/90 leading-relaxed">{recommendation}</p>
 
-          {/* Dynamic Best Recommended Crop Footer Bar */}
+          {/* Dynamic Best Recommended Crop Footer Bar with Border Beam */}
           <div className="mt-3 pt-2.5 border-t border-border/40 flex flex-wrap items-center justify-between gap-2 text-[10.5px] font-mono">
-            <button
-              type="button"
-              onClick={() => setSelectedCropId(activeCrop.id)}
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/25 transition-colors cursor-pointer"
-              title={`Selected Crop: ${activeCrop.name} (${activeCrop.adjustedScore}/100)`}
-            >
-              <Sprout className="size-3 text-emerald-400" />
-              <span className="font-bold">🌱 Best Crop Match:</span>
-              <span className="text-white underline decoration-emerald-400/60">
-                {activeCrop.name} ({activeCrop.adjustedScore}/100)
-              </span>
-            </button>
+            <div className="relative inline-block overflow-hidden rounded-md">
+              <button
+                type="button"
+                onClick={() => setSelectedCropId(activeCrop.id)}
+                className="relative z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/25 transition-colors cursor-pointer"
+                title={`Selected Crop: ${activeCrop.name} (${activeCrop.adjustedScore}/100)`}
+              >
+                <Sprout className="size-3 text-emerald-400" />
+                <span className="font-bold">🌱 Best Crop Match:</span>
+                <span className="text-white underline decoration-emerald-400/60 font-semibold">
+                  {activeCrop.name} ({activeCrop.adjustedScore}/100)
+                </span>
+              </button>
+              <BorderBeam size={180} duration={8} borderWidth={1.5} colorFrom="#10b981" colorTo="#38bdf8" />
+            </div>
 
             <div className="flex items-center gap-2 text-cyan-300">
               <span className="text-emerald-400 font-semibold">
@@ -366,75 +389,309 @@ export function AgroDecisionCard({
       </div>
 
       {/* ---------------- 4. SLEEK "TOP RECOMMENDED CROPS FOR [PLACE]" STRIP ---------------- */}
-      <div className="mt-4 pt-4 border-t border-border/50">
-        <div className="flex items-center justify-between mb-2.5">
+      <div className="mt-5 pt-4 border-t border-border/50">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-cyan-300">
             <span>🌾 Top Recommended Crops for {meta.regionLabel}</span>
-            <span className="text-[10px] px-2 py-0.2 rounded-full border border-cyan-400/30 bg-cyan-950/40 text-cyan-400 font-normal">
+            <span className="text-[10px] px-2 py-0.5 rounded-full border border-cyan-400/30 bg-cyan-950/40 text-cyan-400 font-normal">
               Zone {zone.zoneNumber}: {zone.name}
             </span>
           </div>
           <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
-            Click any crop to recalculate advisory & deficit
+            Click crop to activate or compare simulated shift
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {top5Crops.map((crop, idx) => {
             const isSelected = activeCrop.id === crop.id;
             const categoryIcon = CATEGORY_ICONS[crop.category] || "🌱";
             const isVeryHigh = crop.adjustedScore >= 85;
+            const isTopMatch = idx === 0;
 
             return (
-              <button
+              <motion.div
                 key={crop.id}
-                type="button"
-                onClick={() => setSelectedCropId(crop.id)}
+                whileHover={{ y: -4, scale: 1.01 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 className={cn(
-                  "p-2.5 rounded-xl border text-left transition-all duration-200 flex flex-col justify-between gap-1.5 cursor-pointer relative",
+                  "relative rounded-xl border p-3 text-left transition-all duration-200 flex flex-col justify-between gap-2 overflow-hidden backdrop-blur-xl bg-[#111827]/85",
                   isSelected
-                    ? "bg-cyan-500/15 border-cyan-400/80 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/70"
-                    : "bg-card/60 border-border/60 hover:bg-card hover:border-cyan-500/40",
+                    ? "border-cyan-400/80 bg-cyan-950/40 shadow-[0_0_20px_rgba(6,182,212,0.35)] ring-1 ring-cyan-400/70"
+                    : "border-white/10 hover:border-cyan-400/40 hover:bg-[#151e33]",
                 )}
               >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-1.5 font-medium text-xs text-foreground truncate">
-                    <span className="text-sm">{categoryIcon}</span>
-                    <span className="truncate font-semibold">
-                      {idx + 1}. {crop.name.split("/")[0].trim()}
-                    </span>
-                  </div>
-                  {isSelected && (
-                    <span className="size-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse flex-shrink-0" />
-                  )}
-                </div>
+                {/* BorderBeam on the #1 Best Crop Card */}
+                {isTopMatch && (
+                  <BorderBeam
+                    size={160}
+                    duration={10}
+                    borderWidth={1.5}
+                    colorFrom="#10b981"
+                    colorTo="#38bdf8"
+                  />
+                )}
 
-                {/* Score badge */}
-                <div className="flex items-center justify-between w-full mt-0.5">
-                  <span
-                    className={cn(
-                      "px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border",
-                      isVeryHigh
-                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40"
-                        : "bg-cyan-500/15 text-cyan-300 border-cyan-400/40",
+                {/* Top Row: Crop Icon, Name, Rank, and Selection indicator */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCropId(crop.id)}
+                  className="w-full text-left cursor-pointer focus:outline-none"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1.5 font-medium text-xs text-foreground truncate">
+                      <span className="text-base">{categoryIcon}</span>
+                      <span className="truncate font-bold tracking-tight">
+                        {idx + 1}. {crop.name.split("/")[0].trim()}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <span className="size-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse flex-shrink-0" />
                     )}
-                  >
-                    {crop.adjustedScore}/100 {crop.suitabilityTier.split(" ")[0]}
-                  </span>
+                  </div>
 
-                  <span className="text-[10px] font-mono text-muted-foreground">{crop.season}</span>
-                </div>
+                  {/* Score badge & Season */}
+                  <div className="flex items-center justify-between w-full mt-1.5">
+                    <span
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border",
+                        isVeryHigh
+                          ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40"
+                          : "bg-cyan-500/15 text-cyan-300 border-cyan-400/40",
+                      )}
+                    >
+                      {crop.adjustedScore}/100 {crop.suitabilityTier.split(" ")[0]}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">{crop.season}</span>
+                  </div>
 
-                {/* Mini Factors */}
-                <div className="flex items-center justify-between text-[9px] font-mono text-muted-foreground pt-1 border-t border-border/30">
-                  <span>Water: {crop.factors.water}/100</span>
-                  <span>Soil: {crop.factors.soil}/100</span>
-                </div>
-              </button>
+                  {/* Animated 5-Factor Progress Bars */}
+                  <div className="mt-2 pt-2 border-t border-white/10 space-y-1">
+                    <div className="flex justify-between items-center text-[9px] font-mono">
+                      <span className="text-muted-foreground">Water: {crop.factors.water}/100</span>
+                      <span className="text-cyan-300 font-semibold">26%</span>
+                    </div>
+                    <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-cyan-400 rounded-full transition-all duration-500"
+                        style={{ width: `${crop.factors.water}%` }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center text-[9px] font-mono pt-0.5">
+                      <span className="text-muted-foreground">Soil: {crop.factors.soil}/100</span>
+                      <span className="text-emerald-300 font-semibold">22%</span>
+                    </div>
+                    <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-400 rounded-full transition-all duration-500"
+                        style={{ width: `${crop.factors.soil}%` }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1 pt-1 text-[8px] font-mono text-muted-foreground">
+                      <span title="Terrain Suitability (14% weight)">Terr: {crop.factors.terrain}</span>
+                      <span title="Climate & ESI (23% weight)">Clim: {crop.factors.climate}</span>
+                      <span title="Economics & Margin (15% weight)">Econ: {crop.factors.economics}</span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* 1-Click "Compare & Simulate Shift" CTA */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModalCrop(crop);
+                  }}
+                  className="mt-1 w-full py-1 px-2 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-400/30 hover:border-cyan-400/60 text-cyan-300 text-[10px] font-mono font-medium flex items-center justify-center gap-1 transition-all cursor-pointer shadow-sm hover:shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                >
+                  <Scale className="size-3 text-cyan-400" />
+                  <span>⚡ Compare & Simulate Shift</span>
+                </button>
+              </motion.div>
             );
           })}
         </div>
       </div>
+
+      {/* ---------------- 5. "COMPARE & SIMULATE SHIFT" MODAL ---------------- */}
+      <Dialog open={!!modalCrop} onOpenChange={(open) => !open && setModalCrop(null)}>
+        {modalCrop && (
+          <DialogContent className="max-w-2xl bg-[#0b101c]/95 border border-cyan-500/40 backdrop-blur-2xl text-foreground p-6 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.85)]">
+            <DialogHeader className="border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2 text-cyan-300 font-mono text-xs uppercase tracking-wider">
+                <Scale className="size-4 text-cyan-400" />
+                <span>Field Shift Suitability & Crop Comparison Engine</span>
+              </div>
+              <DialogTitle className="text-xl font-bold flex items-center gap-2.5 mt-1 text-white">
+                <span>{CATEGORY_ICONS[modalCrop.category] || "🌱"}</span>
+                <span>{modalCrop.name}</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-mono font-normal">
+                  Score: {modalCrop.adjustedScore}/100 • {modalCrop.suitabilityTier}
+                </span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Target Agro-Climatic Zone: {zone.name} (Zone {zone.zoneNumber}) • Field Coordinates: [{input.lat.toFixed(3)}, {input.lon.toFixed(3)}]
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Side-by-Side Comparison Matrix */}
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Baseline Monoculture Box */}
+              <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-950/20">
+                <div className="flex items-center justify-between text-xs font-mono text-rose-300 font-bold mb-2">
+                  <span>BASELINE (Conventional Paddy Rice)</span>
+                  <span className="px-1.5 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-[10px]">
+                    HIGH DEFICIT
+                  </span>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-rose-500/15">
+                    <span className="text-muted-foreground">Suitability Index:</span>
+                    <span className="font-mono font-bold text-rose-200">48 / 100</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-rose-500/15">
+                    <span className="text-muted-foreground">Water Consumption:</span>
+                    <span className="font-mono font-bold text-rose-200">1,250 mm/season (~12.5M L/ha)</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-rose-500/15">
+                    <span className="text-muted-foreground">Borewell Overdraft Risk:</span>
+                    <span className="font-mono font-bold text-rose-300">Critical ({input.borewellDepth}m depth)</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-muted-foreground">Soil Health Trajectory:</span>
+                    <span className="font-mono text-rose-300">Depleting mineral reserves</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recommended Shift Target Box */}
+              <div className="p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-950/25 relative overflow-hidden">
+                <BorderBeam size={160} duration={8} borderWidth={1.5} colorFrom="#10b981" colorTo="#38bdf8" />
+                <div className="flex items-center justify-between text-xs font-mono text-emerald-300 font-bold mb-2">
+                  <span>SHIFT TARGET ({modalCrop.name})</span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-[10px]">
+                    OPTIMAL MATCH
+                  </span>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-emerald-500/20">
+                    <span className="text-muted-foreground">Suitability Index:</span>
+                    <span className="font-mono font-bold text-emerald-300">
+                      {modalCrop.adjustedScore} / 100 (+{Math.max(0, modalCrop.adjustedScore - 48)} pts)
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-emerald-500/20">
+                    <span className="text-muted-foreground">Water Requirement:</span>
+                    <span className="font-mono font-bold text-emerald-300">
+                      {modalCrop.waterRequirementMm} mm/season (+{Math.max(0, Math.round(((1250 - modalCrop.waterRequirementMm) / 1250) * 100))}% saved)
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-emerald-500/20">
+                    <span className="text-muted-foreground">Climate Resilience:</span>
+                    <span className="font-mono font-bold text-emerald-300">Deep root-zone buffer</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-muted-foreground">Soil Regeneration:</span>
+                    <span className="font-mono text-emerald-300">High biomass aeration & recovery</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 5-Factor Weighted Score Breakdown */}
+            <div className="mt-4 p-3.5 rounded-xl border border-white/10 bg-white/5 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-mono font-bold text-cyan-300">
+                <span className="flex items-center gap-1.5">
+                  <BarChart3 className="size-3.5 text-cyan-400" />
+                  NASA 5-Factor Suitability Breakdown
+                </span>
+                <span className="text-[10px] text-muted-foreground font-normal">Formula-calibrated</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                <div>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-muted-foreground">💧 Water Suitability (26% weight)</span>
+                    <span className="text-cyan-300 font-bold">{modalCrop.factors.water}/100</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-cyan-400 rounded-full" style={{ width: `${modalCrop.factors.water}%` }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-muted-foreground">🌱 Soil Chemistry & Depth (22% weight)</span>
+                    <span className="text-emerald-300 font-bold">{modalCrop.factors.soil}/100</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${modalCrop.factors.soil}%` }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-muted-foreground">⛰️ Terrain & Slope (14% weight)</span>
+                    <span className="text-amber-300 font-bold">{modalCrop.factors.terrain}/100</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-400 rounded-full" style={{ width: `${modalCrop.factors.terrain}%` }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-muted-foreground">☀️ Climate & Thermal ESI (23% weight)</span>
+                    <span className="text-sky-300 font-bold">{modalCrop.factors.climate}/100</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-sky-400 rounded-full" style={{ width: `${modalCrop.factors.climate}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <div className="flex justify-between text-[11px] font-mono mb-1">
+                  <span className="text-muted-foreground">💰 Economic Yield & Market Margin (15% weight)</span>
+                  <span className="text-purple-300 font-bold">{modalCrop.factors.economics}/100</span>
+                </div>
+                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-purple-400 rounded-full" style={{ width: `${modalCrop.factors.economics}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="mt-5 flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setModalCrop(null)}
+                className="text-xs text-muted-foreground hover:text-white cursor-pointer"
+              >
+                Close Inspector
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setSelectedCropId(modalCrop.id);
+                  const savings = Math.max(0, Math.round(((1250 - modalCrop.waterRequirementMm) / 1250) * 100));
+                  toast.success(`Farm Plan Shifted to ${modalCrop.name}!`, {
+                    description: `Irrigation schedule calibrated. Projected water savings: +${savings}%.`,
+                  });
+                  setModalCrop(null);
+                }}
+                className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs px-4 py-2 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer flex items-center gap-2 transition-all"
+              >
+                <Zap className="size-3.5 fill-black" />
+                <span>Apply Shift to Farm Plan</span>
+              </Button>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }
