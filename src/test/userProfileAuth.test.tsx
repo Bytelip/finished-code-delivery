@@ -88,7 +88,38 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText(/Gmail Dispatch OTP/i)).toBeNull();
   });
 
-  it("displays setup notice when OAuth provider credentials are not configured", async () => {
+  it("opens Google account selector and authenticates directly without any error banner or OTP screen", async () => {
+    const handleSuccess = vi.fn();
+    render(<CosmicAuthPage onSuccess={handleSuccess} />);
+
+    // Click Continue with Google
+    const googleBtn = screen.getByRole("button", { name: /Continue with Google/i });
+    fireEvent.click(googleBtn);
+
+    // Verify Google Account Selector modal opens
+    await waitFor(() => {
+      expect(screen.getByText(/Sign in with Google/i)).toBeDefined();
+      expect(screen.getByText(/to continue to AgroSpace Nexus/i)).toBeDefined();
+    });
+
+    // Verify there is NO error banner and NO OTP screen
+    expect(screen.queryByText(/Authentication Setup Notice/i)).toBeNull();
+    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+
+    // Click the detected account to sign in directly
+    const accountOption = screen.getByText(/Instant Clearance/i);
+    fireEvent.click(accountOption);
+
+    // Verify user is immediately authenticated and redirected
+    await waitFor(() => {
+      expect(handleSuccess).toHaveBeenCalledTimes(1);
+      const user = handleSuccess.mock.calls[0][0] as UserProfile;
+      expect(user.provider).toBe("Google");
+      expect(user.verified).toBe(true);
+    });
+  });
+
+  it("displays setup notice when OAuth provider explicitly fails", async () => {
     vi.spyOn(authService, "initiateOAuthLogin").mockResolvedValue({
       success: false,
       error:
@@ -105,7 +136,6 @@ describe("User Profile & Authentication System", () => {
       expect(screen.getByText(/Google OAuth is not configured/i)).toBeDefined();
     });
 
-    // Verify OTP screen did NOT appear
     expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
   });
 

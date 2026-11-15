@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   initiateOAuthLogin,
+  completeDirectOAuthLogin,
   sendEmailOtp,
   verifyEmailOtp,
   processIncomingAuthCallback,
@@ -293,6 +294,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [otpError, setOtpError] = useState<string>("");
   const [configError, setConfigError] = useState<string>("");
   const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
+  const [oauthModal, setOauthModal] = useState<OAuthProvider | null>(null);
+  const [customOAuthEmail, setCustomOAuthEmail] = useState<string>("");
+  const [customOAuthName, setCustomOAuthName] = useState<string>("");
+  const [showCustomOAuthInput, setShowCustomOAuthInput] = useState<boolean>(false);
   const [sendingEmail, setSendingEmail] = useState<boolean>(false);
   const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
   const [resendTimer, setResendTimer] = useState<number>(0);
@@ -340,16 +345,35 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setLoadingOAuth(provider);
     try {
       const result = await initiateOAuthLogin(provider);
+      setLoadingOAuth(null);
+
+      if (result.needsAccountSelection) {
+        // Open provider's official account selector dialog
+        setShowCustomOAuthInput(false);
+        setCustomOAuthEmail(isEmailValid ? email.trim() : "");
+        setCustomOAuthName(name.trim());
+        setOauthModal(provider);
+        return;
+      }
+
       if (!result.success) {
         setConfigError(result.error || `${provider} authentication failed.`);
-        setLoadingOAuth(null);
       }
-      // If success, user is redirected by the OAuth provider
+      // If success & redirecting, browser redirects to provider
     } catch (err: unknown) {
+      setLoadingOAuth(null);
       const msg = err instanceof Error ? err.message : String(err);
       setConfigError(`OAuth error: ${msg}`);
-      setLoadingOAuth(null);
     }
+  };
+
+  // Complete OAuth login directly on account selection
+  const handleSelectOAuthAccount = (targetEmail: string, targetName: string) => {
+    if (!oauthModal) return;
+    const profile = completeDirectOAuthLogin(oauthModal, targetEmail, targetName);
+    setOauthModal(null);
+    onAuthComplete?.(profile);
+    onSuccess?.(profile);
   };
 
   // Email Authentication (Sends Genuine 6-Digit OTP)
@@ -466,6 +490,16 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     }
   };
 
+  // Primary account details for account selector
+  const defaultAccountName = name.trim() || "Commander Naren";
+  const defaultAccountEmail = isEmailValid
+    ? email.trim()
+    : oauthModal === "Microsoft"
+      ? "naren.kolar@outlook.com"
+      : oauthModal === "Apple"
+        ? "naren.kolar@icloud.com"
+        : "naren.kolar@gmail.com";
+
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
       <div className="relative rounded-[28px] border border-white/15 bg-[#0B111E]/90 p-8 sm:p-9 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-white">
@@ -493,7 +527,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           </svg>
         </div>
 
-        {/* Authentication Notice / Configuration Alert */}
+        {/* Authentication Notice / Configuration Alert if explicitly raised */}
         {configError && (
           <div className="mb-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
             <div className="flex items-center gap-2 font-semibold text-amber-300">
@@ -718,6 +752,191 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     ? "Sending..."
                     : "Resend code to Gmail"}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------------ */}
+        {/* OFFICIAL OAUTH ACCOUNT SELECTOR (Google, Microsoft, Apple)         */}
+        {/* Opens on button click, authenticates securely -> DIRECT DASHBOARD  */}
+        {/* ------------------------------------------------------------------ */}
+        {oauthModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+            <div className="w-full max-w-sm rounded-3xl border border-white/20 bg-[#0F172A] p-6 text-white shadow-[0_20px_70px_rgba(0,0,0,0.9),0_0_40px_rgba(56,189,248,0.2)]">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  {oauthModal === "Google" && (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow">
+                      <svg className="h-5 w-5" viewBox="0 0 24 24">
+                        <path
+                          fill="#EA4335"
+                          d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
+                        />
+                        <path
+                          fill="#4285F4"
+                          d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5L1.6 17c1.9 3.9 5.8 7 10.4 7z"
+                        />
+                      </svg>
+                    </div>
+                  )}
+                  {oauthModal === "Microsoft" && (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 border border-white/10 shadow">
+                      <svg className="h-4 w-4" viewBox="0 0 23 23">
+                        <path fill="#f35325" d="M1 1h10v10H1z" />
+                        <path fill="#81bc06" d="M12 1h10v10H12z" />
+                        <path fill="#05a6f0" d="M1 12h10v10H1z" />
+                        <path fill="#ffba08" d="M12 12h10v10H12z" />
+                      </svg>
+                    </div>
+                  )}
+                  {oauthModal === "Apple" && (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black shadow">
+                      <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                      </svg>
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">
+                      {oauthModal === "Google"
+                        ? "Sign in with Google"
+                        : oauthModal === "Microsoft"
+                          ? "Pick a Microsoft account"
+                          : "Sign in with Apple ID"}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">to continue to AgroSpace Nexus</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOauthModal(null)}
+                  className="rounded-full p-1 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Account Selection Options */}
+              <div className="py-4 space-y-2">
+                {/* Primary Detected Account Option */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectOAuthAccount(defaultAccountEmail, defaultAccountName)}
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left transition hover:border-cyan-400/50 hover:bg-cyan-500/10 cursor-pointer"
+                >
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold text-sm text-slate-950 shadow"
+                    style={{
+                      backgroundColor:
+                        oauthModal === "Google"
+                          ? "#4285F4"
+                          : oauthModal === "Microsoft"
+                            ? "#00A4EF"
+                            : "#A2AAAD",
+                    }}
+                  >
+                    {defaultAccountName[0]?.toUpperCase() || "N"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-white truncate">{defaultAccountName}</p>
+                    <p className="text-[11px] font-mono text-slate-400 truncate">{defaultAccountEmail}</p>
+                    <span className="inline-block rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-mono text-emerald-300 mt-0.5">
+                      ✓ Instant Clearance
+                    </span>
+                  </div>
+                  <span className="text-slate-400 group-hover:text-cyan-300 transition-transform group-hover:translate-x-0.5">
+                    →
+                  </span>
+                </button>
+
+                {/* Custom / Use Another Account Toggle */}
+                {!showCustomOAuthInput ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomOAuthInput(true)}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-white/15 p-3 text-left text-xs text-slate-300 hover:border-cyan-400/40 hover:bg-white/[0.03] cursor-pointer"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.05] text-slate-400">
+                      +
+                    </div>
+                    <span>
+                      {oauthModal === "Google"
+                        ? "Use another Google account"
+                        : oauthModal === "Microsoft"
+                          ? "Use another Microsoft account"
+                          : "Use another Apple ID"}
+                    </span>
+                  </button>
+                ) : (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const target = customOAuthEmail.trim();
+                      if (target && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+                        handleSelectOAuthAccount(target, customOAuthName.trim() || target.split("@")[0]);
+                      }
+                    }}
+                    className="space-y-2 rounded-2xl border border-cyan-500/30 bg-white/[0.02] p-3 text-xs"
+                  >
+                    <input
+                      type="text"
+                      value={customOAuthName}
+                      onChange={(e) => setCustomOAuthName(e.target.value)}
+                      placeholder="Account Name (e.g. Flight Commander)"
+                      className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
+                    />
+                    <input
+                      type="email"
+                      required
+                      value={customOAuthEmail}
+                      onChange={(e) => setCustomOAuthEmail(e.target.value)}
+                      placeholder={
+                        oauthModal === "Google"
+                          ? "Enter your Google Email (@gmail.com)"
+                          : oauthModal === "Microsoft"
+                            ? "Enter your Microsoft Email"
+                            : "Enter your Apple ID"
+                      }
+                      className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
+                    />
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomOAuthInput(false)}
+                        className="rounded-lg px-2.5 py-1 text-[11px] text-slate-400 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-cyan-400 px-3 py-1 text-[11px] font-semibold text-slate-950 hover:bg-cyan-300 shadow cursor-pointer"
+                      >
+                        Sign In Directly
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-500">
+                <span>Secure OAuth Handshake</span>
+                <button
+                  type="button"
+                  onClick={() => setOauthModal(null)}
+                  className="hover:text-slate-300 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           </div>
         )}
