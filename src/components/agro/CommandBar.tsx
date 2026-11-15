@@ -86,10 +86,25 @@ function CoordInput({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="flex items-center gap-2 rounded border border-border/30 bg-card/40 px-2.5 py-1.5 backdrop-blur-sm">
-      <span className="hud-label text-[10px] text-muted-foreground font-semibold">{label}</span>
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded border border-border/30 bg-card/40 px-2.5 py-1.5 backdrop-blur-sm min-w-0",
+        className,
+      )}
+    >
+      <span className="hud-label text-[10px] text-muted-foreground font-semibold shrink-0">
+        {label}
+      </span>
       {children}
     </div>
   );
@@ -416,251 +431,258 @@ export function CommandBar({
       </div>
 
       {/* ---------------- 2. SIMULATION & LOCATION PARAMETERS ROW ---------------- */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-6 py-2 bg-background/60 backdrop-blur-md">
-        {/* Lat / Lon / Accuracy / GPS Trigger */}
-        <div className="flex items-center gap-1.5">
-          <CoordInput
-            label="Lat"
-            value={lat}
-            min={-90}
-            max={90}
-            onCommit={(v) => onLocation(v, lon)}
-          />
-          <CoordInput
-            label="Lon"
-            value={lon}
-            min={-180}
-            max={180}
-            onCommit={(v) => onLocation(lat, v)}
-          />
-
-          {/* Precision Accuracy / Pinned Badge */}
-          {accuracyBadge !== null && (
-            <span
-              className={cn(
-                "hidden sm:inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider",
-                accuracyBadge.type === "pinned"
-                  ? "border-emerald-500/60 bg-emerald-500/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)]"
-                  : accuracyBadge.type === "high"
-                    ? "border-cyan-500/50 bg-cyan-500/15 text-cyan shadow-[0_0_10px_rgba(0,240,255,0.25)]"
-                    : "border-amber-500/50 bg-amber-500/15 text-amber shadow-[0_0_10px_rgba(255,183,0,0.25)]",
-              )}
-              title={
-                accuracyBadge.type === "pinned"
-                  ? "Location confirmed via village/pincode search or map pin"
-                  : `GPS accuracy: ${accuracyBadge.text}`
-              }
-            >
-              {accuracyBadge.type === "pinned" ? (
-                <Check className="size-3 text-emerald" />
-              ) : (
-                <Navigation className="size-2.5" />
-              )}
-              {accuracyBadge.text}
-            </span>
-          )}
-
-          {/* High-Precision GPS Trigger Button */}
-          <Button
-            variant="hud"
-            size="sm"
-            onClick={locate}
-            disabled={locating}
-            aria-label="Acquire high-precision GPS location"
-            className="h-7.5 px-2.5 text-xs font-mono font-semibold"
-            title="Acquire multi-sample high-precision GPS lock"
-          >
-            {locating ? (
-              <Loader2 className="size-3.5 animate-spin mr-1 text-cyan" />
-            ) : (
-              <Crosshair className="size-3.5 mr-1 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
-            )}
-            GPS
-          </Button>
-        </div>
-
-        {/* ---------------- AEROSPACE HUD PLACE / VILLAGE / PINCODE SEARCH ---------------- */}
-        <div ref={searchContainerRef} className="relative w-56 sm:w-72 lg:w-80">
-          <div className="relative flex items-center">
-            <span className="pointer-events-none absolute left-2.5 text-muted-foreground">
-              {searching ? (
-                <Loader2 className="size-3.5 animate-spin text-cyan" />
-              ) : (
-                <Search className="size-3.5 text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
-              )}
-            </span>
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => {
-                isInputFocused.current = true;
-                if (searchResults.length > 0) setDropdownOpen(true);
-              }}
-              onBlur={() => {
-                isInputFocused.current = false;
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="Search village, town, pincode..."
-              className="h-8 pl-8 pr-7 font-mono text-xs bg-card/90 text-foreground placeholder:text-muted-foreground/50 border-cyan/40 focus:border-cyan focus:ring-1 focus:ring-cyan shadow-[0_0_12px_rgba(0,240,255,0.15)]"
+      <div className="p-3 bg-[#060D18]/90 border-b border-white/10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-12 gap-2.5 items-center">
+          {/* Cell 1 (xl: 4 cols): Lat / Lon / Accuracy / GPS Trigger */}
+          <div className="xl:col-span-4 flex items-center gap-1.5 min-w-0 flex-wrap sm:flex-nowrap">
+            <CoordInput
+              label="Lat"
+              value={lat}
+              min={-90}
+              max={90}
+              onCommit={(v) => onLocation(v, lon)}
             />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSearchResults([]);
-                  setDropdownOpen(false);
-                }}
-                className="absolute right-2 text-muted-foreground hover:text-cyan"
-                title="Clear search"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
+            <CoordInput
+              label="Lon"
+              value={lon}
+              min={-180}
+              max={180}
+              onCommit={(v) => onLocation(lat, v)}
+            />
 
-          {/* High-z-index Dark Aerospace HUD Dropdown Suggestions */}
-          {dropdownOpen && searchResults.length > 0 && (
-            <div className="absolute left-0 top-full z-[1000] mt-1.5 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan/50 bg-[#060a14]/95 p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-              <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider border-b border-border/40">
-                <span className="flex items-center gap-1.5 text-cyan font-semibold">
-                  <Globe2 className="size-3 text-cyan" /> Dual Geocoder Target Locks
-                </span>
-                <span className="text-[9px] text-muted-foreground/70">Enter to lock</span>
-              </div>
-              <ul className="divide-y divide-border/25 mt-1">
-                {searchResults.map((place, idx) => {
-                  const isHighlighted = idx === selectedIndex;
-                  return (
-                    <li
-                      key={place.id}
-                      onClick={() => selectPlace(place)}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        selectPlace(place);
-                      }}
-                      onMouseEnter={() => setSelectedIndex(idx)}
-                      className={cn(
-                        "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-all",
-                        isHighlighted
-                          ? "bg-cyan/20 text-cyan border border-cyan/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]"
-                          : "hover:bg-card/70 border border-transparent",
-                      )}
-                    >
-                      <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-1">
-                          <span className="font-semibold text-foreground truncate">
-                            {place.name}
-                          </span>
-                          <span className="shrink-0 font-mono text-[10px] text-cyan font-bold">
-                            [{place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°]
-                          </span>
-                        </div>
-                        <div className="font-mono text-[10px] text-muted-foreground truncate">
-                          {place.subtitle}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* ---------------- BOREWELL SLIDER ---------------- */}
-        <Field label="Borewell Depth">
-          <Slider
-            aria-label="Borewell depth"
-            className="w-24 sm:w-32"
-            min={BOREWELL_DEPTH_RANGE.min}
-            max={BOREWELL_DEPTH_RANGE.max}
-            step={1}
-            value={[borewellDepth]}
-            onValueChange={([v]) => v !== undefined && onDepth(v)}
-          />
-          <span className="w-14 font-mono text-xs font-bold tabular-nums text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
-            {borewellDepth} m
-          </span>
-        </Field>
-
-        {/* ---------------- IRRIGATION SELECT ---------------- */}
-        <Field label="Irrigation">
-          <Select value={irrigation} onValueChange={(v) => onIrrigation(v as Irrigation)}>
-            <SelectTrigger
-              aria-label="Irrigation"
-              className="h-7 w-26 bg-background/80 text-xs font-mono border-border/60"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
-              {IRRIGATION_TYPES.map((i) => (
-                <SelectItem key={i} value={i} className="text-xs font-mono">
-                  {i}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        {/* ---------------- SEASON SELECTOR ---------------- */}
-        <Field label="Season">
-          <div
-            className="flex rounded border border-border/50 bg-background/80 p-0.5"
-            role="radiogroup"
-            aria-label="Season"
-          >
-            {SEASONS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                role="radio"
-                aria-checked={season === s}
-                onClick={() => onSeason(s)}
+            {/* Precision Accuracy / Pinned Badge */}
+            {accuracyBadge !== null && (
+              <span
                 className={cn(
-                  "rounded px-2 py-0.5 text-xs transition-all font-mono font-semibold",
-                  season === s
-                    ? "bg-emerald/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)] border border-emerald/50"
-                    : "text-muted-foreground hover:text-foreground border border-transparent",
+                  "hidden sm:inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider shrink-0",
+                  accuracyBadge.type === "pinned"
+                    ? "border-emerald-500/60 bg-emerald-500/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)]"
+                    : accuracyBadge.type === "high"
+                      ? "border-cyan-500/50 bg-cyan-500/15 text-cyan shadow-[0_0_10px_rgba(0,240,255,0.25)]"
+                      : "border-amber-500/50 bg-amber-500/15 text-amber shadow-[0_0_10px_rgba(255,183,0,0.25)]",
                 )}
+                title={
+                  accuracyBadge.type === "pinned"
+                    ? "Location confirmed via village/pincode search or map pin"
+                    : `GPS accuracy: ${accuracyBadge.text}`
+                }
               >
-                {s}
-              </button>
-            ))}
-          </div>
-        </Field>
+                {accuracyBadge.type === "pinned" ? (
+                  <Check className="size-3 text-emerald" />
+                ) : (
+                  <Navigation className="size-2.5" />
+                )}
+                {accuracyBadge.text}
+              </span>
+            )}
 
-        {/* ---------------- SCENARIO SIMULATOR ---------------- */}
-        <Field label="Sim Scenario">
-          <Select value={scenario} onValueChange={(v) => onScenario(v as Scenario)}>
-            <SelectTrigger
-              aria-label="Scenario simulator"
-              className={cn(
-                "h-7 w-36 sm:w-40 bg-background/80 text-xs font-mono font-semibold",
-                alert
-                  ? "border-crimson/70 text-crimson shadow-[0_0_12px_rgba(255,46,86,0.35)]"
-                  : "border-border/60",
-              )}
+            {/* High-Precision GPS Trigger Button */}
+            <Button
+              variant="hud"
+              size="sm"
+              onClick={locate}
+              disabled={locating}
+              aria-label="Acquire high-precision GPS location"
+              className="h-7.5 px-2.5 text-xs font-mono font-semibold shrink-0"
+              title="Acquire multi-sample high-precision GPS lock"
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
-              {SCENARIOS.map((s) => (
-                <SelectItem key={s} value={s} className="text-xs font-mono">
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {alert && (
-            <span
-              className="size-2 animate-pulse rounded-full bg-crimson shadow-[0_0_8px_#ff2e56]"
-              aria-hidden
-            />
-          )}
-        </Field>
+              {locating ? (
+                <Loader2 className="size-3.5 animate-spin mr-1 text-cyan" />
+              ) : (
+                <Crosshair className="size-3.5 mr-1 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
+              )}
+              GPS
+            </Button>
+          </div>
+
+          {/* Cell 2 (xl: 3 cols): Place Search Input & Dropdown */}
+          <div ref={searchContainerRef} className="xl:col-span-3 relative min-w-0">
+            <div className="relative flex items-center">
+              <span className="pointer-events-none absolute left-2.5 text-muted-foreground">
+                {searching ? (
+                  <Loader2 className="size-3.5 animate-spin text-cyan" />
+                ) : (
+                  <Search className="size-3.5 text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+                )}
+              </span>
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  isInputFocused.current = true;
+                  if (searchResults.length > 0) setDropdownOpen(true);
+                }}
+                onBlur={() => {
+                  isInputFocused.current = false;
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder="Search village, town, pincode..."
+                className="h-8 w-full pl-8 pr-7 font-mono text-xs bg-card/90 text-foreground placeholder:text-muted-foreground/50 border-cyan/40 focus:border-cyan focus:ring-1 focus:ring-cyan shadow-[0_0_12px_rgba(0,240,255,0.15)] truncate"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setDropdownOpen(false);
+                  }}
+                  className="absolute right-2 text-muted-foreground hover:text-cyan"
+                  title="Clear search"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* High-z-index Dark Aerospace HUD Dropdown Suggestions */}
+            {dropdownOpen && searchResults.length > 0 && (
+              <div className="absolute left-0 top-full z-[1000] mt-1.5 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan/50 bg-[#060a14]/95 p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+                <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider border-b border-border/40">
+                  <span className="flex items-center gap-1.5 text-cyan font-semibold">
+                    <Globe2 className="size-3 text-cyan" /> Dual Geocoder Target Locks
+                  </span>
+                  <span className="text-[9px] text-muted-foreground/70">Enter to lock</span>
+                </div>
+                <ul className="divide-y divide-border/25 mt-1">
+                  {searchResults.map((place, idx) => {
+                    const isHighlighted = idx === selectedIndex;
+                    return (
+                      <li
+                        key={place.id}
+                        onClick={() => selectPlace(place)}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectPlace(place);
+                        }}
+                        onMouseEnter={() => setSelectedIndex(idx)}
+                        className={cn(
+                          "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-all",
+                          isHighlighted
+                            ? "bg-cyan/20 text-cyan border border-cyan/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]"
+                            : "hover:bg-card/70 border border-transparent",
+                        )}
+                      >
+                        <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-1">
+                            <span className="font-semibold text-foreground truncate">
+                              {place.name}
+                            </span>
+                            <span className="shrink-0 font-mono text-[10px] text-cyan font-bold">
+                              [{place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°]
+                            </span>
+                          </div>
+                          <div className="font-mono text-[10px] text-muted-foreground truncate">
+                            {place.subtitle}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Cell 3 (xl: 2 cols): Borewell Depth Slider */}
+          <div className="xl:col-span-2 min-w-0">
+            <Field label="Borewell" className="w-full justify-between">
+              <Slider
+                aria-label="Borewell depth"
+                className="w-14 sm:w-20"
+                min={BOREWELL_DEPTH_RANGE.min}
+                max={BOREWELL_DEPTH_RANGE.max}
+                step={1}
+                value={[borewellDepth]}
+                onValueChange={([v]) => v !== undefined && onDepth(v)}
+              />
+              <span className="w-12 text-right font-mono text-xs font-bold tabular-nums text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
+                {borewellDepth}m
+              </span>
+            </Field>
+          </div>
+
+          {/* Cell 4 (xl: 1 col): Irrigation Select */}
+          <div className="xl:col-span-1 min-w-0">
+            <Field label="Irrig" className="w-full">
+              <Select value={irrigation} onValueChange={(v) => onIrrigation(v as Irrigation)}>
+                <SelectTrigger
+                  aria-label="Irrigation"
+                  className="h-7 w-full bg-background/80 text-xs font-mono border-border/60"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
+                  {IRRIGATION_TYPES.map((i) => (
+                    <SelectItem key={i} value={i} className="text-xs font-mono">
+                      {i}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+
+          {/* Cell 5 (xl: 2 cols): Season & Sim Scenario */}
+          <div className="xl:col-span-2 flex items-center gap-1.5 min-w-0">
+            <Field label="Season" className="min-w-0">
+              <div
+                className="flex rounded border border-border/50 bg-background/80 p-0.5"
+                role="radiogroup"
+                aria-label="Season"
+              >
+                {SEASONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="radio"
+                    aria-checked={season === s}
+                    onClick={() => onSeason(s)}
+                    className={cn(
+                      "rounded px-1.5 py-0.5 text-[11px] transition-all font-mono font-semibold",
+                      season === s
+                        ? "bg-emerald/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)] border border-emerald/50"
+                        : "text-muted-foreground hover:text-foreground border border-transparent",
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Sim" className="min-w-0">
+              <Select value={scenario} onValueChange={(v) => onScenario(v as Scenario)}>
+                <SelectTrigger
+                  aria-label="Scenario simulator"
+                  className={cn(
+                    "h-7 w-20 sm:w-24 bg-background/80 text-xs font-mono font-semibold truncate",
+                    alert
+                      ? "border-crimson/70 text-crimson shadow-[0_0_12px_rgba(255,46,86,0.35)]"
+                      : "border-border/60",
+                  )}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
+                  {SCENARIOS.map((s) => (
+                    <SelectItem key={s} value={s} className="text-xs font-mono">
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {alert && (
+                <span
+                  className="size-2 animate-pulse rounded-full bg-crimson shadow-[0_0_8px_#ff2e56] shrink-0"
+                  aria-hidden
+                />
+              )}
+            </Field>
+          </div>
+        </div>
       </div>
     </div>
   );

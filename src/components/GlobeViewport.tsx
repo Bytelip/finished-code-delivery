@@ -94,6 +94,7 @@ interface LeafletMapInstance {
     bounds: [[number, number], [number, number]] | [number, number][],
     options?: { padding?: [number, number]; maxZoom?: number },
   ) => void;
+  invalidateSize?: (options?: boolean | { animate?: boolean; pan?: boolean }) => void;
 }
 
 interface LeafletBundle {
@@ -1091,13 +1092,28 @@ export function GlobeViewport({
     return list;
   }, [lat, lon, activeLayer, reading, meta.regionLabel, hazards, activePlaceLabels]);
 
-  // Screen-space bounding-box collision culling for 3D Globe place labels & badges
+function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const rad = Math.PI / 180;
+  const phi1 = lat1 * rad;
+  const phi2 = lat2 * rad;
+  const deltaLambda = (lon2 - lon1) * rad;
+  const cosTheta =
+    Math.sin(phi1) * Math.sin(phi2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+  const clamped = Math.max(-1, Math.min(1, cosTheta));
+  return Math.acos(clamped) * (180 / Math.PI);
+}
+
+  // Screen-space bounding-box collision culling & hemisphere backface culling for 3D Globe place labels
   const runCollisionCull = useCallback(() => {
     if (!containerRef.current) return;
     const domLabels = Array.from(
       containerRef.current.querySelectorAll<HTMLElement>(".globe-lod-label"),
     );
     if (domLabels.length === 0) return;
+
+    const camLat = lastPovRef.current?.lat ?? lat;
+    const camLng = lastPovRef.current?.lng ?? lon;
 
     // Sort candidates by priority ascending: 1 (highest) to 7 (lowest)
     domLabels.sort((a, b) => {
@@ -1110,6 +1126,22 @@ export function GlobeViewport({
 
     for (const label of domLabels) {
       const priority = Number(label.dataset.priority || 99);
+      const labelLat = Number(label.dataset.lat);
+      const labelLng = Number(label.dataset.lng);
+
+      // Back-hemisphere occlusion check: if label is > 75° away from camera center, hide immediately
+      if (priority > 1 && !isNaN(labelLat) && !isNaN(labelLng)) {
+        const angDist = getAngularDistanceDeg(labelLat, labelLng, camLat, camLng);
+        if (angDist > 75) {
+          label.style.display = "none";
+          label.style.opacity = "0";
+          label.style.pointerEvents = "none";
+          continue;
+        } else {
+          label.style.display = "";
+        }
+      }
+
       const rect = label.getBoundingClientRect();
 
       // If element is not rendered or has 0 dimensions, skip
@@ -1146,7 +1178,7 @@ export function GlobeViewport({
         acceptedBoxes.push(rect);
       }
     }
-  }, []);
+  }, [lat, lon]);
 
   // Run collision culling whenever dynamic HTML markers change
   useEffect(() => {
@@ -1672,7 +1704,7 @@ export function GlobeViewport({
       data-lat={lat}
       data-lon={lon}
       data-layer={activeLayer}
-      className="relative w-full h-[540px] rounded-xl border border-cyan/40 bg-[#03060d] overflow-hidden select-none shadow-[0_0_35px_rgba(0,0,0,0.8),inset_0_0_50px_rgba(0,240,255,0.05)]"
+      className="relative w-full h-[640px] lg:h-[680px] rounded-2xl border border-cyan-500/25 bg-[#03060d] overflow-hidden select-none shadow-[0_0_35px_rgba(0,0,0,0.8),inset_0_0_50px_rgba(0,240,255,0.05)] mb-6"
     >
       {/* Aerospace Tactical Corner Frame Ticks & Animated Sci-Fi Reticle */}
       <div className="pointer-events-none absolute inset-0 z-10 border border-cyan/25">
@@ -1914,12 +1946,20 @@ export function GlobeViewport({
               htmlLng="lng"
               htmlAltitude={0.015}
               htmlElement={(d: unknown) => {
-                const item = d as { id?: string; priority?: number; html?: string };
+                const item = d as {
+                  id?: string;
+                  priority?: number;
+                  html?: string;
+                  lat?: number;
+                  lng?: number;
+                };
                 const el = document.createElement("div");
                 el.className =
                   item.priority === 1 ? "globe-lod-label globe-hazard-marker" : "globe-lod-label";
                 if (item.id) el.dataset.labelId = item.id;
                 el.dataset.priority = String(item.priority ?? 99);
+                if (typeof item.lat === "number") el.dataset.lat = String(item.lat);
+                if (typeof item.lng === "number") el.dataset.lng = String(item.lng);
                 el.style.transition = "opacity 200ms ease-out, transform 200ms ease-out";
                 el.style.opacity = "1";
                 el.style.willChange = "opacity";
@@ -1963,15 +2003,6 @@ export function GlobeViewport({
         </SafeGlobeErrorBoundary>
       ) : null}
 
-      {/* ---------------- LIVE SATELLITE OVERPASS HUD READOUT ---------------- */}
-      <div className="pointer-events-none absolute top-3.5 left-4 z-20 hidden md:flex items-center gap-2 rounded-full border border-cyan-500/35 bg-[#090D16]/90 px-3 py-1 font-mono text-[10px] text-cyan-300 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-        <Satellite className="size-3 text-cyan-400 animate-pulse" />
-        <span>
-          {activeSatelliteConfig.sensorName.toUpperCase()} OVERPASS IN{" "}
-          <strong className="text-white font-bold tabular-nums">{overpassTimerStr}</strong>
-        </span>
-      </div>
-
       {/* ---------------- TOP-CENTER ZOOM STAGE INDICATOR PILL ---------------- */}
       <div
         data-hud-overlay="zoom-stage-pill"
@@ -2014,13 +2045,14 @@ export function GlobeViewport({
 
       {/* ---------------- 2D FIELD GIS MODE (LEAFLET + NASA GIBS + HAZARDS) ---------------- */}
       {viewMode === "2d" && LeafletComp && mounted ? (
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 w-full h-full rounded-2xl overflow-hidden">
           <LeafletComp.MapContainer
             center={[lat, lon]}
             zoom={gisZoom}
             minZoom={2}
             maxZoom={18}
             scrollWheelZoom={true}
+            attributionControl={false}
             style={{ width: "100%", height: "100%", background: "#050811" }}
           >
             {/* Dynamic Basemap Tile Layer (Instant In-Place Swap via React Key) */}
@@ -2365,7 +2397,7 @@ export function GlobeViewport({
       {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}
       <div
         data-hud-overlay="zoom-controls"
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none"
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none max-h-[260px] py-2"
       >
         {/* Zoom In Button */}
         <Button
@@ -2390,7 +2422,7 @@ export function GlobeViewport({
             value={currentZoomLevel}
             onChange={(e) => handleSliderChange(Number(e.target.value))}
             aria-label="Zoom Level Slider"
-            className="h-24 w-2 cursor-pointer appearance-none rounded-full bg-slate-800 accent-cyan [writing-mode:vertical-lr] [direction:rtl]"
+            className="h-20 w-2 cursor-pointer appearance-none rounded-full bg-slate-800 accent-cyan [writing-mode:vertical-lr] [direction:rtl]"
           />
         </div>
 
@@ -2452,7 +2484,7 @@ export function GlobeViewport({
       {viewMode === "2d" && (
         <div
           data-hud-overlay="hazard-filter"
-          className="absolute left-4 bottom-18 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
+          className="absolute left-3 bottom-16 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
         >
           <Button
             type="button"
@@ -2562,13 +2594,13 @@ export function GlobeViewport({
         enable3dTerrain={enable3dTerrain}
         onToggle3dTerrain={setEnable3dTerrain}
         viewMode={viewMode}
-        className="absolute left-4 bottom-4 z-30"
+        className="absolute left-3 bottom-3 z-20"
       />
 
       {/* ---------------- UNIFIED 2-TIER BOTTOM TELEMETRY DOCK ---------------- */}
       <div
         data-hud-overlay="layer-switcher"
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1.5 max-w-4xl w-auto pointer-events-auto select-none"
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-[calc(100%-260px)] w-auto pointer-events-auto select-none py-1 px-3"
       >
         {/* Tier 1: Upper Slim Row (Compact Legend + Temporal Controls in ONE line, max height 38px) */}
         <div className="h-[38px] max-h-[38px] py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/92 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2.5 sm:gap-3 text-xs font-mono">
@@ -2771,6 +2803,13 @@ function LeafletBridge({
       setMapInstance(map);
       if (typeof map.getZoom === "function") {
         onZoomChange(map.getZoom());
+      }
+      if (typeof map.invalidateSize === "function") {
+        map.invalidateSize();
+        const timer = setTimeout(() => {
+          map.invalidateSize?.();
+        }, 150);
+        return () => clearTimeout(timer);
       }
     }
   }, [map, setMapInstance, onZoomChange]);
