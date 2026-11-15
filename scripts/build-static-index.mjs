@@ -1,0 +1,38 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+async function generateStaticIndex() {
+  try {
+    const serverEntryPath = path.resolve(process.cwd(), ".output/server/index.mjs");
+    const serverModule = await import(pathToFileURL(serverEntryPath).href);
+    const handler = serverModule.default;
+
+    if (!handler || typeof handler.fetch !== "function") {
+      console.warn("No handler.fetch found in .output/server/index.mjs");
+      return;
+    }
+
+    const res = await handler.fetch(new Request("http://localhost/"), {});
+    let html = await res.text();
+
+    if (!html || !html.includes("<!DOCTYPE html>")) {
+      console.warn("Did not receive valid HTML from server handler");
+      return;
+    }
+
+    // Write to .output/public/index.html
+    const outputPublicIndex = path.resolve(process.cwd(), ".output/public/index.html");
+    await fs.writeFile(outputPublicIndex, html, "utf-8");
+    console.log("Successfully generated .output/public/index.html for static deployment");
+
+    // Also write to public/index.html so it persists in Git for GitHub Pages & GoDaddy
+    const publicIndex = path.resolve(process.cwd(), "public/index.html");
+    await fs.writeFile(publicIndex, html, "utf-8");
+    console.log("Successfully wrote public/index.html for Git sync");
+  } catch (err) {
+    console.error("Error generating static index.html:", err);
+  }
+}
+
+generateStaticIndex();
