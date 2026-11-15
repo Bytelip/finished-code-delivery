@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, Radio, Satellite, RefreshCw, UserCheck } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
@@ -75,8 +75,28 @@ export const Route = createFileRoute("/")({
 
 function AgroSpaceDashboard() {
   const isMobile = useIsMobile();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+  const [isPinned, setIsPinned] = useState(false);
   const [tab, setTab] = useState<DashboardTab>("overview");
+
+  // Keyboard shortcut listener for Tab or H (Toggle Orbital Dock)
+  useEffect(() => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "Tab" || e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        setCollapsed((c) => !c);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleMapInteraction = useCallback(() => {
+    if (!isPinned) {
+      setCollapsed(true);
+    }
+  }, [isPinned]);
 
   const [lat, setLat] = useState(13.13);
   const [lon, setLon] = useState(78.13);
@@ -242,6 +262,8 @@ function AgroSpaceDashboard() {
       <DashboardSidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
+        isPinned={isPinned}
+        onTogglePin={() => setIsPinned((p) => !p)}
         tab={tab}
         onTab={setTab}
         lat={lat}
@@ -283,114 +305,13 @@ function AgroSpaceDashboard() {
               description: "Mission Control session terminated.",
             });
           }}
+          onToggleSidebar={() => setCollapsed((c) => !c)}
+          sidebarCollapsed={collapsed}
+          plantHealthOverall={telemetry.plantHealth.overall}
+          elevationM={telemetry.meta.elevationM}
         />
 
         <div className="space-y-2.5 p-2 sm:p-3 lg:p-4">
-          {/* Unified Location & Mission Telemetry Header Card */}
-          <div className="relative overflow-hidden rounded-xl border border-border/60 bg-card/80 p-3 sm:py-2.5 sm:px-4 backdrop-blur-xl shadow-[0_0_25px_rgba(0,0,0,0.5)] antigravity-float-1 hologram-cockpit-card laser-scanline-panel chamfered-card-frame">
-            {/* Top Tactical Lightline */}
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-cyan via-emerald to-transparent opacity-80" />
-
-            {/* Top Micro-Tape: Orbit Beacon, Sat Constellation, Signal Flux, Geo-Sync */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-1.5 mb-2 text-muted-foreground font-mono text-[10.5px]">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                  <span className="relative flex size-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full size-2 bg-emerald-400" />
-                  </span>
-                  <span className="font-mono text-[9.5px] font-bold uppercase tracking-wider">
-                    EARTH OBS ORBIT ACTIVE
-                  </span>
-                </div>
-                <div className="h-3.5 w-px bg-white/10 hidden sm:block" />
-                <div className="flex items-center gap-1.5 font-mono text-[10.5px]">
-                  <span className="text-cyan-400 font-semibold">SAT:</span>
-                  <span className="text-foreground font-medium">LANDSAT-9 &amp; SENTINEL-2C TANDEM</span>
-                  <span className="hidden lg:inline text-white/30">•</span>
-                  <span className="hidden lg:inline text-cyan-300 font-medium">RES: 10m/px MULTISPECTRAL</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <div className="hidden sm:flex items-center gap-1 font-mono text-[10.5px]">
-                  <span className="text-muted-foreground">SIGNAL FLUX:</span>
-                  <span className="text-emerald-400 font-bold">99.84% SNR</span>
-                </div>
-                <div className="px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 font-mono text-[9.5px] font-bold">
-                  GEO-SYNC: REALTIME
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Row: Region Title, Elevation, Climate Zone, Health Index */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded bg-cyan/15 border border-cyan/40 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan uppercase tracking-widest">
-                    {tabLabel}
-                  </span>
-                  {liveStatus?.isLive ? (
-                    <span className="inline-flex items-center gap-1.5 rounded border border-emerald-500/60 bg-emerald-500/15 px-2 py-0.5 font-mono text-[9px] font-bold text-emerald shadow-[0_0_10px_rgba(0,255,157,0.25)]">
-                      <Radio className="size-2.5 animate-pulse text-emerald" /> LIVE SATELLITE (
-                      {liveStatus.activeFeeds.length}/9 FEEDS ACTIVE)
-                    </span>
-                  ) : isLoadingLive ? (
-                    <span className="inline-flex items-center gap-1.5 rounded border border-cyan-500/50 bg-cyan-500/15 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan animate-pulse shadow-[0_0_10px_rgba(0,240,255,0.25)]">
-                      <RefreshCw className="size-2.5 animate-spin text-cyan" /> SYNCING NASA
-                      TELEMETRY FOR {(telemetry.meta.regionLabel || "FIELD").toUpperCase()}...
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded border border-muted/70 bg-muted/40 px-2 py-0.5 font-mono text-[9px] text-muted-foreground">
-                      <Satellite className="size-2.5 text-muted-foreground" /> MOCK ORBITAL
-                      TELEMETRY (DETERMINISTIC)
-                    </span>
-                  )}
-                  <span className="hidden sm:inline-flex items-center gap-1 font-mono text-[10px] text-cyan/70">
-                    <span className="inline-block size-1.5 rounded-full bg-cyan shadow-[0_0_6px_#00f0ff]" />
-                    {lat.toFixed(4)}° {lat >= 0 ? "N" : "S"}, {lon.toFixed(4)}°{" "}
-                    {lon >= 0 ? "E" : "W"}
-                  </span>
-                </div>
-
-                <div className="mt-1 flex items-center gap-2.5">
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                    <span>{telemetry.meta.regionLabel}</span>
-                    <span className="text-xs font-mono font-normal text-cyan/80 bg-cyan/10 border border-cyan/30 px-1.5 py-0.5 rounded">
-                      ELEV {telemetry.meta.elevationM}m
-                    </span>
-                  </h1>
-                  <span className="text-muted-foreground/40 hidden md:inline">|</span>
-                  <p className="hidden md:inline font-mono text-xs text-muted-foreground">
-                    <span className="text-foreground/80">{telemetry.meta.climateZone}</span> ·{" "}
-                    {season} Cycle · {irrigation} Irrigation
-                  </p>
-                </div>
-              </div>
-
-              {/* Tactical Readout */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/50 px-3 py-1.5 backdrop-blur-md">
-                  <div className="text-right">
-                    <div className="hud-label text-[9px] text-cyan/80">Field Health Index</div>
-                    <div className="font-mono text-2xl sm:text-3xl font-extrabold tabular-nums text-emerald drop-shadow-[0_0_10px_rgba(0,255,157,0.5)]">
-                      {telemetry.plantHealth.overall}
-                      <span className="text-xs font-normal text-muted-foreground/70">/100</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <SeverityChip severity={telemetry.plantHealth.status} />
-                    {scenario !== "Nominal" && (
-                      <span className="inline-flex items-center gap-1 rounded border border-crimson/60 bg-crimson/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-crimson shadow-[0_0_10px_rgba(255,46,86,0.3)] animate-pulse">
-                        <Activity className="size-2.5" /> SIM · {scenario}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <GlobeContainer
             telemetry={telemetry}
             activeLayer={activeLayer}
@@ -398,6 +319,7 @@ function AgroSpaceDashboard() {
             opacity={opacity}
             onOpacity={setOpacity}
             onPick={setLocation}
+            onInteraction={handleMapInteraction}
           />
 
           {/* AI Agronomic & Climate Decision Card */}
