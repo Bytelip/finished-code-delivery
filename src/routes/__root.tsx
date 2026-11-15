@@ -92,9 +92,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Precision agriculture and multi-hazard HUD powered by satellite telemetry.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "AgroSpace Nexus" },
+      { property: "og:image", content: "/satellite.svg" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "AgroSpace Nexus — NASA Orbital Agricultural Intelligence" },
+      {
+        name: "twitter:description",
+        content:
+          "Satellite-powered farm HUD: plant health, soil moisture, groundwater, crop water budgets and 8 hazard alerts.",
+      },
+      { name: "twitter:image", content: "/satellite.svg" },
       { name: "theme-color", content: "#050912" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "AgroSpace" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     ],
     links: [
@@ -141,6 +151,15 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Register PWA Service Worker in production
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator && !window.location.hostname.includes("localhost")) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        // Silently ignore registration error on unsupported hosts
+      });
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
