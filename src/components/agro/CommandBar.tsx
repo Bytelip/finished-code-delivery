@@ -412,68 +412,54 @@ export function CommandBar({
         </div>
       )}
 
-      {/* ---------------- 1. SINGLE UNIFIED GLASS NAVBAR (h-12) ---------------- */}
-      <div className="w-full max-w-full overflow-hidden px-3 h-12 flex items-center justify-between gap-1.5 border-b border-white/[0.08] bg-[#0a0f1d]/85 backdrop-blur-2xl relative z-[100]">
-        {/* Left: Orbital Dock trigger + Brand Emblem + Active Location Pill */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {onToggleSidebar && (
-            <button
-              type="button"
-              onClick={onToggleSidebar}
-              className={cn(
-                "h-8 px-2.5 py-1 rounded-full border text-xs font-mono font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0",
-                sidebarCollapsed
-                  ? "bg-white/[0.04] hover:bg-white/[0.08] text-white/80 border-white/10"
-                  : "bg-cyan-500/15 border-cyan-400/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
-              )}
-              title="Toggle Orbital Dock Sidebar (Tab or H)"
-            >
-              <Menu className="size-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">{t("orbital_dock", "Dock")}</span>
-            </button>
-          )}
-
-          {/* Single Brand Emblem */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="grid size-7 place-items-center rounded-lg border border-cyan/60 bg-cyan/15 text-cyan shadow-[0_0_12px_rgba(0,240,255,0.35)] shrink-0">
-              <Satellite className="size-3.5 animate-pulse text-cyan" />
-            </div>
-            <span className="font-mono font-bold text-sm tracking-wider text-white hidden md:inline-flex items-center whitespace-nowrap">
+      {/* ---------------- 1. SINGLE UNIFIED GLASS NAVBAR (h-13) ---------------- */}
+      <div className="w-full max-w-full h-13 px-4 flex items-center justify-between gap-3 border-b border-white/[0.08] bg-[#050912]/90 backdrop-blur-2xl relative z-40">
+        {/* Left: Crisp Brand Emblem + AgroSpace Nexus title + Live Coordinate Pill */}
+        <div className="flex items-center gap-2.5 shrink-0 whitespace-nowrap">
+          {/* Brand Emblem */}
+          <div className="grid size-7.5 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.35)] shrink-0">
+            <Satellite className="size-4 animate-pulse text-cyan-300" />
+          </div>
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <span className="font-mono font-bold text-sm tracking-wider text-white">
               AgroSpace Nexus
-              <span className="text-[10px] text-cyan-400 font-semibold px-1 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 ml-1">
-                v2.4
-              </span>
+            </span>
+            <span className="text-[9.5px] text-cyan-300 font-semibold px-1.5 py-0.2 rounded-full bg-cyan-500/15 border border-cyan-400/30">
+              v2.4
             </span>
           </div>
 
-          {/* Active Location Pill - Shortened for zero-overflow */}
-          <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-xs font-mono text-muted-foreground shrink-0 max-w-[150px] truncate">
+          {/* Live Coordinate Pill */}
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-mono text-muted-foreground shrink-0 whitespace-nowrap">
             <MapPin className="size-3 text-cyan-400 shrink-0 drop-shadow-[0_0_6px_#00f0ff]" />
-            <span className="text-white font-semibold truncate">
-              📍 {lat.toFixed(2)}°N, {lon.toFixed(2)}°E
+            <span className="text-white font-medium">
+              📍 {locationLabel ? `${locationLabel} • ` : ""}{lat.toFixed(2)}°N, {lon.toFixed(2)}°E
             </span>
           </div>
         </div>
 
-        {/* Center: Command Search & Field Parameters Trigger Pill (Single Line Whitespace-Nowrap) */}
+        {/* Center: Sleek single-line Command Pill */}
         <div className="flex items-center justify-center shrink-0">
           <button
             type="button"
             data-params-trigger="true"
             onClick={() => setIsParamsDrawerOpen((prev) => !prev)}
             className={cn(
-              "whitespace-nowrap inline-flex items-center gap-1.5 h-8 px-3 py-1 rounded-full border text-xs font-mono font-semibold transition-all cursor-pointer shadow-inner shrink-0",
+              "whitespace-nowrap inline-flex items-center gap-2 h-8.5 px-3.5 py-1 rounded-full border text-xs font-mono font-semibold transition-all cursor-pointer shadow-inner shrink-0",
               isParamsDrawerOpen
                 ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-200 shadow-[0_0_18px_rgba(6,182,212,0.35)]"
                 : "bg-white/[0.04] hover:bg-white/[0.08] border-white/15 text-cyan-300/90 hover:border-cyan-500/40"
             )}
-            title="Search / Params (Cmd+K)"
+            title="Search Location or Field Params (⌘K)"
           >
             <Search className="size-3.5 text-cyan-400 shrink-0 drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
-            <span className="font-semibold whitespace-nowrap">
-              🔍 {t("search_params", "Search / Params")}
+            <span className="font-semibold whitespace-nowrap hidden sm:inline">
+              🔍 {t("search_params", "Search Location or Field Params")}
             </span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-black/40 border border-white/10 text-[9px] text-white/50 font-sans">
+            <span className="font-semibold whitespace-nowrap sm:hidden">
+              🔍 {t("search", "Search")}
+            </span>
+            <kbd className="hidden md:inline-block px-1.5 py-0.2 rounded bg-black/40 border border-white/10 text-[9px] text-white/50 font-sans">
               ⌘K
             </kbd>
             {isParamsDrawerOpen ? (
@@ -484,10 +470,10 @@ export function CommandBar({
           </button>
         </div>
 
-        {/* Right: Health Badge + Language Selector + Theme + Mission Brief + Single Profile */}
-        <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+        {/* Right: Compact icon-first action pills */}
+        <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
           {plantHealthOverall !== undefined && (
-            <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0">
+            <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0 whitespace-nowrap">
               <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>
                 {t("health", "Health")}: {Math.round(plantHealthOverall)}/100
@@ -496,25 +482,29 @@ export function CommandBar({
           )}
 
           {/* 🌐 Prominent Language Selector Dropdown */}
-          <LanguageSelector />
+          <div className="shrink-0 whitespace-nowrap">
+            <LanguageSelector />
+          </div>
 
           {/* Theme Switcher */}
-          <ThemeSwitcher />
+          <div className="shrink-0 whitespace-nowrap">
+            <ThemeSwitcher />
+          </div>
 
           {/* Mission Brief Button */}
           <Button
             type="button"
             size="sm"
             onClick={onOpenMissionBrief}
-            className="h-8 px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1 cursor-pointer shrink-0"
+            className="h-8 px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
             title="Open NASA Space Apps Mission Brief"
           >
-            <Rocket className="size-3.5 text-cyan-400 animate-pulse" />
+            <Rocket className="size-3.5 text-cyan-400 animate-pulse shrink-0" />
             <span className="hidden sm:inline">🚀 {t("brief", "Brief")}</span>
           </Button>
 
-          {/* Operator Profile Avatar + Dropdown (Strictly Kept Inside Viewport) */}
-          <div className="shrink-0">
+          {/* Operator Profile Avatar */}
+          <div className="shrink-0 whitespace-nowrap">
             {profile ? (
               <UserProfileNavbarWidget
                 user={profile}
@@ -539,7 +529,7 @@ export function CommandBar({
       <div
         ref={paramsDrawerRef}
         className={cn(
-          "transition-all duration-300 z-50 absolute top-12 left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-2xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
+          "transition-all duration-300 z-50 absolute top-14 left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-2xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
           isParamsDrawerOpen
             ? "opacity-100 scale-100 pointer-events-auto visible"
             : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0"

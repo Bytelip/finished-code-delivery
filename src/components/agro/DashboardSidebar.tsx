@@ -78,7 +78,7 @@ export function DashboardSidebar({
     <motion.aside
       initial={false}
       animate={{
-        width: collapsed ? 56 : 256,
+        width: collapsed ? 56 : 240,
       }}
       transition={{
         type: "spring",
@@ -86,9 +86,9 @@ export function DashboardSidebar({
         damping: 30,
       }}
       className={cn(
-        "sticky top-3 left-3 z-40 flex h-[calc(100vh-24px)] shrink-0 flex-col rounded-2xl",
-        "bg-[#070C16]/85 backdrop-blur-2xl border border-white/[0.08]",
-        "shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.16)]",
+        "fixed left-3 top-16 bottom-4 z-30 flex shrink-0 flex-col rounded-2xl",
+        "bg-[#070D19]/88 backdrop-blur-2xl border border-white/10",
+        "shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)]",
         "overflow-hidden select-none",
       )}
     >

@@ -399,7 +399,7 @@ function AgroSpaceDashboard({
           elevationM={telemetry.meta.elevationM}
         />
 
-        <div className="space-y-2.5 p-2 sm:p-3 lg:p-4">
+        <div className="space-y-2.5 p-2 sm:p-3 lg:p-4 pl-18 sm:pl-20">
           <GlobeContainer
             telemetry={telemetry}
             activeLayer={activeLayer}

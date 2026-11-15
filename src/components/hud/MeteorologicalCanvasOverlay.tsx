@@ -289,62 +289,69 @@ export function MeteorologicalCanvasOverlay({
     };
   }, [shouldRenderWind, activeLayer, activeSubLayer, centerLat, centerLon, zoomLevel]);
 
-  // Handle cursor hover for Meteorological Readouts (Wind, Pressure, Temp, Humidity)
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setCursorPos({ x, y });
+  // Handle cursor hover for Meteorological Readouts (Wind, Pressure, Temp, Humidity) via passive listener on globe-container
+  useEffect(() => {
+    if (!isAtmospheric && !shouldRenderWind) return;
+    const container = document.getElementById("globe-container");
+    if (!container) return;
 
-    const normX = x / rect.width;
-    const normY = y / rect.height;
+    const onPointerMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+        setCursorPos(null);
+        return;
+      }
+      setCursorPos({ x, y });
 
-    if (activeLayer === "pressure") {
-      const calculatedHpa = Math.round(980 + normX * 42 + (1 - normY) * 16);
-      setCursorPressure(calculatedHpa);
-    } else if (activeLayer === "wind" || shouldRenderWind) {
-      const speed = Math.round(12 + normX * 24 + (1 - normY) * 16);
-      const gusts = Math.round(speed * 1.8);
-      setCursorWind({ speed, gusts });
-    } else if (activeLayer === "temperature") {
-      const temp = Math.round(18 + normX * 18 + (1 - normY) * 8);
-      setCursorTemp(temp);
-    } else if (activeLayer === "humidity") {
-      const hum = Math.round(35 + normX * 50);
-      setCursorHum(hum);
-    }
-  };
+      const normX = x / rect.width;
+      const normY = y / rect.height;
 
-  const handleMouseLeave = () => {
-    setCursorPressure(null);
-    setCursorWind(null);
-    setCursorTemp(null);
-    setCursorHum(null);
-    setCursorPos(null);
-  };
+      if (activeLayer === "pressure") {
+        const calculatedHpa = Math.round(980 + normX * 42 + (1 - normY) * 16);
+        setCursorPressure(calculatedHpa);
+      } else if (activeLayer === "wind" || shouldRenderWind) {
+        const speed = Math.round(12 + normX * 24 + (1 - normY) * 16);
+        const gusts = Math.round(speed * 1.8);
+        setCursorWind({ speed, gusts });
+      } else if (activeLayer === "temperature") {
+        const temp = Math.round(18 + normX * 18 + (1 - normY) * 8);
+        setCursorTemp(temp);
+      } else if (activeLayer === "humidity") {
+        const hum = Math.round(35 + normX * 50);
+        setCursorHum(hum);
+      }
+    };
+
+    const onPointerLeave = () => {
+      setCursorPressure(null);
+      setCursorWind(null);
+      setCursorTemp(null);
+      setCursorHum(null);
+      setCursorPos(null);
+    };
+
+    container.addEventListener("mousemove", onPointerMove, { passive: true });
+    container.addEventListener("mouseleave", onPointerLeave, { passive: true });
+
+    return () => {
+      container.removeEventListener("mousemove", onPointerMove);
+      container.removeEventListener("mouseleave", onPointerLeave);
+    };
+  }, [isAtmospheric, shouldRenderWind, activeLayer, activeSubLayer]);
 
   if (!isAtmospheric && !shouldRenderWind) {
     return null;
   }
 
-  const isInteractive =
-    activeLayer === "pressure" ||
-    activeLayer === "wind" ||
-    activeLayer === "temperature" ||
-    activeLayer === "humidity";
-
   return (
     <div
       className={cn("absolute inset-0 pointer-events-none z-10 overflow-hidden", className)}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
     >
       <canvas
         ref={canvasRef}
-        className={cn(
-          "w-full h-full block",
-          isInteractive && "pointer-events-auto cursor-crosshair",
-        )}
+        className="w-full h-full block pointer-events-none"
       />
 
       {/* Floating Cursor Telemetry Tooltips */}

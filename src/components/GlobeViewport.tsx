@@ -564,8 +564,13 @@ export function GlobeViewport({
   const [leafletModule, setLeafletModule] = useState<LeafletBundle | null>(null);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
 
-  // HUD Card Minimization States
-  const [isReticleMinimized, setIsReticleMinimized] = useState(false);
+  // HUD Card Minimization States (Adaptive default based on screen width)
+  const [isReticleMinimized, setIsReticleMinimized] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 1440;
+    }
+    return false;
+  });
   const [isDockMinimized, setIsDockMinimized] = useState(false);
   const { t } = useLanguage();
 
@@ -627,8 +632,8 @@ export function GlobeViewport({
     }
   }, []);
 
-  // Zoom & LOD control state
-  const [orbitalAltitude, setOrbitalAltitude] = useState(1.4);
+  // Zoom & LOD control state (Synchronized 3D Orbital Altitude & 2D Map Zoom)
+  const [orbitalAltitude, setOrbitalAltitude] = useState(0.85);
   const [gisZoom, setGisZoom] = useState(12);
 
   // 2D Hazard layers visibility & filter
@@ -641,6 +646,7 @@ export function GlobeViewport({
   const leafletMapRef = useRef<LeafletMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 500 });
+  const lastGlobeClickRef = useRef<{ time: number; lat: number; lon: number }>({ time: 0, lat: 0, lon: 0 });
 
   // Safe client-side dynamic loading of WebGL & Leaflet to keep SSR 100% deterministic
   useEffect(() => {
@@ -692,20 +698,60 @@ export function GlobeViewport({
     };
   }, []);
 
-  // Update container dimensions for responsive 3D WebGL canvas
+  // Canvas Auto-Resize Observer: recalculates Three.js and Leaflet immediately on window resize or dock expand/collapse
   useEffect(() => {
     if (!containerRef.current) return;
-    const updateSize = () => {
-      if (containerRef.current) {
-        setContainerDimensions({
-          width: containerRef.current.clientWidth || 800,
-          height: containerRef.current.clientHeight || 500,
-        });
+
+    const updateSize = (w: number, h: number) => {
+      const width = Math.max(300, Math.round(w) || 800);
+      const height = Math.max(300, Math.round(h) || 500);
+      setContainerDimensions({ width, height });
+
+      // Recalibrate Three.js WebGL renderer
+      try {
+        const globeAny = globeRef.current as unknown as Record<string, unknown>;
+        if (typeof globeAny?.renderer === "function") {
+          const renderer = (globeAny.renderer as () => { setSize?: (w: number, h: number) => void })?.();
+          renderer?.setSize?.(width, height);
+        }
+      } catch {
+        // ignore
+      }
+
+      // Recalibrate Leaflet map
+      if (leafletMapRef.current && typeof leafletMapRef.current.invalidateSize === "function") {
+        leafletMapRef.current.invalidateSize({ animate: false });
       }
     };
-    updateSize();
-    window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+
+    if (containerRef.current.clientWidth && containerRef.current.clientHeight) {
+      updateSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    }
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          if (width > 0 && height > 0) {
+            updateSize(width, height);
+          }
+        }
+      });
+      ro.observe(containerRef.current);
+    }
+
+    const handleWindowResize = () => {
+      if (containerRef.current) {
+        updateSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+      }
+    };
+    window.addEventListener("resize", handleWindowResize);
+
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", handleWindowResize);
+    };
   }, [mounted, viewMode]);
 
   // Temporal Time-Machine Scrubber Configuration (-30D -> LIVE -> +7D AI Forecast)
@@ -1297,9 +1343,41 @@ export function GlobeViewport({
     return () => clearTimeout(timer);
   }, [viewMode, dynamicGlobeHtmlMarkers, runCollisionCull]);
 
+  // Configure Three.js OrbitControls: explicitly unblock mouse wheel & pinch zoom
+  const configureOrbitControls = useCallback((inst?: GlobeMethods | null) => {
+    const target = inst || globeRef.current;
+    if (!target || typeof target.controls !== "function") return null;
+    try {
+      const ctrl = target.controls() as {
+        enableZoom?: boolean;
+        zoomSpeed?: number;
+        minDistance?: number;
+        maxDistance?: number;
+        enableDamping?: boolean;
+        dampingFactor?: number;
+        rotateSpeed?: number;
+        addEventListener?: (e: string, cb: () => void) => void;
+        removeEventListener?: (e: string, cb: () => void) => void;
+      };
+      if (ctrl) {
+        ctrl.enableZoom = true;
+        ctrl.zoomSpeed = 0.9;
+        ctrl.minDistance = 112; // minAltitude ~ 0.12 (globe radius = 100)
+        ctrl.maxDistance = 285; // maxAltitude ~ 1.85 (prevents disappearing globe bug)
+        ctrl.enableDamping = true;
+        ctrl.dampingFactor = 0.06;
+        ctrl.rotateSpeed = 0.55;
+        return ctrl;
+      }
+    } catch {
+      // controls not ready yet
+    }
+    return null;
+  }, []);
+
   // Attach collision culling and altitude tracking to OrbitControls
   useEffect(() => {
-    if (viewMode !== "3d" || !globeRef.current) return;
+    if (viewMode !== "3d") return;
     let controlsInstance: {
       addEventListener?: (e: string, cb: () => void) => void;
       removeEventListener?: (e: string, cb: () => void) => void;
@@ -1310,14 +1388,15 @@ export function GlobeViewport({
         try {
           const pov = globeRef.current.pointOfView();
           if (pov && typeof pov.altitude === "number") {
+            const clamped = Math.max(0.12, Math.min(1.85, pov.altitude));
             lastPovRef.current = {
               lat: typeof pov.lat === "number" ? pov.lat : lastPovRef.current.lat,
               lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
-              altitude: pov.altitude,
+              altitude: clamped,
             };
             setOrbitalAltitude((prev) => {
-              if (Math.abs(prev - pov.altitude) > 0.04) {
-                return pov.altitude;
+              if (Math.abs(prev - clamped) > 0.03) {
+                return clamped;
               }
               return prev;
             });
@@ -1329,35 +1408,19 @@ export function GlobeViewport({
       runCollisionCull();
     };
 
-    try {
-      if (typeof globeRef.current.controls === "function") {
-        const ctrl = globeRef.current.controls() as {
-          enableDamping?: boolean;
-          dampingFactor?: number;
-          rotateSpeed?: number;
-          zoomSpeed?: number;
-          minDistance?: number;
-          maxDistance?: number;
-          addEventListener?: (e: string, cb: () => void) => void;
-          removeEventListener?: (e: string, cb: () => void) => void;
-        };
-        if (ctrl) {
-          ctrl.enableDamping = true;
-          ctrl.dampingFactor = 0.06;
-          ctrl.rotateSpeed = 0.55;
-          ctrl.zoomSpeed = 0.75;
-          // Clamp camera distance so Earth fills the viewport and never shrinks to a tiny dot
-          ctrl.minDistance = 112; // minAltitude ~ 0.12 (globe radius = 100)
-          ctrl.maxDistance = 285; // maxAltitude ~ 1.85 (prevents Alt: 43857 km / altitude 6.8 bug)
-          controlsInstance = ctrl;
+    const ctrl = configureOrbitControls();
+    if (ctrl && typeof ctrl.addEventListener === "function") {
+      ctrl.addEventListener("change", handleControlsChange);
+      controlsInstance = ctrl;
+    } else {
+      const t = setTimeout(() => {
+        const retry = configureOrbitControls();
+        if (retry && typeof retry.addEventListener === "function") {
+          retry.addEventListener("change", handleControlsChange);
+          controlsInstance = retry;
         }
-      }
-    } catch {
-      // controls not ready yet
-    }
-
-    if (controlsInstance && typeof controlsInstance.addEventListener === "function") {
-      controlsInstance.addEventListener("change", handleControlsChange);
+      }, 150);
+      return () => clearTimeout(t);
     }
 
     const interval = setInterval(runCollisionCull, 350);
@@ -1368,7 +1431,7 @@ export function GlobeViewport({
         controlsInstance.removeEventListener("change", handleControlsChange);
       }
     };
-  }, [viewMode, globeModule, runCollisionCull]);
+  }, [viewMode, globeModule, runCollisionCull, configureOrbitControls]);
 
   // 2D Field GIS Hazard Features List
   const mapHazardsList = useMemo(() => {
@@ -1477,13 +1540,12 @@ export function GlobeViewport({
     return mapHazardsList.filter((h) => h.type === hazardFilter);
   }, [mapHazardsList, hazardsVisible, hazardFilter]);
 
-  // Synchronized Zoom Level (1..18)
+  // Synchronized Zoom Level (1..18 linear mapping for 3D & 2D)
   const currentZoomLevel = useMemo(() => {
     if (viewMode === "3d") {
-      return Math.max(
-        1,
-        Math.min(18, Math.round(18 - ((orbitalAltitude - 0.06) / (2.5 - 0.06)) * 16)),
-      );
+      const clampedAlt = Math.max(0.12, Math.min(1.85, orbitalAltitude));
+      const pct = (1.85 - clampedAlt) / (1.85 - 0.12);
+      return Math.max(1, Math.min(18, Math.round(1 + pct * 17)));
     }
     return gisZoom;
   }, [viewMode, orbitalAltitude, gisZoom]);
@@ -1571,28 +1633,36 @@ export function GlobeViewport({
     });
   }, [lat, lon]);
 
-  // Zoom In Handler (Strict 4-Stage LOD: triggers 2D Hand-Off when altitude <= 0.14)
-  const handleZoomIn = () => {
+  // Unified Bi-Directional Zoom In Handler (Strict 4-Stage LOD: triggers 2D Hand-Off when altitude <= 0.14)
+  const handleZoomIn = useCallback(() => {
     if (viewMode === "3d") {
-      const newAlt = Math.max(0.04, orbitalAltitude * 0.65);
-      setOrbitalAltitude(newAlt);
-      lastPovRef.current.altitude = newAlt;
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
-      if (newAlt <= 0.14) {
+      const curPov = typeof globeRef.current?.pointOfView === "function" ? globeRef.current.pointOfView() : null;
+      const curAlt = typeof curPov?.altitude === "number" ? curPov.altitude : orbitalAltitude;
+      const curLat = typeof curPov?.lat === "number" ? curPov.lat : lat;
+      const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
+      const nextAlt = Math.max(0.12, curAlt * 0.72);
+      setOrbitalAltitude(nextAlt);
+      lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
+      globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 350);
+      if (nextAlt <= 0.14) {
         handleAutoTransitionTo2D();
       }
     } else {
       leafletMapRef.current?.zoomIn?.(1, { animate: true });
     }
-  };
+  }, [viewMode, orbitalAltitude, lat, lon, handleAutoTransitionTo2D]);
 
-  // Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 2)
-  const handleZoomOut = () => {
+  // Unified Bi-Directional Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 2)
+  const handleZoomOut = useCallback(() => {
     if (viewMode === "3d") {
-      const newAlt = Math.min(1.85, orbitalAltitude * 1.35);
-      setOrbitalAltitude(newAlt);
-      lastPovRef.current.altitude = newAlt;
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
+      const curPov = typeof globeRef.current?.pointOfView === "function" ? globeRef.current.pointOfView() : null;
+      const curAlt = typeof curPov?.altitude === "number" ? curPov.altitude : orbitalAltitude;
+      const curLat = typeof curPov?.lat === "number" ? curPov.lat : lat;
+      const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
+      const nextAlt = Math.min(1.85, curAlt * 1.35);
+      setOrbitalAltitude(nextAlt);
+      lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
+      globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 350);
     } else {
       const curZ = leafletMapRef.current?.getZoom?.() ?? gisZoom;
       if (curZ <= 2) {
@@ -1601,20 +1671,22 @@ export function GlobeViewport({
         leafletMapRef.current?.zoomOut?.(1, { animate: true });
       }
     }
-  };
+  }, [viewMode, orbitalAltitude, gisZoom, lat, lon, handleAutoTransitionTo3D]);
 
-  // Vertical Zoom Slider Handler
-  const handleSliderChange = (newZoom: number) => {
+  // Unified Vertical Zoom Slider Handler (Maps 0% to 100% to altitude and zoom)
+  const handleSliderChange = useCallback((newZoom: number) => {
     if (viewMode === "3d") {
-      if (newZoom >= 16) {
+      const pct = Math.max(0, Math.min(1, (newZoom - 1) / 17));
+      const nextAlt = Math.max(0.12, Math.min(1.85, 1.85 - pct * (1.85 - 0.12)));
+      setOrbitalAltitude(nextAlt);
+      const curPov = typeof globeRef.current?.pointOfView === "function" ? globeRef.current.pointOfView() : null;
+      const curLat = typeof curPov?.lat === "number" ? curPov.lat : lat;
+      const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
+      lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
+      globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 200);
+      if (nextAlt <= 0.14) {
         handleAutoTransitionTo2D();
-        return;
       }
-      const newAlt = Math.max(0.12, Math.min(1.85, 1.85 - ((newZoom - 1) / 17) * (1.85 - 0.12)));
-      setOrbitalAltitude(newAlt);
-      lastPovRef.current.altitude = newAlt;
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 300);
-      if (newAlt <= 0.14) handleAutoTransitionTo2D();
     } else {
       if (newZoom <= 2) {
         handleAutoTransitionTo3D();
@@ -1623,7 +1695,42 @@ export function GlobeViewport({
       leafletMapRef.current?.setZoom?.(newZoom, { animate: true });
       setGisZoom(newZoom);
     }
-  };
+  }, [viewMode, lat, lon, handleAutoTransitionTo2D, handleAutoTransitionTo3D]);
+
+  // Keyboard Shortcuts: +, -, R (reset), 0 (full orbit)
+  useEffect(() => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const tag = activeEl?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || (activeEl as HTMLElement)?.isContentEditable) {
+        return;
+      }
+
+      if (e.key === "+" || e.key === "=") {
+        e.preventDefault();
+        handleZoomIn();
+      } else if (e.key === "-" || e.key === "_") {
+        e.preventDefault();
+        handleZoomOut();
+      } else if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        if (viewMode === "3d") {
+          setOrbitalAltitude(0.65);
+          lastPovRef.current = { lat, lng: lon, altitude: 0.65 };
+          globeRef.current?.pointOfView?.({ lat, lng: lon, altitude: 0.65 }, 600);
+          toast.info("Target Camera Reset (Altitude: 0.65)");
+        } else {
+          leafletMapRef.current?.flyTo?.([lat, lon], 13, { animate: true, duration: 0.8 });
+        }
+      } else if (e.key === "0") {
+        e.preventDefault();
+        handleFullOrbit();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleZoomIn, handleZoomOut, viewMode, lat, lon]);
 
   // Quick Action: Target Farm (Z:15)
   const handleTargetFarm = () => {
@@ -1818,7 +1925,7 @@ export function GlobeViewport({
       data-lon={lon}
       data-layer={activeLayer}
       onPointerDown={() => onInteraction?.()}
-      className="relative w-full h-[calc(100vh-140px)] min-h-[580px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
+      className="relative w-full h-[calc(100dvh-4.25rem)] min-h-[500px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
     >
       {/* Ambient Radiant Orbital Glows (Google Stitch) */}
       <div
@@ -1876,11 +1983,14 @@ export function GlobeViewport({
               key={`globe-engine-${basemapStyle}-${basemapSubOption}-${showLabels}-${enable3dTerrain}`}
               ref={(inst: GlobeMethods | null) => {
                 globeRef.current = inst;
+                if (inst) {
+                  configureOrbitControls(inst);
+                }
                 if (inst && typeof inst.pointOfView === "function") {
                   const initPov = {
                     lat: lastPovRef.current.lat || lat,
                     lng: lastPovRef.current.lng || lon,
-                    altitude: 1.25, // Earth fills 75% of viewport height majestically
+                    altitude: 0.85, // Earth fills 75% of viewport height majestically
                   };
                   try {
                     // Frame 0 instant position initialization:
@@ -1893,7 +2003,7 @@ export function GlobeViewport({
                     isFirst3dMountRef.current = false;
                     setTimeout(() => {
                       try {
-                        inst.pointOfView({ lat, lng: lon, altitude: 0.45 }, 1800);
+                        inst.pointOfView({ lat, lng: lon, altitude: 0.85 }, 1800);
                       } catch {
                         // ignore
                       }
@@ -2137,10 +2247,29 @@ export function GlobeViewport({
               onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
                 const targetLat = Math.round(clickLat * 10000) / 10000;
                 const targetLng = Math.round(clickLng * 10000) / 10000;
-                lastPovRef.current = { lat: targetLat, lng: targetLng, altitude: 0.45 };
+                const now = Date.now();
+                const isDblClick = now - lastGlobeClickRef.current.time < 350;
+                lastGlobeClickRef.current = { time: now, lat: targetLat, lon: targetLng };
+
+                if (isDblClick) {
+                  const nextAlt = Math.max(0.12, orbitalAltitude * 0.65);
+                  setOrbitalAltitude(nextAlt);
+                  lastPovRef.current = { lat: targetLat, lng: targetLng, altitude: nextAlt };
+                  onPick(targetLat, targetLng);
+                  globeRef.current?.pointOfView?.(
+                    { lat: targetLat, lng: targetLng, altitude: nextAlt },
+                    600,
+                  );
+                  if (nextAlt <= 0.14) {
+                    setTimeout(handleAutoTransitionTo2D, 650);
+                  }
+                  return;
+                }
+
+                lastPovRef.current = { lat: targetLat, lng: targetLng, altitude: orbitalAltitude || 0.45 };
                 onPick(targetLat, targetLng);
                 globeRef.current?.pointOfView?.(
-                  { lat: targetLat, lng: targetLng, altitude: 0.45 },
+                  { lat: targetLat, lng: targetLng, altitude: orbitalAltitude || 0.45 },
                   1800,
                 );
               }}
@@ -2644,8 +2773,22 @@ export function GlobeViewport({
       {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}
       <div
         data-hud-overlay="zoom-controls"
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none max-h-[260px] py-2"
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none max-h-[300px] py-2 pointer-events-auto"
       >
+        {/* Live Altitude / Zoom Readout Badge directly above the + button */}
+        <div
+          className="rounded border border-cyan-500/40 bg-black/80 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-cyan-300 tabular-nums text-center whitespace-nowrap shadow-[0_0_8px_rgba(6,182,212,0.3)] mb-0.5"
+          title={
+            viewMode === "3d"
+              ? `Orbital Altitude: ${Math.round(orbitalAltitude * 6371).toLocaleString()} km`
+              : `Field Resolution: Zoom ${gisZoom}x`
+          }
+        >
+          {viewMode === "3d"
+            ? `Alt: ${Math.round(orbitalAltitude * 6371).toLocaleString()} km`
+            : `Zoom: ${gisZoom}x`}
+        </div>
+
         {/* Zoom In Button */}
         <Button
           type="button"
@@ -2654,7 +2797,7 @@ export function GlobeViewport({
           onClick={handleZoomIn}
           title="Zoom In (+)"
           aria-label="Zoom In"
-          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300"
+          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
         >
           <Plus className="size-3.5" />
         </Button>
@@ -2681,7 +2824,7 @@ export function GlobeViewport({
           onClick={handleZoomOut}
           title="Zoom Out (-)"
           aria-label="Zoom Out"
-          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300"
+          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
         >
           <Minus className="size-3.5" />
         </Button>
@@ -2691,7 +2834,7 @@ export function GlobeViewport({
           className="rounded border border-cyan-500/30 bg-black/60 px-1 py-0.5 font-mono text-[8px] text-cyan tabular-nums text-center w-full"
           title={
             viewMode === "3d"
-              ? `Orbital Altitude: ${Math.round(orbitalAltitude * 6371)} km`
+              ? `Orbital Altitude: ${Math.round(orbitalAltitude * 6371).toLocaleString()} km`
               : `Field Resolution: Zoom ${gisZoom}`
           }
         >
@@ -2708,7 +2851,7 @@ export function GlobeViewport({
           onClick={handleTargetFarm}
           title="Target Farm (Z:15)"
           aria-label="Target Farm"
-          className="size-7 rounded-lg text-emerald hover:bg-emerald-500/20 hover:text-emerald-300"
+          className="size-7 rounded-lg text-emerald hover:bg-emerald-500/20 hover:text-emerald-300 cursor-pointer"
         >
           <Crosshair className="size-3.5" />
         </Button>
@@ -2721,7 +2864,7 @@ export function GlobeViewport({
           onClick={handleFullOrbit}
           title="Full Orbit (Z:3)"
           aria-label="Full Orbit"
-          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300"
+          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
         >
           <Compass className="size-3.5" />
         </Button>
@@ -2880,14 +3023,14 @@ export function GlobeViewport({
       {/* ---------------- UNIFIED 2-TIER BOTTOM TELEMETRY DOCK ---------------- */}
       <div
         data-hud-overlay="layer-switcher"
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-[calc(100%-260px)] w-auto pointer-events-auto select-none py-1 px-3"
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-[calc(100%-240px)] w-auto pointer-events-none select-none py-1 px-3"
       >
         {/* Minimized Compact Floating Capsule Pill */}
         {isDockMinimized && (
           <button
             type="button"
             onClick={() => setIsDockMinimized(false)}
-            className="h-9 px-4 rounded-full bg-[#0a0f1d]/90 backdrop-blur-2xl border border-white/20 text-cyan-200 font-mono text-xs flex items-center gap-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.85)] hover:border-cyan-400/60 hover:bg-[#0f172a]/95 transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-200"
+            className="pointer-events-auto h-9 px-4 rounded-full bg-[#0a0f1d]/90 backdrop-blur-2xl border border-white/20 text-cyan-200 font-mono text-xs flex items-center gap-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.85)] hover:border-cyan-400/60 hover:bg-[#0f172a]/95 transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-200"
             title="Open Orbital Layers Dock (L)"
           >
             <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
@@ -2908,7 +3051,7 @@ export function GlobeViewport({
 
         <div
           className={cn(
-            "transition-all duration-300 flex flex-col items-center gap-1.5",
+            "pointer-events-auto transition-all duration-300 flex flex-col items-center gap-1.5",
             isDockMinimized
               ? "max-h-0 opacity-0 pointer-events-none overflow-hidden scale-95"
               : "max-h-[220px] opacity-100 scale-100"
@@ -3045,7 +3188,7 @@ export function GlobeViewport({
                     aria-checked={isSelected}
                     aria-label={tab}
                     onClick={() => onLayer(tab)}
-                    className={`px-3 py-1 font-mono text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-2.5 sm:px-3 py-1 font-mono text-[11px] sm:text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
                       isSelected
                         ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
                         : "text-slate-400 hover:text-cyan-100 border border-white/5"
