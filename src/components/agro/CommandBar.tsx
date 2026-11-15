@@ -14,6 +14,7 @@ import {
   Rocket,
   Clock,
   Radio,
+  Satellite,
 } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { toast } from "sonner";
@@ -343,8 +344,79 @@ export function CommandBar({
         </div>
       )}
 
-      {/* ---------------- MAIN CONTROLS ROW ---------------- */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5 px-4 py-2.5">
+      {/* ---------------- 1. TOP STATUS NAVBAR (3-COLUMN FLEX LAYOUT) ---------------- */}
+      <div className="flex items-center justify-between px-4 sm:px-6 h-14 border-b border-white/10 bg-background/90 backdrop-blur-xl">
+        {/* Left: App Brand Logo + HUD Overview active breadcrumb */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          <div className="grid size-8 place-items-center rounded-lg border border-cyan/60 bg-cyan/15 text-cyan shadow-[0_0_12px_rgba(0,240,255,0.35)]">
+            <Satellite className="size-4 animate-pulse text-cyan" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-sans text-sm font-bold tracking-tight text-foreground truncate">
+              AgroSpace Nexus
+            </span>
+            <span className="text-muted-foreground/40 hidden sm:inline">/</span>
+            <span className="hidden sm:inline rounded bg-cyan/15 border border-cyan/40 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan tracking-wider truncate">
+              HUD Overview
+            </span>
+          </div>
+        </div>
+
+        {/* Center: Compact status capsule */}
+        <div className="hidden lg:flex items-center gap-2.5 px-3.5 py-1 rounded-full border border-white/10 bg-[#040C18]/80 text-xs font-mono shadow-inner select-none">
+          <div className="flex items-center gap-1.5 text-cyan-300">
+            <Clock className="size-3 text-cyan-400 animate-pulse" />
+            <span className="font-semibold">{metFormatted}</span>
+          </div>
+          <span className="text-white/20">•</span>
+          <div className="flex items-center gap-1.5 text-emerald-300">
+            <Radio className="size-3 text-emerald-400 animate-pulse" />
+            <span className="font-semibold">LINK: 99.8% NOMINAL</span>
+          </div>
+          <span className="text-white/20">•</span>
+          <div className="flex items-center gap-1.5 text-cyan-300 font-semibold">
+            <Globe2 className="size-3 text-cyan-400" />
+            <span>STAGE 1 ORBITAL VIEW</span>
+          </div>
+        </div>
+
+        {/* Right: Theme Switcher pill + Mission Brief button + Single Profile Avatar */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <ThemeSwitcher />
+
+          <Button
+            type="button"
+            size="sm"
+            onClick={onOpenMissionBrief}
+            className="h-8 px-2.5 sm:px-3 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Open NASA Space Apps Mission Brief"
+          >
+            <Rocket className="size-3.5 text-cyan-400 animate-pulse" />
+            <span className="hidden sm:inline">🚀 Mission Brief</span>
+            <span className="sm:hidden">Brief</span>
+          </Button>
+
+          {profile ? (
+            <UserProfileNavbarWidget
+              user={profile}
+              onUpdateUser={(updated) => onUpdateUser?.(updated)}
+              onLogout={() => onSignOut?.()}
+              onNavigateHome={(locStr) => onNavigateHome?.(13.1367, 78.1292, locStr)}
+            />
+          ) : (
+            <OperatorProfileDropdown
+              profile={null}
+              onOpenAuth={onOpenAuth || (() => {})}
+              onOpenSettings={onOpenSettings || (() => {})}
+              onNavigateHome={onNavigateHome}
+              onSignOut={onSignOut || (() => {})}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ---------------- 2. SIMULATION & LOCATION PARAMETERS ROW ---------------- */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-6 py-2 bg-background/60 backdrop-blur-md">
         {/* Lat / Lon / Accuracy / GPS Trigger */}
         <div className="flex items-center gap-1.5">
           <CoordInput
@@ -589,59 +661,6 @@ export function CommandBar({
             />
           )}
         </Field>
-
-        {/* ---------------- OPERATOR PROFILE ICON & QUICK MENU (TOP-RIGHT NAVBAR) ---------------- */}
-        <div className="ml-auto flex items-center gap-2 pl-1 shrink-0">
-          {/* Mission Elapsed Time */}
-          <div
-            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-cyan-500/30 bg-[#040c1a]/85 text-[11px] font-mono text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.2)] select-none"
-            title="Mission Elapsed Time (MET)"
-          >
-            <Clock className="size-3 text-cyan-400 animate-pulse" />
-            <span className="font-semibold">{metFormatted}</span>
-          </div>
-
-          {/* Telemetry Downlink Health */}
-          <div
-            className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-950/40 text-[11px] font-mono text-emerald-300 select-none"
-            title="Orbital Downlink Telemetry Health"
-          >
-            <Radio className="size-3 text-emerald-400 animate-pulse" />
-            <span>LINK: 99.8% NOMINAL</span>
-          </div>
-
-          {/* Multi-Theme Palette Switcher */}
-          <ThemeSwitcher />
-
-          <Button
-            type="button"
-            size="sm"
-            onClick={onOpenMissionBrief}
-            className="h-7 px-2.5 text-[11px] font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Open NASA Space Apps Mission Brief"
-          >
-            <Rocket className="size-3 text-cyan-400 animate-pulse" />
-            <span className="hidden sm:inline">🚀 Mission Brief</span>
-            <span className="sm:hidden">Brief</span>
-          </Button>
-
-          {profile ? (
-            <UserProfileNavbarWidget
-              user={profile}
-              onUpdateUser={(updated) => onUpdateUser?.(updated)}
-              onLogout={() => onSignOut?.()}
-              onNavigateHome={(locStr) => onNavigateHome?.(13.1367, 78.1292, locStr)}
-            />
-          ) : (
-            <OperatorProfileDropdown
-              profile={null}
-              onOpenAuth={onOpenAuth || (() => {})}
-              onOpenSettings={onOpenSettings || (() => {})}
-              onNavigateHome={onNavigateHome}
-              onSignOut={onSignOut || (() => {})}
-            />
-          )}
-        </div>
       </div>
     </div>
   );

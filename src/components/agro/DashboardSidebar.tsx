@@ -183,27 +183,6 @@ export function DashboardSidebar({
         })}
       </div>
 
-      {/* Operator Status Pill in Sidebar */}
-      {!collapsed && onOpenAuth && (
-        <div className="px-3 py-2 border-t border-sidebar-border/80">
-          <button
-            type="button"
-            onClick={onOpenAuth}
-            className="w-full flex items-center justify-between gap-2 rounded-md border border-cyan/40 bg-cyan/10 px-2.5 py-1.5 font-mono text-xs text-cyan hover:bg-cyan/20 transition-all cursor-pointer shadow-[0_0_10px_rgba(0,240,255,0.15)]"
-          >
-            <div className="flex items-center gap-1.5 truncate">
-              <span className="size-1.5 rounded-full bg-emerald shadow-[0_0_6px_#00ff9d] animate-pulse shrink-0" />
-              <span className="truncate font-semibold">
-                {operator
-                  ? `Operator: ${operator.fullName || operator.email.split("@")[0]}`
-                  : "Mission Control Auth"}
-              </span>
-            </div>
-            <span className="text-[9px] uppercase tracking-wider text-cyan/70 font-bold">AUTH</span>
-          </button>
-        </div>
-      )}
-
       {/* Collapse Actuator Button */}
       <button
         type="button"
