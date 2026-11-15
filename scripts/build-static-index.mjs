@@ -29,6 +29,10 @@ async function generateStaticIndex() {
     await fs.writeFile(outputPublicIndex, html, "utf-8");
     console.log("Successfully generated .output/public/index.html for static deployment");
 
+    // Ensure .nojekyll exists in .output/public for GitHub Pages
+    const noJekyllPath = path.resolve(process.cwd(), ".output/public/.nojekyll");
+    await fs.writeFile(noJekyllPath, "", "utf-8");
+
     // Also write to public/index.html so it persists in Git for GitHub Pages & GoDaddy
     const publicIndex = path.resolve(process.cwd(), "public/index.html");
     await fs.writeFile(publicIndex, html, "utf-8");
