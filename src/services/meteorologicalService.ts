@@ -74,7 +74,7 @@ export function generateDeterministicForecast(lat: number, lon: number): Meteoro
       feelsLikeMin: Math.round((baseTemp - 6) * 10) / 10,
       feelsLikeMax: Math.round((baseTemp + 1.5) * 10) / 10,
       windSpeedMax: Math.round(baseWind * 10) / 10,
-      windGustsMax: Math.round((baseWind * 2.2) * 10) / 10,
+      windGustsMax: Math.round(baseWind * 2.2 * 10) / 10,
       pressure: Math.round(basePressure),
       precipitationSum: 0.0,
     },
@@ -86,7 +86,7 @@ export function generateDeterministicForecast(lat: number, lon: number): Meteoro
       feelsLikeMin: Math.round((baseTemp - 5.5) * 10) / 10,
       feelsLikeMax: Math.round((baseTemp + 2.5) * 10) / 10,
       windSpeedMax: Math.round((baseWind + 2) * 10) / 10,
-      windGustsMax: Math.round((baseWind * 2.4) * 10) / 10,
+      windGustsMax: Math.round(baseWind * 2.4 * 10) / 10,
       pressure: Math.round(basePressure - 1),
       precipitationSum: 0.2,
     },
@@ -98,7 +98,7 @@ export function generateDeterministicForecast(lat: number, lon: number): Meteoro
       feelsLikeMin: Math.round((baseTemp - 6) * 10) / 10,
       feelsLikeMax: Math.round((baseTemp + 3.0) * 10) / 10,
       windSpeedMax: Math.round((baseWind + 1.5) * 10) / 10,
-      windGustsMax: Math.round((baseWind * 2.3) * 10) / 10,
+      windGustsMax: Math.round(baseWind * 2.3 * 10) / 10,
       pressure: Math.round(basePressure + 2),
       precipitationSum: 0.0,
     },
@@ -110,7 +110,7 @@ export function generateDeterministicForecast(lat: number, lon: number): Meteoro
       feelsLikeMin: Math.round((baseTemp - 5) * 10) / 10,
       feelsLikeMax: Math.round((baseTemp + 3.5) * 10) / 10,
       windSpeedMax: Math.round((baseWind + 4) * 10) / 10,
-      windGustsMax: Math.round((baseWind * 2.8) * 10) / 10,
+      windGustsMax: Math.round(baseWind * 2.8 * 10) / 10,
       pressure: Math.round(basePressure + 1),
       precipitationSum: 1.5,
     },
@@ -124,11 +124,11 @@ export function generateDeterministicForecast(lat: number, lon: number): Meteoro
       temperature: Math.round(baseTemp * 10) / 10,
       feelsLike: Math.round((baseTemp + 1) * 10) / 10,
       relativeHumidity: Math.round(baseRH),
-      dewPoint: Math.round((baseTemp - ((100 - baseRH) / 5)) * 10) / 10,
+      dewPoint: Math.round((baseTemp - (100 - baseRH) / 5) * 10) / 10,
       wetBulb,
       pressure: Math.round(basePressure),
       windSpeed: Math.round(baseWind * 10) / 10,
-      windGusts: Math.round((baseWind * 2.2) * 10) / 10,
+      windGusts: Math.round(baseWind * 2.2 * 10) / 10,
       precipitation: 0.0,
     },
     daily: days,
@@ -175,18 +175,32 @@ export async function fetchMeteorologicalForecast(
     const wetBulb = calculateWetBulbTemperature(temp, rh);
 
     const labels = ["Today", "+1d", "+2d", "+3d"];
-    const dailyDays: DailyForecastDay[] = (d.time || []).slice(0, 4).map((timeStr: string, idx: number) => ({
-      date: timeStr,
-      label: labels[idx] || `+${idx}d`,
-      tempMin: typeof d.temperature_2m_min?.[idx] === "number" ? d.temperature_2m_min[idx] : 18,
-      tempMax: typeof d.temperature_2m_max?.[idx] === "number" ? d.temperature_2m_max[idx] : 28,
-      feelsLikeMin: typeof d.apparent_temperature_min?.[idx] === "number" ? d.apparent_temperature_min[idx] : 18,
-      feelsLikeMax: typeof d.apparent_temperature_max?.[idx] === "number" ? d.apparent_temperature_max[idx] : 30,
-      windSpeedMax: typeof d.wind_speed_10m_max?.[idx] === "number" ? d.wind_speed_10m_max[idx] : 14,
-      windGustsMax: typeof d.wind_gusts_10m_max?.[idx] === "number" ? d.wind_gusts_10m_max[idx] : 28,
-      pressure: typeof d.surface_pressure_max?.[idx] === "number" ? Math.round(d.surface_pressure_max[idx]) : 1013,
-      precipitationSum: typeof d.precipitation_sum?.[idx] === "number" ? d.precipitation_sum[idx] : 0,
-    }));
+    const dailyDays: DailyForecastDay[] = (d.time || [])
+      .slice(0, 4)
+      .map((timeStr: string, idx: number) => ({
+        date: timeStr,
+        label: labels[idx] || `+${idx}d`,
+        tempMin: typeof d.temperature_2m_min?.[idx] === "number" ? d.temperature_2m_min[idx] : 18,
+        tempMax: typeof d.temperature_2m_max?.[idx] === "number" ? d.temperature_2m_max[idx] : 28,
+        feelsLikeMin:
+          typeof d.apparent_temperature_min?.[idx] === "number"
+            ? d.apparent_temperature_min[idx]
+            : 18,
+        feelsLikeMax:
+          typeof d.apparent_temperature_max?.[idx] === "number"
+            ? d.apparent_temperature_max[idx]
+            : 30,
+        windSpeedMax:
+          typeof d.wind_speed_10m_max?.[idx] === "number" ? d.wind_speed_10m_max[idx] : 14,
+        windGustsMax:
+          typeof d.wind_gusts_10m_max?.[idx] === "number" ? d.wind_gusts_10m_max[idx] : 28,
+        pressure:
+          typeof d.surface_pressure_max?.[idx] === "number"
+            ? Math.round(d.surface_pressure_max[idx])
+            : 1013,
+        precipitationSum:
+          typeof d.precipitation_sum?.[idx] === "number" ? d.precipitation_sum[idx] : 0,
+      }));
 
     const result: MeteorologicalForecast = {
       lat,
@@ -194,11 +208,13 @@ export async function fetchMeteorologicalForecast(
       current: {
         time: cur.time || "2026-11-15T11:00",
         temperature: temp,
-        feelsLike: typeof cur.apparent_temperature === "number" ? cur.apparent_temperature : temp + 1,
+        feelsLike:
+          typeof cur.apparent_temperature === "number" ? cur.apparent_temperature : temp + 1,
         relativeHumidity: rh,
         dewPoint: typeof cur.dew_point_2m === "number" ? cur.dew_point_2m : 15,
         wetBulb,
-        pressure: typeof cur.surface_pressure === "number" ? Math.round(cur.surface_pressure) : 1012,
+        pressure:
+          typeof cur.surface_pressure === "number" ? Math.round(cur.surface_pressure) : 1012,
         windSpeed: typeof cur.wind_speed_10m === "number" ? cur.wind_speed_10m : 12,
         windGusts: typeof cur.wind_gusts_10m === "number" ? cur.wind_gusts_10m : 25,
         precipitation: typeof cur.precipitation === "number" ? cur.precipitation : 0,

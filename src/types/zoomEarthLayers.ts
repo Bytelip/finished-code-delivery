@@ -6,7 +6,8 @@ export type AtmosphericLayerId = "precipitation" | "wind" | "temperature" | "hum
 
 export type TerrainVectorLayerId = "terrain" | "default" | "dark";
 
-export type ZoomEarthLayerId = LiveMapLayerId | AtmosphericLayerId | TerrainVectorLayerId | MapLayer;
+export type ZoomEarthLayerId =
+  LiveMapLayerId | AtmosphericLayerId | TerrainVectorLayerId | MapLayer;
 
 export type SatelliteSubOption = "satellite_live" | "satellite_hd";
 export type WindSubOption = "wind_speed" | "wind_gusts";
@@ -55,8 +56,16 @@ export const ZOOM_EARTH_LAYERS_META: Record<string, LayerMetadata> = {
       "High-resolution true-color Earth optical imagery seamlessly composited with real-time cloud cover and atmospheric water vapor layers.",
     defaultSubOption: "satellite_live",
     subOptions: [
-      { id: "satellite_live", label: "Live", description: "Real-time satellite imagery + cloud cover overlay" },
-      { id: "satellite_hd", label: "HD", description: "Ultra-crisp Esri World Imagery + place labels" },
+      {
+        id: "satellite_live",
+        label: "Live",
+        description: "Real-time satellite imagery + cloud cover overlay",
+      },
+      {
+        id: "satellite_hd",
+        label: "HD",
+        description: "Ultra-crisp Esri World Imagery + place labels",
+      },
     ],
     colorScale: {
       unit: "Reflectance",

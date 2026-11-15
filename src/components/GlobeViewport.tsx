@@ -1165,17 +1165,16 @@ export function GlobeViewport({
     return list;
   }, [lat, lon, activeLayer, reading, meta.regionLabel, hazards, activePlaceLabels]);
 
-function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const rad = Math.PI / 180;
-  const phi1 = lat1 * rad;
-  const phi2 = lat2 * rad;
-  const deltaLambda = (lon2 - lon1) * rad;
-  const cosTheta =
-    Math.sin(phi1) * Math.sin(phi2) +
-    Math.cos(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
-  const clamped = Math.max(-1, Math.min(1, cosTheta));
-  return Math.acos(clamped) * (180 / Math.PI);
-}
+  function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const rad = Math.PI / 180;
+    const phi1 = lat1 * rad;
+    const phi2 = lat2 * rad;
+    const deltaLambda = (lon2 - lon1) * rad;
+    const cosTheta =
+      Math.sin(phi1) * Math.sin(phi2) + Math.cos(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+    const clamped = Math.max(-1, Math.min(1, cosTheta));
+    return Math.acos(clamped) * (180 / Math.PI);
+  }
 
   // Screen-space bounding-box collision culling & hemisphere backface culling for 3D Globe place labels
   const runCollisionCull = useCallback(() => {
@@ -1779,6 +1778,28 @@ function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: n
       data-layer={activeLayer}
       className="relative w-full h-[640px] lg:h-[680px] rounded-2xl border border-cyan-500/25 bg-[#03060d] overflow-hidden select-none shadow-[0_0_35px_rgba(0,0,0,0.8),inset_0_0_50px_rgba(0,240,255,0.05)] mb-6"
     >
+      {/* Ambient Radiant Orbital Glows (Google Stitch) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -left-32 size-96 rounded-full bg-cyan-500/10 blur-[120px] z-10"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-32 -right-32 size-96 rounded-full bg-emerald-500/10 blur-[130px] z-10"
+      />
+
+      {/* Top Flight HUD Overlay Chips (Google Stitch Global Observatory) */}
+      <div className="pointer-events-none absolute top-3.5 left-4 z-20 hidden md:flex items-center gap-2">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0b0f19]/80 border border-white/10 backdrop-blur-md shadow-lg text-[10px] font-mono text-amber-300">
+          <Satellite className="size-3 text-amber-400" />
+          <span>ORBITAL PASS: LANDSAT-9 T-00:14:22</span>
+        </div>
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0b0f19]/80 border border-white/10 backdrop-blur-md shadow-lg text-[10px] font-mono text-cyan-300">
+          <GlobeIcon className="size-3 text-cyan-400" />
+          <span>RES: 10m/px MULTISPECTRAL</span>
+        </div>
+      </div>
+
       {/* Aerospace Tactical Corner Frame Ticks & Animated Sci-Fi Reticle */}
       <div className="pointer-events-none absolute inset-0 z-10 border border-cyan/25">
         <span className="absolute top-2 left-2 size-3 border-t-2 border-l-2 border-cyan-400" />

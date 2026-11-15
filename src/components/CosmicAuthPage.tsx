@@ -298,8 +298,12 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [otpError, setOtpError] = useState<string>("");
   const [configError, setConfigError] = useState<string>("");
   const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
-  const [inputGoogleClientId, setInputGoogleClientId] = useState<string>(() => getGoogleClientId() || "");
-  const [inputSupabaseUrl, setInputSupabaseUrl] = useState<string>(() => getSupabaseUrl() || "");
+  const [inputGoogleClientId, setInputGoogleClientId] = useState<string>(
+    () => getGoogleClientId() || "",
+  );
+  const [inputSupabaseUrl, setInputSupabaseUrl] = useState<string>(
+    () => getSupabaseUrl() || "",
+  );
   const [inputSupabaseAnonKey, setInputSupabaseAnonKey] = useState<string>("");
   const [sendingEmail, setSendingEmail] = useState<boolean>(false);
   const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
@@ -840,7 +844,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             {!isServiceConfigured && (
               <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
                 <div className="flex items-center gap-1.5 font-semibold text-amber-300">
-                  <svg className="h-4 w-4 shrink-0 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    className="h-4 w-4 shrink-0 text-amber-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path
                       fillRule="evenodd"
                       d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
@@ -850,7 +858,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   <span>Mailing Gateway Setup Notice</span>
                 </div>
                 <p className="mt-1.5 text-[11px] leading-relaxed text-amber-200/90">
-                  Live email delivery requires a mailing provider configured in <code className="text-amber-100 font-mono">.env</code> (such as <code className="text-amber-100 font-mono">VITE_SENDGRID_API_KEY</code>, <code className="text-amber-100 font-mono">VITE_RESEND_API_KEY</code>, or Supabase Auth).
+                  Live email delivery requires a mailing provider configured in{" "}
+                  <code className="text-amber-100 font-mono">.env</code> (such as{" "}
+                  <code className="text-amber-100 font-mono">VITE_SENDGRID_API_KEY</code>,{" "}
+                  <code className="text-amber-100 font-mono">VITE_RESEND_API_KEY</code>, or Supabase
+                  Auth).
                 </p>
               </div>
             )}

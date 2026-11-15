@@ -89,13 +89,17 @@ describe("User Profile & Authentication System", () => {
   });
 
   it("authenticates with Google directly without any fake modal or OTP screen", async () => {
-    const mockGoogleUser = createInitialProfile("naren.kolar@gmail.com", "Google", "Commander Naren");
-    const initiateOAuthSpy = vi.spyOn(authService, "initiateOAuthLogin").mockImplementation(
-      async (_provider, _origin, _mode, onSuccess) => {
+    const mockGoogleUser = createInitialProfile(
+      "naren.kolar@gmail.com",
+      "Google",
+      "Commander Naren",
+    );
+    const initiateOAuthSpy = vi
+      .spyOn(authService, "initiateOAuthLogin")
+      .mockImplementation(async (_provider, _origin, _mode, onSuccess) => {
         onSuccess?.(mockGoogleUser);
         return { success: true, user: mockGoogleUser };
-      },
-    );
+      });
 
     const handleSuccess = vi.fn();
     render(<CosmicAuthPage onSuccess={handleSuccess} />);
@@ -350,7 +354,12 @@ describe("User Profile & Authentication System", () => {
     const signUpResult = await authService.sendEmailOtp(newEmail, "signup");
     expect(signUpResult.success).toBe(true);
 
-    const verifiedProfile = await authService.verifyEmailOtp(newEmail, signUpResult.devCode || "123456", "Cadet Rao", "signup");
+    const verifiedProfile = await authService.verifyEmailOtp(
+      newEmail,
+      signUpResult.devCode || "123456",
+      "Cadet Rao",
+      "signup",
+    );
     expect(verifiedProfile.success).toBe(true);
     expect(verifiedProfile.user?.email).toBe(newEmail);
 

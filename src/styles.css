@@ -923,6 +923,34 @@ html[data-theme="emerald-terra"] {
   animation-delay: 11s;
 }
 
+@keyframes auroraShift {
+  0% {
+    transform: scale(1) translate(0%, 0%) rotate(0deg);
+    opacity: 0.85;
+  }
+  33% {
+    transform: scale(1.06) translate(-1.5%, 1.5%) rotate(1deg);
+    opacity: 0.95;
+  }
+  66% {
+    transform: scale(1.03) translate(1.5%, -1%) rotate(-1deg);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1) translate(0%, 0%) rotate(0deg);
+    opacity: 0.85;
+  }
+}
+
+@keyframes borderBeamSpin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
 .antigravity-float-1 {
   animation: antigravityFloat 6.5s ease-in-out infinite;
   animation-delay: 0s;

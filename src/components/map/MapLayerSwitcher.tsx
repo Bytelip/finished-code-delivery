@@ -80,8 +80,16 @@ export const BASEMAP_OPTIONS: MapLayerOption[] = [
     previewGradient: "radial-gradient(circle at center, #1e3a5f 0%, #0d1b2a 70%, #050b14 100%)",
     defaultSubOption: "satellite_live",
     subOptions: [
-      { id: "satellite_live", label: "Live", description: "Real-time satellite imagery + cloud cover overlay" },
-      { id: "satellite_hd", label: "HD", description: "Ultra-crisp Esri World Imagery + place labels" },
+      {
+        id: "satellite_live",
+        label: "Live",
+        description: "Real-time satellite imagery + cloud cover overlay",
+      },
+      {
+        id: "satellite_hd",
+        label: "HD",
+        description: "Ultra-crisp Esri World Imagery + place labels",
+      },
     ],
   },
   {
@@ -154,7 +162,11 @@ export const BASEMAP_OPTIONS: MapLayerOption[] = [
     subOptions: [
       { id: "hum_relative", label: "Relative", description: "Relative humidity ratio (%)" },
       { id: "hum_dewpoint", label: "Dew Point", description: "Condensation temperature (°C)" },
-      { id: "hum_wetbulb", label: "Wet-Bulb", description: "Thermodynamic heat-stress threshold (°C)" },
+      {
+        id: "hum_wetbulb",
+        label: "Wet-Bulb",
+        description: "Thermodynamic heat-stress threshold (°C)",
+      },
     ],
   },
   {
@@ -344,9 +356,7 @@ export function MapLayerSwitcher({
                 <span>Live Maps</span>
                 <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
               </div>
-              <div className="space-y-1">
-                {liveMaps.map((opt) => renderOptionItem(opt))}
-              </div>
+              <div className="space-y-1">{liveMaps.map((opt) => renderOptionItem(opt))}</div>
             </div>
 
             {/* SECTION 2: ATMOSPHERIC & FORECAST BASEMAPS */}
@@ -354,9 +364,7 @@ export function MapLayerSwitcher({
               <div className="px-1 text-[8.5px] font-mono uppercase tracking-widest text-slate-400 mb-1">
                 Forecast & Atmosphere
               </div>
-              <div className="space-y-1">
-                {atmosphericMaps.map((opt) => renderOptionItem(opt))}
-              </div>
+              <div className="space-y-1">{atmosphericMaps.map((opt) => renderOptionItem(opt))}</div>
             </div>
 
             {/* SECTION 3: TERRAIN & VECTOR */}
@@ -364,9 +372,7 @@ export function MapLayerSwitcher({
               <div className="px-1 text-[8.5px] font-mono uppercase tracking-widest text-slate-400 mb-1">
                 Terrain & Vector
               </div>
-              <div className="space-y-1">
-                {terrainMaps.map((opt) => renderOptionItem(opt))}
-              </div>
+              <div className="space-y-1">{terrainMaps.map((opt) => renderOptionItem(opt))}</div>
             </div>
 
             {/* ---------------- 3. TOGGLE CHECKBOXES ---------------- */}
@@ -453,7 +459,9 @@ export function MapLayerSwitcher({
           <div className="pl-6 pr-1 py-1 space-y-0.5 bg-black/25 rounded-lg my-0.5 border border-white/5">
             {opt.subOptions!.map((sub) => {
               const isSubSelected =
-                isSelected && (activeSubOption === sub.id || (!activeSubOption && opt.defaultSubOption === sub.id));
+                isSelected &&
+                (activeSubOption === sub.id ||
+                  (!activeSubOption && opt.defaultSubOption === sub.id));
 
               return (
                 <button
