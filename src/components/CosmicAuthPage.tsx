@@ -365,7 +365,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [otpError, setOtpError] = useState<string>("");
   const [authError, setAuthError] = useState<string>("");
   const [dispatchOtp, setDispatchOtp] = useState<string>("");
-  const [showSmtpConfig, setShowSmtpConfig] = useState<boolean>(false);
+  const [inboxPreviewUrl, setInboxPreviewUrl] = useState<string>("");
+  const [showSmtpModal, setShowSmtpModal] = useState<boolean>(false);
   const [smtpUser, setSmtpUser] = useState<string>("");
   const [smtpPass, setSmtpPass] = useState<string>("");
   const [smtpSaving, setSmtpSaving] = useState<boolean>(false);
@@ -572,6 +573,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     try {
       const result = await sendEmailOtp(cleanEmail, "signup", "email");
       setSendingEmail(false);
+      if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
       const code = result.devCode || Math.floor(100000 + Math.random() * 900000).toString();
       setDispatchOtp(code);
       setStep("otp");
@@ -619,6 +621,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         setAuthError(result.error || "Failed to send verification code.");
         return;
       }
+      if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
       const code = result.devCode || Math.floor(100000 + Math.random() * 900000).toString();
       setDispatchOtp(code);
       setStep("otp");
@@ -648,6 +651,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         setOtpError(result.error || "Failed to resend verification code.");
         return;
       }
+      if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
       if (result.devCode) {
         setDispatchOtp(result.devCode);
       }
@@ -1160,6 +1164,33 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               </p>
             </div>
 
+            {/* 📬 TIER 2: 1-CLICK OPEN DISPATCHED EMAIL IN BROWSER INBOX */}
+            {inboxPreviewUrl && (
+              <div className="mb-4">
+                <a
+                  href={inboxPreviewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-950/70 to-blue-950/70 hover:from-cyan-900/80 hover:to-blue-900/80 px-3.5 py-2.5 shadow-[0_0_20px_rgba(6,182,212,0.25)] text-xs text-cyan-200 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base group-hover:scale-110 transition-transform">📬</span>
+                    <div className="text-left">
+                      <span className="font-semibold text-cyan-300 block">
+                        Open Dispatched Email in Browser Inbox
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        1-click live webmail view (view rendered HTML email &amp; code)
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-cyan-400 text-xs font-bold group-hover:translate-x-0.5 transition-transform">
+                    Open ↗
+                  </span>
+                </a>
+              </div>
+            )}
+
             {/* Security telemetry & 5-minute countdown indicator */}
             <div className="mb-5 flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-950/30 px-3.5 py-2.5 text-xs">
               <div className="flex items-center gap-2 text-cyan-300">
@@ -1253,47 +1284,57 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           </div>
         )}
 
-        {/* ⚙️ CONFIGURE GMAIL SMTP (1-TIME ADMIN SETUP) */}
-        <div className="mt-5 border-t border-white/10 pt-3.5">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  isSmtpConfigured
-                    ? "bg-emerald-400 shadow-[0_0_8px_#10b981]"
-                    : "bg-amber-400 animate-pulse shadow-[0_0_8px_#f59e0b]"
-                }`}
-              />
-              <span className="text-[11px] text-slate-300 font-medium">
-                {isSmtpConfigured
-                  ? "Real Gmail Delivery: Connected"
-                  : "Gmail SMTP: Setup Needed"}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSmtpConfig((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:text-cyan-300 transition-all cursor-pointer shadow"
-              title="Configure Gmail SMTP (1-Time Admin Setup)"
-            >
-              <span>⚙️</span>
-              <span>Configure Gmail SMTP</span>
-              <span className="text-[10px] text-slate-400">{showSmtpConfig ? "▲" : "▼"}</span>
-            </button>
+        {/* Compact SMTP modal trigger */}
+        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-[11px] text-slate-400">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                isSmtpConfigured
+                  ? "bg-emerald-400 shadow-[0_0_8px_#10b981]"
+                  : "bg-cyan-400 shadow-[0_0_8px_#22d3ee]"
+              }`}
+            />
+            <span className="text-[11px] text-slate-300">
+              {isSmtpConfigured ? "Gmail SMTP: Active" : "Instant Webmail: Active"}
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowSmtpModal(true)}
+            className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-300 hover:text-cyan-300 transition-colors cursor-pointer"
+            title="Configure Custom Gmail SMTP (Optional)"
+          >
+            <span>⚙️ SMTP</span>
+          </button>
+        </div>
 
-          {showSmtpConfig && (
-            <div className="mt-3 rounded-xl border border-cyan-500/30 bg-slate-950/90 p-4 text-xs shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-cyan-300 flex items-center gap-1.5 text-xs">
-                  <span>⚙️</span> 1-Time Gmail SMTP Admin Setup
-                </h3>
-                <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-950/60 border border-cyan-500/20 px-2 py-0.5 rounded">
-                  Nodemailer Direct Dispatch
-                </span>
+        <p className="mt-4 text-center text-[11px] leading-relaxed text-slate-400">
+          By continuing, you agree to our <span className="underline">Terms of Service</span> and{" "}
+          <span className="underline">Privacy Policy</span>.
+        </p>
+
+        {/* ⚙️ CUSTOM GMAIL SMTP MODAL (POPUP) */}
+        {showSmtpModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-sm rounded-2xl border border-cyan-500/30 bg-slate-950 p-5 shadow-2xl text-xs">
+              <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">⚙️</span>
+                  <h3 className="font-semibold text-white text-sm">
+                    Configure Custom Gmail SMTP
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSmtpModal(false)}
+                  className="rounded-lg p-1 text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
+
               <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
-                Paste your Gmail address and 16-character Google App Password once to enable instant email delivery to any user:
+                Optional: Connect your Gmail address and 16-character Google App Password to deliver verification emails directly to your Gmail inbox via SSL port 465.
               </p>
 
               <form onSubmit={handleSaveSmtp} className="space-y-3">
@@ -1346,31 +1387,26 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-2 pt-1">
+                <div className="flex items-center justify-end gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowSmtpConfig(false)}
-                    className="px-3 py-1.5 rounded-lg border border-white/10 text-[11px] text-slate-400 hover:text-white cursor-pointer"
+                    onClick={() => setShowSmtpModal(false)}
+                    className="px-3 py-1.5 rounded-lg border border-white/10 text-xs text-slate-400 hover:text-white cursor-pointer"
                   >
                     Close
                   </button>
                   <button
                     type="submit"
                     disabled={smtpSaving || !smtpUser || !smtpPass}
-                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold text-[11px] text-white shadow transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold text-xs text-white shadow transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
                   >
-                    {smtpSaving ? "Verifying with Google..." : "Save & Connect SMTP"}
+                    {smtpSaving ? "Verifying..." : "Save & Connect SMTP"}
                   </button>
                 </div>
               </form>
             </div>
-          )}
-        </div>
-
-        <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-400">
-          By continuing, you agree to our <span className="underline">Terms of Service</span> and{" "}
-          <span className="underline">Privacy Policy</span>.
-        </p>
+          </div>
+        )}
       </div>
     </CosmicParallaxBg>
   );

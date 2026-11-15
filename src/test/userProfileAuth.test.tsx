@@ -143,10 +143,12 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText(/Google OAuth is not configured/i)).toBeNull();
   });
 
-  it("transitions to 6-digit OTP screen without showing OTP on screen and allows entering 6 digits to verify", async () => {
+  it("transitions to 6-digit OTP screen without showing OTP on screen, shows webmail preview link, and allows entering 6 digits to verify", async () => {
     const sendOtpSpy = vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
       success: true,
       devCode: "831942",
+      previewUrl: "https://ethereal.email/message/Waqmg4ddsoo123",
+      deliveryMethod: "ethereal_inbox",
     });
 
     const mockVerifiedUser = createInitialProfile("pilot@nasa.gov", "Email", "Pilot Naren");
@@ -177,6 +179,12 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText("831942")).toBeNull();
     expect(screen.queryByText(/Auto-Fill/i)).toBeNull();
 
+    // 📬 TIER 2: 1-Click Open Dispatched Email in Browser Inbox button must be displayed
+    const inboxLink = screen.getByText(/Open Dispatched Email in Browser Inbox/i);
+    expect(inboxLink).toBeDefined();
+    const anchor = inboxLink.closest("a");
+    expect(anchor?.getAttribute("href")).toBe("https://ethereal.email/message/Waqmg4ddsoo123");
+
     // Verify presence of Security Verification and Expiration timer
     expect(screen.getByText(/Security Verification/i)).toBeDefined();
     expect(screen.getByText(/Expires in/i)).toBeDefined();
@@ -206,15 +214,15 @@ describe("User Profile & Authentication System", () => {
     });
   });
 
-  it("toggles the 1-Time Gmail SMTP Admin Setup panel and saves credentials", async () => {
+  it("opens the compact ⚙️ SMTP setup modal and allows configuring credentials", async () => {
     render(<CosmicAuthPage />);
 
-    const configBtn = screen.getByRole("button", { name: /Configure Gmail SMTP/i });
+    const configBtn = screen.getByRole("button", { name: /SMTP/i });
     expect(configBtn).toBeDefined();
 
     fireEvent.click(configBtn);
 
-    expect(screen.getByText(/1-Time Gmail SMTP Admin Setup/i)).toBeDefined();
+    expect(screen.getByText(/Configure Custom Gmail SMTP/i)).toBeDefined();
     expect(screen.getByPlaceholderText(/e\.g\. nakkaabhishek24@gmail\.com/i)).toBeDefined();
     expect(screen.getByPlaceholderText(/e\.g\. abcd efgh ijkl mnop/i)).toBeDefined();
 

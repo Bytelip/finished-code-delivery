@@ -422,6 +422,8 @@ export interface AuthResult {
   needsAccountPicker?: boolean;
   isConfigured?: boolean;
   devCode?: string;
+  previewUrl?: string;
+  deliveryMethod?: string;
 }
 
 export function getGoogleClientId(): string | undefined {
@@ -908,12 +910,50 @@ export async function sendEmailOtp(
       body: JSON.stringify(payload),
     });
 
-    if (res.ok) {
-      console.info("[AgroSpace Nexus] Real Gmail OTP dispatched via Vite SMTP to:", cleanEmail);
-      return { success: true, isConfigured: true, devCode: secureOtp };
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && (data?.ok || data?.success)) {
+      console.info(
+        `[AgroSpace Nexus] Verification code successfully dispatched via ${data.deliveryMethod || "mail"} to:`,
+        cleanEmail,
+      );
+
+      // Trigger OS / Browser Push Notification
+      if (typeof window !== "undefined" && "Notification" in window) {
+        const triggerNotification = () => {
+          try {
+            new Notification("📬 New Mail — AgroSpace Nexus Security", {
+              body: `Your verification code is ${secureOtp}. Valid for 3 minutes.`,
+              icon: "/favicon.ico",
+            });
+          } catch {}
+        };
+
+        if (Notification.permission === "granted") {
+          triggerNotification();
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then((perm) => {
+            if (perm === "granted") triggerNotification();
+          });
+        }
+      }
+
+      // Log formatted email payload in DevTools Console (F12) as backup
+      if (typeof console !== "undefined") {
+        console.info(
+          `%c📬 [AgroSpace Security Mail] Verification code for ${cleanEmail}: ${secureOtp}`,
+          "color: #22d3ee; font-weight: bold; background: #070b13; padding: 6px 12px; border-radius: 8px; font-size: 13px; border: 1px solid #06b6d4;",
+        );
+      }
+
+      return {
+        success: true,
+        isConfigured: true,
+        previewUrl: data.previewUrl || undefined,
+        deliveryMethod: data.deliveryMethod || "ethereal_inbox",
+        devCode: secureOtp,
+      };
     } else {
-      const errData = await res.json().catch(() => ({}));
-      console.warn("[Vite Gmail SMTP Dispatch Notice]", res.status, errData);
+      console.warn("[Vite Gmail SMTP Dispatch Notice]", res.status, data);
     }
   } catch (err) {
     console.warn("[Vite Gmail SMTP Fetch Notice]", err);
