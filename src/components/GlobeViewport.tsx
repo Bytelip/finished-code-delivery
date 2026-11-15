@@ -3090,7 +3090,7 @@ function LeafletClickHandler({
   return null;
 }
 
-// Leaflet map center updater with smooth flyTo animation
+// Leaflet map center updater with smooth flyTo animation that preserves user's 2D field zoom & prevents jitter snapping
 function LeafletRecenter({
   lat,
   lon,
@@ -3101,13 +3101,25 @@ function LeafletRecenter({
   useMap: LeafletBundle["useMap"];
 }) {
   const map = useMap();
+  const prevCenterRef = useRef<{ lat: number; lon: number } | null>(null);
+
   useEffect(() => {
-    if (map) {
-      if (typeof map.flyTo === "function") {
-        map.flyTo([lat, lon], 13, { animate: true, duration: 1.2 });
-      } else {
-        map.panTo([lat, lon], { animate: true });
+    if (!map) return;
+
+    if (prevCenterRef.current) {
+      const dLat = Math.abs(prevCenterRef.current.lat - lat);
+      const dLon = Math.abs(prevCenterRef.current.lon - lon);
+      if (dLat < 0.0001 && dLon < 0.0001) {
+        return; // Skip micro-jitter re-centering
       }
+    }
+    prevCenterRef.current = { lat, lon };
+
+    const currentZoom = typeof map.getZoom === "function" ? map.getZoom() : 13;
+    if (typeof map.flyTo === "function") {
+      map.flyTo([lat, lon], currentZoom, { animate: true, duration: 1.0 });
+    } else if (typeof map.panTo === "function") {
+      map.panTo([lat, lon], { animate: true });
     }
   }, [lat, lon, map]);
   return null;
