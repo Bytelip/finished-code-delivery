@@ -529,9 +529,11 @@ export async function initiateOAuthLogin(
     const { error } = await supabase.auth.signInWithOAuth({
       provider: targetProvider,
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: typeof window !== "undefined" ? window.location.origin : redirectUrl,
         scopes: provider === "Microsoft" ? "email openid profile" : undefined,
-        queryParams: provider === "Google" ? { prompt: "select_account" } : undefined,
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     });
 
