@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FARM_PRESETS, type DashboardTab, type FarmPreset } from "@/types/agroSpace";
+import { useLanguage } from "@/context/LanguageContext";
 
 export const TABS: { id: DashboardTab; label: string; icon: typeof Leaf }[] = [
   { id: "overview", label: "HUD Overview", icon: LayoutDashboard },
@@ -53,6 +54,26 @@ export function DashboardSidebar({
   onOpenAuth?: () => void;
   onOpenSettings?: () => void;
 }) {
+  const { t } = useLanguage();
+
+  const getTabLabel = (id: DashboardTab, fallback: string) => {
+    switch (id) {
+      case "overview":
+        return t("tab_overview", fallback);
+      case "crop-atlas":
+        return t("tab_crop_atlas", fallback);
+      case "plant-health":
+        return t("tab_plant_health", fallback);
+      case "groundwater":
+        return t("tab_groundwater", fallback);
+      case "hazards":
+        return t("tab_hazards", fallback);
+      case "granules":
+        return t("tab_granules", fallback);
+      default:
+        return fallback;
+    }
+  };
   return (
     <motion.aside
       initial={false}
@@ -134,7 +155,7 @@ export function DashboardSidebar({
         {!collapsed && (
           <div className="flex items-center justify-between px-2 pb-1 pt-1">
             <span className="hud-label tracking-widest text-[9.5px] text-muted-foreground/80 font-bold">
-              ORBITAL MODULES
+              {t("orbital_modules", "ORBITAL MODULES")}
             </span>
             <span className="font-mono text-[8.5px] text-cyan-400/70">[ONLINE]</span>
           </div>
@@ -142,12 +163,13 @@ export function DashboardSidebar({
 
         {TABS.map(({ id, label, icon: Icon }) => {
           const active = tab === id;
+          const displayLabel = getTabLabel(id, label);
           return (
             <div key={id} className="relative group">
               <button
                 type="button"
                 onClick={() => onTab(id)}
-                title={collapsed ? label : undefined}
+                title={collapsed ? displayLabel : undefined}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex h-9.5 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-xs font-medium transition-all duration-150 cursor-pointer",
@@ -169,7 +191,7 @@ export function DashboardSidebar({
                   )}
                 />
 
-                {!collapsed && <span className="truncate">{label}</span>}
+                {!collapsed && <span className="truncate">{displayLabel}</span>}
 
                 {id === "hazards" && activeHazards > 0 && (
                   <span
@@ -186,7 +208,7 @@ export function DashboardSidebar({
               {/* Collapsed Instant Tooltip */}
               {collapsed && (
                 <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 z-50 rounded-lg bg-[#0b0f19]/95 border border-cyan-500/30 px-2.5 py-1 text-xs font-mono text-cyan-200 shadow-2xl backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                  {label}
+                  {displayLabel}
                   {id === "hazards" && activeHazards > 0 && ` (${activeHazards} active)`}
                 </div>
               )}
@@ -200,7 +222,7 @@ export function DashboardSidebar({
         {!collapsed && (
           <div className="flex items-center justify-between px-2 pb-1 pt-1 shrink-0">
             <span className="hud-label tracking-widest text-[9.5px] text-muted-foreground/80 font-bold">
-              TARGET WAYPOINTS
+              {t("target_waypoints", "TARGET WAYPOINTS")}
             </span>
             <span className="font-mono text-[8.5px] text-emerald-400/80">RADAR LOCK</span>
           </div>
@@ -265,7 +287,7 @@ export function DashboardSidebar({
         type="button"
         onClick={onToggle}
         className="mt-auto flex h-10 items-center justify-between border-t border-white/[0.08] px-3 text-xs font-mono text-muted-foreground transition-colors hover:text-cyan-300 hover:bg-cyan-500/10 cursor-pointer shrink-0"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={collapsed ? t("expand_dock", "Expand sidebar") : t("collapse_dock", "Collapse sidebar")}
       >
         <div className="flex items-center gap-2">
           {collapsed ? (
@@ -273,7 +295,7 @@ export function DashboardSidebar({
           ) : (
             <ChevronsLeft className="size-4 text-cyan-400" />
           )}
-          {!collapsed && <span className="hud-label text-[9px]">Collapse Dock</span>}
+          {!collapsed && <span className="hud-label text-[9px]">{t("collapse_dock", "Collapse Dock")}</span>}
         </div>
         {!collapsed && <span className="text-[9px] text-muted-foreground/60">[TAB / H]</span>}
       </button>

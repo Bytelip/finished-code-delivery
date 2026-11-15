@@ -78,6 +78,7 @@ import {
   generateDeterministicForecast,
   type MeteorologicalForecast,
 } from "@/services/meteorologicalService";
+import { useLanguage } from "@/context/LanguageContext";
 import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
@@ -566,6 +567,7 @@ export function GlobeViewport({
   // HUD Card Minimization States
   const [isReticleMinimized, setIsReticleMinimized] = useState(false);
   const [isDockMinimized, setIsDockMinimized] = useState(false);
+  const { t } = useLanguage();
 
   // Keyboard shortcut listener for 'L' (Toggle Telemetry Dock)
   useEffect(() => {
@@ -751,7 +753,7 @@ export function GlobeViewport({
   const lastPovRef = useRef<{ lat: number; lng: number; altitude: number }>({
     lat,
     lng: lon,
-    altitude: 0.35,
+    altitude: 0.45,
   });
   const isFirst3dMountRef = useRef<boolean>(true);
 
@@ -761,7 +763,7 @@ export function GlobeViewport({
 
     if (coordsChanged) {
       prevCoordsRef.current = { lat, lon };
-      lastPovRef.current = { lat, lng: lon, altitude: 0.35 };
+      lastPovRef.current = { lat, lng: lon, altitude: 0.45 };
       setTargetLockedBanner({ lat, lon, visible: true });
 
       if (
@@ -770,7 +772,7 @@ export function GlobeViewport({
         typeof globeRef.current.pointOfView === "function"
       ) {
         try {
-          globeRef.current.pointOfView({ lat, lng: lon, altitude: 0.35 }, 1800);
+          globeRef.current.pointOfView({ lat, lng: lon, altitude: 0.45 }, 1800);
         } catch {
           // ignore pointOfView transition timing
         }
@@ -1332,6 +1334,8 @@ export function GlobeViewport({
           dampingFactor?: number;
           rotateSpeed?: number;
           zoomSpeed?: number;
+          minDistance?: number;
+          maxDistance?: number;
           addEventListener?: (e: string, cb: () => void) => void;
           removeEventListener?: (e: string, cb: () => void) => void;
         };
@@ -1340,6 +1344,9 @@ export function GlobeViewport({
           ctrl.dampingFactor = 0.06;
           ctrl.rotateSpeed = 0.55;
           ctrl.zoomSpeed = 0.75;
+          // Clamp camera distance so Earth fills the viewport and never shrinks to a tiny dot
+          ctrl.minDistance = 112; // minAltitude ~ 0.12 (globe radius = 100)
+          ctrl.maxDistance = 285; // maxAltitude ~ 1.85 (prevents Alt: 43857 km / altitude 6.8 bug)
           controlsInstance = ctrl;
         }
       }
@@ -1580,7 +1587,7 @@ export function GlobeViewport({
   // Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 2)
   const handleZoomOut = () => {
     if (viewMode === "3d") {
-      const newAlt = Math.min(2.5, orbitalAltitude * 1.45);
+      const newAlt = Math.min(1.85, orbitalAltitude * 1.35);
       setOrbitalAltitude(newAlt);
       lastPovRef.current.altitude = newAlt;
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
@@ -1601,7 +1608,7 @@ export function GlobeViewport({
         handleAutoTransitionTo2D();
         return;
       }
-      const newAlt = Math.max(0.04, Math.min(2.5, 2.5 - ((newZoom - 1) / 17) * (2.5 - 0.04)));
+      const newAlt = Math.max(0.12, Math.min(1.85, 1.85 - ((newZoom - 1) / 17) * (1.85 - 0.12)));
       setOrbitalAltitude(newAlt);
       lastPovRef.current.altitude = newAlt;
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 300);
@@ -1629,8 +1636,8 @@ export function GlobeViewport({
   // Quick Action: Full Orbit (Z:3)
   const handleFullOrbit = () => {
     if (viewMode === "3d") {
-      setOrbitalAltitude(2.0);
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 2.0 }, 1000);
+      setOrbitalAltitude(1.85);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.85 }, 1000);
     } else {
       handleAutoTransitionTo3D();
     }
@@ -1871,11 +1878,11 @@ export function GlobeViewport({
                   const initPov = {
                     lat: lastPovRef.current.lat || lat,
                     lng: lastPovRef.current.lng || lon,
-                    altitude: lastPovRef.current.altitude || 0.45,
+                    altitude: 1.25, // Earth fills 75% of viewport height majestically
                   };
                   try {
                     // Frame 0 instant position initialization:
-                    // Direct lock on current active target coordinates (Mulabagilu/Karnataka), ZERO reset to (0,0) Africa/Europe!
+                    // Direct lock on current active target coordinates (Harohalli/Karnataka), ZERO reset to (0,0)!
                     inst.pointOfView(initPov, 0);
                   } catch {
                     // ignore
@@ -1884,11 +1891,11 @@ export function GlobeViewport({
                     isFirst3dMountRef.current = false;
                     setTimeout(() => {
                       try {
-                        inst.pointOfView({ lat, lng: lon, altitude: 0.35 }, 1200);
+                        inst.pointOfView({ lat, lng: lon, altitude: 0.45 }, 1800);
                       } catch {
                         // ignore
                       }
-                    }, 50);
+                    }, 100);
                   }
                 }
               }}
@@ -2112,13 +2119,14 @@ export function GlobeViewport({
               }}
               onZoom={(pov: { lat: number; lng: number; altitude: number }) => {
                 if (typeof pov?.altitude === "number") {
+                  const clampedAlt = Math.max(0.12, Math.min(1.85, pov.altitude));
                   lastPovRef.current = {
                     lat: typeof pov.lat === "number" ? pov.lat : lastPovRef.current.lat,
                     lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
-                    altitude: pov.altitude,
+                    altitude: clampedAlt,
                   };
-                  setOrbitalAltitude(pov.altitude);
-                  if (pov.altitude <= 0.14) {
+                  setOrbitalAltitude(clampedAlt);
+                  if (clampedAlt <= 0.14) {
                     handleAutoTransitionTo2D();
                   }
                   setTimeout(runCollisionCull, 50);
@@ -2127,10 +2135,10 @@ export function GlobeViewport({
               onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
                 const targetLat = Math.round(clickLat * 10000) / 10000;
                 const targetLng = Math.round(clickLng * 10000) / 10000;
-                lastPovRef.current = { lat: targetLat, lng: targetLng, altitude: 0.35 };
+                lastPovRef.current = { lat: targetLat, lng: targetLng, altitude: 0.45 };
                 onPick(targetLat, targetLng);
                 globeRef.current?.pointOfView?.(
-                  { lat: targetLat, lng: targetLng, altitude: 0.35 },
+                  { lat: targetLat, lng: targetLng, altitude: 0.45 },
                   1800,
                 );
               }}
@@ -2434,7 +2442,9 @@ export function GlobeViewport({
         >
           <div className="flex items-center gap-2 border-b border-cyan/20 pb-1.5">
             <Radar className="size-3.5 text-cyan animate-spin shrink-0" style={{ animationDuration: "8s" }} />
-            <span className="hud-label font-bold text-cyan/90 text-[10px] truncate">Target Reticle Lock</span>
+            <span className="hud-label font-bold text-cyan/90 text-[10px] truncate">
+              {t("target_reticle_lock", "Target Reticle Lock")}
+            </span>
             <span className="ml-auto size-2 rounded-full bg-emerald shadow-[0_0_8px_#00ff9d] animate-pulse shrink-0" />
             <button
               type="button"
@@ -2448,21 +2458,31 @@ export function GlobeViewport({
           {!isReticleMinimized ? (
             <>
               <div className="mt-2 grid grid-cols-2 gap-x-2.5 gap-y-1 font-mono text-[10.5px]">
-                <span className="text-muted-foreground/80 font-medium">LATITUDE</span>
+                <span className="text-muted-foreground/80 font-medium">
+                  {t("latitude", "LATITUDE")}
+                </span>
                 <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
                   {formatCoord(lat, "lat")}
                 </span>
-                <span className="text-muted-foreground/80 font-medium">LONGITUDE</span>
+                <span className="text-muted-foreground/80 font-medium">
+                  {t("longitude", "LONGITUDE")}
+                </span>
                 <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
                   {formatCoord(lon, "lon")}
                 </span>
-                <span className="text-muted-foreground/80 font-medium">ELEVATION</span>
+                <span className="text-muted-foreground/80 font-medium">
+                  {t("elevation", "ELEVATION")}
+                </span>
                 <span className="text-right tabular-nums font-semibold">{meta.elevationM} m ASL</span>
-                <span className="text-muted-foreground/80 font-medium">PASS</span>
+                <span className="text-muted-foreground/80 font-medium">
+                  {t("satellite_pass", "PASS")}
+                </span>
                 <span className="text-right text-emerald font-semibold truncate">
                   {meta.satellitePass}
                 </span>
-                <span className="text-muted-foreground/80 font-medium">NEXT WINDOW</span>
+                <span className="text-muted-foreground/80 font-medium">
+                  {t("next_window", "NEXT WINDOW")}
+                </span>
                 <span className="text-right tabular-nums text-amber font-semibold">
                   T-{meta.nextPassMin} min
                 </span>
@@ -2491,7 +2511,7 @@ export function GlobeViewport({
               <div className="mt-2 pt-1.5 border-t border-cyan/20">
                 <div className="flex items-center justify-between text-[8.5px] font-mono text-muted-foreground uppercase mb-1">
                   <span className="flex items-center gap-1 text-slate-300 font-semibold">
-                    <span>📅</span> 4-Day Forecast
+                    <span>📅</span> {t("forecast_4day", "4-Day Forecast")}
                   </span>
                   <span className="text-cyan font-bold">
                     {basemapStyle === "temperature"
@@ -2598,8 +2618,8 @@ export function GlobeViewport({
             )}
             onClick={handleSwitchTo3D}
           >
-            <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 3D
-            Orbital
+            <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />{" "}
+            {t("view_3d_orbital", "3D Orbital")}
           </Button>
           <Button
             type="button"
@@ -2613,8 +2633,8 @@ export function GlobeViewport({
             )}
             onClick={handleSwitchTo2D}
           >
-            <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 2D Field
-            GIS
+            <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />{" "}
+            {t("view_2d_field_gis", "2D Field GIS")}
           </Button>
         </div>
       </div>
@@ -2876,7 +2896,7 @@ export function GlobeViewport({
             <span className="text-cyan-300 font-medium">{currentTemporal.dateLabel}</span>
             <span className="text-white/30">•</span>
             <span className="text-cyan-400 font-bold flex items-center gap-1">
-              <ChevronUp className="size-3.5" /> Open Orbital Layers
+              <ChevronUp className="size-3.5" /> {t("open_orbital_layers", "Open Orbital Layers")}
             </span>
             <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-black/50 border border-white/10 text-[9px] text-white/50 font-sans">
               L
@@ -2991,7 +3011,7 @@ export function GlobeViewport({
                 title="Minimize Telemetry Dock (L)"
               >
                 <ChevronDown className="size-3 text-cyan-400" />
-                <span className="hidden sm:inline">Minimize</span>
+                <span className="hidden sm:inline">{t("minimize_dock", "Minimize")}</span>
               </button>
             </div>
           </div>
