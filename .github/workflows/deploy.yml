@@ -38,6 +38,8 @@ jobs:
 
       - name: Production Build
         run: npm run build
+        env:
+          VITE_BASE_PATH: /finished-code-delivery/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

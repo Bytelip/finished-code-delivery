@@ -93,7 +93,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "AgroSpace Nexus" },
-      { property: "og:image", content: "/satellite.svg" },
+      { property: "og:image", content: `${import.meta.env.BASE_URL}satellite.svg` },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "AgroSpace Nexus — NASA Orbital Agricultural Intelligence" },
       {
@@ -101,14 +101,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Satellite-powered farm HUD: plant health, soil moisture, groundwater, crop water budgets and 8 hazard alerts.",
       },
-      { name: "twitter:image", content: "/satellite.svg" },
+      { name: "twitter:image", content: `${import.meta.env.BASE_URL}satellite.svg` },
       { name: "theme-color", content: "#050912" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "AgroSpace" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     ],
     links: [
-      { rel: "manifest", href: "/manifest.json" },
+      { rel: "manifest", href: `${import.meta.env.BASE_URL}manifest.json` },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -119,7 +119,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: `${import.meta.env.BASE_URL}favicon.ico`, type: "image/x-icon" },
     ],
     scripts: [
       {
@@ -155,7 +155,7 @@ function RootComponent() {
   // Register PWA Service Worker in production
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator && !window.location.hostname.includes("localhost")) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
+      navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
         // Silently ignore registration error on unsupported hosts
       });
     }

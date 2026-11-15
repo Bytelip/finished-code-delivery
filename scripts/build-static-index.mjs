@@ -27,8 +27,11 @@ async function generateStaticIndex() {
     // Convert root-absolute asset URLs to relative paths (e.g. "/assets/" -> "./assets/")
     // This allows the bundle to work seamlessly both on root domains (GoDaddy / Vercel)
     // and subpath deployments (GitHub Pages: /finished-code-delivery/)
-    html = html.replace(/(href|src|content)="\/(assets|manifest\.json|favicon\.ico|satellite\.svg|sw\.js)/g, '$1="./$2');
-    html = html.replace(/"\/assets\//g, '"./assets/');
+    const basePath = process.env.VITE_BASE_PATH || "/";
+    const basePrefix = basePath === "/" ? "./" : `.${basePath}`;
+    // Replace absolute /assets/, /manifest.json, /favicon.ico, /satellite.svg, /sw.js with relative paths
+    html = html.replace(/(href|src|content)="\/(assets|manifest\.json|favicon\.ico|satellite\.svg|sw\.js)/g, `$1="${basePrefix}$2`);
+    html = html.replace(/"\/assets\//g, `"${basePrefix}assets/`);
 
     // Write to .output/public/index.html
     const outputPublicIndex = path.resolve(process.cwd(), ".output/public/index.html");
