@@ -466,4 +466,31 @@ describe("User Profile & Authentication System", () => {
 
     authService.setSupabaseClientOverride(undefined);
   });
+
+  it("signOutUser properly invokes supabase.auth.signOut and wipes all local auth storage", async () => {
+    const mockSignOut = vi.fn().mockResolvedValue({ error: null });
+    // @ts-expect-error Mock Supabase client
+    authService.setSupabaseClientOverride({
+      auth: {
+        signOut: mockSignOut,
+      },
+    });
+
+    localStorage.setItem("agrospace_user_profile_v1", JSON.stringify({ email: "test@nasa.gov" }));
+    localStorage.setItem("sb-enutgngbsatwgpemwzgx-auth-token", "mock-token");
+
+    await authService.signOutUser();
+
+    expect(mockSignOut).toHaveBeenCalledWith({ scope: "global" });
+    expect(localStorage.getItem("agrospace_user_profile_v1")).toBeNull();
+    expect(localStorage.getItem("sb-enutgngbsatwgpemwzgx-auth-token")).toBeNull();
+
+    authService.setSupabaseClientOverride(undefined);
+  });
+
+  it("processIncomingAuthCallback returns null when no OAuth callback parameters exist in URL", async () => {
+    // Normal page load without ?code= or #access_token=
+    const result = await authService.processIncomingAuthCallback();
+    expect(result).toBeNull();
+  });
 });

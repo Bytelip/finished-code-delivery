@@ -6,7 +6,7 @@ import {
   saveStoredProfile,
   type UserProfile,
 } from "@/types/userProfile";
-import { processIncomingAuthCallback } from "@/services/authService";
+import { processIncomingAuthCallback, signOutUser } from "@/services/authService";
 import { toast } from "sonner";
 import { syncUrlCoords } from "@/utils/preciseLocation";
 
@@ -163,22 +163,19 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     triggerAutoGpsTracking(user.fullName || user.name || "Operator");
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     if (watchIdRef.current !== null && typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
-    clearStoredProfile();
-    try {
-      localStorage.removeItem("agrospace_user_profile_v1");
-      localStorage.removeItem("agro_user_profile");
-    } catch {
-      // ignore
-    }
+    await signOutUser();
     setCurrentUser(null);
     toast.info("Operator Signed Out", {
       description: "Mission Control session terminated. Authentication required to access telemetry.",
     });
+    if (typeof window !== "undefined") {
+      window.location.assign(window.location.origin);
+    }
   };
 
   const handleUpdateUser = (updated: UserProfile) => {

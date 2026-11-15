@@ -14,7 +14,7 @@ import {
   saveStoredProfile,
   type UserProfile,
 } from "@/types/userProfile";
-import { processIncomingAuthCallback } from "@/services/authService";
+import { processIncomingAuthCallback, signOutUser } from "@/services/authService";
 import { toast } from "sonner";
 import {
   PlantHealthRadar,
@@ -345,8 +345,8 @@ function AgroSpaceDashboard({
             saveStoredProfile(updated);
             onUpdateUser?.(updated);
           }}
-          onSignOut={() => {
-            clearStoredProfile();
+          onSignOut={async () => {
+            await signOutUser();
             setOperator(null);
             onSignOut?.();
           }}
@@ -539,8 +539,8 @@ function AgroSpaceDashboard({
             saveStoredUser(updated);
             onUpdateUser?.(updated);
           }}
-          onSignOut={() => {
-            clearStoredProfile();
+          onSignOut={async () => {
+            await signOutUser();
             setOperator(null);
             setShowSettingsModal(false);
             onSignOut?.();

@@ -515,8 +515,11 @@ export async function initiateOAuthLogin(
   onSuccess?: (user: UserProfile) => void,
   onError?: (error: string) => void,
 ): Promise<AuthResult> {
-  const origin = redirectToOrigin || (typeof window !== "undefined" ? window.location.origin : "");
-  const redirectUrl = `${origin}/auth`;
+  const dynamicOrigin =
+    (typeof window !== "undefined" && window.location?.origin) ||
+    redirectToOrigin ||
+    "";
+  const redirectUrl = dynamicOrigin;
 
   // 1. Primary: Supabase OAuth
   const supabase = getSupabaseClient();
@@ -531,7 +534,7 @@ export async function initiateOAuthLogin(
     const { error } = await supabase.auth.signInWithOAuth({
       provider: targetProvider,
       options: {
-        redirectTo: typeof window !== "undefined" ? window.location.origin : redirectUrl,
+        redirectTo: dynamicOrigin,
         scopes: provider === "Microsoft" ? "email openid profile" : undefined,
         queryParams: {
           prompt: "select_account",
@@ -1244,11 +1247,26 @@ export async function verifyEmailOtp(
 // -------------------------------------------------------------
 
 /**
- * Checks for incoming OAuth callbacks (hash/tokens) or existing sessions.
+ * Checks for incoming OAuth callbacks (hash/tokens/query params) returning from OAuth providers.
  * Automatically completes OAuth login and returns the authenticated UserProfile.
+ * Only triggers when active OAuth callback indicators are present in the URL to prevent logout loops.
  */
 export async function processIncomingAuthCallback(): Promise<UserProfile | null> {
   if (typeof window === "undefined") return null;
+
+  const hash = window.location.hash || "";
+  const search = window.location.search || "";
+
+  // Strictly check for returning OAuth callback tokens/code in the URL
+  const isOAuthCallback =
+    hash.includes("access_token=") ||
+    hash.includes("id_token=") ||
+    search.includes("code=") ||
+    search.includes("error=");
+
+  if (!isOAuthCallback) {
+    return null;
+  }
 
   const supabase = getSupabaseClient();
   if (supabase) {
@@ -1279,6 +1297,13 @@ export async function processIncomingAuthCallback(): Promise<UserProfile | null>
         profile.verified = true;
         profile.isVerified = true;
         saveStoredProfile(profile);
+
+        // Clean up hash/search params from URL without reloading
+        if (typeof window !== "undefined" && window.history?.replaceState) {
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState(null, "", cleanUrl);
+        }
+
         return profile;
       }
     } catch (err) {
@@ -1287,7 +1312,6 @@ export async function processIncomingAuthCallback(): Promise<UserProfile | null>
   }
 
   // Check if hash has OAuth tokens from standard OAuth 2.0 redirect
-  const hash = window.location.hash;
   if (hash && (hash.includes("access_token=") || hash.includes("id_token="))) {
     try {
       const params = new URLSearchParams(hash.replace(/^#/, ""));
@@ -1326,7 +1350,7 @@ export async function processIncomingAuthCallback(): Promise<UserProfile | null>
     }
   }
 
-  return loadStoredProfile();
+  return null;
 }
 
 /**
@@ -1336,11 +1360,28 @@ export async function signOutUser(): Promise<void> {
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "global" });
     } catch (err) {
       console.warn("Error during Supabase signout:", err);
     }
   }
   activeOtpRecord = null;
   clearStoredProfile();
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("agrospace_user_profile_v1");
+      localStorage.removeItem("agro_user_profile");
+      localStorage.removeItem("agrospace_last_auth_provider");
+      sessionStorage.clear();
+      // Explicitly clear Supabase session tokens from localStorage
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("sb-") || key.includes("supabase.auth.token"))) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (err) {
+      console.warn("Error clearing local auth storage on signout:", err);
+    }
+  }
 }
