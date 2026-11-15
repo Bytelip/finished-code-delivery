@@ -20,6 +20,7 @@
  */
 import {
   Component,
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -47,8 +48,6 @@ import {
   Eye,
   EyeOff,
   Compass,
-  Play,
-  Pause,
   Satellite,
   ChevronDown,
   ChevronUp,
@@ -791,40 +790,6 @@ export function GlobeViewport({
     };
   }, [mounted, viewMode]);
 
-  // Temporal Time-Machine Scrubber Configuration (-30D -> LIVE -> +7D AI Forecast)
-  const TEMPORAL_STEPS = useMemo(
-    () => [
-      { id: "-30d", label: "30D AGO", dateLabel: "16 OCT 2026", factor: 0.93 },
-      { id: "-7d", label: "7D AGO", dateLabel: "08 NOV 2026", factor: 0.98 },
-      { id: "live", label: "LIVE NOW", dateLabel: "15 NOV 2026 (LIVE)", factor: 1.0 },
-      { id: "+7d", label: "+7D FORECAST", dateLabel: "22 NOV 2026 (AI)", factor: 1.06 },
-    ],
-    [],
-  );
-  const [temporalIdx, setTemporalIdx] = useState(2);
-  const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
-
-  useEffect(() => {
-    if (!isPlayingTimeline) return;
-    const interval = setInterval(() => {
-      setTemporalIdx((prev) => (prev + 1) % TEMPORAL_STEPS.length);
-    }, 1800);
-    return () => clearInterval(interval);
-  }, [isPlayingTimeline, TEMPORAL_STEPS.length]);
-
-  const currentTemporal = TEMPORAL_STEPS[temporalIdx];
-  const temporalReadingValue = useMemo(() => {
-    const raw = reading.value;
-    if (typeof raw === "number") {
-      return Math.round(raw * currentTemporal.factor * 100) / 100;
-    }
-    const parsed = parseFloat(String(raw));
-    if (!isNaN(parsed)) {
-      return (Math.round(parsed * currentTemporal.factor * 100) / 100).toFixed(2);
-    }
-    return raw;
-  }, [reading.value, currentTemporal.factor]);
-
   // Target Locked Reticle Banner State (Cinematic Fly-in)
   const [targetLockedBanner, setTargetLockedBanner] = useState<{
     lat: number;
@@ -1229,38 +1194,41 @@ export function GlobeViewport({
       },
     ];
 
-    for (const h of hazards) {
-      if (h.type === "cyclone") {
-        list.push({
-          id: `hazard-${h.id || "cyclone"}`,
-          lat: lat + 3.2,
-          lng: lon + 4.5,
-          priority: 1,
-          html: renderCyclone3DMarker(`CYCLONE TRACK • ${h.metric || "115 km/h"}`),
-        });
-      } else if (h.type === "fire") {
-        list.push({
-          id: `hazard-${h.id || "fire"}`,
-          lat: lat + 0.08,
-          lng: lon - 0.06,
-          priority: 1,
-          html: renderFire3DMarker(`FIRMS FIRE • ${h.metric || "42 MW"}`),
-        });
-      } else if (h.type === "earthquake") {
-        list.push({
-          id: `hazard-${h.id || "quake"}`,
-          lat: lat - 0.75,
-          lng: lon - 0.85,
-          priority: 1,
-          html: renderSeismic3DMarker(`USGS EPICENTER • ${h.metric || "M4.6"}`),
-        });
+    if (hazardsVisible) {
+      for (const h of hazards) {
+        if (hazardFilter !== "all" && h.type !== hazardFilter) continue;
+        if (h.type === "cyclone") {
+          list.push({
+            id: `hazard-${h.id || "cyclone"}`,
+            lat: lat + 3.2,
+            lng: lon + 4.5,
+            priority: 1,
+            html: renderCyclone3DMarker(`CYCLONE TRACK • ${h.metric || "115 km/h"}`),
+          });
+        } else if (h.type === "fire") {
+          list.push({
+            id: `hazard-${h.id || "fire"}`,
+            lat: lat + 0.08,
+            lng: lon - 0.06,
+            priority: 1,
+            html: renderFire3DMarker(`FIRMS FIRE • ${h.metric || "42 MW"}`),
+          });
+        } else if (h.type === "earthquake") {
+          list.push({
+            id: `hazard-${h.id || "quake"}`,
+            lat: lat - 0.75,
+            lng: lon - 0.85,
+            priority: 1,
+            html: renderSeismic3DMarker(`USGS EPICENTER • ${h.metric || "M4.6"}`),
+          });
+        }
       }
     }
 
     list.push(...activePlaceLabels);
 
     return list;
-  }, [lat, lon, activeLayer, reading, meta.regionLabel, hazards, activePlaceLabels]);
+  }, [lat, lon, activeLayer, reading, meta.regionLabel, hazards, hazardsVisible, hazardFilter, activePlaceLabels]);
 
   function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const rad = Math.PI / 180;
@@ -1381,9 +1349,9 @@ export function GlobeViewport({
       };
       if (ctrl) {
         ctrl.enableZoom = true;
-        ctrl.zoomSpeed = 0.9;
-        ctrl.minDistance = 112; // minAltitude ~ 0.12 (globe radius = 100)
-        ctrl.maxDistance = 285; // maxAltitude ~ 1.85 (prevents disappearing globe bug)
+        ctrl.zoomSpeed = 1.0;
+        ctrl.minDistance = 101; // unconstrained altitude down to 0.01 (globe radius = 100)
+        ctrl.maxDistance = 350; // unconstrained altitude up to 2.5 (continuous zoom in/out)
         ctrl.enableDamping = true;
         ctrl.dampingFactor = 0.06;
         ctrl.rotateSpeed = 0.55;
@@ -1408,7 +1376,7 @@ export function GlobeViewport({
         try {
           const pov = globeRef.current.pointOfView();
           if (pov && typeof pov.altitude === "number") {
-            const clamped = Math.max(0.12, Math.min(1.85, pov.altitude));
+            const clamped = Math.max(0.04, Math.min(2.5, pov.altitude));
             lastPovRef.current = {
               lat: typeof pov.lat === "number" ? pov.lat : lastPovRef.current.lat,
               lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
@@ -1416,7 +1384,7 @@ export function GlobeViewport({
             };
             updateZoomStage(clamped);
             setOrbitalAltitude((prev) => {
-              if (Math.abs(prev - clamped) > 0.05) {
+              if (Math.abs(prev - clamped) > 0.02) {
                 return clamped;
               }
               return prev;
@@ -1564,8 +1532,8 @@ export function GlobeViewport({
   // Synchronized Zoom Level (1..18 linear mapping for 3D & 2D)
   const currentZoomLevel = useMemo(() => {
     if (viewMode === "3d") {
-      const clampedAlt = Math.max(0.12, Math.min(1.85, orbitalAltitude));
-      const pct = (1.85 - clampedAlt) / (1.85 - 0.12);
+      const clampedAlt = Math.max(0.04, Math.min(2.4, orbitalAltitude));
+      const pct = (2.4 - clampedAlt) / (2.4 - 0.04);
       return Math.max(1, Math.min(18, Math.round(1 + pct * 17)));
     }
     return gisZoom;
@@ -1615,7 +1583,7 @@ export function GlobeViewport({
   // Two-way auto-zoom transitions between 2D Map & 3D Orbital Globe (Wide Hysteresis Buffer)
   const handleAutoTransitionTo3D = useCallback(() => {
     const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 600) return;
+    if (now - lastAutoTransitionRef.current < 400) return;
     lastAutoTransitionRef.current = now;
 
     if (webGLSupported) {
@@ -1633,7 +1601,7 @@ export function GlobeViewport({
 
   const handleAutoTransitionTo2D = useCallback(() => {
     const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 600) return;
+    if (now - lastAutoTransitionRef.current < 400) return;
     lastAutoTransitionRef.current = now;
 
     if (globeRef.current && typeof globeRef.current.pointOfView === "function") {
@@ -1654,23 +1622,29 @@ export function GlobeViewport({
     setViewMode("2d");
     setGisZoom((prev) => Math.max(prev, 13));
     toast.info("Entering High-Resolution 2D Field GIS", {
-      description: "Sub-district orbit reached (altitude <= 0.14). Switched to 2D Regional GIS.",
+      description: "Street & field orbit reached (altitude <= 0.12). Switched to 2D Regional GIS.",
     });
   }, [lat, lon]);
 
-  // Unified Bi-Directional Zoom In Handler (Strict 4-Stage LOD: triggers 2D Hand-Off when altitude <= 0.14)
+  // Unified Bi-Directional Zoom In Handler (Smooth camera altitude interpolation & 2D zoom)
   const handleZoomIn = useCallback(() => {
     if (viewMode === "3d") {
       const curPov = typeof globeRef.current?.pointOfView === "function" ? globeRef.current.pointOfView() : null;
-      const curAlt = typeof curPov?.altitude === "number" ? curPov.altitude : orbitalAltitude;
-      const curLat = typeof curPov?.lat === "number" ? curPov.lat : lat;
-      const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
-      const nextAlt = Math.max(0.12, curAlt * 0.72);
+      const curAlt = typeof curPov?.altitude === "number" && !isNaN(curPov.altitude) ? curPov.altitude : orbitalAltitude;
+      const curLat = typeof curPov?.lat === "number" && !isNaN(curPov.lat) ? curPov.lat : lat;
+      const curLon = typeof curPov?.lng === "number" && !isNaN(curPov.lng) ? curPov.lng : lon;
+
+      if (curAlt <= 0.12) {
+        handleAutoTransitionTo2D();
+        return;
+      }
+
+      const nextAlt = Math.max(0.04, Math.min(curAlt * 0.68, curAlt - 0.08));
       setOrbitalAltitude(nextAlt);
       updateZoomStage(nextAlt);
       lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
-      globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 350);
-      if (nextAlt <= 0.14) {
+      globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 300);
+      if (nextAlt <= 0.12) {
         handleAutoTransitionTo2D();
       }
     } else {
@@ -1678,18 +1652,18 @@ export function GlobeViewport({
     }
   }, [viewMode, orbitalAltitude, lat, lon, handleAutoTransitionTo2D, updateZoomStage]);
 
-  // Unified Bi-Directional Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 2)
+  // Unified Bi-Directional Zoom Out Handler (Smooth camera altitude interpolation & 2D zoom)
   const handleZoomOut = useCallback(() => {
     if (viewMode === "3d") {
       const curPov = typeof globeRef.current?.pointOfView === "function" ? globeRef.current.pointOfView() : null;
-      const curAlt = typeof curPov?.altitude === "number" ? curPov.altitude : orbitalAltitude;
-      const curLat = typeof curPov?.lat === "number" ? curPov.lat : lat;
-      const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
-      const nextAlt = Math.min(1.85, curAlt * 1.35);
+      const curAlt = typeof curPov?.altitude === "number" && !isNaN(curPov.altitude) ? curPov.altitude : orbitalAltitude;
+      const curLat = typeof curPov?.lat === "number" && !isNaN(curPov.lat) ? curPov.lat : lat;
+      const curLon = typeof curPov?.lng === "number" && !isNaN(curPov.lng) ? curPov.lng : lon;
+      const nextAlt = Math.min(2.5, Math.max(curAlt * 1.4, curAlt + 0.15));
       setOrbitalAltitude(nextAlt);
       updateZoomStage(nextAlt);
       lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
-      globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 350);
+      globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 300);
     } else {
       const curZ = leafletMapRef.current?.getZoom?.() ?? gisZoom;
       if (curZ <= 2) {
@@ -1704,15 +1678,15 @@ export function GlobeViewport({
   const handleSliderChange = useCallback((newZoom: number) => {
     if (viewMode === "3d") {
       const pct = Math.max(0, Math.min(1, (newZoom - 1) / 17));
-      const nextAlt = Math.max(0.12, Math.min(1.85, 1.85 - pct * (1.85 - 0.12)));
+      const nextAlt = Math.max(0.04, Math.min(2.4, 2.4 - pct * (2.4 - 0.04)));
       setOrbitalAltitude(nextAlt);
       updateZoomStage(nextAlt);
       const curPov = typeof globeRef.current?.pointOfView === "function" ? globeRef.current.pointOfView() : null;
-      const curLat = typeof curPov?.lat === "number" ? curPov.lat : lat;
-      const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
+      const curLat = typeof curPov?.lat === "number" && !isNaN(curPov.lat) ? curPov.lat : lat;
+      const curLon = typeof curPov?.lng === "number" && !isNaN(curPov.lng) ? curPov.lng : lon;
       lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
       globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 200);
-      if (nextAlt <= 0.14) {
+      if (nextAlt <= 0.12) {
         handleAutoTransitionTo2D();
       }
     } else {
@@ -2287,15 +2261,15 @@ export function GlobeViewport({
               }}
               onZoom={(pov: { lat: number; lng: number; altitude: number }) => {
                 if (typeof pov?.altitude === "number") {
-                  const clampedAlt = Math.max(0.12, Math.min(1.85, pov.altitude));
+                  const clampedAlt = Math.max(0.04, Math.min(2.5, pov.altitude));
                   lastPovRef.current = {
                     lat: typeof pov.lat === "number" ? pov.lat : lastPovRef.current.lat,
                     lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
                     altitude: clampedAlt,
                   };
                   updateZoomStage(clampedAlt);
-                  setOrbitalAltitude((prev) => (Math.abs(prev - clampedAlt) > 0.05 ? clampedAlt : prev));
-                  if (clampedAlt <= 0.14) {
+                  setOrbitalAltitude((prev) => (Math.abs(prev - clampedAlt) > 0.03 ? clampedAlt : prev));
+                  if (clampedAlt <= 0.12) {
                     handleAutoTransitionTo2D();
                   }
                   setTimeout(runCollisionCull, 50);
@@ -2309,7 +2283,7 @@ export function GlobeViewport({
                 lastGlobeClickRef.current = { time: now, lat: targetLat, lon: targetLng };
 
                 if (isDblClick) {
-                  const nextAlt = Math.max(0.12, orbitalAltitude * 0.65);
+                  const nextAlt = Math.max(0.04, orbitalAltitude * 0.65);
                   setOrbitalAltitude(nextAlt);
                   updateZoomStage(nextAlt);
                   lastPovRef.current = { lat: targetLat, lng: targetLng, altitude: nextAlt };
@@ -2318,7 +2292,7 @@ export function GlobeViewport({
                     { lat: targetLat, lng: targetLng, altitude: nextAlt },
                     600,
                   );
-                  if (nextAlt <= 0.14) {
+                  if (nextAlt <= 0.12) {
                     setTimeout(handleAutoTransitionTo2D, 650);
                   }
                   return;
@@ -2491,7 +2465,7 @@ export function GlobeViewport({
 
             {/* ---------------- 2D WARNING & HAZARD MARKERS + IMPACT RINGS ---------------- */}
             {activeMapHazards.map((hazard) => (
-              <div key={hazard.id}>
+              <Fragment key={hazard.id}>
                 {/* Geodesic Impact Radius Circle */}
                 {hazard.radiusM && (
                   <LeafletComp.Circle
@@ -2500,7 +2474,7 @@ export function GlobeViewport({
                     pathOptions={{
                       color: hazard.color,
                       fillColor: hazard.color,
-                      fillOpacity: 0.1,
+                      fillOpacity: 0.12,
                       weight: 1.5,
                       dashArray: "5 5",
                     }}
@@ -2528,24 +2502,26 @@ export function GlobeViewport({
                     new LeafletComp.L.DivIcon({
                       className: "hazard-marker",
                       html: `
-                        <div style="position:relative; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
-                          <span style="position:absolute; inset:0; border-radius:50%; border:1.5px dashed ${hazard.color}; opacity:0.75; box-shadow:0 0 10px ${hazard.color}40;"></span>
-                          <span style="position:absolute; inset:4px; border-radius:50%; border:1.5px solid ${hazard.color}; animation:${hazard.type === "earthquake" ? "sonarRipple 2s ease-out" : "radarPulse 2.4s cubic-bezier(0.2,0.8,0.4,1)"} infinite;"></span>
-                          <span style="position:relative; width:26px; height:26px; border-radius:50%; background:#090D16; border:2px solid ${hazard.color}; display:flex; align-items:center; justify-content:center; box-shadow:0 0 14px ${hazard.color};">
+                        <div style="position:relative; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                          <span style="position:absolute; inset:0; border-radius:50%; border:2px dashed ${hazard.color}; opacity:0.85; animation:spin 8s linear infinite;"></span>
+                          <span style="position:absolute; inset:3px; border-radius:50%; background:${hazard.color}25; border:1.5px solid ${hazard.color}; animation:ping 2.5s cubic-bezier(0,0,0.2,1) infinite;"></span>
+                          <span style="position:relative; width:26px; height:26px; border-radius:50%; background:#090D16; border:2px solid ${hazard.color}; display:flex; align-items:center; justify-content:center; box-shadow:0 0 14px ${hazard.color}; font-size:14px;">
                             ${
                               hazard.type === "cyclone"
-                                ? `<svg class="animate-spin-slow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="url(#c2dGrad)" stroke-width="2.2" stroke-linecap="round"><defs><linearGradient id="c2dGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#C084FC"/><stop offset="100%" stop-color="#38BDF8"/></linearGradient></defs><path d="M12 2a10 10 0 0 1 7.07 17.07M12 22a10 10 0 0 1-7.07-17.07M12 6a6 6 0 0 1 4.24 10.24M12 18a6 6 0 0 1-4.24-10.24M12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>`
+                                ? `🌀`
                                 : hazard.type === "fire"
-                                  ? `<svg class="animate-flame-flicker" viewBox="0 0 24 24" width="15" height="15" fill="url(#f2dGrad)"><defs><linearGradient id="f2dGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FDE047"/><stop offset="50%" stop-color="#F59E0B"/><stop offset="100%" stop-color="#EF4444"/></linearGradient></defs><path d="M12 2c.5 2.5 2 4.5 3.5 6 1.8 1.8 2.5 3.6 2.5 5.5A7.5 7.5 0 0 1 10.5 21a7.5 7.5 0 0 1-7.5-7.5c0-3.3 2.5-6.2 5-8 0 2.5 1.5 4 3 5 0-3 1-6.5 1-8.5z"/></svg>`
+                                  ? `🔥`
                                   : hazard.type === "earthquake"
-                                    ? `<svg viewBox="0 0 24 24" width="15" height="15" fill="#F59E0B" stroke="#F59E0B" stroke-width="0.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`
-                                    : `<span style="font-size:12px;">${hazard.icon}</span>`
+                                    ? `⚡`
+                                    : hazard.type === "wind"
+                                      ? `💨`
+                                      : `🌊`
                             }
                           </span>
                         </div>
                       `,
-                      iconSize: [34, 34],
-                      iconAnchor: [17, 17],
+                      iconSize: [36, 36],
+                      iconAnchor: [18, 18],
                     })
                   }
                 >
@@ -2583,7 +2559,7 @@ export function GlobeViewport({
                     </div>
                   </LeafletComp.Popup>
                 </LeafletComp.Marker>
-              </div>
+              </Fragment>
             ))}
 
             {/* Map click listener & bridge */}
@@ -2933,109 +2909,109 @@ export function GlobeViewport({
       </div>
 
       {/* ---------------- 2D MAP HAZARD LEGEND & FILTER BAR ---------------- */}
-      {viewMode === "2d" && (
-        <div
-          data-hud-overlay="hazard-filter"
-          className="absolute left-3 bottom-16 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
-        >
+      <div
+        data-hud-overlay="hazard-filter"
+        className="absolute left-4 bottom-16 z-20 flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/40 bg-[#0D1322]/95 px-3 py-1.5 backdrop-blur-md shadow-2xl text-xs font-mono"
+      >
+        <div className="flex items-center gap-1.5 pr-1 border-r border-cyan-500/30">
+          <AlertTriangle className="size-3.5 text-amber-400 shrink-0 animate-pulse" />
           <Button
             type="button"
             size="sm"
             variant="ghost"
             onClick={() => setHazardsVisible((v) => !v)}
             className={cn(
-              "h-6 px-1.5 text-[10px] font-mono",
-              hazardsVisible ? "text-cyan" : "text-muted-foreground opacity-60",
+              "h-6 px-1.5 text-[10px] font-mono font-bold transition-all",
+              hazardsVisible ? "text-amber-300 bg-amber-500/10" : "text-muted-foreground opacity-60",
             )}
             title="Toggle Hazard Overlays"
           >
             {hazardsVisible ? (
-              <Eye className="size-3 mr-1 text-cyan" />
+              <Eye className="size-3 mr-1 text-amber-400" />
             ) : (
               <EyeOff className="size-3 mr-1" />
             )}
             Hazards: {hazardsVisible ? "ON" : "OFF"}
           </Button>
-
-          {hazardsVisible && (
-            <>
-              <div className="h-3 w-px bg-cyan-500/30" />
-              <button
-                type="button"
-                onClick={() => setHazardFilter("all")}
-                className={cn(
-                  "rounded px-1.5 py-0.5 text-[10px]",
-                  hazardFilter === "all"
-                    ? "bg-cyan/25 text-cyan font-bold"
-                    : "text-muted-foreground",
-                )}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => setHazardFilter("fire")}
-                className={cn(
-                  "rounded px-1.5 py-0.5 text-[10px]",
-                  hazardFilter === "fire"
-                    ? "bg-amber/25 text-amber font-bold"
-                    : "text-muted-foreground",
-                )}
-              >
-                🔥 Fires
-              </button>
-              <button
-                type="button"
-                onClick={() => setHazardFilter("wind")}
-                className={cn(
-                  "rounded px-1.5 py-0.5 text-[10px]",
-                  hazardFilter === "wind"
-                    ? "bg-amber/25 text-amber font-bold"
-                    : "text-muted-foreground",
-                )}
-              >
-                💨 Wind
-              </button>
-              <button
-                type="button"
-                onClick={() => setHazardFilter("cyclone")}
-                className={cn(
-                  "rounded px-1.5 py-0.5 text-[10px]",
-                  hazardFilter === "cyclone"
-                    ? "bg-crimson/25 text-crimson font-bold"
-                    : "text-muted-foreground",
-                )}
-              >
-                🌀 Storms
-              </button>
-              <button
-                type="button"
-                onClick={() => setHazardFilter("earthquake")}
-                className={cn(
-                  "rounded px-1.5 py-0.5 text-[10px]",
-                  hazardFilter === "earthquake"
-                    ? "bg-emerald/25 text-emerald font-bold"
-                    : "text-muted-foreground",
-                )}
-              >
-                ⚡ Seismic
-              </button>
-
-              <div className="h-3 w-px bg-cyan-500/30" />
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={handleFitAllHazards}
-                className="h-6 px-1.5 text-[10px] text-cyan hover:bg-cyan-500/20"
-                title="Fit viewport to encompass all active hazards"
-              >
-                🎯 Fit All Hazards
-              </Button>
-            </>
-          )}
         </div>
-      )}
+
+        {hazardsVisible && (
+          <>
+            <button
+              type="button"
+              onClick={() => setHazardFilter("all")}
+              className={cn(
+                "rounded px-2 py-0.5 text-[10px] transition-all",
+                hazardFilter === "all"
+                  ? "bg-cyan/25 text-cyan font-bold border border-cyan/40"
+                  : "text-muted-foreground hover:text-slate-200",
+              )}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setHazardFilter("fire")}
+              className={cn(
+                "rounded px-2 py-0.5 text-[10px] transition-all",
+                hazardFilter === "fire"
+                  ? "bg-amber/25 text-amber font-bold border border-amber/40"
+                  : "text-muted-foreground hover:text-slate-200",
+              )}
+            >
+              🔥 Fires
+            </button>
+            <button
+              type="button"
+              onClick={() => setHazardFilter("wind")}
+              className={cn(
+                "rounded px-2 py-0.5 text-[10px] transition-all",
+                hazardFilter === "wind"
+                  ? "bg-amber/25 text-amber font-bold border border-amber/40"
+                  : "text-muted-foreground hover:text-slate-200",
+              )}
+            >
+              💨 Wind
+            </button>
+            <button
+              type="button"
+              onClick={() => setHazardFilter("cyclone")}
+              className={cn(
+                "rounded px-2 py-0.5 text-[10px] transition-all",
+                hazardFilter === "cyclone"
+                  ? "bg-crimson/25 text-crimson font-bold border border-crimson/40"
+                  : "text-muted-foreground hover:text-slate-200",
+              )}
+            >
+              🌀 Storms
+            </button>
+            <button
+              type="button"
+              onClick={() => setHazardFilter("earthquake")}
+              className={cn(
+                "rounded px-2 py-0.5 text-[10px] transition-all",
+                hazardFilter === "earthquake"
+                  ? "bg-emerald/25 text-emerald font-bold border border-emerald/40"
+                  : "text-muted-foreground hover:text-slate-200",
+              )}
+            >
+              ⚡ Seismic
+            </button>
+
+            <div className="h-3 w-px bg-cyan-500/30" />
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={handleFitAllHazards}
+              className="h-6 px-2 text-[10px] text-cyan hover:bg-cyan-500/20 font-mono"
+              title="Fit viewport to encompass all active hazards"
+            >
+              🎯 Fit All Hazards
+            </Button>
+          </>
+        )}
+      </div>
 
       {/* ---------------- FLOATING BASEMAP & TERRAIN SWITCHER (BOTTOM-LEFT ALIGNED) ---------------- */}
       <div data-tour="basemap-switcher" className="absolute left-3 bottom-3 z-30">
@@ -3094,18 +3070,16 @@ export function GlobeViewport({
           <button
             type="button"
             onClick={() => setIsDockMinimized(false)}
-            className="pointer-events-auto h-9 px-4 rounded-full bg-[#0a0f1d]/90 backdrop-blur-2xl border border-white/20 text-cyan-200 font-mono text-xs flex items-center gap-2.5 shadow-[0_12px_30px_rgba(0,0,0,0.85)] hover:border-cyan-400/60 hover:bg-[#0f172a]/95 transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-200"
+            className="pointer-events-auto h-8 px-3.5 rounded-full bg-[#0D1322]/95 backdrop-blur-2xl border border-cyan-500/40 text-cyan-200 font-mono text-xs flex items-center gap-2 shadow-[0_8px_25px_rgba(0,0,0,0.85)] hover:border-cyan-400 hover:bg-[#0f172a] transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-200"
             title="Open Orbital Layers Dock (L)"
           >
             <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
             <span className="font-semibold text-white">
-              {activeLayer}: {temporalReadingValue} {reading.unit}
+              {activeLayer}: {reading.value} {reading.unit}
             </span>
             <span className="text-white/30">•</span>
-            <span className="text-cyan-300 font-medium">{currentTemporal.dateLabel}</span>
-            <span className="text-white/30">•</span>
             <span className="text-cyan-400 font-bold flex items-center gap-1">
-              <ChevronUp className="size-3.5" /> {t("open_orbital_layers", "Open Orbital Layers")}
+              <ChevronUp className="size-3.5" /> {t("open_orbital_layers", "Telemetry Dock")}
             </span>
             <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-black/50 border border-white/10 text-[9px] text-white/50 font-sans">
               L
@@ -3118,26 +3092,28 @@ export function GlobeViewport({
             "pointer-events-auto transition-all duration-300 flex flex-col items-center gap-1.5",
             isDockMinimized
               ? "max-h-0 opacity-0 pointer-events-none overflow-hidden scale-95"
-              : "max-h-[220px] opacity-100 scale-100"
+              : "max-h-[220px] opacity-100 scale-100",
           )}
         >
-          {/* Tier 1: Upper Slim Row (Compact Legend + Temporal Controls in ONE line, max height 38px) */}
-          <div className="h-[38px] max-h-[38px] py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/92 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2.5 sm:gap-3 text-xs font-mono">
-            {/* Left Side: Active Sensor + Compact Gradient + Field Reading + Glow */}
-            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Tier 1: Upper Slim Row (Clean Essential Telemetry Bar, max height 38px) */}
+          <div className="h-[38px] max-h-[38px] py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs font-mono">
+            {/* Left Side: Sensor title + Color scale ramp + FIELD readout + GLOW opacity slider */}
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+              {/* Sensor Title */}
               <div className="flex items-center gap-1.5 font-bold text-cyan">
                 <Radio className="size-3 text-emerald animate-pulse shrink-0" />
-                <span className="truncate max-w-24 sm:max-w-36">
+                <span className="truncate max-w-28 sm:max-w-40">
                   {activeSatelliteConfig.sensorName}
                 </span>
               </div>
 
+              {/* Color Scale Ramp */}
               <div className="hidden md:flex items-center gap-1 shrink-0">
                 <span className="text-[9px] text-muted-foreground font-mono">
                   {activeSatelliteConfig.colorRamp.minLabel}
                 </span>
                 <div
-                  className="h-1.5 w-14 sm:w-20 rounded-full border border-white/10 shadow-inner"
+                  className="h-1.5 w-16 sm:w-24 rounded-full border border-white/10 shadow-inner"
                   style={{ background: activeSatelliteConfig.colorRamp.gradient }}
                 />
                 <span className="text-[9px] text-muted-foreground font-mono">
@@ -3145,15 +3121,17 @@ export function GlobeViewport({
                 </span>
               </div>
 
-              <span className="px-1.5 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/40 text-cyan text-[10px] tabular-nums shrink-0">
-                FIELD: {temporalReadingValue} {reading.unit}
+              {/* FIELD Readout */}
+              <span className="px-2 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/40 text-cyan text-[10.5px] tabular-nums shrink-0">
+                FIELD: {reading.value} {reading.unit}
               </span>
 
+              {/* GLOW Opacity Slider */}
               <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                 <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
                 <Slider
                   aria-label="Layer opacity"
-                  className="w-14 sm:w-16"
+                  className="w-14 sm:w-18"
                   min={0}
                   max={100}
                   step={1}
@@ -3169,60 +3147,16 @@ export function GlobeViewport({
             {/* 1px Vertical Divider */}
             <div className="h-4 w-px bg-cyan-500/30 shrink-0" />
 
-            {/* Right Side: Play button, date label, compact step pills, and Minimize button */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsPlayingTimeline((p) => !p)}
-                className={`size-6 flex items-center justify-center rounded border transition-all cursor-pointer ${
-                  isPlayingTimeline
-                    ? "bg-cyan-500/30 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
-                    : "bg-white/5 text-slate-300 border-white/10 hover:text-white hover:bg-white/10"
-                }`}
-                title={isPlayingTimeline ? "Pause Time-Machine" : "Play Time-Machine"}
-              >
-                {isPlayingTimeline ? (
-                  <Pause className="size-2.5" />
-                ) : (
-                  <Play className="size-2.5 fill-current ml-0.5" />
-                )}
-              </button>
-
-              <span className="text-[9.5px] text-cyan-100 font-semibold px-2 py-0.5 rounded bg-black/60 border border-cyan-500/30 whitespace-nowrap">
-                {currentTemporal.dateLabel}
-              </span>
-
-              <div className="flex items-center gap-1">
-                {TEMPORAL_STEPS.map((step, idx) => {
-                  const isCur = temporalIdx === idx;
-                  return (
-                    <button
-                      key={step.id}
-                      type="button"
-                      onClick={() => setTemporalIdx(idx)}
-                      className={`px-1.5 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer ${
-                        isCur
-                          ? "bg-cyan-500/25 text-cyan-300 border border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.3)] font-bold"
-                          : "bg-black/30 text-muted-foreground border border-white/5 hover:text-slate-200"
-                      }`}
-                    >
-                      {step.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Minimize Dock Button */}
-              <button
-                type="button"
-                onClick={() => setIsDockMinimized(true)}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-[9.5px] font-mono text-slate-300 hover:text-white cursor-pointer ml-1"
-                title="Minimize Telemetry Dock (L)"
-              >
-                <ChevronDown className="size-3 text-cyan-400" />
-                <span className="hidden sm:inline">{t("minimize_dock", "Minimize")}</span>
-              </button>
-            </div>
+            {/* Right Side: Collapse/Minimize button cleanly nested INSIDE the border container */}
+            <button
+              type="button"
+              onClick={() => setIsDockMinimized(true)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 hover:text-cyan-100 transition-all cursor-pointer shrink-0"
+              title="Minimize Telemetry Dock (L)"
+            >
+              <ChevronDown className="size-3 text-cyan-400" />
+              <span className="hidden sm:inline">{t("minimize_dock", "Minimize")}</span>
+            </button>
           </div>
 
           {/* Tier 2: Lower Slim Row (The 8 NASA Layer Pills with AnimatedBackground) */}
