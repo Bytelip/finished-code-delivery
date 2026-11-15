@@ -103,7 +103,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "twitter:image", content: `${import.meta.env.BASE_URL}satellite.svg` },
       { name: "theme-color", content: "#050912" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "AgroSpace" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     ],

@@ -2,35 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".output/public",
   "framework": null,
-  "installCommand": "npm ci",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/sw\\.js",
-      "dest": "/sw.js"
-    },
-    {
-      "src": "/manifest\\.json",
-      "dest": "/manifest.json"
-    },
-    {
-      "src": "/favicon\\.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "/satellite\\.svg",
-      "dest": "/satellite.svg"
-    },
-    {
-      "src": "/robots\\.txt",
-      "dest": "/robots.txt"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!assets/|api/|.*\\..*).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
