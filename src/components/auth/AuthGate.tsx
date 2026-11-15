@@ -28,11 +28,16 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     return null;
   });
 
-  const watchIdRef = useRef<number | null>(null);
+  const hasAcquiredInitialGps = useRef(false);
 
-  // Auto-acquire high-accuracy live GPS location immediately after authentication
+  // Auto-acquire high-accuracy live GPS location strictly ONCE after authentication
   const triggerAutoGpsTracking = useCallback(
     (userName: string) => {
+      if (hasAcquiredInitialGps.current) {
+        return;
+      }
+      hasAcquiredInitialGps.current = true;
+
       if (typeof window === "undefined" || !navigator.geolocation) {
         toast.info(`Welcome, ${userName}`, {
           description: "Hardware GPS not supported on this device. Manual coordinate entry active.",
@@ -40,18 +45,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
         return;
       }
 
-      toast.loading("Acquiring Live GPS & Satellite Lock...", {
-        id: "auto-gps-lock",
-        duration: 2500,
-      });
-
-      // Safety timer: strictly auto-dismiss toast after 2.5s so it never gets stuck
-      const safetyTimer = setTimeout(() => {
-        toast.dismiss("auto-gps-lock");
-      }, 2500);
-
       const handlePos = async (pos: GeolocationPosition) => {
-        clearTimeout(safetyTimer);
         const rawLat = pos.coords.latitude;
         const rawLon = pos.coords.longitude;
         const accuracy = Math.round(pos.coords.accuracy || 10);
@@ -104,53 +98,26 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
         toast.success(`🛰️ GPS Target Lock: ${placeName}`, {
           id: "auto-gps-lock",
           description: `Live coordinates ${fixedLat}°N, ${fixedLon}°E (±${accuracy}m). Telemetry calibrated.`,
-          duration: 2500,
+          duration: 2000,
         });
-
-        setTimeout(() => {
-          toast.dismiss("auto-gps-lock");
-        }, 2500);
       };
 
       const handleErr = (err: GeolocationPositionError) => {
-        clearTimeout(safetyTimer);
         console.warn("Auto-GPS error:", err.message);
         toast.dismiss("auto-gps-lock");
-        toast.info(`Welcome, ${userName}`, {
-          description: "GPS permission not granted. Default farm target active. Click 'GPS' in navbar to retry.",
-          duration: 2500,
-        });
       };
 
-      // 1. One-time high-precision lock
+      // Strict one-time fetch with maximumAge: 60000 and 8s timeout (no watchPosition)
       navigator.geolocation.getCurrentPosition(handlePos, handleErr, {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        timeout: 8000,
+        maximumAge: 60000,
       });
-
-      // 2. Active watch for moving equipment/operators
-      try {
-        if (watchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-        }
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          (pos) => {
-            const lat = Math.round(pos.coords.latitude * 10000) / 10000;
-            const lon = Math.round(pos.coords.longitude * 10000) / 10000;
-            syncUrlCoords(lat, lon);
-          },
-          undefined,
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
-        );
-      } catch {
-        // ignore watchPosition failure
-      }
     },
     [onLiveLocationAcquired]
   );
 
-  // Check returning OAuth callback tokens
+  // Check returning OAuth callback tokens or initialize GPS for existing verified session
   useEffect(() => {
     processIncomingAuthCallback().then((user) => {
       if (user && (user.verified || user.isVerified)) {
@@ -161,12 +128,10 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
       }
     });
 
-    return () => {
-      if (watchIdRef.current !== null && typeof navigator !== "undefined" && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-    };
-  }, [triggerAutoGpsTracking]);
+    if (currentUser && (currentUser.verified || currentUser.isVerified) && !hasAcquiredInitialGps.current) {
+      triggerAutoGpsTracking(currentUser.fullName || currentUser.name || "Operator");
+    }
+  }, [currentUser, triggerAutoGpsTracking]);
 
   const handleAuthSuccess = (user: UserProfile) => {
     setCurrentUser(user);
@@ -176,10 +141,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
   };
 
   const handleSignOut = async () => {
-    if (watchIdRef.current !== null && typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
+    hasAcquiredInitialGps.current = false;
     await signOutUser();
     setCurrentUser(null);
     toast.info("Operator Signed Out", {

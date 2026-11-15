@@ -189,12 +189,23 @@ function AgroSpaceDashboard({
       setLat(urlCoords.lat);
       setLon(urlCoords.lon);
       const synZone = computeKoppenClimateZone(urlCoords.lat, urlCoords.lon);
+      const stored = getStoredLocation();
+      const existingFriendly =
+        stored &&
+        stored.label &&
+        !stored.label.startsWith("Field ") &&
+        Math.abs(stored.lat - urlCoords.lat) < 0.05 &&
+        Math.abs(stored.lon - urlCoords.lon) < 0.05
+          ? stored.label
+          : null;
       setLocationMeta({
-        label: `Field ${Math.abs(urlCoords.lat).toFixed(4)}°${urlCoords.lat >= 0 ? "N" : "S"}, ${Math.abs(urlCoords.lon).toFixed(4)}°${urlCoords.lon >= 0 ? "E" : "W"}`,
+        label:
+          existingFriendly ||
+          `Field ${Math.abs(urlCoords.lat).toFixed(4)}°${urlCoords.lat >= 0 ? "N" : "S"}, ${Math.abs(urlCoords.lon).toFixed(4)}°${urlCoords.lon >= 0 ? "E" : "W"}`,
         zone: synZone,
         elevationM: 500,
       });
-      saveStoredLocation(urlCoords.lat, urlCoords.lon);
+      saveStoredLocation(urlCoords.lat, urlCoords.lon, existingFriendly || undefined);
     } else {
       const stored = getStoredLocation();
       if (stored) {
@@ -218,7 +229,16 @@ function AgroSpaceDashboard({
     let active = true;
     reverseGeocodeAndElevation(lat, lon).then((res) => {
       if (!active) return;
-      setLocationMeta(res);
+      setLocationMeta((prev) => {
+        // If reverseGeocodeAndElevation returned a raw "Field ..." fallback but we already have a friendly name, keep the friendly name
+        if (prev?.label && !prev.label.startsWith("Field ") && res.label.startsWith("Field ")) {
+          return {
+            ...res,
+            label: prev.label,
+          };
+        }
+        return res;
+      });
     });
     return () => {
       active = false;
@@ -280,17 +300,39 @@ function AgroSpaceDashboard({
   const setLocation = (la: number, lo: number, label?: string) => {
     const fixedLat = Math.round(la * 10000) / 10000;
     const fixedLon = Math.round(lo * 10000) / 10000;
+    const dLat = Math.abs(fixedLat - lat);
+    const dLon = Math.abs(fixedLon - lon);
+    const isSignificantMove = dLat > 0.05 || dLon > 0.05;
+
     setLat(fixedLat);
     setLon(fixedLon);
     const synZone = computeKoppenClimateZone(fixedLat, fixedLon);
-    const initialName =
-      label ||
-      `Field ${Math.abs(fixedLat).toFixed(4)}°${fixedLat >= 0 ? "N" : "S"}, ${Math.abs(fixedLon).toFixed(4)}°${fixedLon >= 0 ? "E" : "W"}`;
-    setLocationMeta((prev) => ({
-      label: initialName,
-      zone: synZone,
-      elevationM: prev?.elevationM ?? 500,
-    }));
+    const rawCoordsFallback = `Field ${Math.abs(fixedLat).toFixed(4)}°${fixedLat >= 0 ? "N" : "S"}, ${Math.abs(fixedLon).toFixed(4)}°${fixedLon >= 0 ? "E" : "W"}`;
+
+    setLocationMeta((prev) => {
+      // 1. If explicit label is passed, always use it
+      if (label) {
+        return {
+          label,
+          zone: synZone,
+          elevationM: prev?.elevationM ?? 500,
+        };
+      }
+      // 2. If we already have a resolved friendly place name (not starting with "Field ")
+      // and the coordinate shift is minor (<= 0.05 degrees), keep the friendly name!
+      if (prev?.label && !prev.label.startsWith("Field ") && !isSignificantMove) {
+        return {
+          label: prev.label,
+          zone: synZone,
+          elevationM: prev?.elevationM ?? 500,
+        };
+      }
+      return {
+        label: rawCoordsFallback,
+        zone: synZone,
+        elevationM: prev?.elevationM ?? 500,
+      };
+    });
     saveStoredLocation(fixedLat, fixedLon, label);
     syncUrlCoords(fixedLat, fixedLon);
   };
