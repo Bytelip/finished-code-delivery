@@ -9,6 +9,7 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -150,6 +151,7 @@ function RootComponent() {
           <Outlet />
           {/* Toaster positioned at bottom-right in dark obsidian glass */}
           <Toaster position="bottom-right" duration={2500} className="bottom-20 right-5 z-50" />
+          <SpeedInsights />
         </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>
