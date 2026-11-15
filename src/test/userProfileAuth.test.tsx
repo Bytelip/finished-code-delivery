@@ -348,6 +348,54 @@ describe("User Profile & Authentication System", () => {
     expect(oauthProfile).toBeNull();
   });
 
+  it("clears error state when switching between Sign In and Create Account tabs", async () => {
+    render(<CosmicAuthPage />);
+
+    // Type an unregistered email in Sign In tab
+    const emailInput = screen.getByPlaceholderText(/Enter your Gmail or email address/i);
+    fireEvent.change(emailInput, { target: { value: "unregistered.cadet@agrospace.nasa.gov" } });
+
+    // Click Continue to trigger "Account not found" error
+    const continueBtn = screen.getByRole("button", { name: /^Continue$/i });
+    fireEvent.click(continueBtn);
+
+    // Verify error banner is visible
+    await waitFor(() => {
+      expect(screen.getByText(/Account not found\. Please sign up first\./i)).toBeDefined();
+    });
+
+    // Switch to "Create Account" tab
+    const createAccountTab = screen.getByRole("button", { name: /Create Account/i });
+    fireEvent.click(createAccountTab);
+
+    // Verify error banner is immediately cleared
+    await waitFor(() => {
+      expect(screen.queryByText(/Account not found\. Please sign up first\./i)).toBeNull();
+    });
+  });
+
+  it("submitting in Create Account tab executes registration flow without rejecting non-existent accounts", async () => {
+    render(<CosmicAuthPage />);
+
+    // Switch to Create Account tab
+    const createAccountTab = screen.getByRole("button", { name: /Create Account/i });
+    fireEvent.click(createAccountTab);
+
+    // Enter a new unregistered email
+    const emailInput = screen.getByPlaceholderText(/Enter your Gmail or email address/i);
+    fireEvent.change(emailInput, { target: { value: "fresh.cadet@agrospace.nasa.gov" } });
+
+    // Click Continue
+    const continueBtn = screen.getByRole("button", { name: /^Continue$/i });
+    fireEvent.click(continueBtn);
+
+    // In signup mode, it transitions to OTP screen instead of showing "Account not found"
+    await waitFor(() => {
+      expect(screen.queryByText(/Account not found\. Please sign up first\./i)).toBeNull();
+      expect(screen.getByText(/Check your Gmail/i)).toBeDefined();
+    });
+  });
+
   it("registers new account in signup mode and allows subsequent signin", async () => {
     // 1. Sign up a new user
     const newEmail = "new.cadet@agrospace.nasa.gov";
