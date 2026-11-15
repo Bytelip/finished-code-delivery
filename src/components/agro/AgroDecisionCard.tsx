@@ -481,7 +481,7 @@ export function AgroDecisionCard({
                 </div>
                 <div>
                   <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-300">
-                    🌾 Top Recommended Crops for {meta.regionLabel}
+                    🌾 Top Recommended Crops for {meta.regionLabel} (Zone: {zoneInfo.indiaZone || "DEC"})
                   </h3>
                   <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                     <span className="font-mono text-[9px] text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-1.5 py-0.2 rounded font-semibold">
