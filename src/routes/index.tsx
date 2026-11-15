@@ -233,7 +233,7 @@ function AgroSpaceDashboard() {
   const tabLabel = TABS.find((t) => t.id === tab)?.label;
 
   return (
-    <div className="flex min-h-screen relative overflow-x-hidden">
+    <div className="flex min-h-screen relative">
       <DashboardSidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
@@ -248,7 +248,7 @@ function AgroSpaceDashboard() {
         onOpenSettings={() => setShowSettingsModal(true)}
       />
 
-      <main className="min-w-0 flex-1">
+      <main className="min-w-0 flex-1 overflow-x-hidden">
         <CommandBar
           lat={lat}
           lon={lon}
