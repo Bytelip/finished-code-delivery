@@ -801,7 +801,159 @@ async function sha256(str: string): Promise<string> {
 }
 
 // -------------------------------------------------------------
-// 4. EMAIL OTP FLOW (Real OTP delivery, manual 6-digit entry)
+// 3.5. SUPABASE EMAIL + PASSWORD AUTHENTICATION (Instant Access)
+// -------------------------------------------------------------
+
+/**
+ * Signs up a new user using Supabase Email and Password.
+ * Users are signed in immediately upon registration without requiring SMTP or email verification.
+ */
+export async function signUpWithEmailPassword(
+  email: string,
+  password: string,
+  fullName?: string,
+): Promise<AuthResult> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, error: "Please enter a valid email address." };
+  }
+
+  if (!password || password.length < 6) {
+    return { success: false, error: "Password must be at least 6 characters long." };
+  }
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: {
+            full_name: fullName || cleanEmail.split("@")[0],
+          },
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      // If session not created automatically, sign in immediately with credentials
+      if (!data.session) {
+        try {
+          await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password,
+          });
+        } catch {
+          // Fall through to immediate local clearance
+        }
+      }
+
+      const displayName =
+        fullName?.trim() ||
+        (data.user?.user_metadata?.full_name as string) ||
+        cleanEmail.split("@")[0];
+
+      const profile = createInitialProfile(cleanEmail, "Email", displayName);
+      profile.verified = true;
+      profile.isVerified = true;
+      await saveUserToDatabase(profile);
+      saveStoredProfile(profile);
+
+      return { success: true, user: profile };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: msg };
+    }
+  }
+
+  // Fallback: Local database registry check when Supabase is offline or mocked
+  const exists = await checkUserExistsInDatabase(cleanEmail);
+  if (exists) {
+    return {
+      success: false,
+      error: "An account with this email already exists. Please sign in instead.",
+    };
+  }
+
+  const displayName = fullName?.trim() || cleanEmail.split("@")[0];
+  const profile = createInitialProfile(cleanEmail, "Email", displayName);
+  profile.verified = true;
+  profile.isVerified = true;
+  await saveUserToDatabase(profile);
+  saveStoredProfile(profile);
+
+  return { success: true, user: profile };
+}
+
+/**
+ * Signs in an existing user using Supabase Email and Password.
+ * Authenticates directly and grants immediate clearance to mission control.
+ */
+export async function signInWithEmailPassword(
+  email: string,
+  password: string,
+): Promise<AuthResult> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, error: "Please enter a valid email address." };
+  }
+
+  if (!password) {
+    return { success: false, error: "Please enter your password." };
+  }
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      let profile = await getUserFromDatabase(cleanEmail);
+      if (!profile) {
+        const displayName =
+          (data.user?.user_metadata?.full_name as string) || cleanEmail.split("@")[0];
+        profile = createInitialProfile(cleanEmail, "Email", displayName);
+      }
+
+      profile.verified = true;
+      profile.isVerified = true;
+      await saveUserToDatabase(profile);
+      saveStoredProfile(profile);
+
+      return { success: true, user: profile };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: msg };
+    }
+  }
+
+  // Fallback: Local database registry check
+  const existing = await getUserFromDatabase(cleanEmail);
+  if (!existing) {
+    return {
+      success: false,
+      error: "Invalid login credentials. Account not found.",
+    };
+  }
+
+  existing.verified = true;
+  existing.isVerified = true;
+  saveStoredProfile(existing);
+
+  return { success: true, user: existing };
+}
+
+// -------------------------------------------------------------
+// 4. EMAIL OTP FLOW (Legacy / Fallback Verification)
 // -------------------------------------------------------------
 
 /**
