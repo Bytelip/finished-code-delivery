@@ -389,6 +389,19 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
+  const handleBackToEntry = () => {
+    setStep("entry");
+    setEmail("");
+    setName("");
+    setCustomOAuthEmail("");
+    setCustomOAuthName("");
+    setOtpDigits(["", "", "", "", "", ""]);
+    setOtpError("");
+    setAuthError("");
+    setInboxPreviewUrl("");
+    setDispatchOtp("");
+  };
+
   // Listen for OAuth session on mount or return
   useEffect(() => {
     processIncomingAuthCallback().then((user) => {
@@ -466,6 +479,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             data.message ||
             `Connected! Verification emails will now send from ${cleanUser}.`,
         });
+        setTimeout(() => {
+          setShowSmtpModal(false);
+          const pending = (email || customOAuthEmail || "").trim();
+          if (pending && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending)) {
+            triggerOtpDispatch(pending, name || customOAuthName || pending.split("@")[0], selectedProvider);
+          }
+        }, 900);
       } else {
         setSmtpStatus({
           type: "error",
@@ -485,6 +505,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         type: "success",
         message: `Saved locally for this session! Real emails will be sent from ${cleanUser}.`,
       });
+      setTimeout(() => {
+        setShowSmtpModal(false);
+        const pending = (email || customOAuthEmail || "").trim();
+        if (pending && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending)) {
+          triggerOtpDispatch(pending, name || customOAuthName || pending.split("@")[0], selectedProvider);
+        }
+      }, 900);
     }
   };
 
@@ -549,8 +576,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         }
       }
 
-      // If OAuth provider is not configured or needs account picker,
-      // open the interactive OAuth Account Chooser step!
+      // Open interactive OAuth Account Chooser step
       setStep("oauth_chooser");
     } catch {
       setLoadingOAuth(null);
@@ -558,72 +584,49 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     }
   };
 
-  const handleSelectOAuthAccount = async (
-    accountEmail: string,
-    accountName: string,
+  // Centralized OTP Dispatcher with Strict Gmail SMTP Verification
+  const triggerOtpDispatch = async (
+    targetEmail: string,
+    targetName: string,
     provider: OAuthProvider = selectedProvider,
   ) => {
     setAuthError("");
     setSendingEmail(true);
-    const cleanEmail = accountEmail.trim().toLowerCase();
+    const cleanEmail = targetEmail.trim().toLowerCase();
     setEmail(cleanEmail);
-    setName(accountName.trim());
+    setName(targetName.trim());
     setSelectedProvider(provider);
-
-    try {
-      const result = await sendEmailOtp(cleanEmail, "signup", "email");
-      setSendingEmail(false);
-      if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
-      if (result.devCode) {
-        setDispatchOtp(result.devCode);
-      } else {
-        setDispatchOtp("");
-      }
-      setStep("otp");
-      setResendTimer(60);
-      setExpireTimer(300);
-      setOtpDigits(["", "", "", "", "", ""]);
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
-    } catch {
-      setSendingEmail(false);
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setDispatchOtp(code);
-      setStep("otp");
-      setResendTimer(60);
-      setExpireTimer(300);
-      setOtpDigits(["", "", "", "", "", ""]);
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
-    }
-  };
-
-  const handleCustomOAuthAccountSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customOAuthEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customOAuthEmail.trim())) {
-      setAuthError("Please enter a valid Gmail / email address.");
-      return;
-    }
-    const derivedName = customOAuthName.trim() || customOAuthEmail.split("@")[0];
-    handleSelectOAuthAccount(customOAuthEmail.trim(), derivedName, selectedProvider);
-  };
-
-  const handleEmailContinue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isEmailValid) return;
-    setSelectedProvider("Email");
-    setSendingEmail(true);
-    setOtpError("");
-    setAuthError("");
 
     try {
       const result =
         authMode === "signin" && deliveryChannel === "email" && !phone.trim()
-          ? await sendEmailOtp(email.trim())
-          : await sendEmailOtp(email.trim(), authMode, deliveryChannel, phone.trim());
+          ? await sendEmailOtp(cleanEmail)
+          : targetName.trim()
+            ? await sendEmailOtp(
+                cleanEmail,
+                authMode,
+                deliveryChannel,
+                phone.trim(),
+                targetName.trim(),
+              )
+            : await sendEmailOtp(cleanEmail, authMode, deliveryChannel, phone.trim());
       setSendingEmail(false);
-      if (!result.success) {
-        setAuthError(result.error || "Failed to send verification code.");
+
+      if (result.needsSmtpSetup) {
+        setShowSmtpModal(true);
+        setSmtpStatus({
+          type: "error",
+          message:
+            "Gmail SMTP Setup Required: Please enter your Sender Gmail & 16-character Google App Password once so AgroSpace can send real verification codes to user inboxes.",
+        });
         return;
       }
+
+      if (!result.success) {
+        setAuthError(result.error || "Failed to dispatch verification email via Gmail SMTP.");
+        return;
+      }
+
       if (result.previewUrl) setInboxPreviewUrl(result.previewUrl);
       if (result.devCode) {
         setDispatchOtp(result.devCode);
@@ -638,8 +641,33 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     } catch (err: unknown) {
       setSendingEmail(false);
       const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(`Error sending verification code: ${msg}`);
+      setAuthError(`Dispatch error: ${msg}`);
     }
+  };
+
+  const handleSelectOAuthAccount = async (
+    accountEmail: string,
+    accountName: string,
+    provider: OAuthProvider = selectedProvider,
+  ) => {
+    await triggerOtpDispatch(accountEmail, accountName, provider);
+  };
+
+  const handleCustomOAuthAccountSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customOAuthEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customOAuthEmail.trim())) {
+      setAuthError("Please enter a valid Gmail / email address.");
+      return;
+    }
+    const derivedName = customOAuthName.trim() || customOAuthEmail.split("@")[0];
+    triggerOtpDispatch(customOAuthEmail.trim(), derivedName, selectedProvider);
+  };
+
+  const handleEmailContinue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEmailValid) return;
+    setSelectedProvider("Email");
+    await triggerOtpDispatch(email.trim(), name.trim(), "Email");
   };
 
   const handleResendOtp = async () => {
@@ -648,10 +676,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setSendingEmail(true);
 
     try {
-      const result =
-        authMode === "signin" && deliveryChannel === "email" && !phone.trim()
-          ? await sendEmailOtp(email.trim())
-          : await sendEmailOtp(email.trim(), authMode, deliveryChannel, phone.trim());
+      const result = await sendEmailOtp(
+        email.trim(),
+        authMode,
+        deliveryChannel,
+        deliveryChannel === "sms" ? phone.trim() : undefined,
+        name.trim(),
+      );
       setSendingEmail(false);
       if (!result.success) {
         setOtpError(result.error || "Failed to resend verification code.");
@@ -673,6 +704,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       setOtpError(`Resend error: ${msg}`);
     }
   };
+
+
 
   const handleOtpChange = (index: number, value: string) => {
     const cleaned = value.replace(/\D/g, "");
@@ -974,7 +1007,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your Gmail or email address"
+                placeholder="Enter your Gmail or email address (e.g. name@gmail.com)"
                 className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
               />
 
@@ -1039,10 +1072,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             {/* Back button */}
             <button
               type="button"
-              onClick={() => {
-                setStep("entry");
-                setAuthError("");
-              }}
+              onClick={handleBackToEntry}
               className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white mb-4 cursor-pointer transition-colors"
             >
               ← Back to sign-in options
@@ -1086,11 +1116,55 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 )}
               </div>
               <h2 className="text-xl font-semibold text-white">Choose an account</h2>
-              <p className="mt-1 text-xs text-slate-400">to continue to AgroSpace Nexus</p>
+              <p className="mt-1 text-xs text-slate-400">
+                to continue to AgroSpace Nexus via {selectedProvider}
+              </p>
+            </div>
+
+            {/* Custom account input form - Prominent Real Email Entry */}
+            <form onSubmit={handleCustomOAuthAccountSubmit} className="space-y-2.5 mb-4">
+              <input
+                type="text"
+                value={customOAuthName}
+                onChange={(e) => setCustomOAuthName(e.target.value)}
+                placeholder="Full Name (optional, e.g. Commander Naren)"
+                className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
+              />
+              <input
+                type="email"
+                required
+                value={customOAuthEmail}
+                onChange={(e) => setCustomOAuthEmail(e.target.value)}
+                placeholder={
+                  selectedProvider === "Google"
+                    ? "Enter your Gmail address (e.g. name@gmail.com)"
+                    : `Enter your ${selectedProvider} email address`
+                }
+                className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-mono"
+              />
+              <button
+                type="submit"
+                disabled={sendingEmail || !customOAuthEmail.trim()}
+                className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.3)] transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
+              >
+                {sendingEmail
+                  ? "Sending Verification Code..."
+                  : `Send Verification Code to ${selectedProvider === "Google" ? "Gmail" : selectedProvider}`}
+              </button>
+            </form>
+
+            {/* Divider: Quick select demo profiles */}
+            <div className="relative my-3 text-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/10" />
+              </div>
+              <span className="relative bg-[#0B111E] px-3 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                Or select demo {selectedProvider} account
+              </span>
             </div>
 
             {/* Quick-select account cards */}
-            <div className="space-y-2 mb-4">
+            <div className="space-y-2 mb-2">
               {OAUTH_ACCOUNTS[selectedProvider].map((acc) => (
                 <button
                   key={acc.email}
@@ -1118,50 +1192,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 </button>
               ))}
             </div>
-
-            {/* Divider: Or use another account */}
-            <div className="relative my-3 text-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
-              </div>
-              <span className="relative bg-[#0B111E] px-3 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-                Or use another {selectedProvider === "Google" ? "Gmail" : "email"} account
-              </span>
-            </div>
-
-            {/* Custom account input form */}
-            <form onSubmit={handleCustomOAuthAccountSubmit} className="space-y-2.5">
-              <input
-                type="text"
-                value={customOAuthName}
-                onChange={(e) => setCustomOAuthName(e.target.value)}
-                placeholder="Full Name (e.g. Commander Naren)"
-                className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
-              />
-              <input
-                type="email"
-                required
-                value={customOAuthEmail}
-                onChange={(e) => setCustomOAuthEmail(e.target.value)}
-                placeholder={
-                  selectedProvider === "Google"
-                    ? "Enter your Gmail address (you@gmail.com)"
-                    : `Enter your ${selectedProvider} email address`
-                }
-                className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-mono"
-              />
-              <button
-                type="submit"
-                disabled={sendingEmail || !customOAuthEmail.trim()}
-                className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.3)] transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
-              >
-                {sendingEmail ? "Generating Code..." : `Continue with ${selectedProvider}`}
-              </button>
-            </form>
           </div>
         )}
 
-        {/* STEP 3: 6-DIGIT EMAIL OTP VERIFICATION SCREEN WITH INSTANT DISPATCH BANNER */}
+        {/* STEP 3: 6-DIGIT EMAIL OTP VERIFICATION SCREEN */}
         {step === "otp" && (
           <div className="animate-in fade-in zoom-in-95 duration-200">
             <div className="text-center mb-5">
@@ -1171,33 +1205,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 <span className="font-mono text-cyan-300 font-semibold">{email}</span>
               </p>
             </div>
-
-            {/* 📬 TIER 2: 1-CLICK OPEN DISPATCHED EMAIL IN BROWSER INBOX */}
-            {inboxPreviewUrl && (
-              <div className="mb-4">
-                <a
-                  href={inboxPreviewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-950/70 to-blue-950/70 hover:from-cyan-900/80 hover:to-blue-900/80 px-3.5 py-2.5 shadow-[0_0_20px_rgba(6,182,212,0.25)] text-xs text-cyan-200 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-base group-hover:scale-110 transition-transform">📬</span>
-                    <div className="text-left">
-                      <span className="font-semibold text-cyan-300 block">
-                        Open Dispatched Email in Browser Inbox
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        1-click live webmail view (view rendered HTML email &amp; code)
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-cyan-400 text-xs font-bold group-hover:translate-x-0.5 transition-transform">
-                    Open ↗
-                  </span>
-                </a>
-              </div>
-            )}
 
             {/* Security telemetry & 5-minute countdown indicator */}
             <div className="mb-5 flex items-center justify-between rounded-xl border border-cyan-500/20 bg-cyan-950/30 px-3.5 py-2.5 text-xs">
@@ -1262,10 +1269,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             <div className="mt-5 flex items-center justify-between text-xs text-slate-400">
               <button
                 type="button"
-                onClick={() => {
-                  setStep("entry");
-                  setOtpError("");
-                }}
+                onClick={handleBackToEntry}
                 className="hover:text-white cursor-pointer"
               >
                 ← Change account
@@ -1299,11 +1303,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               className={`h-2 w-2 rounded-full ${
                 isSmtpConfigured
                   ? "bg-emerald-400 shadow-[0_0_8px_#10b981]"
-                  : "bg-cyan-400 shadow-[0_0_8px_#22d3ee]"
+                  : "bg-amber-400 shadow-[0_0_8px_#f59e0b]"
               }`}
             />
             <span className="text-[11px] text-slate-300">
-              {isSmtpConfigured ? "Gmail SMTP: Active" : "Instant Webmail: Active"}
+              {isSmtpConfigured ? "Gmail SMTP: Active" : "Gmail SMTP: Setup Needed"}
             </span>
           </div>
           <button
@@ -1465,24 +1469,21 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
         type="button"
         aria-label="Operator Profile Quick Menu"
         onClick={() => setMenuOpen((prev) => !prev)}
-        className="flex items-center gap-2.5 rounded-full border border-cyan-500/30 bg-slate-950/80 py-1.5 pl-2 pr-3.5 text-left backdrop-blur-xl transition hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] cursor-pointer"
+        className="flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-slate-950/80 h-8 px-2 text-left backdrop-blur-xl transition hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] cursor-pointer shrink-0"
       >
         <div
-          className="relative flex h-8 w-8 items-center justify-center rounded-full font-mono text-xs font-bold text-slate-950 shadow-inner"
+          className="relative flex h-6 w-6 items-center justify-center rounded-full font-mono text-[10px] font-bold text-slate-950 shadow-inner shrink-0"
           style={{ backgroundColor: user.avatarColor || "#06B6D4" }}
         >
           {initials}
-          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-slate-950 bg-emerald-400" />
+          <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border-2 border-slate-950 bg-emerald-400" />
         </div>
-        <div className="hidden sm:block">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-white">{user.name}</span>
-            <span className="rounded bg-cyan-500/20 px-1.5 py-0.2 text-[9px] font-mono uppercase text-cyan-300">
+        <div className="hidden 2xl:block max-w-[100px] truncate">
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-semibold text-white truncate">{user.name}</span>
+            <span className="rounded bg-cyan-500/20 px-1 py-0.2 text-[8px] font-mono uppercase text-cyan-300 shrink-0">
               {user.provider}
             </span>
-          </div>
-          <div className="text-[10px] font-mono text-slate-400 truncate max-w-[140px]">
-            {user.email}
           </div>
         </div>
       </button>

@@ -3,33 +3,71 @@ import fs from "node:fs";
 import path from "node:path";
 import nodemailer from "nodemailer";
 
+const CONFIG_FILE = path.resolve(process.cwd(), ".smtp-config.json");
+const ENV_FILE = path.resolve(process.cwd(), ".env");
+
 let cachedSmtp: { user?: string; pass?: string } = {
   user: process.env.GMAIL_USER,
   pass: process.env.GMAIL_APP_PASSWORD,
 };
 
-let cachedEtherealTransporter: any = null;
-
-async function getEtherealTransporter() {
-  if (cachedEtherealTransporter) return cachedEtherealTransporter;
-  try {
-    const account = await nodemailer.createTestAccount();
-    console.info(`[Ethereal Webmail] Initialized ephemeral test account: ${account.user}`);
-    cachedEtherealTransporter = nodemailer.createTransport({
-      host: account.smtp.host,
-      port: account.smtp.port,
-      secure: account.smtp.secure,
-      auth: {
-        user: account.user,
-        pass: account.pass,
-      },
-    });
-    return cachedEtherealTransporter;
-  } catch (err) {
-    console.warn("[Ethereal Account Notice]", err);
-    return null;
+function getStoredSmtp(): { user?: string; pass?: string } {
+  if (cachedSmtp.user && cachedSmtp.pass) {
+    return cachedSmtp;
   }
+
+  // 1. Check .smtp-config.json
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const data = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
+      if (data?.gmailUser && data?.gmailAppPassword) {
+        cachedSmtp = {
+          user: String(data.gmailUser).trim().toLowerCase(),
+          pass: String(data.gmailAppPassword).trim().replace(/\s+/g, ""),
+        };
+        process.env.GMAIL_USER = cachedSmtp.user;
+        process.env.GMAIL_APP_PASSWORD = cachedSmtp.pass;
+        return cachedSmtp;
+      }
+    }
+  } catch (err) {
+    console.warn("[SMTP Config Load Warning]", err);
+  }
+
+  // 2. Check process.env
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    cachedSmtp = {
+      user: process.env.GMAIL_USER.trim().toLowerCase(),
+      pass: process.env.GMAIL_APP_PASSWORD.trim().replace(/\s+/g, ""),
+    };
+    return cachedSmtp;
+  }
+
+  // 3. Check .env directly
+  try {
+    if (fs.existsSync(ENV_FILE)) {
+      const envText = fs.readFileSync(ENV_FILE, "utf-8");
+      const userMatch = envText.match(/^GMAIL_USER=(.*)$/m);
+      const passMatch = envText.match(/^GMAIL_APP_PASSWORD=(.*)$/m);
+      if (userMatch && passMatch && userMatch[1].trim() && passMatch[1].trim()) {
+        cachedSmtp = {
+          user: userMatch[1].trim().toLowerCase(),
+          pass: passMatch[1].trim().replace(/\s+/g, ""),
+        };
+        process.env.GMAIL_USER = cachedSmtp.user;
+        process.env.GMAIL_APP_PASSWORD = cachedSmtp.pass;
+        return cachedSmtp;
+      }
+    }
+  } catch (err) {
+    console.warn("[.env Parse Warning]", err);
+  }
+
+  return cachedSmtp;
 }
+
+// Initial sync
+getStoredSmtp();
 
 function parseJsonBody(req: any): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -173,14 +211,10 @@ export function gmailOtpPlugin(): Plugin {
             const cleanEmail = String(email).trim().toLowerCase();
             const cleanOtp = String(otp).trim().replace(/\D/g, "");
 
-            let delivered = false;
-            let deliveryMethod = "ethereal_inbox";
-            let previewUrl: string | false = false;
-            let messageId = "";
-
+            const smtp = getStoredSmtp();
             const user = (
               gmailUser ||
-              cachedSmtp.user ||
+              smtp.user ||
               process.env.GMAIL_USER ||
               ""
             )
@@ -188,101 +222,82 @@ export function gmailOtpPlugin(): Plugin {
               .toLowerCase();
             const pass = (
               gmailAppPassword ||
-              cachedSmtp.pass ||
+              smtp.pass ||
               process.env.GMAIL_APP_PASSWORD ||
               ""
             ).replace(/\s+/g, "");
 
-            // TIER 1: Dedicated Gmail SMTP SSL (Port 465) if configured
-            if (user && pass) {
-              try {
-                const transporter = nodemailer.createTransport({
-                  host: "smtp.gmail.com",
-                  port: 465,
-                  secure: true,
-                  auth: { user, pass },
-                  connectionTimeout: 8000,
-                });
-
-                const info = await transporter.sendMail({
-                  from: `"AgroSpace Nexus Mission Control" <${user}>`,
-                  to: cleanEmail,
-                  subject: `AgroSpace Nexus — Your 6-Digit Security Verification Code: ${cleanOtp}`,
-                  text: `AgroSpace Nexus Verification Code: ${cleanOtp}\n\nHello ${name || "Mission Commander"},\n\nYour 6-digit security verification code is: ${cleanOtp}\nThis code is valid for 3 minutes.\n\nAgroSpace Nexus Planetary Observatory`,
-                  html: generateNasaOtpHtml(cleanOtp, name || cleanEmail.split("@")[0]),
-                });
-
-                console.info(
-                  `[Gmail SMTP] Verification code successfully sent to ${cleanEmail} via ${user} (Message ID: ${info.messageId})`,
-                );
-                delivered = true;
-                deliveryMethod = "gmail_smtp";
-                messageId = info.messageId;
-              } catch (gmailErr: any) {
-                console.warn(
-                  `[Gmail SMTP Warning] Failed or blocked (${gmailErr?.message}). Falling back to instant Ethereal Webmail...`,
-                );
-              }
-            }
-
-            // TIER 2: Instant Ethereal Webmail (Works 100% out-of-the-box, no credentials needed)
-            if (!delivered) {
-              try {
-                const ethereal = await getEtherealTransporter();
-                if (ethereal) {
-                  const info = await ethereal.sendMail({
-                    from: '"AgroSpace Nexus Mission Control" <onboarding@agrospace.nasa.gov>',
-                    to: cleanEmail,
-                    subject: `AgroSpace Nexus — Your 6-Digit Security Verification Code: ${cleanOtp}`,
-                    text: `AgroSpace Nexus Security Verification Code: ${cleanOtp}\n\nHello ${name || "Mission Commander"},\nYour verification code is: ${cleanOtp}\nValid for 3 minutes.\n\nAgroSpace Nexus Planetary Observatory`,
-                    html: generateNasaOtpHtml(cleanOtp, name || cleanEmail.split("@")[0]),
-                  });
-
-                  previewUrl = nodemailer.getTestMessageUrl(info);
-                  delivered = true;
-                  deliveryMethod = "ethereal_inbox";
-                  messageId = info.messageId;
-                  console.info(
-                    `[Ethereal Webmail] Dispatched email to ${cleanEmail}. Preview URL: ${previewUrl}`,
-                  );
-                }
-              } catch (etherealErr: any) {
-                console.warn("[Ethereal Dispatch Exception]", etherealErr);
-              }
-            }
-
-            // TIER 3: Console Fallback if completely offline
-            if (!delivered) {
-              deliveryMethod = "console";
-              console.info(
-                `[AgroSpace Offline Dispatch] Verification code for ${cleanEmail}: ${cleanOtp}`,
+            // If credentials are NOT configured yet, tell client to open SMTP setup modal
+            if (!user || !pass) {
+              res.statusCode = 400;
+              res.end(
+                JSON.stringify({
+                  ok: false,
+                  success: false,
+                  needsSmtpSetup: true,
+                  error:
+                    "Gmail SMTP sender not configured. Please enter your Sender Gmail address and 16-character Google App Password once.",
+                }),
               );
+              return;
             }
 
-            res.statusCode = 200;
-            res.end(
-              JSON.stringify({
-                ok: true,
-                success: true,
-                delivered: true,
-                recipient: cleanEmail,
-                deliveryMethod,
-                previewUrl: previewUrl || undefined,
-                messageId,
-                timestamp: new Date().toISOString(),
-              }),
-            );
-            return;
+            // Real Gmail SMTP Delivery via smtp.gmail.com:465 SSL
+            try {
+              const transporter = nodemailer.createTransport({
+                host: "smtp.gmail.com",
+                port: 465,
+                secure: true,
+                auth: { user, pass },
+                connectionTimeout: 10000,
+              });
+
+              const info = await transporter.sendMail({
+                from: `"AgroSpace Nexus Mission Control" <${user}>`,
+                to: cleanEmail,
+                subject: `AgroSpace Nexus — Your 6-Digit Security Verification Code: ${cleanOtp}`,
+                text: `AgroSpace Nexus Verification Code: ${cleanOtp}\n\nHello ${name || "Mission Commander"},\n\nYour 6-digit security verification code is: ${cleanOtp}\nThis code is valid for 5 minutes.\n\nAgroSpace Nexus Planetary Observatory`,
+                html: generateNasaOtpHtml(cleanOtp, name || cleanEmail.split("@")[0]),
+              });
+
+              console.info(
+                `[Gmail SMTP] Verification code successfully sent to ${cleanEmail} via ${user} (Message ID: ${info.messageId})`,
+              );
+
+              res.statusCode = 200;
+              res.end(
+                JSON.stringify({
+                  ok: true,
+                  success: true,
+                  delivered: true,
+                  recipient: cleanEmail,
+                  deliveryMethod: "gmail_smtp",
+                  messageId: info.messageId,
+                  timestamp: new Date().toISOString(),
+                }),
+              );
+              return;
+            } catch (gmailErr: any) {
+              console.error(`[Gmail SMTP Error] Failed to send email to ${cleanEmail}:`, gmailErr);
+              res.statusCode = 500;
+              res.end(
+                JSON.stringify({
+                  ok: false,
+                  success: false,
+                  delivered: false,
+                  error: `Google SMTP Error: ${gmailErr?.message || "Failed to deliver email through smtp.gmail.com:465"}`,
+                }),
+              );
+              return;
+            }
           } catch (err: any) {
             console.error("[OTP Dispatch Error]", err);
-            res.statusCode = 200;
+            res.statusCode = 500;
             res.end(
               JSON.stringify({
-                ok: true,
-                success: true,
-                delivered: false,
-                deliveryMethod: "console",
-                error: err?.message,
+                ok: false,
+                success: false,
+                error: err?.message || "Internal server error dispatching OTP",
               }),
             );
             return;
@@ -318,7 +333,7 @@ export function gmailOtpPlugin(): Plugin {
               port: 465,
               secure: true,
               auth: { user: cleanUser, pass: cleanPass },
-              connectionTimeout: 8000,
+              connectionTimeout: 10000,
             });
 
             await transporter.verify();
@@ -328,10 +343,20 @@ export function gmailOtpPlugin(): Plugin {
             process.env.GMAIL_USER = cleanUser;
             process.env.GMAIL_APP_PASSWORD = cleanPass;
 
+            // Persist to .smtp-config.json
+            try {
+              fs.writeFileSync(
+                CONFIG_FILE,
+                JSON.stringify({ gmailUser: cleanUser, gmailAppPassword: cleanPass }, null, 2),
+                "utf-8",
+              );
+            } catch (jsonErr) {
+              console.warn("[Save .smtp-config.json Warning]", jsonErr);
+            }
+
             // Also persist to .env
             try {
-              const envPath = path.resolve(process.cwd(), ".env");
-              let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf-8") : "";
+              let envContent = fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, "utf-8") : "";
               if (/^GMAIL_USER=/m.test(envContent)) {
                 envContent = envContent.replace(/^GMAIL_USER=.*$/m, `GMAIL_USER=${cleanUser}`);
               } else {
@@ -345,7 +370,7 @@ export function gmailOtpPlugin(): Plugin {
               } else {
                 envContent += `\nGMAIL_APP_PASSWORD=${cleanPass}`;
               }
-              fs.writeFileSync(envPath, envContent.trim() + "\n", "utf-8");
+              fs.writeFileSync(ENV_FILE, envContent.trim() + "\n", "utf-8");
             } catch (fsErr) {
               console.warn("[Save .env Warning]", fsErr);
             }
@@ -381,8 +406,9 @@ export function gmailOtpPlugin(): Plugin {
           res.setHeader("Content-Type", "application/json");
           res.setHeader("Access-Control-Allow-Origin", "*");
 
-          const user = cachedSmtp.user || process.env.GMAIL_USER || "";
-          const hasPass = Boolean(cachedSmtp.pass || process.env.GMAIL_APP_PASSWORD);
+          const smtp = getStoredSmtp();
+          const user = smtp.user || process.env.GMAIL_USER || "";
+          const hasPass = Boolean(smtp.pass || process.env.GMAIL_APP_PASSWORD);
 
           res.statusCode = 200;
           res.end(

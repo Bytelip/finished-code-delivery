@@ -6,13 +6,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       className="toaster group"
+      position="bottom-right"
+      closeButton
+      duration={2500}
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+            "group toast group-[.toaster]:bg-[#0B1324]/95 group-[.toaster]:backdrop-blur-2xl group-[.toaster]:text-cyan-50 group-[.toaster]:border group-[.toaster]:border-cyan-500/30 group-[.toaster]:rounded-2xl group-[.toaster]:shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(6,182,212,0.25)] font-mono text-xs",
+          description: "group-[.toast]:text-slate-300 text-[11px] font-sans",
+          actionButton: "group-[.toast]:bg-cyan-500 group-[.toast]:text-slate-950 font-semibold",
+          cancelButton: "group-[.toast]:bg-slate-800 group-[.toast]:text-slate-300",
+          closeButton: "group-[.toast]:bg-white/10 group-[.toast]:text-white group-[.toast]:border group-[.toast]:border-white/20 group-[.toast]:hover:bg-white/20",
         },
       }}
       {...props}

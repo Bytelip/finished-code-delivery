@@ -920,30 +920,10 @@ export async function sendEmailOtp(
         cleanEmail,
       );
 
-      // Trigger OS / Browser Push Notification
-      if (typeof window !== "undefined" && "Notification" in window) {
-        const triggerNotification = () => {
-          try {
-            new Notification("📬 New Mail — AgroSpace Nexus Security", {
-              body: `Your verification code is ${secureOtp}. Valid for 3 minutes.`,
-              icon: "/favicon.ico",
-            });
-          } catch {}
-        };
-
-        if (Notification.permission === "granted") {
-          triggerNotification();
-        } else if (Notification.permission !== "denied") {
-          Notification.requestPermission().then((perm) => {
-            if (perm === "granted") triggerNotification();
-          });
-        }
-      }
-
-      // Log formatted email payload in DevTools Console (F12) as backup
+      // Log formatted email audit payload in DevTools Console (F12) as secure audit
       if (typeof console !== "undefined") {
         console.info(
-          `%c📬 [AgroSpace Security Mail] Verification code for ${cleanEmail}: ${secureOtp}`,
+          `%c📬 [AgroSpace Security Dispatch] Verification code dispatched to ${cleanEmail}`,
           "color: #22d3ee; font-weight: bold; background: #070b13; padding: 6px 12px; border-radius: 8px; font-size: 13px; border: 1px solid #06b6d4;",
         );
       }
@@ -951,9 +931,21 @@ export async function sendEmailOtp(
       return {
         success: true,
         isConfigured: true,
-        previewUrl: data.previewUrl || undefined,
-        deliveryMethod: data.deliveryMethod || "ethereal_inbox",
+        deliveryMethod: data.deliveryMethod || "gmail_smtp",
         devCode: secureOtp,
+      };
+    } else if (data?.needsSmtpSetup) {
+      console.warn("[Vite Gmail SMTP Needs Setup]", data);
+      return {
+        success: false,
+        needsSmtpSetup: true,
+        error: data.error || "Gmail SMTP sender not configured.",
+      };
+    } else if (data?.error) {
+      console.warn("[Vite Gmail SMTP Error]", res.status, data);
+      return {
+        success: false,
+        error: data.error,
       };
     } else {
       console.warn("[Vite Gmail SMTP Dispatch Notice]", res.status, data);
@@ -1350,6 +1342,7 @@ export async function processIncomingAuthCallback(): Promise<UserProfile | null>
     }
   }
 
+  // No incoming OAuth callback tokens detected
   return null;
 }
 

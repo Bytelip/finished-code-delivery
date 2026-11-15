@@ -42,10 +42,16 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
 
       toast.loading("Acquiring Live GPS & Satellite Lock...", {
         id: "auto-gps-lock",
-        duration: 4000,
+        duration: 2500,
       });
 
+      // Safety timer: strictly auto-dismiss toast after 2.5s so it never gets stuck
+      const safetyTimer = setTimeout(() => {
+        toast.dismiss("auto-gps-lock");
+      }, 2500);
+
       const handlePos = async (pos: GeolocationPosition) => {
+        clearTimeout(safetyTimer);
         const rawLat = pos.coords.latitude;
         const rawLon = pos.coords.longitude;
         const accuracy = Math.round(pos.coords.accuracy || 10);
@@ -58,7 +64,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
           // Reverse-geocode via OpenStreetMap Nominatim
           const nomUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${fixedLat}&lon=${fixedLon}&zoom=14&addressdetails=1`;
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const timeoutId = setTimeout(() => controller.abort(), 2000);
           const res = await fetch(nomUrl, {
             signal: controller.signal,
             headers: { Accept: "application/json" },
@@ -98,15 +104,21 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
         toast.success(`🛰️ GPS Target Lock: ${placeName}`, {
           id: "auto-gps-lock",
           description: `Live coordinates ${fixedLat}°N, ${fixedLon}°E (±${accuracy}m). Telemetry calibrated.`,
-          duration: 4000,
+          duration: 2500,
         });
+
+        setTimeout(() => {
+          toast.dismiss("auto-gps-lock");
+        }, 2500);
       };
 
       const handleErr = (err: GeolocationPositionError) => {
+        clearTimeout(safetyTimer);
         console.warn("Auto-GPS error:", err.message);
         toast.dismiss("auto-gps-lock");
         toast.info(`Welcome, ${userName}`, {
           description: "GPS permission not granted. Default farm target active. Click 'GPS' in navbar to retry.",
+          duration: 2500,
         });
       };
 

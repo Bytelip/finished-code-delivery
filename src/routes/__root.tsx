@@ -144,7 +144,8 @@ function RootComponent() {
         <LanguageProvider>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
-          <Toaster position="top-center" duration={1800} className="top-20 z-50" />
+          {/* Toaster positioned at bottom-right in dark obsidian glass */}
+          <Toaster position="bottom-right" duration={2500} className="bottom-20 right-5 z-50" />
         </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>

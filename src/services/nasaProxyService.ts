@@ -37,9 +37,9 @@ export async function fetchNasaProxy(
   soilMoisturePct = 40,
 ): Promise<NasaProxyResponse | null> {
   const supabaseUrl =
-    (typeof process !== "undefined" && process.env?.VITE_SUPABASE_URL) ||
+    (typeof process !== "undefined" && process.env?.["VITE_SUPABASE_URL"]) ||
     (typeof import.meta !== "undefined" &&
-      (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_URL);
+      (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_URL"]);
 
   if (!supabaseUrl) {
     // If Supabase is not deployed or configured locally, return the keyless fallback directly
