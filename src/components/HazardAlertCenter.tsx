@@ -651,20 +651,24 @@ export function FarmerAdvisoryModal({
   const borewellFlow = telemetry?.crop?.borewellYieldLph ?? 3400;
   const healthScore = telemetry?.plantHealth?.overall ?? 78;
 
-  // Resolve Top 5 Climate-Resilient Recommended Crops from 600-Crop Atlas
-  const topCrops = useMemo(() => {
-    const resolved = resolveAgroZoneAndWorldRegion(
+  // Resolve Agro-Climatic Zone & World Region for this field
+  const zoneInfo = useMemo(() => {
+    return resolveAgroZoneAndWorldRegion(
       lat,
       lon,
       region,
       "India",
       telemetry?.meta?.elevationM || 500,
     );
+  }, [lat, lon, region, telemetry]);
+
+  // Resolve Top 5 Climate-Resilient Recommended Crops from 600-Crop Atlas
+  const topCrops = useMemo(() => {
     const evalContext = {
       lat,
       lon,
-      zoneCode: resolved.zoneCode,
-      worldRegion: resolved.worldRegion,
+      zoneCode: zoneInfo.zoneCode,
+      worldRegion: zoneInfo.worldRegion,
       soilMoisturePct: 25,
       esiRatio: 0.75,
       waterDeficitMm: deficit,
@@ -675,7 +679,7 @@ export function FarmerAdvisoryModal({
     return GLOBAL_CROP_ATLAS_600.map((c) => evaluateCrop600Suitability(c, evalContext))
       .sort((a, b) => b.adjustedScore - a.adjustedScore)
       .slice(0, 5);
-  }, [lat, lon, region, deficit, telemetry]);
+  }, [lat, lon, zoneInfo, deficit, telemetry]);
 
   const handlePrint = () => {
     window.print();
@@ -767,6 +771,9 @@ export function FarmerAdvisoryModal({
               <div className="hud-label text-[10px]">{t.hud.climateZone}</div>
               <div className="font-semibold text-sm">{region}</div>
               <div className="font-mono text-xs text-muted-foreground">{climateZone}</div>
+              <div className="font-mono text-[10px] text-primary mt-0.5">
+                Zone: {zoneInfo.zoneCode} · {zoneInfo.worldRegion}
+              </div>
             </div>
             <div>
               <div className="hud-label text-[10px]">{t.hud.recommendedCrop}</div>

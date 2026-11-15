@@ -21,6 +21,9 @@ async function generateStaticIndex() {
       return;
     }
 
+    // Escape any null-byte delimiters in the streamed hydration payload to keep files valid UTF-8 text
+    html = html.replace(/\0/g, "\\u0000");
+
     // Write to .output/public/index.html
     const outputPublicIndex = path.resolve(process.cwd(), ".output/public/index.html");
     await fs.writeFile(outputPublicIndex, html, "utf-8");

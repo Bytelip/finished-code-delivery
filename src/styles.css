@@ -1085,6 +1085,7 @@ html[data-theme="emerald-terra"] {
     color: #0f172a !important;
     border: none !important;
     box-shadow: none !important;
+    border-radius: 0 !important;
   }
 
   .printable-paper {
@@ -1097,6 +1098,30 @@ html[data-theme="emerald-terra"] {
     border-color: #cbd5e1 !important;
     text-shadow: none !important;
     box-shadow: none !important;
+  }
+
+  .printable-paper table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  .printable-paper th,
+  .printable-paper td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 4px 8px !important;
+  }
+
+  .printable-paper thead tr {
+    background: #f1f5f9 !important;
+  }
+
+  .printable-paper h2,
+  .printable-paper h3 {
+    page-break-after: avoid !important;
+  }
+
+  .printable-paper .rounded-lg {
+    page-break-inside: avoid !important;
   }
 
   .printable-paper [data-severity="critical"],

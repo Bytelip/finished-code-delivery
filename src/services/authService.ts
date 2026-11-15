@@ -1086,6 +1086,10 @@ export async function sendEmailOtp(
         deliveryMethod: data.deliveryMethod || "gmail_smtp",
         devCode: secureOtp,
       };
+    } else if (res.status === 404 || res.status === 405) {
+      console.info(
+        "[AgroSpace Nexus] Static hosting detected (/api/send-otp not found). Falling through to client-side dispatch pipeline.",
+      );
     } else if (data?.needsSmtpSetup) {
       console.warn("[Vite Gmail SMTP Needs Setup]", data);
       return {
