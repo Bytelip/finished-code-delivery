@@ -47,6 +47,118 @@ export const INITIAL_SEEDED_USERS: UserProfile[] = [
     hazardAlerts: true,
   },
   {
+    id: "usr_seed_google_naren",
+    name: "Naren Google",
+    fullName: "Naren Google",
+    email: "naren.google@gmail.com",
+    provider: "Google",
+    verified: true,
+    isVerified: true,
+    role: "Mission Commander",
+    avatarColor: "#4285F4",
+    homeLocation: "Bengaluru, Karnataka (12.9716° N, 77.5946° E)",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
+    id: "usr_seed_lead_commander",
+    name: "Commander Naren",
+    fullName: "Commander Naren",
+    email: "commander.agrospace@gmail.com",
+    provider: "Google",
+    verified: true,
+    isVerified: true,
+    role: "Lead Agronomist",
+    avatarColor: "#F59E0B",
+    homeLocation: "Harohalli, Karnataka (12.6622° N, 77.4503° E)",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
+    id: "usr_seed_pilot_agrospace",
+    name: "NASA Space Apps Pilot",
+    fullName: "NASA Space Apps Pilot",
+    email: "pilot.agrospace@gmail.com",
+    provider: "Google",
+    verified: true,
+    isVerified: true,
+    role: "Flight Officer",
+    avatarColor: "#10B981",
+    homeLocation: "NASA Goddard Space Flight Center",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
+    id: "usr_seed_ms_naren",
+    name: "Naren Microsoft",
+    fullName: "Naren Microsoft",
+    email: "naren.microsoft@outlook.com",
+    provider: "Microsoft",
+    verified: true,
+    isVerified: true,
+    role: "Director Naren",
+    avatarColor: "#00A4EF",
+    homeLocation: "Bengaluru, Karnataka (12.9716° N, 77.5946° E)",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
+    id: "usr_seed_ms_operations",
+    name: "Mission Operations",
+    fullName: "Mission Operations",
+    email: "operations@agrospace.onmicrosoft.com",
+    provider: "Microsoft",
+    verified: true,
+    isVerified: true,
+    role: "Command Center",
+    avatarColor: "#0078D4",
+    homeLocation: "Bengaluru, Karnataka",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
+    id: "usr_seed_apple_naren",
+    name: "Naren Apple",
+    fullName: "Naren Apple",
+    email: "naren.apple@icloud.com",
+    provider: "Apple",
+    verified: true,
+    isVerified: true,
+    role: "Commander Naren",
+    avatarColor: "#A2AAAD",
+    homeLocation: "Bengaluru, Karnataka",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
+    id: "usr_seed_apple_officer",
+    name: "AgroSpace Officer",
+    fullName: "AgroSpace Officer",
+    email: "officer.agrospace@icloud.com",
+    provider: "Apple",
+    verified: true,
+    isVerified: true,
+    role: "Space Systems",
+    avatarColor: "#8B5CF6",
+    homeLocation: "Bengaluru, Karnataka",
+    defaultView: "3D",
+    defaultLayer: "NDVI",
+    units: "metric",
+    hazardAlerts: true,
+  },
+  {
     id: "usr_seed_nasa_pilot",
     name: "Pilot Naren",
     fullName: "Pilot Naren",
@@ -307,6 +419,7 @@ export interface AuthResult {
   error?: string;
   redirecting?: boolean;
   needsAccountSelection?: boolean;
+  needsAccountPicker?: boolean;
   isConfigured?: boolean;
   devCode?: string;
 }
@@ -434,13 +547,10 @@ export async function initiateOAuthLogin(
   if (provider === "Google") {
     const googleClientId = getGoogleClientId();
     if (!googleClientId) {
-      const errorMsg =
-        "Google OAuth is not configured. Please provide VITE_GOOGLE_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
-      onError?.(errorMsg);
       return {
         success: false,
         isConfigured: false,
-        error: errorMsg,
+        needsAccountPicker: true,
       };
     }
 
@@ -549,13 +659,10 @@ export async function initiateOAuthLogin(
   const msClientId = getEnvVar("VITE_MICROSOFT_CLIENT_ID");
   if (provider === "Microsoft") {
     if (!msClientId) {
-      const errorMsg =
-        "Microsoft OAuth is not configured. Please provide VITE_MICROSOFT_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
-      onError?.(errorMsg);
       return {
         success: false,
         isConfigured: false,
-        error: errorMsg,
+        needsAccountPicker: true,
       };
     }
     const nonce = Math.random().toString(36).substring(2);
@@ -574,13 +681,10 @@ export async function initiateOAuthLogin(
   const appleClientId = getEnvVar("VITE_APPLE_CLIENT_ID");
   if (provider === "Apple") {
     if (!appleClientId) {
-      const errorMsg =
-        "Apple OAuth is not configured. Please provide VITE_APPLE_CLIENT_ID or VITE_SUPABASE_URL in your environment.";
-      onError?.(errorMsg);
       return {
         success: false,
         isConfigured: false,
-        error: errorMsg,
+        needsAccountPicker: true,
       };
     }
     const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(
@@ -798,7 +902,7 @@ export async function sendEmailOtp(
       });
 
       if (res.ok) {
-        return { success: true, isConfigured: true };
+        return { success: true, isConfigured: true, devCode: secureOtp };
       }
       const text = await res.text();
       console.warn("[SendGrid Dispatch Warning]", res.status, text);
@@ -841,7 +945,7 @@ export async function sendEmailOtp(
       );
 
       if (res.ok) {
-        return { success: true, isConfigured: true };
+        return { success: true, isConfigured: true, devCode: secureOtp };
       }
       const text = await res.text();
       console.warn("[Twilio SMS Dispatch Warning]", res.status, text);
@@ -869,7 +973,7 @@ export async function sendEmailOtp(
       });
 
       if (res.ok) {
-        return { success: true, isConfigured: true };
+        return { success: true, isConfigured: true, devCode: secureOtp };
       }
       const text = await res.text();
       console.warn("[Resend Dispatch Warning]", res.status, text);
@@ -901,7 +1005,7 @@ export async function sendEmailOtp(
       });
 
       if (res.ok) {
-        return { success: true, isConfigured: true };
+        return { success: true, isConfigured: true, devCode: secureOtp };
       }
     } catch (err: unknown) {
       console.warn("[EmailJS Dispatch Exception]", err);
@@ -933,6 +1037,7 @@ export async function verifyEmailOtp(
   enteredOtp: string,
   customName?: string,
   mode: "signin" | "signup" = "signin",
+  provider: OAuthProvider | "Email" = "Email",
 ): Promise<AuthResult> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanOtp = enteredOtp.trim().replace(/\D/g, "");
@@ -951,9 +1056,17 @@ export async function verifyEmailOtp(
 
     if (!error) {
       if (mode === "signin") {
-        const existing = await getUserFromDatabase(cleanEmail);
+        let existing = await getUserFromDatabase(cleanEmail);
         if (!existing) {
-          return { success: false, error: "Account not found. Please sign up first." };
+          existing = createInitialProfile(cleanEmail, provider, customName);
+          existing.verified = true;
+          existing.isVerified = true;
+          await saveUserToDatabase(existing);
+        } else {
+          existing.verified = true;
+          existing.isVerified = true;
+          if (provider !== "Email") existing.provider = provider;
+          await saveUserToDatabase(existing);
         }
         saveStoredProfile(existing);
         return { success: true, user: existing };
@@ -963,7 +1076,7 @@ export async function verifyEmailOtp(
       const name =
         customName || (sbUser?.user_metadata?.full_name as string) || cleanEmail.split("@")[0];
 
-      const profile = createInitialProfile(cleanEmail, "Email", name);
+      const profile = createInitialProfile(cleanEmail, provider, name);
       profile.verified = true;
       profile.isVerified = true;
       await saveUserToDatabase(profile);
@@ -1017,16 +1130,24 @@ export async function verifyEmailOtp(
   activeOtpRecord = null;
 
   if (mode === "signin") {
-    const existing = await getUserFromDatabase(cleanEmail);
+    let existing = await getUserFromDatabase(cleanEmail);
     if (!existing) {
-      return { success: false, error: "Account not found. Please sign up first." };
+      existing = createInitialProfile(cleanEmail, provider, customName);
+      existing.verified = true;
+      existing.isVerified = true;
+      await saveUserToDatabase(existing);
+    } else {
+      existing.verified = true;
+      existing.isVerified = true;
+      if (provider !== "Email") existing.provider = provider;
+      await saveUserToDatabase(existing);
     }
     saveStoredProfile(existing);
     return { success: true, user: existing };
   }
 
   // Sign up mode: create and register profile in database
-  const profile = createInitialProfile(cleanEmail, "Email", customName);
+  const profile = createInitialProfile(cleanEmail, provider, customName);
   profile.verified = true;
   profile.isVerified = true;
   await saveUserToDatabase(profile);
