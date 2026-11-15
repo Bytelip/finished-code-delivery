@@ -5,27 +5,15 @@
     <title>AgroSpace Nexus</title>
     <script>
       // Single Page Application redirect script for GitHub Pages / Static Hosting
-      // Preserves path and query strings across page reloads
-      var pathSegmentsToKeep = 0;
+      // Automatically detects whether hosted on custom domain (GoDaddy) or github.io subpath
+      var segmentCount = window.location.hostname.endsWith('github.io') ? 1 : 0;
       var l = window.location;
+      var basePath = segmentCount > 0 ? '/' + l.pathname.split('/')[1] : '';
+      var path = l.pathname.slice(1).split('/').slice(segmentCount).join('/');
       l.replace(
-        l.protocol +
-          "//" +
-          l.hostname +
-          (l.port ? ":" + l.port : "") +
-          l.pathname
-            .split("/")
-            .slice(0, 1 + pathSegmentsToKeep)
-            .join("/") +
-          "/?p=/" +
-          l.pathname
-            .slice(1)
-            .split("/")
-            .slice(pathSegmentsToKeep)
-            .join("/")
-            .replace(/&/g, "~and~") +
-          (l.search ? "&q=" + l.search.slice(1).replace(/&/g, "~and~") : "") +
-          l.hash
+        l.protocol + '//' + l.host + basePath + '/?p=/' + path +
+        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
       );
     </script>
   </head>
