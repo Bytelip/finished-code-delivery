@@ -90,71 +90,49 @@ export default async function handler(req, res) {
   const user = (gmailUser || process.env.GMAIL_USER || "").trim().toLowerCase();
   const pass = (gmailAppPassword || process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
 
-  let delivered = false;
-  let deliveryMethod = "ethereal_inbox";
-  let previewUrl = null;
-  let messageId = "";
-
-  if (user && pass) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-        auth: { user, pass },
-        connectionTimeout: 8000,
-      });
-
-      const info = await transporter.sendMail({
-        from: `"AgroSpace Nexus Mission Control" <${user}>`,
-        to: cleanEmail,
-        subject: `AgroSpace Nexus — Your 6-Digit Security Verification Code: ${cleanOtp}`,
-        text: `AgroSpace Nexus Verification Code: ${cleanOtp}\n\nHello ${name || "Mission Commander"},\nYour 6-digit security verification code is: ${cleanOtp}\nThis code expires in 3 minutes.\n\nAgroSpace Nexus Planetary Observatory`,
-        html: generateNasaOtpHtml(cleanOtp, name || cleanEmail.split("@")[0]),
-      });
-
-      delivered = true;
-      deliveryMethod = "gmail_smtp";
-      messageId = info.messageId;
-    } catch (err) {
-      console.warn("[Gmail Serverless Warning]", err?.message);
-    }
+  if (!user || !pass) {
+    return res.status(400).json({
+      ok: false,
+      success: false,
+      needsSmtpSetup: true,
+      error:
+        "Gmail SMTP sender not configured. Please enter your Sender Gmail address and 16-character Google App Password once in the settings modal.",
+    });
   }
 
-  if (!delivered) {
-    try {
-      const testAccount = await nodemailer.createTestAccount();
-      const etherealTransporter = nodemailer.createTransport({
-        host: testAccount.smtp.host,
-        port: testAccount.smtp.port,
-        secure: testAccount.smtp.secure,
-        auth: { user: testAccount.user, pass: testAccount.pass },
-      });
+  try {
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user, pass },
+      connectionTimeout: 10000,
+    });
 
-      const info = await etherealTransporter.sendMail({
-        from: '"AgroSpace Nexus Mission Control" <onboarding@agrospace.nasa.gov>',
-        to: cleanEmail,
-        subject: `AgroSpace Nexus — Your 6-Digit Security Verification Code: ${cleanOtp}`,
-        text: `AgroSpace Nexus Verification Code: ${cleanOtp}\n\nHello ${name || "Mission Commander"},\nYour 6-digit security verification code is: ${cleanOtp}\nThis code expires in 3 minutes.\n\nAgroSpace Nexus Planetary Observatory`,
-        html: generateNasaOtpHtml(cleanOtp, name || cleanEmail.split("@")[0]),
-      });
+    const info = await transporter.sendMail({
+      from: `"AgroSpace Nexus Mission Control" <${user}>`,
+      to: cleanEmail,
+      subject: `AgroSpace Nexus — Your 6-Digit Security Verification Code: ${cleanOtp}`,
+      text: `AgroSpace Nexus Verification Code: ${cleanOtp}\n\nHello ${name || "Mission Commander"},\n\nYour 6-digit security verification code is: ${cleanOtp}\nThis code expires in 5 minutes.\n\nAgroSpace Nexus Planetary Observatory`,
+      html: generateNasaOtpHtml(cleanOtp, name || cleanEmail.split("@")[0]),
+    });
 
-      previewUrl = nodemailer.getTestMessageUrl(info);
-      delivered = true;
-      deliveryMethod = "ethereal_inbox";
-      messageId = info.messageId;
-    } catch (e) {
-      console.warn("[Ethereal Serverless Warning]", e?.message);
-    }
+    return res.status(200).json({
+      ok: true,
+      success: true,
+      delivered: true,
+      recipient: cleanEmail,
+      deliveryMethod: "gmail_smtp",
+      messageId: info.messageId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[Gmail Serverless Error]", err);
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      delivered: false,
+      error: `Google SMTP Error: ${err?.message || "Failed to deliver email through smtp.gmail.com:465"}`,
+    });
   }
-
-  return res.status(200).json({
-    ok: true,
-    success: true,
-    delivered,
-    recipient: cleanEmail,
-    deliveryMethod,
-    previewUrl: previewUrl || undefined,
-    messageId,
-  });
 }

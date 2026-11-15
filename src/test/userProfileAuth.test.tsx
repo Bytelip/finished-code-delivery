@@ -179,11 +179,8 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText("831942")).toBeNull();
     expect(screen.queryByText(/Auto-Fill/i)).toBeNull();
 
-    // 📬 TIER 2: 1-Click Open Dispatched Email in Browser Inbox button must be displayed
-    const inboxLink = screen.getByText(/Open Dispatched Email in Browser Inbox/i);
-    expect(inboxLink).toBeDefined();
-    const anchor = inboxLink.closest("a");
-    expect(anchor?.getAttribute("href")).toBe("https://ethereal.email/message/Waqmg4ddsoo123");
+    // 🔒 SECURITY CHECK: Fake webmail link must NEVER be displayed in the UI/DOM
+    expect(screen.queryByText(/Open Dispatched Email in Browser Inbox/i)).toBeNull();
 
     // Verify presence of Security Verification and Expiration timer
     expect(screen.getByText(/Security Verification/i)).toBeDefined();
