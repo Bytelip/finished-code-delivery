@@ -119,6 +119,26 @@ describe("User Profile & Authentication System", () => {
     });
   });
 
+  it("displays setup notice when OAuth provider explicitly fails", async () => {
+    vi.spyOn(authService, "initiateOAuthLogin").mockResolvedValue({
+      success: false,
+      error:
+        "Google OAuth is not configured. Please provide VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY.",
+    });
+
+    render(<CosmicAuthPage />);
+
+    const googleBtn = screen.getByRole("button", { name: /Continue with Google/i });
+    fireEvent.click(googleBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Authentication Setup Notice/i)).toBeDefined();
+      expect(screen.getByText(/Google OAuth is not configured/i)).toBeDefined();
+    });
+
+    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+  });
+
   it("transitions to genuine 6-digit OTP screen ONLY on valid email entry with manual entry (no fake banner, no auto-fill)", async () => {
     const sendOtpSpy = vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
       success: true,
@@ -206,11 +226,7 @@ describe("User Profile & Authentication System", () => {
   });
 
   it("renders OperatorProfileDropdown with avatar, online indicator, and opens quick menu", () => {
-    const mockProfile = createInitialProfile(
-      "commander@agrospace.io",
-      "Email",
-      "Commander Naren",
-    );
+    const mockProfile = createInitialProfile("commander@agrospace.io", "Email", "Commander Naren");
     const onOpenSettings = vi.fn();
     const onSignOut = vi.fn();
     const onNavigateHome = vi.fn();

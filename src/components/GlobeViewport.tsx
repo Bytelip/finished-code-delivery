@@ -234,6 +234,23 @@ interface PlaceLabelEntry {
   text: string;
 }
 
+// Stage 1 Major Non-overlapping Countries & Oceans (Alt > 1.4)
+const STAGE1_MAJOR_COUNTRIES: PlaceLabelEntry[] = [
+  { id: "cnt-ind", lat: 22.5, lng: 79.5, text: "INDIA" },
+  { id: "cnt-usa", lat: 38.0, lng: -97.0, text: "UNITED STATES" },
+  { id: "cnt-can", lat: 56.0, lng: -106.0, text: "CANADA" },
+  { id: "cnt-bra", lat: -12.0, lng: -52.0, text: "BRAZIL" },
+  { id: "cnt-afr", lat: 4.0, lng: 21.0, text: "AFRICA" },
+  { id: "cnt-rus", lat: 60.0, lng: 100.0, text: "RUSSIA" },
+  { id: "cnt-aus", lat: -25.0, lng: 134.0, text: "AUSTRALIA" },
+];
+
+const STAGE1_MAJOR_OCEANS: PlaceLabelEntry[] = [
+  { id: "oc-ind", lat: -12.0, lng: 78.0, text: "INDIAN OCEAN" },
+  { id: "oc-atl", lat: 12.0, lng: -35.0, text: "ATLANTIC OCEAN" },
+  { id: "oc-pac", lat: 8.0, lng: 160.0, text: "PACIFIC OCEAN" },
+];
+
 const GLOBAL_COUNTRIES: PlaceLabelEntry[] = [
   { id: "cnt-ind", lat: 22.5, lng: 79.5, text: "INDIA" },
   { id: "cnt-aus", lat: -25.0, lng: 134.0, text: "AUSTRALIA" },
@@ -300,7 +317,7 @@ const ALL_CITIES_AND_TOWNS: PlaceLabelEntry[] = [
   { id: "tn-hsk", lat: 13.07, lng: 77.7981, text: "Hoskote" },
   { id: "tn-mlr", lat: 13.0044, lng: 77.9392, text: "Malur" },
   { id: "tn-bpt", lat: 12.9961, lng: 78.1994, text: "Bangarapet" },
-  { id: "tn-mbl", lat: 13.1633, lng: 78.3967, text: "Mulbagal" },
+  { id: "tn-mbl", lat: 13.1718, lng: 78.4416, text: "Mulabagilu" },
   { id: "tn-snp", lat: 13.3378, lng: 78.2167, text: "Srinivaspur" },
   { id: "tn-kgf", lat: 12.9583, lng: 78.2711, text: "KGF" },
   { id: "tn-dvh", lat: 13.2483, lng: 77.7128, text: "Devenahalli" },
@@ -325,37 +342,76 @@ interface GlobeHtmlMarkerItem {
   html: string;
 }
 
-function renderCountryHtml(text: string): string {
-  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;color:#F8FAFC;text-transform:uppercase;letter-spacing:0.18em;text-shadow:0 0 2px #020617, 0 1px 3px #020617, 0 0 6px #020617;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
+function renderCountryHtml(text: string, isLight = false): string {
+  const color = isLight ? "#0F172A" : "#F8FAFC";
+  const shadow = isLight
+    ? "text-shadow: 0 1px 3px #FFFFFF, 0 0 6px #FFFFFF, 0 0 10px rgba(255,255,255,0.95);"
+    : "text-shadow: 0 1px 4px #000000, 0 0 8px rgba(0,0,0,0.95);";
+  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.18em;${shadow}white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
 }
 
-function renderOceanHtml(text: string): string {
-  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-style:italic;font-weight:600;color:#94A3B8;text-transform:uppercase;letter-spacing:0.15em;text-shadow:0 0 2px #020617, 0 1px 3px #020617;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
+function renderOceanHtml(text: string, isLight = false): string {
+  const color = isLight ? "#0369A1" : "#94A3B8";
+  const shadow = isLight
+    ? "text-shadow: 0 1px 3px #FFFFFF, 0 0 6px rgba(255,255,255,0.95);"
+    : "text-shadow: 0 0 2px #020617, 0 1px 3px #020617;";
+  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-style:italic;font-weight:600;color:${color};text-transform:uppercase;letter-spacing:0.15em;${shadow}white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
 }
 
-function renderStateHtml(text: string): string {
+function renderStateHtml(text: string, isLight = false): string {
+  const dotBg = isLight ? "#0F172A" : "#94A3B8";
+  const dotBorder = isLight ? "border:0.75px solid #FFFFFF;" : "";
+  const dotShadow = isLight
+    ? "box-shadow:0 0 3px rgba(255,255,255,0.9);"
+    : "box-shadow:0 0 2px rgba(0,0,0,0.8);";
+  const textColor = isLight ? "#0F172A" : "#F8FAFC";
+  const textShadow = isLight
+    ? "text-shadow: 0 1px 3px #FFFFFF, 0 0 6px #FFFFFF, 0 0 8px rgba(255,255,255,0.95);"
+    : "text-shadow: 0 1px 4px #000000, 0 0 8px rgba(0,0,0,0.95);";
   return `<div style="display:flex;align-items:center;gap:3.5px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
-    <div style="width:2.5px;height:2.5px;border-radius:50%;background:#94A3B8;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
-    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9.5px;font-weight:600;color:#CBD5E1;text-shadow:0 0 2px #020617, 0 1px 2px #020617;letter-spacing:0.04em;">${text}</span>
+    <div style="width:2.5px;height:2.5px;border-radius:50%;background:${dotBg};${dotBorder}${dotShadow}flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9.5px;font-weight:${isLight ? "700" : "600"};color:${textColor};${textShadow}letter-spacing:0.04em;">${text}</span>
   </div>`;
 }
 
-function renderMegaCapitalHtml(text: string): string {
+function renderMegaCapitalHtml(text: string, isLight = false): string {
+  const dotBg = isLight ? "#020617" : "#FFFFFF";
+  const dotBorder = isLight ? "border:0.75px solid #FFFFFF;" : "border:0.75px solid #020617;";
+  const dotShadow = isLight
+    ? "box-shadow:0 0 3px rgba(255,255,255,0.9);"
+    : "box-shadow:0 0 2px rgba(0,0,0,0.8);";
+  const textColor = isLight ? "#020617" : "#F8FAFC";
+  const textShadow = isLight
+    ? "text-shadow: 0 1px 3px #FFFFFF, 0 0 6px #FFFFFF, 0 0 8px rgba(255,255,255,0.95);"
+    : "text-shadow: 0 1px 4px #000000, 0 0 8px rgba(0,0,0,0.95);";
   return `<div style="display:flex;align-items:center;gap:3.5px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
-    <div style="width:3px;height:3px;border-radius:50%;background:#FFFFFF;border:0.75px solid #020617;box-shadow:0 0 2px rgba(0,0,0,0.8);flex-shrink:0;"></div>
-    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9.5px;font-weight:600;color:#F1F5F9;text-shadow:0 0 2px #020617, 0 1px 2px #020617;">${text}</span>
+    <div style="width:3px;height:3px;border-radius:50%;background:${dotBg};${dotBorder}${dotShadow}flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9.5px;font-weight:700;color:${textColor};${textShadow}">${text}</span>
   </div>`;
 }
 
-function renderCityTownHtml(text: string): string {
+function renderCityTownHtml(text: string, isLight = false): string {
+  const dotBg = isLight ? "#1E293B" : "#FFFFFF";
+  const dotBorder = isLight ? "border:0.5px solid #FFFFFF;" : "border:0.5px solid #020617;";
+  const dotShadow = isLight
+    ? "box-shadow:0 0 3px rgba(255,255,255,0.9);"
+    : "box-shadow:0 0 3px rgba(255,255,255,0.8);";
+  const textColor = isLight ? "#0F172A" : "#F8FAFC";
+  const textShadow = isLight
+    ? "text-shadow: 0 1px 3px #FFFFFF, 0 0 6px #FFFFFF, 0 0 8px rgba(255,255,255,0.95);"
+    : "text-shadow: 0 1px 4px #000000, 0 0 8px rgba(0,0,0,0.95);";
   return `<div style="display:flex;align-items:center;gap:3px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-50%);">
-    <div style="width:2.5px;height:2.5px;border-radius:50%;background:#FFFFFF;border:0.5px solid #020617;box-shadow:0 0 3px rgba(255,255,255,0.8);flex-shrink:0;"></div>
-    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9px;font-weight:500;color:#F1F5F9;text-shadow:0 0 2px #020617, 0 1px 2px #020617;letter-spacing:0.02em;">${text}</span>
+    <div style="width:2.5px;height:2.5px;border-radius:50%;background:${dotBg};${dotBorder}${dotShadow}flex-shrink:0;"></div>
+    <span style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:9px;font-weight:${isLight ? "600" : "500"};color:${textColor};${textShadow}letter-spacing:0.02em;">${text}</span>
   </div>`;
 }
 
-function renderTerrainHtml(text: string): string {
-  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:8.5px;font-style:italic;font-weight:500;color:#A1A1AA;letter-spacing:0.06em;text-shadow:0 0 2px #020617, 0 1px 2px #020617;white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
+function renderTerrainHtml(text: string, isLight = false): string {
+  const color = isLight ? "#334155" : "#CBD5E1";
+  const shadow = isLight
+    ? "text-shadow: 0 1px 3px #FFFFFF, 0 0 6px #FFFFFF;"
+    : "text-shadow: 0 0 2px #020617, 0 1px 2px #020617;";
+  return `<div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:8.5px;font-style:italic;font-weight:600;color:${color};letter-spacing:0.06em;${shadow}white-space:nowrap;pointer-events:none;transform:translate(-50%,-50%);">${text}</div>`;
 }
 
 /* ---------------- 3D SLEEK CIRCULAR HAZARD MARKERS WITH INTERACTIVE HOVER TOOLTIPS ---------------- */
@@ -619,24 +675,33 @@ export function GlobeViewport({
   }>({ lat, lon, visible: true });
 
   const prevCoordsRef = useRef<{ lat: number; lon: number }>({ lat, lon });
+  const lastPovRef = useRef<{ lat: number; lng: number; altitude: number }>({
+    lat,
+    lng: lon,
+    altitude: 0.35,
+  });
+  const isFirst3dMountRef = useRef<boolean>(true);
 
-  // Center 3D Globe camera on current farm coords with cinematic 2.2s fly-in
+  // Center 3D Globe camera on current farm coords when coords change
   useEffect(() => {
-    if (
-      viewMode === "3d" &&
-      globeRef.current &&
-      typeof globeRef.current.pointOfView === "function"
-    ) {
-      try {
-        globeRef.current.pointOfView({ lat, lng: lon, altitude: 0.72 }, 2200);
-      } catch {
-        // ignore pointOfView transition timing
-      }
-    }
+    const coordsChanged = prevCoordsRef.current.lat !== lat || prevCoordsRef.current.lon !== lon;
 
-    if (prevCoordsRef.current.lat !== lat || prevCoordsRef.current.lon !== lon) {
+    if (coordsChanged) {
       prevCoordsRef.current = { lat, lon };
+      lastPovRef.current = { lat, lng: lon, altitude: 0.35 };
       setTargetLockedBanner({ lat, lon, visible: true });
+
+      if (
+        viewMode === "3d" &&
+        globeRef.current &&
+        typeof globeRef.current.pointOfView === "function"
+      ) {
+        try {
+          globeRef.current.pointOfView({ lat, lng: lon, altitude: 0.35 }, 1800);
+        } catch {
+          // ignore pointOfView transition timing
+        }
+      }
     }
 
     const timer = setTimeout(() => {
@@ -645,6 +710,69 @@ export function GlobeViewport({
 
     return () => clearTimeout(timer);
   }, [lat, lon, viewMode]);
+
+  // 3D Orbital in-place basemap switching: updates Three.js globe texture, tile engine URL and atmosphere in real-time
+  useEffect(() => {
+    if (!globeRef.current || viewMode !== "3d") return;
+
+    // Immediately clear tile engine cache if supported
+    try {
+      const globeAny = globeRef.current as unknown as Record<string, unknown>;
+      if (typeof globeAny?.globeTileEngineClearCache === "function") {
+        (globeAny.globeTileEngineClearCache as () => void)();
+      }
+    } catch {
+      // ignore
+    }
+
+    const globe = globeRef.current as {
+      globeImageUrl?: (url: string) => void;
+      globeTileEngineUrl?: (fn: (x: number, y: number, l: number) => string) => void;
+      atmosphereColor?: (color: string) => void;
+      globeMaterial?: () => { needsUpdate?: boolean };
+    };
+
+    let bgImg = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+    let tileFn = (x: number, y: number, l: number) =>
+      `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
+    let atmoColor = "#00e5ff";
+
+    if (basemapStyle === "dark") {
+      bgImg = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
+      tileFn = (x: number, y: number, l: number) =>
+        `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${l}/${y}/${x}`;
+      atmoColor = "#818cf8";
+    } else if (basemapStyle === "terrain") {
+      bgImg = "https://unpkg.com/three-globe/example/img/earth-topology.png";
+      tileFn = (x: number, y: number, l: number) =>
+        `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${l}/${y}/${x}`;
+      atmoColor = "#10b981";
+    } else if (basemapStyle === "default") {
+      bgImg = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+      tileFn = (x: number, y: number, l: number) =>
+        `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${l}/${y}/${x}`;
+      atmoColor = "#38bdf8";
+    }
+
+    if (typeof globe.globeImageUrl === "function") {
+      globe.globeImageUrl(bgImg);
+    }
+    if (typeof globe.globeTileEngineUrl === "function") {
+      globe.globeTileEngineUrl(tileFn);
+    }
+    if (typeof globe.atmosphereColor === "function") {
+      globe.atmosphereColor(atmoColor);
+    }
+
+    try {
+      const mat = typeof globe.globeMaterial === "function" ? globe.globeMaterial() : null;
+      if (mat) {
+        mat.needsUpdate = true;
+      }
+    } catch {
+      // ignore
+    }
+  }, [basemapStyle, enable3dTerrain, viewMode]);
 
   // Live Satellite Overpass Countdown Ticker
   const [overpassSeconds, setOverpassSeconds] = useState(862); // 14m 22s
@@ -790,44 +918,45 @@ export function GlobeViewport({
 
   // Multi-zoom Google Earth-style dynamic 4-Stage LOD place labels on 3D Orbital Globe
   const activePlaceLabels = useMemo(() => {
+    const isLight = basemapStyle === "terrain" || basemapStyle === "default";
     const labels: GlobeHtmlMarkerItem[] = [];
 
-    // Stage 1 — Global / Far Orbital View (altitude > 1.5):
-    // Show ONLY country names and major oceans.
-    // Completely HIDE all states, cities, districts, and terrain features.
-    if (orbitalAltitude > 1.5) {
-      for (const c of GLOBAL_COUNTRIES) {
+    // Stage 1 — Global / Far Orbital View (altitude > 1.4):
+    // Show ONLY major non-overlapping country labels and major oceans.
+    // Hide regional sea names (ARABIAN SEA, BAY OF BENGAL) and redundant continent/country duplicates (EUROPE vs UNITED KINGDOM).
+    if (orbitalAltitude > 1.4) {
+      for (const c of STAGE1_MAJOR_COUNTRIES) {
         labels.push({
           id: c.id,
           lat: c.lat,
           lng: c.lng,
           priority: 3,
-          html: renderCountryHtml(c.text),
+          html: renderCountryHtml(c.text, isLight),
         });
       }
-      for (const o of GLOBAL_OCEANS) {
+      for (const o of STAGE1_MAJOR_OCEANS) {
         labels.push({
           id: o.id,
           lat: o.lat,
           lng: o.lng,
           priority: 3,
-          html: renderOceanHtml(o.text),
+          html: renderOceanHtml(o.text, isLight),
         });
       }
       return labels;
     }
 
-    // Stage 2 — Country Zoom (0.75 < altitude <= 1.5):
+    // Stage 2 — Country Zoom (0.65 < altitude <= 1.4):
     // Smoothly fade in State names in clean, small white/slate typography.
     // Keep smaller cities, districts, and terrain features hidden so they never overlap states.
-    if (orbitalAltitude > 0.75 && orbitalAltitude <= 1.5) {
+    if (orbitalAltitude > 0.65 && orbitalAltitude <= 1.4) {
       for (const c of GLOBAL_COUNTRIES) {
         labels.push({
           id: c.id,
           lat: c.lat,
           lng: c.lng,
           priority: 3,
-          html: renderCountryHtml(c.text),
+          html: renderCountryHtml(c.text, isLight),
         });
       }
       for (const o of REGIONAL_WATER_BODIES) {
@@ -836,7 +965,7 @@ export function GlobeViewport({
           lat: o.lat,
           lng: o.lng,
           priority: 3,
-          html: renderOceanHtml(o.text),
+          html: renderOceanHtml(o.text, isLight),
         });
       }
       for (const s of REGIONAL_STATES) {
@@ -845,7 +974,7 @@ export function GlobeViewport({
           lat: s.lat,
           lng: s.lng,
           priority: 4,
-          html: renderStateHtml(s.text),
+          html: renderStateHtml(s.text, isLight),
         });
       }
       for (const m of MEGA_CAPITALS) {
@@ -854,7 +983,7 @@ export function GlobeViewport({
           lat: m.lat,
           lng: m.lng,
           priority: 5,
-          html: renderMegaCapitalHtml(m.text),
+          html: renderMegaCapitalHtml(m.text, isLight),
         });
       }
       return labels;
@@ -869,7 +998,7 @@ export function GlobeViewport({
         lat: s.lat,
         lng: s.lng,
         priority: 4,
-        html: renderStateHtml(s.text),
+        html: renderStateHtml(s.text, isLight),
       });
     }
     for (const m of MEGA_CAPITALS) {
@@ -878,7 +1007,7 @@ export function GlobeViewport({
         lat: m.lat,
         lng: m.lng,
         priority: 5,
-        html: renderMegaCapitalHtml(m.text),
+        html: renderMegaCapitalHtml(m.text, isLight),
       });
     }
     for (const ct of ALL_CITIES_AND_TOWNS) {
@@ -887,7 +1016,7 @@ export function GlobeViewport({
         lat: ct.lat,
         lng: ct.lng,
         priority: 6,
-        html: renderCityTownHtml(ct.text),
+        html: renderCityTownHtml(ct.text, isLight),
       });
     }
     for (const tr of TERRAIN_FEATURES) {
@@ -896,12 +1025,12 @@ export function GlobeViewport({
         lat: tr.lat,
         lng: tr.lng,
         priority: 7,
-        html: renderTerrainHtml(tr.text),
+        html: renderTerrainHtml(tr.text, isLight),
       });
     }
 
     return labels;
-  }, [orbitalAltitude]);
+  }, [orbitalAltitude, basemapStyle]);
 
   // 3D Sleek Target Micro-Marker flush with Earth curvature (cluttering 16 green dots removed)
   const telemetryPointsData = useMemo(() => {
@@ -997,11 +1126,11 @@ export function GlobeViewport({
       }
 
       // Check collision against accepted higher-priority bounding boxes
-      // Vertical margin: 18px, Horizontal margin: 35px
+      // Strict 2D screen-space bounding-box collision culling (minDistance: 45px horizontal, 25px vertical)
       let collides = false;
       for (const box of acceptedBoxes) {
-        const hCollision = !(rect.right + 35 < box.left || rect.left - 35 > box.right);
-        const vCollision = !(rect.bottom + 18 < box.top || rect.top - 18 > box.bottom);
+        const hCollision = !(rect.right + 45 < box.left || rect.left - 45 > box.right);
+        const vCollision = !(rect.bottom + 25 < box.top || rect.top - 25 > box.bottom);
         if (hCollision && vCollision) {
           collides = true;
           break;
@@ -1041,6 +1170,11 @@ export function GlobeViewport({
         try {
           const pov = globeRef.current.pointOfView();
           if (pov && typeof pov.altitude === "number") {
+            lastPovRef.current = {
+              lat: typeof pov.lat === "number" ? pov.lat : lastPovRef.current.lat,
+              lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
+              altitude: pov.altitude,
+            };
             setOrbitalAltitude((prev) => {
               if (Math.abs(prev - pov.altitude) > 0.04) {
                 return pov.altitude;
@@ -1057,10 +1191,21 @@ export function GlobeViewport({
 
     try {
       if (typeof globeRef.current.controls === "function") {
-        controlsInstance = globeRef.current.controls() as {
+        const ctrl = globeRef.current.controls() as {
+          enableDamping?: boolean;
+          dampingFactor?: number;
+          rotateSpeed?: number;
+          zoomSpeed?: number;
           addEventListener?: (e: string, cb: () => void) => void;
           removeEventListener?: (e: string, cb: () => void) => void;
         };
+        if (ctrl) {
+          ctrl.enableDamping = true;
+          ctrl.dampingFactor = 0.06;
+          ctrl.rotateSpeed = 0.55;
+          ctrl.zoomSpeed = 0.75;
+          controlsInstance = ctrl;
+        }
       }
     } catch {
       // controls not ready yet
@@ -1200,41 +1345,95 @@ export function GlobeViewport({
 
   const lastAutoTransitionRef = useRef(0);
 
-  // Two-way auto-zoom transitions between 2D Map & 3D Orbital Globe
+  // Explicit View Mode Switchers with Camera Preservation (Zero reset to Africa/Europe)
+  const handleSwitchTo3D = useCallback(() => {
+    if (!webGLSupported) return;
+    lastPovRef.current = {
+      lat,
+      lng: lon,
+      altitude:
+        lastPovRef.current.altitude &&
+        lastPovRef.current.altitude >= 0.15 &&
+        lastPovRef.current.altitude <= 1.2
+          ? lastPovRef.current.altitude
+          : 0.55,
+    };
+    isFirst3dMountRef.current = true;
+    setViewMode("3d");
+  }, [webGLSupported, lat, lon]);
+
+  const handleSwitchTo2D = useCallback(() => {
+    if (globeRef.current && typeof globeRef.current.pointOfView === "function") {
+      try {
+        const pov = globeRef.current.pointOfView();
+        if (pov && typeof pov.altitude === "number") {
+          lastPovRef.current = {
+            lat: typeof pov.lat === "number" ? pov.lat : lat,
+            lng: typeof pov.lng === "number" ? pov.lng : lon,
+            altitude: pov.altitude,
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    isFirst3dMountRef.current = true;
+    setViewMode("2d");
+  }, [lat, lon]);
+
+  // Two-way auto-zoom transitions between 2D Map & 3D Orbital Globe (Wide Hysteresis Buffer)
   const handleAutoTransitionTo3D = useCallback(() => {
     const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 1800) return;
+    if (now - lastAutoTransitionRef.current < 600) return;
     lastAutoTransitionRef.current = now;
 
     if (webGLSupported) {
+      lastPovRef.current = { lat, lng: lon, altitude: 1.35 };
+      isFirst3dMountRef.current = false;
       setViewMode("3d");
-      setOrbitalAltitude(1.6);
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.6 }, 1000);
+      setOrbitalAltitude(1.35);
+      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.35 }, 1000);
       toast.info("Entering 3D Orbital Overview", {
-        description: "Zoomed out past continental threshold (zoom <= 4). Switched to 3D Globe.",
+        description: "Zoomed out to global threshold (zoom <= 2). Switched to 3D Globe.",
       });
     }
   }, [webGLSupported, lat, lon]);
 
   const handleAutoTransitionTo2D = useCallback(() => {
     const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 1800) return;
+    if (now - lastAutoTransitionRef.current < 600) return;
     lastAutoTransitionRef.current = now;
 
+    if (globeRef.current && typeof globeRef.current.pointOfView === "function") {
+      try {
+        const pov = globeRef.current.pointOfView();
+        if (pov && typeof pov.altitude === "number") {
+          lastPovRef.current = {
+            lat: typeof pov.lat === "number" ? pov.lat : lat,
+            lng: typeof pov.lng === "number" ? pov.lng : lon,
+            altitude: pov.altitude,
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    isFirst3dMountRef.current = true;
     setViewMode("2d");
-    setGisZoom(14);
+    setGisZoom(9);
     toast.info("Entering High-Resolution 2D Field GIS", {
-      description: "Deep zoom reached (altitude <= 0.28). Switched to 2D Satellite GIS.",
+      description: "Sub-district orbit reached (altitude <= 0.14). Switched to 2D Regional GIS.",
     });
-  }, []);
+  }, [lat, lon]);
 
-  // Zoom In Handler (Strict 4-Stage LOD: triggers 2D Hand-Off when altitude <= 0.28)
+  // Zoom In Handler (Strict 4-Stage LOD: triggers 2D Hand-Off when altitude <= 0.14)
   const handleZoomIn = () => {
     if (viewMode === "3d") {
-      const newAlt = Math.max(0.06, orbitalAltitude * 0.65);
+      const newAlt = Math.max(0.04, orbitalAltitude * 0.65);
       setOrbitalAltitude(newAlt);
+      lastPovRef.current.altitude = newAlt;
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
-      if (newAlt <= 0.28) {
+      if (newAlt <= 0.14) {
         handleAutoTransitionTo2D();
       }
     } else {
@@ -1242,15 +1441,16 @@ export function GlobeViewport({
     }
   };
 
-  // Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 4)
+  // Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 2)
   const handleZoomOut = () => {
     if (viewMode === "3d") {
       const newAlt = Math.min(2.5, orbitalAltitude * 1.45);
       setOrbitalAltitude(newAlt);
+      lastPovRef.current.altitude = newAlt;
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 400);
     } else {
       const curZ = leafletMapRef.current?.getZoom?.() ?? gisZoom;
-      if (curZ <= 4) {
+      if (curZ <= 2) {
         handleAutoTransitionTo3D();
       } else {
         leafletMapRef.current?.zoomOut?.(1, { animate: true });
@@ -1265,12 +1465,13 @@ export function GlobeViewport({
         handleAutoTransitionTo2D();
         return;
       }
-      const newAlt = Math.max(0.06, Math.min(2.5, 2.5 - ((newZoom - 1) / 17) * (2.5 - 0.06)));
+      const newAlt = Math.max(0.04, Math.min(2.5, 2.5 - ((newZoom - 1) / 17) * (2.5 - 0.04)));
       setOrbitalAltitude(newAlt);
+      lastPovRef.current.altitude = newAlt;
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: newAlt }, 300);
-      if (newAlt <= 0.28) handleAutoTransitionTo2D();
+      if (newAlt <= 0.14) handleAutoTransitionTo2D();
     } else {
-      if (newZoom <= 4) {
+      if (newZoom <= 2) {
         handleAutoTransitionTo3D();
         return;
       }
@@ -1311,7 +1512,7 @@ export function GlobeViewport({
           badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
         };
       }
-      if (orbitalAltitude > 0.75) {
+      if (orbitalAltitude > 0.65) {
         return {
           stage: "STAGE 2",
           label: "ORBITAL VIEW • STATE LEVEL",
@@ -1320,7 +1521,7 @@ export function GlobeViewport({
           badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
         };
       }
-      if (orbitalAltitude > 0.28) {
+      if (orbitalAltitude > 0.14) {
         return {
           stage: "STAGE 3",
           label: "ORBITAL VIEW • DISTRICT LEVEL",
@@ -1346,7 +1547,7 @@ export function GlobeViewport({
           badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
         };
       }
-      if (gisZoom > 4) {
+      if (gisZoom > 2) {
         return {
           stage: "STAGE 4",
           label: "2D TACTICAL MAP • REGIONAL OVERVIEW",
@@ -1358,7 +1559,7 @@ export function GlobeViewport({
       return {
         stage: "STAGE 1",
         label: "AUTO-HAND-OFF • 3D ORBITAL GLOBE",
-        detail: `Zoom ${gisZoom} <= 4`,
+        detail: `Zoom ${gisZoom} <= 2`,
         color: "#38BDF8",
         badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
       };
@@ -1516,7 +1717,34 @@ export function GlobeViewport({
               <div className="cosmic-stars-3" />
             </div>
             <GlobeComponent
-              ref={globeRef}
+              key={`globe-engine-${basemapStyle}-${showLabels}-${enable3dTerrain}`}
+              ref={(inst: GlobeMethods | null) => {
+                globeRef.current = inst;
+                if (inst && typeof inst.pointOfView === "function") {
+                  const initPov = {
+                    lat: lastPovRef.current.lat || lat,
+                    lng: lastPovRef.current.lng || lon,
+                    altitude: lastPovRef.current.altitude || 0.45,
+                  };
+                  try {
+                    // Frame 0 instant position initialization:
+                    // Direct lock on current active target coordinates (Mulabagilu/Karnataka), ZERO reset to (0,0) Africa/Europe!
+                    inst.pointOfView(initPov, 0);
+                  } catch {
+                    // ignore
+                  }
+                  if (isFirst3dMountRef.current) {
+                    isFirst3dMountRef.current = false;
+                    setTimeout(() => {
+                      try {
+                        inst.pointOfView({ lat, lng: lon, altitude: 0.35 }, 1200);
+                      } catch {
+                        // ignore
+                      }
+                    }, 50);
+                  }
+                }
+              }}
               width={containerDimensions.width}
               height={containerDimensions.height}
               backgroundColor="rgba(0,0,0,0)"
@@ -1531,7 +1759,7 @@ export function GlobeViewport({
               bumpScale={basemapStyle === "terrain" && enable3dTerrain ? 0.08 : 0.02}
               globeTileEngineUrl={(x: number, y: number, l: number) => {
                 if (basemapStyle === "dark") {
-                  return `https://a.basemaps.cartocdn.com/dark_all/${l}/${x}/${y}.png`;
+                  return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${l}/${y}/${x}`;
                 }
                 if (basemapStyle === "terrain") {
                   return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${l}/${y}/${x}`;
@@ -1708,15 +1936,27 @@ export function GlobeViewport({
               }}
               onZoom={(pov: { lat: number; lng: number; altitude: number }) => {
                 if (typeof pov?.altitude === "number") {
+                  lastPovRef.current = {
+                    lat: typeof pov.lat === "number" ? pov.lat : lastPovRef.current.lat,
+                    lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
+                    altitude: pov.altitude,
+                  };
                   setOrbitalAltitude(pov.altitude);
-                  if (pov.altitude <= 0.28) {
+                  if (pov.altitude <= 0.14) {
                     handleAutoTransitionTo2D();
                   }
                   setTimeout(runCollisionCull, 50);
                 }
               }}
               onGlobeClick={({ lat: clickLat, lng: clickLng }: { lat: number; lng: number }) => {
-                onPick(Math.round(clickLat * 10000) / 10000, Math.round(clickLng * 10000) / 10000);
+                const targetLat = Math.round(clickLat * 10000) / 10000;
+                const targetLng = Math.round(clickLng * 10000) / 10000;
+                lastPovRef.current = { lat: targetLat, lng: targetLng, altitude: 0.35 };
+                onPick(targetLat, targetLng);
+                globeRef.current?.pointOfView?.(
+                  { lat: targetLat, lng: targetLng, altitude: 0.35 },
+                  1800,
+                );
               }}
             />
           </div>
@@ -1778,63 +2018,58 @@ export function GlobeViewport({
           <LeafletComp.MapContainer
             center={[lat, lon]}
             zoom={gisZoom}
+            minZoom={2}
+            maxZoom={18}
             scrollWheelZoom={true}
             style={{ width: "100%", height: "100%", background: "#050811" }}
           >
-            {/* Dynamic Basemap Tile Layer */}
-            {basemapStyle === "satellite" && (
-              <LeafletComp.TileLayer
-                key="base-satellite"
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={18}
-                attribution="Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
-              />
-            )}
-            {basemapStyle === "terrain" && (
-              <LeafletComp.TileLayer
-                key="base-terrain"
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={18}
-                attribution="Tiles &copy; Esri &mdash; World Topo Map & Elevation Contours"
-              />
-            )}
-            {basemapStyle === "default" && (
-              <LeafletComp.TileLayer
-                key="base-default"
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={18}
-                attribution="Tiles &copy; Esri &mdash; World Street Map"
-              />
-            )}
-            {basemapStyle === "dark" && (
-              <LeafletComp.TileLayer
-                key={`base-dark-${showLabels ? "labels" : "nolabels"}`}
-                url={
-                  showLabels
-                    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                    : "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
-                }
-                maxZoom={18}
-                attribution="&copy; OpenStreetMap contributors &copy; CARTO"
-              />
-            )}
+            {/* Dynamic Basemap Tile Layer (Instant In-Place Swap via React Key) */}
+            <LeafletComp.TileLayer
+              key={`2d-base-${basemapStyle}`}
+              url={
+                basemapStyle === "dark"
+                  ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                  : basemapStyle === "terrain"
+                    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+                    : basemapStyle === "default"
+                      ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+                      : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              }
+              maxZoom={18}
+              attribution={
+                basemapStyle === "dark"
+                  ? "Tiles &copy; Esri &mdash; Esri Dark Canvas"
+                  : basemapStyle === "terrain"
+                    ? "Tiles &copy; Esri &mdash; World Topo Map & Elevation Contours"
+                    : basemapStyle === "default"
+                      ? "Tiles &copy; Esri &mdash; World Street Map"
+                      : "Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
+              }
+            />
 
             {/* Optional 100% Free Keyless ArcGIS Reference Place & Boundary Overlays */}
+            {showLabels && (
+              <LeafletComp.TileLayer
+                key={`2d-labels-${basemapStyle}-${showLabels}`}
+                url={
+                  basemapStyle === "dark"
+                    ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                    : "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                }
+                maxZoom={18}
+                zIndex={15}
+                opacity={basemapStyle === "dark" ? 0.85 : 0.75}
+                attribution="Labels &copy; Esri"
+              />
+            )}
             {showLabels && basemapStyle !== "dark" && (
-              <>
-                <LeafletComp.TileLayer
-                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
-                  maxZoom={18}
-                  zIndex={15}
-                  opacity={0.75}
-                />
-                <LeafletComp.TileLayer
-                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}"
-                  maxZoom={18}
-                  zIndex={16}
-                  opacity={0.8}
-                />
-              </>
+              <LeafletComp.TileLayer
+                key={`2d-ref-overlay-${basemapStyle}-${showLabels}`}
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}"
+                maxZoom={18}
+                zIndex={16}
+                opacity={0.8}
+              />
             )}
 
             {/* NASA GIBS WMTS Raster Tile Layer (Level maxZoom with smooth upscaling up to 18) */}
@@ -2045,84 +2280,92 @@ export function GlobeViewport({
             T-{meta.nextPassMin} min
           </span>
         </div>
+
+        {/* Integrated Sensor Metric Readout in Reticle Card */}
+        <div className="mt-2.5 pt-2 border-t border-cyan/20 flex items-center justify-between text-xs font-mono">
+          <span className="text-cyan font-bold">{activeLayer}</span>
+          <span
+            className="font-extrabold tabular-nums drop-shadow-[0_0_8px_currentColor]"
+            style={{ color: tone }}
+          >
+            {reading.value} {reading.unit}
+          </span>
+        </div>
       </div>
 
-      {/* ---------------- TOP-RIGHT CONTROLS & LAYER READOUT ---------------- */}
-      <div className="absolute right-3.5 top-3.5 flex flex-col items-end gap-2.5 z-20">
-        {/* 3D WebGL vs 2D Leaflet GIS Mode Switcher Toggle */}
-        <div className="flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)]">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={!webGLSupported}
-            title={
-              webGLSupported
-                ? "3D Orbital Globe View"
-                : "3D WebGL is unavailable in your browser environment"
-            }
-            className={cn(
-              "h-7 px-3 font-mono text-xs transition-all",
-              viewMode === "3d"
-                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-                : "text-muted-foreground hover:text-foreground",
-              !webGLSupported && "opacity-50 cursor-not-allowed",
-            )}
-            onClick={() => webGLSupported && setViewMode("3d")}
-          >
-            <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 3D
-            Orbital
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={cn(
-              "h-7 px-3 font-mono text-xs transition-all",
-              viewMode === "2d"
-                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => setViewMode("2d")}
-          >
-            <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 2D Field
-            GIS
-          </Button>
-        </div>
-
-        {/* Layer Readout Card */}
-        <div
-          data-hud-overlay="layer-readout"
-          className="hud-card pointer-events-none p-3.5 text-right backdrop-blur-xl bg-background/90 border border-cyan/40 min-w-40 shadow-[0_0_20px_rgba(0,0,0,0.7)]"
-        >
-          <div className="flex items-center justify-end gap-1.5 border-b border-cyan/20 pb-1.5">
-            <Radio className="size-3 text-emerald animate-pulse drop-shadow-[0_0_6px_#00ff9d]" />
-            <span className="hud-label font-bold text-foreground">{activeLayer}</span>
-          </div>
-          <div
-            className="mt-1.5 font-mono text-3xl font-extrabold tabular-nums tracking-tight"
-            style={{ color: tone, textShadow: `0 0 14px ${tone}` }}
-          >
-            {reading.value}
-          </div>
-          <div className="font-mono text-[10px] text-muted-foreground/80 font-medium">
-            {reading.unit}
-          </div>
-          <div className="mt-1 font-mono text-[9px] text-cyan/80 truncate max-w-48">
-            GIBS: {activeSatelliteConfig.gibsLayerName}
-          </div>
-          {hover && (
-            <div className="mt-2 border-t border-border/50 pt-1 font-mono text-[10px] text-muted-foreground">
-              cursor {hover.lat.toFixed(2)}°, {hover.lon.toFixed(2)}°
-            </div>
+      {/* ---------------- TOP-RIGHT 3D/2D VIEW SWITCHER ---------------- */}
+      <div className="absolute right-4 top-3.5 z-20 flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)]">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={!webGLSupported}
+          title={
+            webGLSupported
+              ? "3D Orbital Globe View"
+              : "3D WebGL is unavailable in your browser environment"
+          }
+          className={cn(
+            "h-7 px-3 font-mono text-xs transition-all",
+            viewMode === "3d"
+              ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
+              : "text-muted-foreground hover:text-foreground",
+            !webGLSupported && "opacity-50 cursor-not-allowed",
           )}
-        </div>
+          onClick={handleSwitchTo3D}
+        >
+          <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 3D
+          Orbital
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className={cn(
+            "h-7 px-3 font-mono text-xs transition-all",
+            viewMode === "2d"
+              ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={handleSwitchTo2D}
+        >
+          <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" /> 2D Field
+          GIS
+        </Button>
       </div>
 
-      {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED) ---------------- */}
+      {/* ---------------- ACTIVE SENSOR METRIC READOUT CARD (POSITIONED LEFT OF ZOOM BAR) ---------------- */}
+      <div
+        data-hud-overlay="layer-readout"
+        className="hud-card pointer-events-none absolute right-20 top-20 w-52 p-3 text-right backdrop-blur-xl bg-background/90 border border-cyan/40 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] z-20"
+      >
+        <div className="flex items-center justify-end gap-1.5 border-b border-cyan/20 pb-1.5">
+          <Radio className="size-3 text-emerald animate-pulse drop-shadow-[0_0_6px_#00ff9d]" />
+          <span className="hud-label font-bold text-foreground">{activeLayer}</span>
+        </div>
+        <div
+          className="mt-1.5 font-mono text-3xl font-extrabold tabular-nums tracking-tight"
+          style={{ color: tone, textShadow: `0 0 14px ${tone}` }}
+        >
+          {reading.value}
+        </div>
+        <div className="font-mono text-[10px] text-muted-foreground/80 font-medium">
+          {reading.unit}
+        </div>
+        <div className="mt-1 font-mono text-[9px] text-cyan/80 truncate">
+          GIBS: {activeSatelliteConfig.gibsLayerName}
+        </div>
+        {hover && (
+          <div className="mt-2 border-t border-border/50 pt-1 font-mono text-[10px] text-muted-foreground">
+            cursor {hover.lat.toFixed(2)}°, {hover.lon.toFixed(2)}°
+          </div>
+        )}
+      </div>
+
+      {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}
       <div
         data-hud-overlay="zoom-controls"
-        className="absolute right-3 top-28 z-[500] flex flex-col items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none"
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none"
       >
         {/* Zoom In Button */}
         <Button
@@ -2209,7 +2452,7 @@ export function GlobeViewport({
       {viewMode === "2d" && (
         <div
           data-hud-overlay="hazard-filter"
-          className="absolute left-3 bottom-32 sm:bottom-28 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
+          className="absolute left-4 bottom-18 z-20 flex flex-wrap items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 px-2 py-1 backdrop-blur-md shadow-xl text-xs font-mono"
         >
           <Button
             type="button"
@@ -2310,7 +2553,7 @@ export function GlobeViewport({
         </div>
       )}
 
-      {/* ---------------- FLOATING GOOGLE MAPS-STYLE BASEMAP & TERRAIN SWITCHER ---------------- */}
+      {/* ---------------- FLOATING BASEMAP & TERRAIN SWITCHER (BOTTOM-LEFT ALIGNED) ---------------- */}
       <MapLayerSwitcher
         currentStyle={basemapStyle}
         onStyleChange={setBasemapStyle}
@@ -2319,84 +2562,84 @@ export function GlobeViewport({
         enable3dTerrain={enable3dTerrain}
         onToggle3dTerrain={setEnable3dTerrain}
         viewMode={viewMode}
-        className="absolute left-3 bottom-18 sm:bottom-16 z-30"
+        className="absolute left-4 bottom-4 z-30"
       />
 
-      {/* ---------------- BOTTOM-CENTER SCIENTIFIC LAYER LEGEND + SWITCHER ---------------- */}
+      {/* ---------------- UNIFIED 2-TIER BOTTOM TELEMETRY DOCK ---------------- */}
       <div
         data-hud-overlay="layer-switcher"
-        className="absolute inset-x-3 bottom-3 mx-auto flex max-w-3xl flex-col items-center gap-2 z-20 pointer-events-auto"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1.5 max-w-4xl w-auto pointer-events-auto select-none"
       >
-        {/* Floating Glassmorphic Color-Scale Legend Pill */}
-        <div className="w-full max-w-xl rounded-xl border border-cyan-500/40 bg-[#0D1322]/95 p-2 backdrop-blur-md shadow-2xl">
-          <div className="flex items-center justify-between gap-2 mb-1.5 font-mono text-[11px]">
-            <div className="flex items-center gap-1.5 truncate">
+        {/* Tier 1: Upper Slim Row (Compact Legend + Temporal Controls in ONE line, max height 38px) */}
+        <div className="h-[38px] max-h-[38px] py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/92 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2.5 sm:gap-3 text-xs font-mono">
+          {/* Left Side: Active Sensor + Compact Gradient + Field Reading + Glow */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <div className="flex items-center gap-1.5 font-bold text-cyan">
               <Radio className="size-3 text-emerald animate-pulse shrink-0" />
-              <span className="font-bold text-cyan truncate">
+              <span className="truncate max-w-24 sm:max-w-36">
                 {activeSatelliteConfig.sensorName}
               </span>
-              <span className="text-muted-foreground hidden sm:inline truncate">
-                • {activeSatelliteConfig.title}
+            </div>
+
+            <div className="hidden md:flex items-center gap-1 shrink-0">
+              <span className="text-[9px] text-muted-foreground font-mono">
+                {activeSatelliteConfig.colorRamp.minLabel}
+              </span>
+              <div
+                className="h-1.5 w-14 sm:w-20 rounded-full border border-white/10 shadow-inner"
+                style={{ background: activeSatelliteConfig.colorRamp.gradient }}
+              />
+              <span className="text-[9px] text-muted-foreground font-mono">
+                {activeSatelliteConfig.colorRamp.maxLabel}
               </span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="font-mono text-[10px] text-muted-foreground">GLOW</span>
+
+            <span className="px-1.5 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/40 text-cyan text-[10px] tabular-nums shrink-0">
+              FIELD: {temporalReadingValue} {reading.unit}
+            </span>
+
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+              <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
               <Slider
                 aria-label="Layer opacity"
-                className="w-20 sm:w-24"
+                className="w-14 sm:w-16"
                 min={0}
                 max={100}
                 step={1}
                 value={[opacity]}
                 onValueChange={([v]) => v !== undefined && onOpacity(v)}
               />
-              <span className="font-mono text-[10px] text-cyan tabular-nums w-8 text-right font-bold">
+              <span className="text-[10px] text-cyan tabular-nums w-7 text-right font-bold">
                 {opacity}%
               </span>
             </div>
           </div>
 
-          {/* Continuous Color Gradient Bar */}
-          <div
-            className="h-2 w-full rounded-full shadow-inner border border-white/10"
-            style={{ background: activeSatelliteConfig.colorRamp.gradient }}
-          />
+          {/* 1px Vertical Divider */}
+          <div className="h-4 w-px bg-cyan-500/30 shrink-0" />
 
-          {/* Scale Min / Active Reading / Max Readout */}
-          <div className="mt-1 flex items-center justify-between font-mono text-[9px] text-muted-foreground">
-            <span className="truncate">{activeSatelliteConfig.colorRamp.minLabel}</span>
-            <span className="px-1.5 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/30 text-cyan text-[10px] tabular-nums">
-              FIELD: {temporalReadingValue} {reading.unit}
+          {/* Right Side: Play button, date label, and compact step pills */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsPlayingTimeline((p) => !p)}
+              className={`size-6 flex items-center justify-center rounded border transition-all cursor-pointer ${
+                isPlayingTimeline
+                  ? "bg-cyan-500/30 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
+                  : "bg-white/5 text-slate-300 border-white/10 hover:text-white hover:bg-white/10"
+              }`}
+              title={isPlayingTimeline ? "Pause Time-Machine" : "Play Time-Machine"}
+            >
+              {isPlayingTimeline ? (
+                <Pause className="size-2.5" />
+              ) : (
+                <Play className="size-2.5 fill-current ml-0.5" />
+              )}
+            </button>
+
+            <span className="text-[9.5px] text-cyan-100 font-semibold px-2 py-0.5 rounded bg-black/60 border border-cyan-500/30 whitespace-nowrap">
+              {currentTemporal.dateLabel}
             </span>
-            <span className="truncate text-right">{activeSatelliteConfig.colorRamp.maxLabel}</span>
-          </div>
-
-          {/* Temporal Time-Machine Scrubber Bar */}
-          <div className="mt-2 pt-1.5 border-t border-border/40 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setIsPlayingTimeline((p) => !p)}
-                className={`size-6 flex items-center justify-center rounded-md border transition-all cursor-pointer ${
-                  isPlayingTimeline
-                    ? "bg-cyan-500/30 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
-                    : "bg-white/5 text-slate-300 border-white/10 hover:text-white"
-                }`}
-                title={isPlayingTimeline ? "Pause Time-Machine" : "Play Time-Machine"}
-              >
-                {isPlayingTimeline ? (
-                  <Pause className="size-3" />
-                ) : (
-                  <Play className="size-3 fill-current ml-0.5" />
-                )}
-              </button>
-              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wide">
-                TEMPORAL:
-              </span>
-              <span className="text-[9.5px] text-cyan-100 font-semibold px-1.5 py-0.5 rounded bg-black/60 border border-cyan-500/30">
-                {currentTemporal.dateLabel}
-              </span>
-            </div>
 
             <div className="flex items-center gap-1">
               {TEMPORAL_STEPS.map((step, idx) => {
@@ -2406,7 +2649,7 @@ export function GlobeViewport({
                     key={step.id}
                     type="button"
                     onClick={() => setTemporalIdx(idx)}
-                    className={`px-2 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer ${
+                    className={`px-1.5 py-0.5 rounded text-[9.5px] font-semibold transition-all cursor-pointer ${
                       isCur
                         ? "bg-cyan-500/25 text-cyan-300 border border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.3)] font-bold"
                         : "bg-black/30 text-muted-foreground border border-white/5 hover:text-slate-200"
@@ -2420,11 +2663,11 @@ export function GlobeViewport({
           </div>
         </div>
 
-        {/* Layer Switcher Buttons Pill Bar with AnimatedBackground */}
+        {/* Tier 2: Lower Slim Row (The 8 NASA Layer Pills with AnimatedBackground) */}
         <div
           role="radiogroup"
           aria-label="Map layer"
-          className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1.5 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-[calc(100vw-2rem)]"
+          className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-[calc(100vw-2rem)]"
         >
           <AnimatedBackground
             defaultValue={activeLayer}
@@ -2447,14 +2690,14 @@ export function GlobeViewport({
                   aria-checked={isSelected}
                   aria-label={tab}
                   onClick={() => onLayer(tab)}
-                  className={`px-3.5 py-1.5 font-mono text-xs tracking-wider rounded-full transition-colors duration-300 ${
+                  className={`px-3 py-1 font-mono text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
                     isSelected
                       ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
                       : "text-slate-400 hover:text-cyan-100 border border-white/5"
                   }`}
                 >
                   {isSelected && (
-                    <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
+                    <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee] animate-pulse" />
                   )}
                   <span>{tab}</span>
                 </button>
@@ -2537,7 +2780,7 @@ function LeafletBridge({
       if (e?.target && typeof e.target.getZoom === "function") {
         const z = e.target.getZoom();
         onZoomChange(z);
-        if (z <= 4 && onAutoSwitchTo3D) {
+        if (z <= 2 && onAutoSwitchTo3D) {
           onAutoSwitchTo3D();
         }
       }
