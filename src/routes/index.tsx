@@ -286,6 +286,42 @@ function AgroSpaceDashboard() {
         />
 
         <div className="space-y-4 p-4 lg:p-5">
+          {/* Google Stitch Global Observatory Mission Telemetry Bar */}
+          <div className="w-full bg-[#0b0f19]/85 border border-white/10 backdrop-blur-xl rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                <span className="relative flex size-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full size-2 bg-emerald-400" />
+                </span>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider">
+                  EARTH OBS ORBIT ACTIVE
+                </span>
+              </div>
+              <div className="h-4 w-px bg-white/10 hidden sm:block" />
+              <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                <span className="text-cyan-400 font-semibold">SAT-CONSTELLATION:</span>
+                <span className="text-foreground font-medium">LANDSAT-9 &amp; SENTINEL-2C TANDEM</span>
+              </div>
+              <div className="hidden xl:flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                <span>SUB-SOLAR POINT:</span>
+                <span className="text-foreground">
+                  {Math.abs(lat).toFixed(4)}°{lat >= 0 ? "N" : "S"} {Math.abs(lon).toFixed(4)}°
+                  {lon >= 0 ? "E" : "W"} [{telemetry.meta.regionLabel.toUpperCase()}]
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                <span className="text-muted-foreground">SIGNAL FLUX:</span>
+                <span className="text-emerald-400 font-bold">99.84% SNR</span>
+              </div>
+              <div className="px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 font-mono text-[10px] font-bold">
+                GEO-SYNC: REALTIME
+              </div>
+            </div>
+          </div>
+
           {/* Orbital Telemetry Top Deck */}
           <div className="relative overflow-hidden rounded-lg border border-border/60 bg-card/75 p-4 backdrop-blur-xl shadow-[0_0_25px_rgba(0,0,0,0.5)] antigravity-float-1 hologram-cockpit-card laser-scanline-panel chamfered-card-frame">
             {/* Top Tactical Lightline */}
@@ -459,6 +495,51 @@ function AgroSpaceDashboard() {
           )}
 
           {tab === "granules" && <GranuleInspector telemetry={telemetry} />}
+
+          {/* Live Telemetry Bottom Mission Tape (Google Stitch) */}
+          <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-[11px] mt-6 shadow-xl">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-cyan-400 font-bold uppercase tracking-wider">TELEMETRY STREAM:</span>
+              <span className="text-foreground/90">SENTINEL-1 C-SAR PASS: 41.2° INCLINATION</span>
+              <span className="hidden md:inline text-white/30">•</span>
+              <span className="hidden md:inline text-foreground/80">
+                LANDSAT-9 OLI-2 / TIRS-2 THERMAL CALIBRATION: NOMINAL [0.03K DELTA]
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
+              <span className="text-white font-semibold">NASA-LANCE AG-INTEL READY</span>
+            </div>
+          </div>
+
+          {/* Observatory Mission Footer (Google Stitch) */}
+          <footer className="w-full rounded-2xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-[10.5px]">
+            <div>AGROSPACE NEXUS • NASA EARTH OBSERVATION MISSION SYSTEM • EO-OPS-CORE-V4.9</div>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setTab("overview")}
+                className="hover:text-cyan-400 transition-colors cursor-pointer"
+              >
+                GLOBAL OBSERVATORY
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("crop-atlas")}
+                className="hover:text-cyan-400 transition-colors cursor-pointer"
+              >
+                CROP SHIFT
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMissionBriefModal(true)}
+                className="hover:text-cyan-400 transition-colors cursor-pointer"
+              >
+                MISSION BRIEF
+              </button>
+              <span className="text-emerald-400 font-semibold">• ALL ORBITAL FEEDS NOMINAL</span>
+            </div>
+          </footer>
         </div>
       </main>
 
