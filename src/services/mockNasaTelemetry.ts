@@ -8,7 +8,7 @@ import {
   SATELLITE_PASSES,
   type AgroTelemetry,
   type CropRecommendation,
-  type HazardAlert,
+  type HazardSignals,
   type LayerReading,
   type MapLayer,
   type NasaGranule,
@@ -21,6 +21,7 @@ import {
   type TelemetryInput,
   type WaterBudgetStage,
 } from "@/types/agroSpace";
+import { buildHazardAlerts } from "@/services/hazardRules";
 
 const DAYS = 30;
 /** Fixed reference date keeps output deterministic (2026-11-13, DOY 317). */
@@ -518,209 +519,53 @@ function generateWaterBudget(
   };
 }
 
-function generateHazards(
+function generateHazardSignals(
   power: PowerDailyPoint[],
   soil: SoilMoisturePoint[],
   layers: Record<MapLayer, LayerReading>,
   c: Climate,
   input: TelemetryInput,
   rng: () => number,
-): HazardAlert[] {
+): HazardSignals {
   const s = input.scenario;
-  const maxRain = Math.max(...power.map((p) => p.PRECTOTCORR));
-  const root = avg(soil.slice(-7).map((x) => x.sm28_100));
-  const fires = layers["FIRMS Fires"].value;
-  const aod = layers["Smoke AOD"].value;
+  const cyclone = s === "Cat-4 Cyclone";
+  const flood = s === "Flash Flood";
+  const drought = s === "Severe Drought";
+  const recent = power.slice(-8);
+  const vpd = avg(power.slice(-7).map((p) => p.VPD));
+  const rootM = avg(soil.slice(-7).map((x) => x.sm28_100));
   const distKm = Math.round(40 + rng() * 90);
   const kpBase = round(1 + rng() * 2, 1);
-
-  const cyclone: HazardAlert =
-    s === "Cat-4 Cyclone"
-      ? {
-          id: "hz-cyclone",
-          type: "cyclone",
-          title: "Tropical Cyclone",
-          source: "GPM IMERG · JTWC",
-          severity: "critical",
-          metric: "Cat-4 · 230 km/h",
-          detail: `Eye ${distKm} km offshore, landfall T-18h. Harvest standing crop, secure pumps.`,
-        }
-      : c.tropical > 0.6 && input.season === "Kharif"
-        ? {
-            id: "hz-cyclone",
-            type: "cyclone",
-            title: "Tropical Cyclone",
-            source: "GPM IMERG · JTWC",
-            severity: "watch",
-            metric: "Low-pressure area",
-            detail: "Monsoon depression probability 22% over 7 days.",
-          }
-        : {
-            id: "hz-cyclone",
-            type: "cyclone",
-            title: "Tropical Cyclone",
-            source: "GPM IMERG · JTWC",
-            severity: "nominal",
-            metric: "No systems",
-            detail: "No tropical systems within 1,000 km.",
-          };
-
-  const quake: HazardAlert =
-    s === "M6.2 Earthquake"
-      ? {
-          id: "hz-quake",
-          type: "earthquake",
-          title: "Seismic Activity",
-          source: "USGS ComCat",
-          severity: "critical",
-          metric: "M6.2 · 18 km depth",
-          detail: `Epicentre ${distKm} km away. Borewell casing and aquifer turbidity checks advised.`,
-        }
-      : {
-          id: "hz-quake",
-          type: "earthquake",
-          title: "Seismic Activity",
-          source: "USGS ComCat",
-          severity: "nominal",
-          metric: `M${round(1.8 + rng(), 1)} max`,
-          detail: "Background micro-seismicity only.",
-        };
-
-  const solar: HazardAlert =
-    s === "G4 Solar Storm"
-      ? {
-          id: "hz-solar",
-          type: "solar-storm",
-          title: "Geomagnetic Storm",
-          source: "NOAA SWPC · DSCOVR",
-          severity: "critical",
-          metric: "Kp 8 · G4 Severe",
-          detail: "GNSS drift ±3 m. Pause RTK auto-steer and drone spraying.",
-        }
-      : {
-          id: "hz-solar",
-          type: "solar-storm",
-          title: "Geomagnetic Storm",
-          source: "NOAA SWPC · DSCOVR",
-          severity: "nominal",
-          metric: `Kp ${kpBase}`,
-          detail: "Quiet geomagnetic field. GNSS nominal.",
-        };
-
-  const eclipse: HazardAlert =
-    s === "Solar Eclipse"
-      ? {
-          id: "hz-eclipse",
-          type: "eclipse",
-          title: "Solar Eclipse",
-          source: "NASA SVS Eclipse Atlas",
-          severity: "watch",
-          metric: "78% obscuration",
-          detail: "PAR drops 62% for 2h 14m. Expect a brief stomatal-closure dip.",
-        }
-      : {
-          id: "hz-eclipse",
-          type: "eclipse",
-          title: "Solar Eclipse",
-          source: "NASA SVS Eclipse Atlas",
-          severity: "nominal",
-          metric: "None in 30 d",
-          detail: "No eclipse path over this field.",
-        };
-
-  const flood: HazardAlert =
-    s === "Flash Flood"
-      ? {
-          id: "hz-flood",
-          type: "flood",
-          title: "Flash Flood",
-          source: "GPM IMERG · SMAP",
-          severity: "critical",
-          metric: `${Math.round(maxRain)} mm/24h`,
-          detail: "Topsoil saturated. Open field drains, delay fertiliser.",
-        }
-      : maxRain > 80
-        ? {
-            id: "hz-flood",
-            type: "flood",
-            title: "Flash Flood",
-            source: "GPM IMERG · SMAP",
-            severity: "warning",
-            metric: `${Math.round(maxRain)} mm/24h`,
-            detail: "Heavy rain event recorded; runoff risk on slopes.",
-          }
-        : {
-            id: "hz-flood",
-            type: "flood",
-            title: "Flash Flood",
-            source: "GPM IMERG · SMAP",
-            severity: "nominal",
-            metric: `${Math.round(maxRain)} mm peak`,
-            detail: "Rainfall within absorbable range.",
-          };
-
-  const drought: HazardAlert =
-    s === "Severe Drought" || root < 18
-      ? {
-          id: "hz-drought",
-          type: "drought",
-          title: "Agricultural Drought",
-          source: "SMAP L4 · ECOSTRESS ESI",
-          severity: "critical",
-          metric: `${Math.round(root)}% root zone`,
-          detail: "Root-zone moisture below wilting threshold. Prioritise survival irrigation.",
-        }
-      : root < 35
-        ? {
-            id: "hz-drought",
-            type: "drought",
-            title: "Agricultural Drought",
-            source: "SMAP L4 · ECOSTRESS ESI",
-            severity: "watch",
-            metric: `${Math.round(root)}% root zone`,
-            detail: "Drying trend. Monitor ESI over the next pass.",
-          }
-        : {
-            id: "hz-drought",
-            type: "drought",
-            title: "Agricultural Drought",
-            source: "SMAP L4 · ECOSTRESS ESI",
-            severity: "nominal",
-            metric: `${Math.round(root)}% root zone`,
-            detail: "Root-zone moisture adequate.",
-          };
-
-  const fireSev: Severity =
-    fires >= 14 ? "critical" : fires >= 7 ? "warning" : fires >= 3 ? "watch" : "nominal";
-  const wildfire: HazardAlert = {
-    id: "hz-fire",
-    type: "wildfire",
-    title: "Active Fires",
-    source: "FIRMS VIIRS 375m",
-    severity: fireSev,
-    metric: `${fires} hotspots / 50 km`,
-    detail:
-      fireSev === "nominal"
-        ? "No significant thermal anomalies."
-        : "Stubble or wildland fires detected upwind.",
+  let gwetroot = clamp(Math.max(...soil.slice(-8).map((x) => x.sm28_100)) / 100, 0.05, 1);
+  if (flood) gwetroot = Math.max(gwetroot, 0.91);
+  if (cyclone) gwetroot = Math.max(gwetroot, 0.88);
+  const hotspots = layers["FIRMS Fires"].value;
+  const t2m = 14 + c.heat * 20 + (drought ? 3 : 0);
+  return {
+    stormDistKm: cyclone ? distKm : c.tropical > 0.6 && input.season === "Kharif" ? 950 : null,
+    stormName: cyclone ? "Cat-4 Cyclone" : "Monsoon depression",
+    windShearMs: round(cyclone ? 4.5 : 12 + rng() * 8, 1),
+    gustKmh: cyclone ? 230 : Math.round(25 + rng() * 25),
+    quakeMag: s === "M6.2 Earthquake" ? 6.2 : round(1.8 + rng(), 1),
+    quakeDepthKm: s === "M6.2 Earthquake" ? 18 : Math.round(8 + rng() * 25),
+    quakeDistKm: s === "M6.2 Earthquake" ? distKm : Math.round(180 + rng() * 300),
+    kpIndex: s === "G4 Solar Storm" ? 8.3 : kpBase,
+    flareClass: s === "G4 Solar Storm" ? "X2.1" : `C${round(1 + rng() * 8, 1)}`,
+    geomagStorm: s === "G4 Solar Storm" ? "G4" : null,
+    uvIndex: round(clamp(3 + c.heat * 6 + c.tropical * 2 + (s === "G4 Solar Storm" ? 2 : 0), 0, 14), 1),
+    obscurationPct: s === "Solar Eclipse" ? 86 : 0,
+    parDropPct: s === "Solar Eclipse" ? 69 : 0,
+    firmsHotspots50km: hotspots,
+    frpMw: Math.round(hotspots * (6 + rng() * 10)),
+    aod: layers["Smoke AOD"].value,
+    rain24hMm: round(Math.max(...recent.map((p) => p.PRECTOTCORR)), 1),
+    gwetroot: round(gwetroot, 2),
+    canopyDeltaC: round(clamp(0.4 + vpd * 0.9 + (drought ? 2.2 : 0) - (rootM > 60 ? 0.6 : 0), -1, 9), 1),
+    minTempC: round(t2m - 7 - (1 - c.tropical) * 5 - (input.season === "Rabi" ? 2 : 0), 1),
+    rh2m: Math.round(clamp(95 - vpd * 22 + c.wetness * 8 + (cyclone || flood ? 12 : 0), 15, 99)),
+    ws2m: round(1.8 + rng() * 3.2 + c.aridity * 1.2 + (cyclone ? 15 : flood ? 4 : 0), 1),
+    live: [],
   };
-
-  const smokeSev: Severity =
-    aod >= 1.2 ? "critical" : aod >= 0.7 ? "warning" : aod >= 0.4 ? "watch" : "nominal";
-  const smoke: HazardAlert = {
-    id: "hz-smoke",
-    type: "smoke",
-    title: "Smoke & Aerosols",
-    source: "MODIS MAIAC AOD",
-    severity: smokeSev,
-    metric: `AOD ${aod.toFixed(2)}`,
-    detail:
-      smokeSev === "nominal"
-        ? "Clear-sky aerosol load."
-        : "Diffuse light rising; PAR reduced, check worker exposure.",
-  };
-
-  return [cyclone, quake, solar, eclipse, flood, drought, wildfire, smoke];
 }
 
 function generateGranules(input: TelemetryInput, rng: () => number): NasaGranule[] {
@@ -815,7 +660,8 @@ export function generateTelemetry(raw: TelemetryInput): AgroTelemetry {
   const layers = generateLayers(power, soil, c, input.scenario, rng);
   const plantHealth = generatePlantHealth(power, soil, layers, input, siteRng);
   const { stages, crop } = generateWaterBudget(power, soil, c, input);
-  const hazards = generateHazards(power, soil, layers, c, input, rng);
+  const hazardSignals = generateHazardSignals(power, soil, layers, c, input, rng);
+  const hazards = buildHazardAlerts(hazardSignals);
   const granules = generateGranules(input, rng);
   const passIdx =
     hashString(`${Math.round(input.lat)}|${Math.round(input.lon)}|${input.scenario}`) %
@@ -837,6 +683,7 @@ export function generateTelemetry(raw: TelemetryInput): AgroTelemetry {
     plantHealth,
     waterBudget: stages,
     hazards,
+    hazardSignals,
     granules,
     layers,
     crop,

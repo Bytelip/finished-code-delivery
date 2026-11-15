@@ -10,6 +10,7 @@ import {
   type AgroTelemetry,
   type CropRecommendation,
   type HazardAlert,
+  type HazardSignals,
   type LayerReading,
   type MapLayer,
   type NasaGranule,
@@ -20,6 +21,7 @@ import {
   type TelemetryInput,
   type WaterBudgetStage,
 } from "@/types/agroSpace";
+import { buildHazardAlerts } from "@/services/hazardRules";
 import { generateTelemetry, normalizeInput, borewellYieldLph } from "@/services/mockNasaTelemetry";
 
 /** Standard timeout for keyless browser requests */
@@ -184,7 +186,10 @@ export async function fetchOrnlModisSubsets(
     }
   }
 
-  return { ndvi, evi };
+  const out: ModisSubsetResult = {};
+  if (ndvi != null) out.ndvi = ndvi;
+  if (evi != null) out.evi = evi;
+  return out;
 }
 
 // -----------------------------------------------------------------------------------------
@@ -661,93 +666,41 @@ export async function fetchLiveTelemetry(
     },
   };
 
-  // Reconcile Hazard Alerts with real hazard feeds
-  const hazards: HazardAlert[] = fallback.hazards.map((h) => {
-    // If a scenario was explicitly chosen by the user, respect the scenario override
-    if (input.scenario !== "Nominal") return h;
-
-    if (h.type === "cyclone" && eonetData?.cyclones?.length) {
-      const closest = eonetData.cyclones[0];
-      const isCritical = closest.distKm < 200;
-      const isWarning = closest.distKm < 600;
-      const isWatch = closest.distKm < 1200;
-      const sev: Severity = isCritical
-        ? "critical"
-        : isWarning
-          ? "warning"
-          : isWatch
-            ? "watch"
-            : "nominal";
-      const eventTitle = closest.title || "Storm System";
-      return {
-        ...h,
-        severity: sev,
-        metric: `${closest.distKm} km: ${eventTitle.slice(0, 24)}`,
-        detail: `Tracked by EONET ${closest.distKm} km from field pin.`,
-      };
+  // Reconcile hazard signals with real feeds; a chosen scenario stays fully simulated.
+  const hazardSignals: HazardSignals = { ...fallback.hazardSignals, live: [] };
+  if (input.scenario === "Nominal") {
+    const storm = eonetData?.cyclones[0];
+    if (eonetData) {
+      hazardSignals.stormDistKm = storm ? storm.distKm : null;
+      hazardSignals.stormName = storm?.title?.slice(0, 32) || "Storm system";
+      hazardSignals.live.push("cyclone");
+      const fires = eonetData.wildfires.filter((f) => f.distKm <= 50).length;
+      hazardSignals.firmsHotspots50km = Math.max(hazardSignals.firmsHotspots50km, fires);
+      hazardSignals.live.push("fire-smoke");
     }
-
-    if (h.type === "earthquake" && quakeData && quakeData.count > 0) {
-      const sev: Severity =
-        quakeData.maxMag >= 6.0
-          ? "critical"
-          : quakeData.maxMag >= 5.0
-            ? "warning"
-            : quakeData.maxMag >= 4.0
-              ? "watch"
-              : "nominal";
-      return {
-        ...h,
-        severity: sev,
-        metric: `M${quakeData.maxMag} · ${quakeData.depthKm} km depth`,
-        detail: `Epicentre ${quakeData.nearestDistKm} km away (${quakeData.place || "local"}).`,
-      };
+    if (quakeData) {
+      hazardSignals.quakeMag = quakeData.count > 0 ? quakeData.maxMag : 0;
+      hazardSignals.quakeDepthKm = quakeData.depthKm;
+      hazardSignals.quakeDistKm = quakeData.count > 0 ? quakeData.nearestDistKm : null;
+      hazardSignals.live.push("earthquake");
     }
-
-    if (h.type === "solar-storm" && spaceData) {
-      return {
-        ...h,
-        severity: spaceData.status,
-        metric: `Kp ${spaceData.kpIndex}`,
-        detail: spaceData.detail,
-      };
+    if (spaceData) {
+      hazardSignals.kpIndex = spaceData.kpIndex;
+      hazardSignals.geomagStorm = spaceData.solarStormActive ? `Kp ${spaceData.kpIndex}` : null;
+      if (spaceData.flareClass) hazardSignals.flareClass = spaceData.flareClass;
+      hazardSignals.live.push("solar-storm");
     }
-
-    if (h.type === "eclipse" && eclipseData) {
-      return {
-        ...h,
-        severity: eclipseData.isEclipse ? "watch" : "nominal",
-        metric: eclipseData.isEclipse ? `${eclipseData.obscuration}% obscuration` : "None in 30 d",
-        detail: eclipseData.detail,
-      };
+    if (eclipseData) {
+      hazardSignals.obscurationPct = eclipseData.isEclipse ? eclipseData.obscuration : 0;
+      hazardSignals.parDropPct = Math.round(hazardSignals.obscurationPct * 0.8);
+      hazardSignals.live.push("eclipse");
     }
-
-    if (h.type === "flood" && eonetData?.floods?.length) {
-      const closest = eonetData.floods[0];
-      if (closest.distKm < 300) {
-        return {
-          ...h,
-          severity: closest.distKm < 100 ? "critical" : "warning",
-          metric: `${closest.distKm} km away`,
-          detail: `EONET flood event: ${closest.title || "Flash flood detected"}`,
-        };
-      }
+    if (power !== fallback.power) {
+      hazardSignals.rain24hMm = power[power.length - 1]?.PRECTOTCORR ?? hazardSignals.rain24hMm;
+      hazardSignals.live.push("flood");
     }
-
-    if (h.type === "wildfire" && eonetData?.wildfires?.length) {
-      const closest = eonetData.wildfires[0];
-      if (closest.distKm < 200) {
-        return {
-          ...h,
-          severity: closest.distKm < 50 ? "critical" : "warning",
-          metric: `${closest.distKm} km away`,
-          detail: `Active wildfire alert: ${closest.title || "Thermal hotspot cluster"}`,
-        };
-      }
-    }
-
-    return h;
-  });
+  }
+  const hazards: HazardAlert[] = buildHazardAlerts(hazardSignals);
 
   // Reconcile Plant Health Pillars
   const pillars = fallback.plantHealth.pillars.map((pillar) => {
@@ -799,6 +752,7 @@ export async function fetchLiveTelemetry(
     plantHealth,
     waterBudget: fallback.waterBudget,
     hazards,
+    hazardSignals,
     granules,
     layers,
     crop: fallback.crop,
