@@ -81,6 +81,8 @@ export interface AuthResult {
   error?: string;
   redirecting?: boolean;
   needsAccountSelection?: boolean;
+  isConfigured?: boolean;
+  devCode?: string;
 }
 
 /**
@@ -257,7 +259,7 @@ export async function sendEmailOtp(email: string): Promise<AuthResult> {
       return { success: false, error: error.message };
     }
 
-    return { success: true };
+    return { success: true, isConfigured: true };
   }
 
   // Generate cryptographically secure 6-digit random code
@@ -281,7 +283,7 @@ export async function sendEmailOtp(email: string): Promise<AuthResult> {
     attempts: 0,
   };
 
-  // If EmailJS service is configured, dispatch genuine email
+  // 1. If EmailJS service is configured, dispatch genuine email
   const serviceId = getEnvVar("VITE_EMAILJS_SERVICE_ID");
   const templateId = getEnvVar("VITE_EMAILJS_TEMPLATE_ID");
   const publicKey = getEnvVar("VITE_EMAILJS_PUBLIC_KEY");
@@ -308,14 +310,44 @@ export async function sendEmailOtp(email: string): Promise<AuthResult> {
         return { success: false, error: `Email dispatch failed: ${text || res.statusText}` };
       }
 
-      return { success: true };
+      return { success: true, isConfigured: true };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, error: `Network error sending email: ${msg}` };
+      return { success: false, error: `Network error sending email via EmailJS: ${msg}` };
     }
   }
 
-  // Standalone dispatch (logged to browser console for developer/operator testing)
+  // 2. If Resend service is configured, dispatch genuine email
+  const resendApiKey = getEnvVar("VITE_RESEND_API_KEY");
+  if (resendApiKey) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "AgroSpace Nexus <onboarding@resend.dev>",
+          to: cleanEmail,
+          subject: "AgroSpace Nexus — Verification Code",
+          html: `<div style="font-family: sans-serif; background: #0B111E; color: #FFF; padding: 24px; border-radius: 12px;"><h2 style="color: #22D3EE;">AgroSpace Nexus</h2><p>Your 6-digit verification code is:</p><h1 style="font-size: 32px; letter-spacing: 4px; color: #38BDF8; font-family: monospace;">${secureOtp}</h1><p style="color: #94A3B8; font-size: 12px;">Valid for 5 minutes.</p></div>`,
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        return { success: false, error: `Resend dispatch failed: ${text || res.statusText}` };
+      }
+
+      return { success: true, isConfigured: true };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Network error sending email via Resend: ${msg}` };
+    }
+  }
+
+  // 3. Standalone / unconfigured mode: logged to console and returned for developer/operator testing
   if (typeof console !== "undefined") {
     console.info(
       `%c[AgroSpace Mail Dispatch] 6-digit verification code sent to ${cleanEmail}: ${secureOtp}`,
@@ -323,7 +355,11 @@ export async function sendEmailOtp(email: string): Promise<AuthResult> {
     );
   }
 
-  return { success: true };
+  return {
+    success: true,
+    isConfigured: false,
+    devCode: secureOtp,
+  };
 }
 
 /**
