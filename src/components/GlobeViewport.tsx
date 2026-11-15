@@ -251,7 +251,7 @@ interface PlaceLabelEntry {
   text: string;
 }
 
-// Stage 1 Major Non-overlapping Countries & Oceans (Alt > 1.4)
+// Stage 1 Major Non-overlapping Countries & Oceans (Alt > 1.25)
 const STAGE1_MAJOR_COUNTRIES: PlaceLabelEntry[] = [
   { id: "cnt-ind", lat: 22.5, lng: 79.5, text: "INDIA" },
   { id: "cnt-usa", lat: 38.0, lng: -97.0, text: "UNITED STATES" },
@@ -259,6 +259,7 @@ const STAGE1_MAJOR_COUNTRIES: PlaceLabelEntry[] = [
   { id: "cnt-bra", lat: -12.0, lng: -52.0, text: "BRAZIL" },
   { id: "cnt-afr", lat: 4.0, lng: 21.0, text: "AFRICA" },
   { id: "cnt-rus", lat: 60.0, lng: 100.0, text: "RUSSIA" },
+  { id: "cnt-chn", lat: 35.0, lng: 104.0, text: "CHINA" },
   { id: "cnt-aus", lat: -25.0, lng: 134.0, text: "AUSTRALIA" },
 ];
 
@@ -320,6 +321,7 @@ const REGIONAL_WATER_BODIES: PlaceLabelEntry[] = [
 ];
 
 const ALL_CITIES_AND_TOWNS: PlaceLabelEntry[] = [
+  { id: "tn-hrh", lat: 12.6626, lng: 77.4548, text: "Harohalli" },
   { id: "ct-hyd", lat: 17.385, lng: 78.4867, text: "Hyderabad" },
   { id: "ct-maa", lat: 13.0827, lng: 80.2707, text: "Chennai" },
   { id: "ct-pnq", lat: 18.5204, lng: 73.8567, text: "Pune" },
@@ -340,6 +342,7 @@ const ALL_CITIES_AND_TOWNS: PlaceLabelEntry[] = [
   { id: "tn-dvh", lat: 13.2483, lng: 77.7128, text: "Devenahalli" },
   { id: "tn-wtf", lat: 12.9698, lng: 77.75, text: "Whitefield" },
   { id: "tn-tmk", lat: 13.3409, lng: 77.101, text: "Tumakuru" },
+  { id: "tn-mdy", lat: 12.52, lng: 76.89, text: "Mandya" },
   { id: "tn-ank", lat: 12.71, lng: 77.6978, text: "Anekal" },
   { id: "tn-nh75", lat: 13.11, lng: 78.02, text: "NH 75 Corridor" },
 ];
@@ -635,6 +638,40 @@ export function GlobeViewport({
   // Zoom & LOD control state (Synchronized 3D Orbital Altitude & 2D Map Zoom)
   const [orbitalAltitude, setOrbitalAltitude] = useState(0.85);
   const [gisZoom, setGisZoom] = useState(12);
+
+  const liveAltitudeRef = useRef<number>(0.85);
+  const [zoomStage, setZoomStage] = useState<1 | 2 | 3 | 4>(() => {
+    const initAlt = 0.85;
+    if (initAlt > 1.25) return 1;
+    if (initAlt > 0.55) return 2;
+    if (initAlt > 0.14) return 3;
+    return 4;
+  });
+
+  const updateZoomStage = useCallback((alt: number) => {
+    liveAltitudeRef.current = alt;
+    setZoomStage((prevStage) => {
+      if (prevStage === 1) {
+        if (alt <= 1.2) return 2;
+        return 1;
+      }
+      if (prevStage === 2) {
+        if (alt > 1.3) return 1;
+        if (alt <= 0.5) return 3;
+        return 2;
+      }
+      if (prevStage === 3) {
+        if (alt > 0.6) return 2;
+        if (alt <= 0.14) return 4;
+        return 3;
+      }
+      if (prevStage === 4) {
+        if (alt > 0.18) return 3;
+        return 4;
+      }
+      return prevStage;
+    });
+  }, []);
 
   // 2D Hazard layers visibility & filter
   const [hazardsVisible, setHazardsVisible] = useState(true);
@@ -1066,10 +1103,10 @@ export function GlobeViewport({
       basemapStyle === "terrain" || basemapStyle === "default" || basemapStyle === "pressure";
     const labels: GlobeHtmlMarkerItem[] = [];
 
-    // Stage 1 — Global / Far Orbital View (altitude > 1.4):
+    // Stage 1 — Global / Far Orbital View (altitude > 1.25):
     // Show ONLY major non-overlapping country labels and major oceans.
-    // Hide regional sea names (ARABIAN SEA, BAY OF BENGAL) and redundant continent/country duplicates (EUROPE vs UNITED KINGDOM).
-    if (orbitalAltitude > 1.4) {
+    // Hide regional sea names (ARABIAN SEA, BAY OF BENGAL), states, districts, and cities.
+    if (zoomStage === 1) {
       for (const c of STAGE1_MAJOR_COUNTRIES) {
         labels.push({
           id: c.id,
@@ -1080,28 +1117,21 @@ export function GlobeViewport({
         });
       }
       for (const o of STAGE1_MAJOR_OCEANS) {
-        const camLat = lastPovRef.current?.lat ?? lat;
-        const camLng = lastPovRef.current?.lng ?? lon;
-        const angDist = getAngularDistanceDeg(o.lat, o.lng, camLat, camLng);
-        // Large Ocean labels cull at 52° from camera center so PACIFIC OCEAN never projects over Asia/India
-        if (angDist <= 52) {
-          labels.push({
-            id: o.id,
-            lat: o.lat,
-            lng: o.lng,
-            priority: 3,
-            html: renderOceanHtml(o.text, isLight),
-          });
-        }
+        labels.push({
+          id: o.id,
+          lat: o.lat,
+          lng: o.lng,
+          priority: 3,
+          html: renderOceanHtml(o.text, isLight),
+        });
       }
       return labels;
     }
 
-    // Stage 2 — Country Zoom (0.65 < altitude <= 1.4):
-    // Smoothly fade in State names in clean, small white/slate typography.
-    // Keep smaller cities, districts, and terrain features hidden so they never overlap states.
-    if (orbitalAltitude > 0.65 && orbitalAltitude <= 1.4) {
-      for (const c of GLOBAL_COUNTRIES) {
+    // Stage 2 — Country Zoom (0.55 < altitude <= 1.25):
+    // Country names + fade in State / Province Names. Districts and cities stay hidden.
+    if (zoomStage === 2) {
+      for (const c of STAGE1_MAJOR_COUNTRIES) {
         labels.push({
           id: c.id,
           lat: c.lat,
@@ -1110,7 +1140,7 @@ export function GlobeViewport({
           html: renderCountryHtml(c.text, isLight),
         });
       }
-      for (const o of REGIONAL_WATER_BODIES) {
+      for (const o of STAGE1_MAJOR_OCEANS) {
         labels.push({
           id: o.id,
           lat: o.lat,
@@ -1128,21 +1158,11 @@ export function GlobeViewport({
           html: renderStateHtml(s.text, isLight),
         });
       }
-      for (const m of MEGA_CAPITALS) {
-        labels.push({
-          id: m.id,
-          lat: m.lat,
-          lng: m.lng,
-          priority: 5,
-          html: renderMegaCapitalHtml(m.text, isLight),
-        });
-      }
       return labels;
     }
 
-    // Stage 3 — State / Regional Zoom (0.28 < altitude <= 0.75):
-    // Fade out giant country label.
-    // Reveal regional cities, districts, towns with tiny white city dots, terrain features, and state labels.
+    // Stage 3 & 4 — State / Regional / District Zoom (0.14 < altitude <= 0.55):
+    // State names, mega capitals, districts/cities/towns, and terrain features.
     for (const s of REGIONAL_STATES) {
       labels.push({
         id: s.id,
@@ -1181,7 +1201,7 @@ export function GlobeViewport({
     }
 
     return labels;
-  }, [orbitalAltitude, basemapStyle]);
+  }, [zoomStage, basemapStyle]);
 
   // 3D Sleek Target Micro-Marker flush with Earth curvature (cluttering 16 green dots removed)
   const telemetryPointsData = useMemo(() => {
@@ -1394,8 +1414,9 @@ export function GlobeViewport({
               lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
               altitude: clamped,
             };
+            updateZoomStage(clamped);
             setOrbitalAltitude((prev) => {
-              if (Math.abs(prev - clamped) > 0.03) {
+              if (Math.abs(prev - clamped) > 0.05) {
                 return clamped;
               }
               return prev;
@@ -1431,7 +1452,7 @@ export function GlobeViewport({
         controlsInstance.removeEventListener("change", handleControlsChange);
       }
     };
-  }, [viewMode, globeModule, runCollisionCull, configureOrbitControls]);
+  }, [viewMode, globeModule, runCollisionCull, configureOrbitControls, updateZoomStage]);
 
   // 2D Field GIS Hazard Features List
   const mapHazardsList = useMemo(() => {
@@ -1555,19 +1576,22 @@ export function GlobeViewport({
   // Explicit View Mode Switchers with Camera Preservation (Zero reset to Africa/Europe)
   const handleSwitchTo3D = useCallback(() => {
     if (!webGLSupported) return;
+    const targetAlt =
+      lastPovRef.current.altitude &&
+      lastPovRef.current.altitude >= 0.15 &&
+      lastPovRef.current.altitude <= 1.2
+        ? lastPovRef.current.altitude
+        : 0.55;
     lastPovRef.current = {
       lat,
       lng: lon,
-      altitude:
-        lastPovRef.current.altitude &&
-        lastPovRef.current.altitude >= 0.15 &&
-        lastPovRef.current.altitude <= 1.2
-          ? lastPovRef.current.altitude
-          : 0.55,
+      altitude: targetAlt,
     };
+    updateZoomStage(targetAlt);
+    setOrbitalAltitude(targetAlt);
     isFirst3dMountRef.current = true;
     setViewMode("3d");
-  }, [webGLSupported, lat, lon]);
+  }, [webGLSupported, lat, lon, updateZoomStage]);
 
   const handleSwitchTo2D = useCallback(() => {
     if (globeRef.current && typeof globeRef.current.pointOfView === "function") {
@@ -1599,12 +1623,13 @@ export function GlobeViewport({
       isFirst3dMountRef.current = false;
       setViewMode("3d");
       setOrbitalAltitude(1.35);
+      updateZoomStage(1.35);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.35 }, 1000);
       toast.info("Entering 3D Orbital Overview", {
         description: "Zoomed out to global threshold (zoom <= 2). Switched to 3D Globe.",
       });
     }
-  }, [webGLSupported, lat, lon]);
+  }, [webGLSupported, lat, lon, updateZoomStage]);
 
   const handleAutoTransitionTo2D = useCallback(() => {
     const now = Date.now();
@@ -1642,6 +1667,7 @@ export function GlobeViewport({
       const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
       const nextAlt = Math.max(0.12, curAlt * 0.72);
       setOrbitalAltitude(nextAlt);
+      updateZoomStage(nextAlt);
       lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
       globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 350);
       if (nextAlt <= 0.14) {
@@ -1650,7 +1676,7 @@ export function GlobeViewport({
     } else {
       leafletMapRef.current?.zoomIn?.(1, { animate: true });
     }
-  }, [viewMode, orbitalAltitude, lat, lon, handleAutoTransitionTo2D]);
+  }, [viewMode, orbitalAltitude, lat, lon, handleAutoTransitionTo2D, updateZoomStage]);
 
   // Unified Bi-Directional Zoom Out Handler (triggers 3D Hand-Off when 2D zoom <= 2)
   const handleZoomOut = useCallback(() => {
@@ -1661,6 +1687,7 @@ export function GlobeViewport({
       const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
       const nextAlt = Math.min(1.85, curAlt * 1.35);
       setOrbitalAltitude(nextAlt);
+      updateZoomStage(nextAlt);
       lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
       globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 350);
     } else {
@@ -1671,7 +1698,7 @@ export function GlobeViewport({
         leafletMapRef.current?.zoomOut?.(1, { animate: true });
       }
     }
-  }, [viewMode, orbitalAltitude, gisZoom, lat, lon, handleAutoTransitionTo3D]);
+  }, [viewMode, orbitalAltitude, gisZoom, lat, lon, handleAutoTransitionTo3D, updateZoomStage]);
 
   // Unified Vertical Zoom Slider Handler (Maps 0% to 100% to altitude and zoom)
   const handleSliderChange = useCallback((newZoom: number) => {
@@ -1679,6 +1706,7 @@ export function GlobeViewport({
       const pct = Math.max(0, Math.min(1, (newZoom - 1) / 17));
       const nextAlt = Math.max(0.12, Math.min(1.85, 1.85 - pct * (1.85 - 0.12)));
       setOrbitalAltitude(nextAlt);
+      updateZoomStage(nextAlt);
       const curPov = typeof globeRef.current?.pointOfView === "function" ? globeRef.current.pointOfView() : null;
       const curLat = typeof curPov?.lat === "number" ? curPov.lat : lat;
       const curLon = typeof curPov?.lng === "number" ? curPov.lng : lon;
@@ -1695,7 +1723,7 @@ export function GlobeViewport({
       leafletMapRef.current?.setZoom?.(newZoom, { animate: true });
       setGisZoom(newZoom);
     }
-  }, [viewMode, lat, lon, handleAutoTransitionTo2D, handleAutoTransitionTo3D]);
+  }, [viewMode, lat, lon, handleAutoTransitionTo2D, handleAutoTransitionTo3D, updateZoomStage]);
 
   // Keyboard Shortcuts: +, -, R (reset), 0 (full orbit)
   useEffect(() => {
@@ -1716,6 +1744,7 @@ export function GlobeViewport({
         e.preventDefault();
         if (viewMode === "3d") {
           setOrbitalAltitude(0.65);
+          updateZoomStage(0.65);
           lastPovRef.current = { lat, lng: lon, altitude: 0.65 };
           globeRef.current?.pointOfView?.({ lat, lng: lon, altitude: 0.65 }, 600);
           toast.info("Target Camera Reset (Altitude: 0.65)");
@@ -1730,7 +1759,7 @@ export function GlobeViewport({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleZoomIn, handleZoomOut, viewMode, lat, lon]);
+  }, [handleZoomIn, handleZoomOut, viewMode, lat, lon, updateZoomStage]);
 
   // Quick Action: Target Farm (Z:15)
   const handleTargetFarm = () => {
@@ -1746,16 +1775,38 @@ export function GlobeViewport({
   const handleFullOrbit = () => {
     if (viewMode === "3d") {
       setOrbitalAltitude(1.85);
+      updateZoomStage(1.85);
       globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.85 }, 1000);
     } else {
       handleAutoTransitionTo3D();
     }
   };
 
+  // Auto-switch to 2D Field GIS on Telemetry Layer Click
+  const handleSelectTelemetryLayer = useCallback(
+    (layerKey: MapLayer) => {
+      onLayer(layerKey);
+      if (viewMode === "3d") {
+        setViewMode("2d");
+        setGisZoom((prevZoom) => Math.max(prevZoom, 11));
+        toast.info(`Switched to 2D Field GIS • ${layerKey}`, {
+          description: "High-resolution NASA telemetry heatmap active.",
+        });
+        setTimeout(() => {
+          if (leafletMapRef.current) {
+            leafletMapRef.current.invalidateSize?.({ animate: false });
+            leafletMapRef.current.flyTo?.([lat, lon], 11, { duration: 0.8 });
+          }
+        }, 80);
+      }
+    },
+    [onLayer, viewMode, lat, lon],
+  );
+
   // 4-Stage Zoom HUD Status Information
   const zoomStageInfo = useMemo(() => {
     if (viewMode === "3d") {
-      if (orbitalAltitude > 1.5) {
+      if (zoomStage === 1) {
         return {
           stage: "STAGE 1",
           label: "ORBITAL VIEW • CONTINENT / GLOBAL",
@@ -1764,7 +1815,7 @@ export function GlobeViewport({
           badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
         };
       }
-      if (orbitalAltitude > 0.65) {
+      if (zoomStage === 2) {
         return {
           stage: "STAGE 2",
           label: "ORBITAL VIEW • STATE LEVEL",
@@ -1773,7 +1824,7 @@ export function GlobeViewport({
           badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
         };
       }
-      if (orbitalAltitude > 0.14) {
+      if (zoomStage === 3) {
         return {
           stage: "STAGE 3",
           label: "ORBITAL VIEW • DISTRICT LEVEL",
@@ -1785,7 +1836,7 @@ export function GlobeViewport({
       return {
         stage: "STAGE 4",
         label: "AUTO-HAND-OFF • 2D TACTICAL MAP",
-        detail: `Transitioning...`,
+        detail: "Transitioning...",
         color: "#F59E0B",
         badgeColor: "bg-amber-500/20 text-amber-300 border-amber-400/40",
       };
@@ -1816,7 +1867,7 @@ export function GlobeViewport({
         badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
       };
     }
-  }, [viewMode, orbitalAltitude, gisZoom]);
+  }, [viewMode, zoomStage, orbitalAltitude, gisZoom]);
 
   // Fit All Hazards in 2D View
   const handleFitAllHazards = () => {
@@ -1980,7 +2031,7 @@ export function GlobeViewport({
               <div className="cosmic-stars-3" />
             </div>
             <GlobeComponent
-              key={`globe-engine-${basemapStyle}-${basemapSubOption}-${showLabels}-${enable3dTerrain}`}
+              key="agrospace-3d-globe-singleton"
               ref={(inst: GlobeMethods | null) => {
                 globeRef.current = inst;
                 if (inst) {
@@ -2050,7 +2101,12 @@ export function GlobeViewport({
                 }
                 return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
               }}
-              rendererConfig={{ antialias: true, powerPreference: "high-performance" }}
+              rendererConfig={{
+                antialias: true,
+                powerPreference: "high-performance",
+                logarithmicDepthBuffer: true,
+              }}
+              polygonAltitude={0.006}
               atmosphereColor={
                 basemapStyle === "wind"
                   ? "#a855f7"
@@ -2237,7 +2293,8 @@ export function GlobeViewport({
                     lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
                     altitude: clampedAlt,
                   };
-                  setOrbitalAltitude(clampedAlt);
+                  updateZoomStage(clampedAlt);
+                  setOrbitalAltitude((prev) => (Math.abs(prev - clampedAlt) > 0.05 ? clampedAlt : prev));
                   if (clampedAlt <= 0.14) {
                     handleAutoTransitionTo2D();
                   }
@@ -2254,6 +2311,7 @@ export function GlobeViewport({
                 if (isDblClick) {
                   const nextAlt = Math.max(0.12, orbitalAltitude * 0.65);
                   setOrbitalAltitude(nextAlt);
+                  updateZoomStage(nextAlt);
                   lastPovRef.current = { lat: targetLat, lng: targetLng, altitude: nextAlt };
                   onPick(targetLat, targetLng);
                   globeRef.current?.pointOfView?.(
@@ -2374,7 +2432,7 @@ export function GlobeViewport({
 
             {/* NASA GIBS WMTS Raster Tile Layer (Level maxZoom with smooth upscaling up to 18) */}
             <LeafletComp.TileLayer
-              key={`${activeSatelliteConfig.gibsLayerName}-${activeSatelliteConfig.defaultDate}`}
+              key={`2d-nasa-overlay-${activeLayer}`}
               url={gibsTileUrl}
               maxNativeZoom={activeSatelliteConfig.maxZoom}
               maxZoom={18}
@@ -3187,7 +3245,7 @@ export function GlobeViewport({
                     role="radio"
                     aria-checked={isSelected}
                     aria-label={tab}
-                    onClick={() => onLayer(tab)}
+                    onClick={() => handleSelectTelemetryLayer(tab)}
                     className={`px-2.5 sm:px-3 py-1 font-mono text-[11px] sm:text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
                       isSelected
                         ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
