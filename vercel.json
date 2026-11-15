@@ -1,12 +1,9 @@
 {
-  "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": ".output/public",
-  "rewrites": [
-    {
-      "source": "/((?!assets/|.*\\..*).*)",
-      "destination": "/index.html"
-    }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/index.html" }
   ],
   "headers": [
     {
