@@ -747,7 +747,7 @@ export function GlobeViewport({
     lat: number;
     lon: number;
     visible: boolean;
-  }>({ lat, lon, visible: true });
+  }>({ lat, lon, visible: false });
 
   const prevCoordsRef = useRef<{ lat: number; lon: number }>({ lat, lon });
   const lastPovRef = useRef<{ lat: number; lng: number; altitude: number }>({
@@ -759,7 +759,9 @@ export function GlobeViewport({
 
   // Center 3D Globe camera on current farm coords when coords change
   useEffect(() => {
-    const coordsChanged = prevCoordsRef.current.lat !== lat || prevCoordsRef.current.lon !== lon;
+    const dLat = Math.abs(prevCoordsRef.current.lat - lat);
+    const dLon = Math.abs(prevCoordsRef.current.lon - lon);
+    const coordsChanged = dLat > 0.005 || dLon > 0.005;
 
     if (coordsChanged) {
       prevCoordsRef.current = { lat, lon };
@@ -777,13 +779,13 @@ export function GlobeViewport({
           // ignore pointOfView transition timing
         }
       }
+
+      const timer = setTimeout(() => {
+        setTargetLockedBanner((prev) => ({ ...prev, visible: false }));
+      }, 2000);
+
+      return () => clearTimeout(timer);
     }
-
-    const timer = setTimeout(() => {
-      setTargetLockedBanner((prev) => ({ ...prev, visible: false }));
-    }, 3200);
-
-    return () => clearTimeout(timer);
   }, [lat, lon, viewMode]);
 
   // 3D Orbital in-place basemap switching: updates Three.js globe texture, tile engine URL and atmosphere in real-time
@@ -1563,7 +1565,7 @@ export function GlobeViewport({
     }
     isFirst3dMountRef.current = true;
     setViewMode("2d");
-    setGisZoom(9);
+    setGisZoom((prev) => Math.max(prev, 13));
     toast.info("Entering High-Resolution 2D Field GIS", {
       description: "Sub-district orbit reached (altitude <= 0.14). Switched to 2D Regional GIS.",
     });
@@ -3109,13 +3111,15 @@ function LeafletRecenter({
     if (prevCenterRef.current) {
       const dLat = Math.abs(prevCenterRef.current.lat - lat);
       const dLon = Math.abs(prevCenterRef.current.lon - lon);
-      if (dLat < 0.0001 && dLon < 0.0001) {
-        return; // Skip micro-jitter re-centering
+      // Skip micro-jitter (< 0.005 deg ~ 550m) so user's zoomed-in field exploration and pan position are strictly preserved
+      if (dLat < 0.005 && dLon < 0.005) {
+        return;
       }
     }
     prevCenterRef.current = { lat, lon };
 
-    const currentZoom = typeof map.getZoom === "function" ? map.getZoom() : 13;
+    // Strictly preserve user's current zoom level: never reset zoom back out
+    const currentZoom = typeof map.getZoom === "function" ? Math.max(map.getZoom(), 13) : 13;
     if (typeof map.flyTo === "function") {
       map.flyTo([lat, lon], currentZoom, { animate: true, duration: 1.0 });
     } else if (typeof map.panTo === "function") {

@@ -33,10 +33,16 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
   // Auto-acquire high-accuracy live GPS location strictly ONCE after authentication
   const triggerAutoGpsTracking = useCallback(
     (userName: string) => {
-      if (hasAcquiredInitialGps.current) {
+      if (
+        hasAcquiredInitialGps.current ||
+        (typeof window !== "undefined" && window.sessionStorage?.getItem("agro_initial_gps_done") === "true")
+      ) {
         return;
       }
       hasAcquiredInitialGps.current = true;
+      try {
+        window.sessionStorage?.setItem("agro_initial_gps_done", "true");
+      } catch {}
 
       if (typeof window === "undefined" || !navigator.geolocation) {
         toast.info(`Welcome, ${userName}`, {
@@ -142,6 +148,9 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
 
   const handleSignOut = async () => {
     hasAcquiredInitialGps.current = false;
+    try {
+      window.sessionStorage?.removeItem("agro_initial_gps_done");
+    } catch {}
     await signOutUser();
     setCurrentUser(null);
     toast.info("Operator Signed Out", {

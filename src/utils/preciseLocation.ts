@@ -268,18 +268,37 @@ export async function resolvePreciseLocation(options?: {
       });
     };
 
-    // Start listening to watchPosition
+    // One-time precise position query (Strictly no continuous watchPosition loops)
     try {
-      watchId = navigator.geolocation.watchPosition(onPosition, onError, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 15000,
-      });
-
-      // Sample collection timer (up to 4.5 seconds)
-      timerId = setTimeout(() => {
+      if (typeof navigator.geolocation.getCurrentPosition === "function") {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            onPosition(pos);
+            finishWithBest();
+          },
+          onError,
+          {
+            enableHighAccuracy: true,
+            maximumAge: 60000,
+            timeout: 8000,
+          }
+        );
+      } else if (typeof (navigator.geolocation as unknown as Record<string, unknown>).watchPosition === "function") {
+        watchId = ((navigator.geolocation as unknown as { watchPosition: Function }).watchPosition)(
+          (pos: GeolocationPosition) => {
+            onPosition(pos);
+            finishWithBest();
+          },
+          onError,
+          {
+            enableHighAccuracy: true,
+            maximumAge: 60000,
+            timeout: 8000,
+          }
+        );
+      } else {
         finishWithBest();
-      }, sampleDurationMs);
+      }
     } catch {
       finishWithBest();
     }

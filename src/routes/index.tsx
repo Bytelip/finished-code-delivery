@@ -310,8 +310,9 @@ function AgroSpaceDashboard({
     const rawCoordsFallback = `Field ${Math.abs(fixedLat).toFixed(4)}°${fixedLat >= 0 ? "N" : "S"}, ${Math.abs(fixedLon).toFixed(4)}°${fixedLon >= 0 ? "E" : "W"}`;
 
     setLocationMeta((prev) => {
-      // 1. If explicit label is passed, always use it
-      if (label) {
+      // 1. If explicit friendly label is passed (not starting with "Field "), always use it
+      const isExplicitFriendly = Boolean(label && !label.startsWith("Field "));
+      if (isExplicitFriendly && label) {
         return {
           label,
           zone: synZone,
@@ -319,7 +320,7 @@ function AgroSpaceDashboard({
         };
       }
       // 2. If we already have a resolved friendly place name (not starting with "Field ")
-      // and the coordinate shift is minor (<= 0.05 degrees), keep the friendly name!
+      // and the coordinate shift is minor (<= 0.05 degrees ~ 5.5km), strictly keep the friendly name to prevent flickering!
       if (prev?.label && !prev.label.startsWith("Field ") && !isSignificantMove) {
         return {
           label: prev.label,
@@ -328,7 +329,7 @@ function AgroSpaceDashboard({
         };
       }
       return {
-        label: rawCoordsFallback,
+        label: label || rawCoordsFallback,
         zone: synZone,
         elevationM: prev?.elevationM ?? 500,
       };
