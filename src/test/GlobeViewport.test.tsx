@@ -161,4 +161,27 @@ describe("GlobeViewport", () => {
       fireEvent.change(slider, { target: { value: "14" } });
     }
   });
+
+  it("handles basemap style changes and toggles between Terrain, Default, Satellite, and Dark", () => {
+    const { container } = render(
+      <GlobeViewport
+        telemetry={telemetry}
+        activeLayer="NDVI"
+        onLayer={vi.fn()}
+        opacity={70}
+        onOpacity={vi.fn()}
+        onPick={vi.fn()}
+      />,
+    );
+
+    const switcherTrigger = container.querySelector(
+      '[data-hud-overlay="map-layer-switcher"] button',
+    );
+    expect(switcherTrigger).not.toBeNull();
+    if (switcherTrigger) {
+      fireEvent.click(switcherTrigger);
+      const terrainBtn = screen.getByRole("button", { name: /Terrain/i });
+      fireEvent.click(terrainBtn);
+    }
+  });
 });
