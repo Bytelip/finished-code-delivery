@@ -1165,17 +1165,16 @@ export function GlobeViewport({
     return list;
   }, [lat, lon, activeLayer, reading, meta.regionLabel, hazards, activePlaceLabels]);
 
-function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const rad = Math.PI / 180;
-  const phi1 = lat1 * rad;
-  const phi2 = lat2 * rad;
-  const deltaLambda = (lon2 - lon1) * rad;
-  const cosTheta =
-    Math.sin(phi1) * Math.sin(phi2) +
-    Math.cos(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
-  const clamped = Math.max(-1, Math.min(1, cosTheta));
-  return Math.acos(clamped) * (180 / Math.PI);
-}
+  function getAngularDistanceDeg(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const rad = Math.PI / 180;
+    const phi1 = lat1 * rad;
+    const phi2 = lat2 * rad;
+    const deltaLambda = (lon2 - lon1) * rad;
+    const cosTheta =
+      Math.sin(phi1) * Math.sin(phi2) + Math.cos(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+    const clamped = Math.max(-1, Math.min(1, cosTheta));
+    return Math.acos(clamped) * (180 / Math.PI);
+  }
 
   // Screen-space bounding-box collision culling & hemisphere backface culling for 3D Globe place labels
   const runCollisionCull = useCallback(() => {

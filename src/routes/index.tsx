@@ -382,7 +382,10 @@ function AgroSpaceDashboard() {
                 </div>
                 <div className="antigravity-float-3">
                   <SpotlightCard className="p-0 border-white/10 bg-transparent">
-                    <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
+                    <SoilMoistureChart
+                      data={telemetry.soil}
+                      depth={telemetry.input.borewellDepth}
+                    />
                   </SpotlightCard>
                 </div>
                 <div className="antigravity-float-1">

@@ -273,20 +273,45 @@ export function setLocalGoogleClientId(clientId: string): void {
   }
 }
 
+interface GoogleOAuthTokenResponse {
+  access_token?: string;
+  error?: string;
+}
+
+interface GoogleOAuthClient {
+  requestAccessToken: () => void;
+}
+
+interface GoogleGlobalWindow {
+  google?: {
+    accounts?: {
+      oauth2?: {
+        initTokenClient: (config: {
+          client_id: string;
+          scope: string;
+          prompt?: string;
+          callback: (response: GoogleOAuthTokenResponse) => void | Promise<void>;
+        }) => GoogleOAuthClient;
+      };
+    };
+  };
+}
+
 export async function loadGoogleIdentityServices(): Promise<boolean> {
   if (typeof window === "undefined") return false;
-  if ((window as any).google?.accounts?.oauth2) return true;
+  const win = window as unknown as GoogleGlobalWindow;
+  if (win.google?.accounts?.oauth2) return true;
 
   return new Promise((resolve) => {
     const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
     if (existing) {
-      if ((window as any).google?.accounts?.oauth2) {
+      if (win.google?.accounts?.oauth2) {
         resolve(true);
         return;
       }
       existing.addEventListener("load", () => resolve(true));
       existing.addEventListener("error", () => resolve(false));
-      setTimeout(() => resolve(Boolean((window as any).google?.accounts?.oauth2)), 2000);
+      setTimeout(() => resolve(Boolean(win.google?.accounts?.oauth2)), 2000);
       return;
     }
 
@@ -357,14 +382,15 @@ export async function initiateOAuthLogin(
     }
 
     const isLoaded = await loadGoogleIdentityServices();
-    if (isLoaded && (window as any).google?.accounts?.oauth2) {
+    const win = window as unknown as GoogleGlobalWindow;
+    if (isLoaded && win.google?.accounts?.oauth2) {
       return new Promise<AuthResult>((resolve) => {
         try {
-          const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          const tokenClient = win.google.accounts.oauth2.initTokenClient({
             client_id: googleClientId,
             scope: "openid profile email",
             prompt: "select_account",
-            callback: async (tokenResponse: { access_token?: string; error?: string }) => {
+            callback: async (tokenResponse: GoogleOAuthTokenResponse) => {
               if (tokenResponse.error || !tokenResponse.access_token) {
                 const err = tokenResponse.error || "Google authentication was cancelled.";
                 onError?.(err);
@@ -386,7 +412,10 @@ export async function initiateOAuthLogin(
                 const googleUser = await res.json();
                 const cleanEmail = googleUser.email?.trim().toLowerCase();
                 const displayName =
-                  googleUser.name || googleUser.given_name || cleanEmail?.split("@")[0] || "Commander Naren";
+                  googleUser.name ||
+                  googleUser.given_name ||
+                  cleanEmail?.split("@")[0] ||
+                  "Commander Naren";
 
                 if (!cleanEmail) {
                   const err = "No verified email returned from Google.";
@@ -552,7 +581,11 @@ export function completeDirectOAuthLogin(
       .split(" ")
       .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
       .join(" ") ||
-    (provider === "Google" ? "Commander Naren" : provider === "Microsoft" ? "Director Naren" : "Pilot Naren");
+    (provider === "Google"
+      ? "Commander Naren"
+      : provider === "Microsoft"
+        ? "Director Naren"
+        : "Pilot Naren");
 
   const profile = createInitialProfile(cleanEmail, provider, derivedName);
   profile.verified = true;

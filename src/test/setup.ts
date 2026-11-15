@@ -32,16 +32,17 @@ Object.defineProperty(window, "matchMedia", {
 
 // Mock HTMLCanvasElement.prototype.getContext for jsdom
 if (typeof HTMLCanvasElement !== "undefined" && !HTMLCanvasElement.prototype.getContext) {
-  HTMLCanvasElement.prototype.getContext = () => ({
-    clearRect: () => {},
-    beginPath: () => {},
-    arc: () => {},
-    fill: () => {},
-    moveTo: () => {},
-    lineTo: () => {},
-    stroke: () => {},
-    createLinearGradient: () => ({
-      addColorStop: () => {},
-    }),
-  } as unknown as RenderingContext);
+  HTMLCanvasElement.prototype.getContext = () =>
+    ({
+      clearRect: () => {},
+      beginPath: () => {},
+      arc: () => {},
+      fill: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      stroke: () => {},
+      createLinearGradient: () => ({
+        addColorStop: () => {},
+      }),
+    }) as unknown as RenderingContext;
 }

@@ -203,7 +203,13 @@ export function AgroDecisionCard({
       )}
     >
       {/* Magic UI / Linear Glowing Border Beam */}
-      <BorderBeam size={280} duration={14} borderWidth={1.5} colorFrom="#38bdf8" colorTo="#10b981" />
+      <BorderBeam
+        size={280}
+        duration={14}
+        borderWidth={1.5}
+        colorFrom="#38bdf8"
+        colorTo="#10b981"
+      />
 
       {/* Top accent lightline */}
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-cyan-400 via-emerald-400 to-transparent opacity-80" />
@@ -372,7 +378,13 @@ export function AgroDecisionCard({
                   {activeCrop.name} ({activeCrop.adjustedScore}/100)
                 </span>
               </button>
-              <BorderBeam size={180} duration={8} borderWidth={1.5} colorFrom="#10b981" colorTo="#38bdf8" />
+              <BorderBeam
+                size={180}
+                duration={8}
+                borderWidth={1.5}
+                colorFrom="#10b981"
+                colorTo="#38bdf8"
+              />
             </div>
 
             <div className="flex items-center gap-2 text-cyan-300">
@@ -462,7 +474,9 @@ export function AgroDecisionCard({
                     >
                       {crop.adjustedScore}/100 {crop.suitabilityTier.split(" ")[0]}
                     </span>
-                    <span className="text-[10px] font-mono text-muted-foreground">{crop.season}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {crop.season}
+                    </span>
                   </div>
 
                   {/* Animated 5-Factor Progress Bars */}
@@ -490,9 +504,13 @@ export function AgroDecisionCard({
                     </div>
 
                     <div className="grid grid-cols-3 gap-1 pt-1 text-[8px] font-mono text-muted-foreground">
-                      <span title="Terrain Suitability (14% weight)">Terr: {crop.factors.terrain}</span>
+                      <span title="Terrain Suitability (14% weight)">
+                        Terr: {crop.factors.terrain}
+                      </span>
                       <span title="Climate & ESI (23% weight)">Clim: {crop.factors.climate}</span>
-                      <span title="Economics & Margin (15% weight)">Econ: {crop.factors.economics}</span>
+                      <span title="Economics & Margin (15% weight)">
+                        Econ: {crop.factors.economics}
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -532,7 +550,8 @@ export function AgroDecisionCard({
                 </span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Target Agro-Climatic Zone: {zone.name} (Zone {zone.zoneNumber}) • Field Coordinates: [{input.lat.toFixed(3)}, {input.lon.toFixed(3)}]
+                Target Agro-Climatic Zone: {zone.name} (Zone {zone.zoneNumber}) • Field Coordinates:
+                [{input.lat.toFixed(3)}, {input.lon.toFixed(3)}]
               </DialogDescription>
             </DialogHeader>
 
@@ -553,11 +572,15 @@ export function AgroDecisionCard({
                   </div>
                   <div className="flex justify-between py-1 border-b border-rose-500/15">
                     <span className="text-muted-foreground">Water Consumption:</span>
-                    <span className="font-mono font-bold text-rose-200">1,250 mm/season (~12.5M L/ha)</span>
+                    <span className="font-mono font-bold text-rose-200">
+                      1,250 mm/season (~12.5M L/ha)
+                    </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-rose-500/15">
                     <span className="text-muted-foreground">Borewell Overdraft Risk:</span>
-                    <span className="font-mono font-bold text-rose-300">Critical ({input.borewellDepth}m depth)</span>
+                    <span className="font-mono font-bold text-rose-300">
+                      Critical ({input.borewellDepth}m depth)
+                    </span>
                   </div>
                   <div className="flex justify-between py-1">
                     <span className="text-muted-foreground">Soil Health Trajectory:</span>
@@ -568,7 +591,13 @@ export function AgroDecisionCard({
 
               {/* Recommended Shift Target Box */}
               <div className="p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-950/25 relative overflow-hidden">
-                <BorderBeam size={160} duration={8} borderWidth={1.5} colorFrom="#10b981" colorTo="#38bdf8" />
+                <BorderBeam
+                  size={160}
+                  duration={8}
+                  borderWidth={1.5}
+                  colorFrom="#10b981"
+                  colorTo="#38bdf8"
+                />
                 <div className="flex items-center justify-between text-xs font-mono text-emerald-300 font-bold mb-2">
                   <span>SHIFT TARGET ({modalCrop.name})</span>
                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-[10px]">
@@ -579,22 +608,32 @@ export function AgroDecisionCard({
                   <div className="flex justify-between py-1 border-b border-emerald-500/20">
                     <span className="text-muted-foreground">Suitability Index:</span>
                     <span className="font-mono font-bold text-emerald-300">
-                      {modalCrop.adjustedScore} / 100 (+{Math.max(0, modalCrop.adjustedScore - 48)} pts)
+                      {modalCrop.adjustedScore} / 100 (+{Math.max(0, modalCrop.adjustedScore - 48)}{" "}
+                      pts)
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-emerald-500/20">
                     <span className="text-muted-foreground">Water Requirement:</span>
                     <span className="font-mono font-bold text-emerald-300">
-                      {modalCrop.waterRequirementMm} mm/season (+{Math.max(0, Math.round(((1250 - modalCrop.waterRequirementMm) / 1250) * 100))}% saved)
+                      {modalCrop.waterRequirementMm} mm/season (+
+                      {Math.max(
+                        0,
+                        Math.round(((1250 - modalCrop.waterRequirementMm) / 1250) * 100),
+                      )}
+                      % saved)
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-emerald-500/20">
                     <span className="text-muted-foreground">Climate Resilience:</span>
-                    <span className="font-mono font-bold text-emerald-300">Deep root-zone buffer</span>
+                    <span className="font-mono font-bold text-emerald-300">
+                      Deep root-zone buffer
+                    </span>
                   </div>
                   <div className="flex justify-between py-1">
                     <span className="text-muted-foreground">Soil Regeneration:</span>
-                    <span className="font-mono text-emerald-300">High biomass aeration & recovery</span>
+                    <span className="font-mono text-emerald-300">
+                      High biomass aeration & recovery
+                    </span>
                   </div>
                 </div>
               </div>
@@ -607,7 +646,9 @@ export function AgroDecisionCard({
                   <BarChart3 className="size-3.5 text-cyan-400" />
                   NASA 5-Factor Suitability Breakdown
                 </span>
-                <span className="text-[10px] text-muted-foreground font-normal">Formula-calibrated</span>
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  Formula-calibrated
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
@@ -617,48 +658,73 @@ export function AgroDecisionCard({
                     <span className="text-cyan-300 font-bold">{modalCrop.factors.water}/100</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-400 rounded-full" style={{ width: `${modalCrop.factors.water}%` }} />
+                    <div
+                      className="h-full bg-cyan-400 rounded-full"
+                      style={{ width: `${modalCrop.factors.water}%` }}
+                    />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-muted-foreground">🌱 Soil Chemistry & Depth (22% weight)</span>
+                    <span className="text-muted-foreground">
+                      🌱 Soil Chemistry & Depth (22% weight)
+                    </span>
                     <span className="text-emerald-300 font-bold">{modalCrop.factors.soil}/100</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${modalCrop.factors.soil}%` }} />
+                    <div
+                      className="h-full bg-emerald-400 rounded-full"
+                      style={{ width: `${modalCrop.factors.soil}%` }}
+                    />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
                     <span className="text-muted-foreground">⛰️ Terrain & Slope (14% weight)</span>
-                    <span className="text-amber-300 font-bold">{modalCrop.factors.terrain}/100</span>
+                    <span className="text-amber-300 font-bold">
+                      {modalCrop.factors.terrain}/100
+                    </span>
                   </div>
                   <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-400 rounded-full" style={{ width: `${modalCrop.factors.terrain}%` }} />
+                    <div
+                      className="h-full bg-amber-400 rounded-full"
+                      style={{ width: `${modalCrop.factors.terrain}%` }}
+                    />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-muted-foreground">☀️ Climate & Thermal ESI (23% weight)</span>
+                    <span className="text-muted-foreground">
+                      ☀️ Climate & Thermal ESI (23% weight)
+                    </span>
                     <span className="text-sky-300 font-bold">{modalCrop.factors.climate}/100</span>
                   </div>
                   <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-sky-400 rounded-full" style={{ width: `${modalCrop.factors.climate}%` }} />
+                    <div
+                      className="h-full bg-sky-400 rounded-full"
+                      style={{ width: `${modalCrop.factors.climate}%` }}
+                    />
                   </div>
                 </div>
               </div>
 
               <div className="pt-1">
                 <div className="flex justify-between text-[11px] font-mono mb-1">
-                  <span className="text-muted-foreground">💰 Economic Yield & Market Margin (15% weight)</span>
-                  <span className="text-purple-300 font-bold">{modalCrop.factors.economics}/100</span>
+                  <span className="text-muted-foreground">
+                    💰 Economic Yield & Market Margin (15% weight)
+                  </span>
+                  <span className="text-purple-300 font-bold">
+                    {modalCrop.factors.economics}/100
+                  </span>
                 </div>
                 <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-purple-400 rounded-full" style={{ width: `${modalCrop.factors.economics}%` }} />
+                  <div
+                    className="h-full bg-purple-400 rounded-full"
+                    style={{ width: `${modalCrop.factors.economics}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -677,7 +743,10 @@ export function AgroDecisionCard({
                 type="button"
                 onClick={() => {
                   setSelectedCropId(modalCrop.id);
-                  const savings = Math.max(0, Math.round(((1250 - modalCrop.waterRequirementMm) / 1250) * 100));
+                  const savings = Math.max(
+                    0,
+                    Math.round(((1250 - modalCrop.waterRequirementMm) / 1250) * 100),
+                  );
                   toast.success(`Farm Plan Shifted to ${modalCrop.name}!`, {
                     description: `Irrigation schedule calibrated. Projected water savings: +${savings}%.`,
                   });

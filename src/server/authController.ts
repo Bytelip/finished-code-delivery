@@ -65,7 +65,12 @@ const rateLimitCache = new Map<string, { count: number; firstSent: number; lastS
 // ============================================================================
 // Helpers: Rate Limiting & Crypto
 // ============================================================================
-function checkRateLimit(key: string, cooldownSec = 60, maxPerWindow = 4, windowSec = 900): { allowed: boolean; retryAfter?: number; error?: string } {
+function checkRateLimit(
+  key: string,
+  cooldownSec = 60,
+  maxPerWindow = 4,
+  windowSec = 900,
+): { allowed: boolean; retryAfter?: number; error?: string } {
   const now = Date.now();
   const record = rateLimitCache.get(key);
 
@@ -117,14 +122,18 @@ function hashOtp(email: string, otp: string, salt: string): string {
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
   if (!local || !domain) return email;
-  const maskedLocal = local.length > 2 ? `${local[0]}***${local[local.length - 1]}` : `${local[0]}*`;
+  const maskedLocal =
+    local.length > 2 ? `${local[0]}***${local[local.length - 1]}` : `${local[0]}*`;
   return `${maskedLocal}@${domain}`;
 }
 
 // ============================================================================
 // Provider Dispatchers: SendGrid & Twilio
 // ============================================================================
-async function sendViaSendGrid(toEmail: string, otp: string): Promise<{ success: boolean; error?: string }> {
+async function sendViaSendGrid(
+  toEmail: string,
+  otp: string,
+): Promise<{ success: boolean; error?: string }> {
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL || "mission-control@agrospace.nasa.gov";
 
@@ -175,7 +184,10 @@ async function sendViaSendGrid(toEmail: string, otp: string): Promise<{ success:
   }
 }
 
-async function sendViaResend(toEmail: string, otp: string): Promise<{ success: boolean; error?: string }> {
+async function sendViaResend(
+  toEmail: string,
+  otp: string,
+): Promise<{ success: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return { success: false, error: "RESEND_API_KEY is not configured on server." };
@@ -219,7 +231,10 @@ async function sendViaResend(toEmail: string, otp: string): Promise<{ success: b
   }
 }
 
-async function sendViaTwilioSms(phoneNumber: string, otp: string): Promise<{ success: boolean; error?: string }> {
+async function sendViaTwilioSms(
+  phoneNumber: string,
+  otp: string,
+): Promise<{ success: boolean; error?: string }> {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const fromPhone = process.env.TWILIO_PHONE_NUMBER;
@@ -284,12 +299,16 @@ export async function handleSendCode(
   }
 
   // 2. Ghost Account Check: Explicitly query database
-  console.info(`[Auth Audit] Checking user database for email: ${maskEmail(cleanEmail)} in mode: ${mode}`);
+  console.info(
+    `[Auth Audit] Checking user database for email: ${maskEmail(cleanEmail)} in mode: ${mode}`,
+  );
   const user = await userRepo.findByEmail(cleanEmail);
 
   if (mode === "signin" && !user) {
     // REJECT GHOST ACCOUNT: Never issue OTP or session for non-existent account
-    console.warn(`[Security Alert] Rejected ghost login attempt for non-existent email: ${maskEmail(cleanEmail)}`);
+    console.warn(
+      `[Security Alert] Rejected ghost login attempt for non-existent email: ${maskEmail(cleanEmail)}`,
+    );
     return res.status(404).json({
       success: false,
       code: "ACCOUNT_NOT_FOUND",
@@ -333,7 +352,9 @@ export async function handleSendCode(
   let dispatchResult = { success: false, error: "" };
 
   if (channel === "sms" && phoneNumber) {
-    console.info(`[Auth Audit] Dispatching OTP via Twilio SMS to phone: ${phoneNumber.slice(0, 4)}***`);
+    console.info(
+      `[Auth Audit] Dispatching OTP via Twilio SMS to phone: ${phoneNumber.slice(0, 4)}***`,
+    );
     dispatchResult = await sendViaTwilioSms(phoneNumber, otp);
   } else {
     console.info(`[Auth Audit] Dispatching OTP via SendGrid to email: ${maskEmail(cleanEmail)}`);
@@ -341,13 +362,17 @@ export async function handleSendCode(
 
     // Fallback 1: Resend API
     if (!dispatchResult.success) {
-      console.info(`[Auth Fallback] SendGrid failed or unconfigured. Attempting Resend API for ${maskEmail(cleanEmail)}`);
+      console.info(
+        `[Auth Fallback] SendGrid failed or unconfigured. Attempting Resend API for ${maskEmail(cleanEmail)}`,
+      );
       dispatchResult = await sendViaResend(cleanEmail, otp);
     }
 
     // Fallback 2: Twilio SMS if email delivery fails and user provided phone
     if (!dispatchResult.success && phoneNumber) {
-      console.warn(`[Auth Fallback] Email dispatch failed. Attempting SMS fallback to ${phoneNumber.slice(0, 4)}***`);
+      console.warn(
+        `[Auth Fallback] Email dispatch failed. Attempting SMS fallback to ${phoneNumber.slice(0, 4)}***`,
+      );
       dispatchResult = await sendViaTwilioSms(phoneNumber, otp);
     }
   }
@@ -373,7 +398,10 @@ export async function handleSendCode(
   return res.status(200).json({
     success: true,
     channel,
-    message: channel === "sms" ? "Verification code sent via SMS." : "Verification code sent to your email.",
+    message:
+      channel === "sms"
+        ? "Verification code sent via SMS."
+        : "Verification code sent to your email.",
   });
 }
 
@@ -464,7 +492,9 @@ export async function handleVerifyCode(
   // Issue session token (e.g. JWT)
   const sessionToken = crypto.randomBytes(32).toString("hex");
 
-  console.info(`[Auth Audit] User successfully authenticated: ${maskEmail(cleanEmail)} (ID: ${user.id})`);
+  console.info(
+    `[Auth Audit] User successfully authenticated: ${maskEmail(cleanEmail)} (ID: ${user.id})`,
+  );
   return res.status(200).json({
     success: true,
     user,
@@ -504,7 +534,11 @@ export async function handleGoogleAuth(
       if (!googleRes.ok) {
         return res.status(401).json({ success: false, error: "Invalid Google access token." });
       }
-      const info = (await googleRes.json()) as { email?: string; name?: string; given_name?: string };
+      const info = (await googleRes.json()) as {
+        email?: string;
+        name?: string;
+        given_name?: string;
+      };
       email = info.email?.trim().toLowerCase() || "";
       name = info.name || info.given_name || email.split("@")[0];
     } catch (err: unknown) {
@@ -513,7 +547,9 @@ export async function handleGoogleAuth(
     }
   } else if (idToken) {
     try {
-      const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+      const googleRes = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
+      );
       if (!googleRes.ok) {
         return res.status(401).json({ success: false, error: "Invalid Google ID token." });
       }
@@ -529,7 +565,9 @@ export async function handleGoogleAuth(
   }
 
   if (!email) {
-    return res.status(400).json({ success: false, error: "Unable to retrieve verified email from Google." });
+    return res
+      .status(400)
+      .json({ success: false, error: "Unable to retrieve verified email from Google." });
   }
 
   // 1. Database Lookup - Strict Ghost Account Prevention
@@ -537,7 +575,9 @@ export async function handleGoogleAuth(
 
   if (mode === "signin" && !existingUser) {
     // REJECT GHOST ACCOUNT
-    console.warn(`[Security Alert] Rejected Google login for unregistered email: ${maskEmail(email)}`);
+    console.warn(
+      `[Security Alert] Rejected Google login for unregistered email: ${maskEmail(email)}`,
+    );
     return res.status(404).json({
       success: false,
       code: "ACCOUNT_NOT_FOUND",
@@ -559,7 +599,9 @@ export async function handleGoogleAuth(
 
   const sessionToken = crypto.randomBytes(32).toString("hex");
 
-  console.info(`[Auth Audit] User successfully authenticated via Google: ${maskEmail(email)} (ID: ${user?.id})`);
+  console.info(
+    `[Auth Audit] User successfully authenticated via Google: ${maskEmail(email)} (ID: ${user?.id})`,
+  );
   return res.status(200).json({
     success: true,
     user,

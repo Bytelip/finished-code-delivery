@@ -167,7 +167,12 @@ export function VibeCosmicBackground() {
         const tailY = m.y - Math.sin(m.angle) * m.length;
 
         const grad = ctx.createLinearGradient(m.x, m.y, tailX, tailY);
-        grad.addColorStop(0, m.color === "#10b981" ? `rgba(16, 185, 129, ${m.opacity})` : `rgba(56, 189, 248, ${m.opacity})`);
+        grad.addColorStop(
+          0,
+          m.color === "#10b981"
+            ? `rgba(16, 185, 129, ${m.opacity})`
+            : `rgba(56, 189, 248, ${m.opacity})`,
+        );
         grad.addColorStop(1, "rgba(255, 255, 255, 0)");
 
         ctx.beginPath();
@@ -225,8 +230,7 @@ export function VibeCosmicBackground() {
             linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px)
           `,
           backgroundSize: "32px 32px",
-          maskImage:
-            "radial-gradient(ellipse 75% 60% at 50% 40%, #000 60%, transparent 100%)",
+          maskImage: "radial-gradient(ellipse 75% 60% at 50% 40%, #000 60%, transparent 100%)",
           WebkitMaskImage:
             "radial-gradient(ellipse 75% 60% at 50% 40%, #000 60%, transparent 100%)",
         }}
