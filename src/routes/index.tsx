@@ -33,6 +33,7 @@ import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiSe
 import { AgroDecisionCard } from "@/components/agro/AgroDecisionCard";
 import { NasaMissionBriefModal } from "@/components/NasaMissionBriefModal";
 import { FarmerAdvisoryModal } from "@/components/HazardAlertCenter";
+import { GuidedTourOverlay, TOUR_STORAGE_KEY } from "@/components/tutorial/GuidedTourOverlay";
 import { VibeCosmicBackground } from "@/components/ui/VibeCosmicBackground";
 import { SpotlightCard } from "@/components/ui/SpotlightCard";
 import {
@@ -155,6 +156,19 @@ function AgroSpaceDashboard({
   const [showMissionBriefModal, setShowMissionBriefModal] = useState(false);
   const [showAdvisoryReportModal, setShowAdvisoryReportModal] = useState(false);
   const [advisoryLanguage, setAdvisoryLanguage] = useState<"en" | "hi" | "kn">("en");
+  const [showTour, setShowTour] = useState(false);
+
+  // Auto-launch guided tutorial tour for first-time visitors / hackathon judges after 1200ms
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const completed = localStorage.getItem(TOUR_STORAGE_KEY);
+    if (!completed) {
+      const timer = setTimeout(() => {
+        setShowTour(true);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -397,6 +411,7 @@ function AgroSpaceDashboard({
           sidebarCollapsed={collapsed}
           plantHealthOverall={telemetry.plantHealth.overall}
           elevationM={telemetry.meta.elevationM}
+          onOpenTour={() => setShowTour(true)}
         />
 
         <div className="space-y-2.5 p-2 sm:p-3 lg:p-4 pl-18 sm:pl-20">
@@ -411,7 +426,7 @@ function AgroSpaceDashboard({
           />
 
           {/* AI Agronomic & Climate Decision Card */}
-          <div className="antigravity-float-3">
+          <div className="antigravity-float-3" data-tour="crop-decision-engine">
             <AgroDecisionCard
               telemetry={telemetry}
               onExportReport={() => setShowAdvisoryReportModal(true)}
@@ -599,6 +614,7 @@ function AgroSpaceDashboard({
       <NasaMissionBriefModal
         isOpen={showMissionBriefModal}
         onClose={() => setShowMissionBriefModal(false)}
+        onStartTour={() => setShowTour(true)}
       />
 
       {/* 1-Click Printable NASA Field Report / Farmer Advisory Modal */}
@@ -612,6 +628,13 @@ function AgroSpaceDashboard({
           onClose={() => setShowAdvisoryReportModal(false)}
         />
       )}
+
+      {/* Interactive Vision-OS Spotlight Guided Tour Overlay */}
+      <GuidedTourOverlay
+        isOpen={showTour}
+        onClose={() => setShowTour(false)}
+        onRecenterGlobe={() => setLocation(lat, lon, telemetry.meta.regionLabel)}
+      />
     </div>
   );
 }

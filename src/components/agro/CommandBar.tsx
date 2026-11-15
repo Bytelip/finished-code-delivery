@@ -18,6 +18,7 @@ import {
   Menu,
   ChevronDown,
   ChevronUp,
+  GraduationCap,
 } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { LanguageSelector } from "@/components/i18n/LanguageSelector";
@@ -135,6 +136,7 @@ export function CommandBar({
   onSignOut,
   onUpdateUser,
   onOpenMissionBrief,
+  onOpenTour,
   onToggleSidebar,
   sidebarCollapsed,
   plantHealthOverall,
@@ -159,6 +161,7 @@ export function CommandBar({
   onSignOut?: () => void;
   onUpdateUser?: (u: UserProfile) => void;
   onOpenMissionBrief?: () => void;
+  onOpenTour?: () => void;
   onToggleSidebar?: () => void;
   sidebarCollapsed?: boolean;
   plantHealthOverall?: number;
@@ -439,7 +442,7 @@ export function CommandBar({
         </div>
 
         {/* Center: Sleek single-line Command Pill */}
-        <div className="flex items-center justify-center shrink-0">
+        <div data-tour="search-field-params" className="flex items-center justify-center shrink-0">
           <button
             type="button"
             data-params-trigger="true"
@@ -471,7 +474,10 @@ export function CommandBar({
         </div>
 
         {/* Right: Compact icon-first action pills */}
-        <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+        <div
+          data-tour="top-right-controls"
+          className="flex items-center gap-2 shrink-0 whitespace-nowrap"
+        >
           {plantHealthOverall !== undefined && (
             <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0 whitespace-nowrap">
               <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -502,6 +508,20 @@ export function CommandBar({
             <Rocket className="size-3.5 text-cyan-400 animate-pulse shrink-0" />
             <span className="hidden sm:inline">🚀 {t("brief", "Brief")}</span>
           </Button>
+
+          {/* 🎓 Interactive Guided Tour Button */}
+          {onOpenTour && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onOpenTour}
+              className="h-8 px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
+              title="Start Interactive Guided Tour"
+            >
+              <GraduationCap className="size-3.5 text-cyan-400 animate-pulse shrink-0" />
+              <span className="hidden sm:inline">🎓 {t("tour", "Tour")}</span>
+            </Button>
+          )}
 
           {/* Operator Profile Avatar */}
           <div className="shrink-0 whitespace-nowrap">

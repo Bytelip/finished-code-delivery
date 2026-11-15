@@ -25,5 +25,8 @@ export default defineConfig({
       port: 8080,
       allowedHosts: true,
     },
+    build: {
+      chunkSizeWarningLimit: 2500,
+    },
   },
 });

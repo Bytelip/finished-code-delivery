@@ -148,9 +148,28 @@ export async function fetchMeteorologicalForecast(
   lon: number,
 ): Promise<MeteorologicalForecast> {
   const cacheKey = `${lat.toFixed(2)}_${lon.toFixed(2)}`;
+  const storageKey = `agrospace_meteo_cache_${cacheKey}`;
+
+  // 1. Check in-memory cache
   const cached = forecastCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return cached.data;
+  }
+
+  // 2. Check localStorage cache for offline judge demo resilience
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.timestamp && Date.now() - parsed.timestamp < CACHE_TTL_MS && parsed?.data) {
+          forecastCache.set(cacheKey, parsed);
+          return parsed.data;
+        }
+      }
+    } catch {
+      // Ignore storage read errors
+    }
   }
 
   try {
@@ -224,8 +243,27 @@ export async function fetchMeteorologicalForecast(
     };
 
     forecastCache.set(cacheKey, { timestamp: Date.now(), data: result });
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({ timestamp: Date.now(), data: result }));
+      } catch {
+        // Ignore storage write errors
+      }
+    }
     return result;
   } catch (_e) {
+    // If live fetch fails, check if we have any stored cache before falling back
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.data) return parsed.data;
+        }
+      } catch {
+        // Ignore
+      }
+    }
     // Return deterministic fallback
     return generateDeterministicForecast(lat, lon);
   }

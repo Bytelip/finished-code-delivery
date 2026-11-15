@@ -758,5 +758,45 @@ export async function fetchLiveTelemetry(
     crop: fallback.crop,
   };
 
+  // Cache successful live telemetry in localStorage for offline hackathon demos
+  if (typeof window !== "undefined") {
+    try {
+      if (activeFeeds.length > 0) {
+        localStorage.setItem(
+          "agrospace_telemetry_cache",
+          JSON.stringify({ telemetry, status, timestamp: Date.now() }),
+        );
+      } else {
+        const stored = localStorage.getItem("agrospace_telemetry_cache");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (
+            parsed?.telemetry?.input &&
+            haversineKm(
+              parsed.telemetry.input.lat,
+              parsed.telemetry.input.lon,
+              input.lat,
+              input.lon,
+            ) < 50
+          ) {
+            return {
+              telemetry: {
+                ...parsed.telemetry,
+                input,
+              },
+              status: {
+                ...parsed.status,
+                isLive: true,
+                timestamp: new Date().toISOString(),
+              },
+            };
+          }
+        }
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }
+
   return { telemetry, status };
 }

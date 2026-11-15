@@ -2624,6 +2624,7 @@ export function GlobeViewport({
         {/* Left: TARGET RETICLE LOCK CARD */}
         <div
           data-hud-overlay="reticle"
+          data-tour="reticle-lock"
           className={cn(
             "hud-card pointer-events-auto backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl transition-all",
             isReticleMinimized ? "w-52 p-2" : "w-64 p-3"
@@ -2787,7 +2788,10 @@ export function GlobeViewport({
         </div>
 
         {/* Right: 3D ORBITAL | 2D FIELD GIS TOGGLE */}
-        <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] shrink-0">
+        <div
+          data-tour="view-toggle-dock"
+          className="pointer-events-auto flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] shrink-0"
+        >
           <Button
             type="button"
             size="sm"
@@ -3034,22 +3038,23 @@ export function GlobeViewport({
       )}
 
       {/* ---------------- FLOATING BASEMAP & TERRAIN SWITCHER (BOTTOM-LEFT ALIGNED) ---------------- */}
-      <MapLayerSwitcher
-        currentStyle={basemapStyle}
-        onStyleChange={handleBasemapStyleChange}
-        activeSubOption={basemapSubOption}
-        onSubOptionChange={setBasemapSubOption}
-        onOpenInfoModal={(style) => {
-          setInfoModalLayerId(style as ZoomEarthLayerId);
-          setShowLayerInfoModal(true);
-        }}
-        showLabels={showLabels}
-        onToggleLabels={setShowLabels}
-        enable3dTerrain={enable3dTerrain}
-        onToggle3dTerrain={setEnable3dTerrain}
-        viewMode={viewMode}
-        className="absolute left-3 bottom-3 z-30"
-      />
+      <div data-tour="basemap-switcher" className="absolute left-3 bottom-3 z-30">
+        <MapLayerSwitcher
+          currentStyle={basemapStyle}
+          onStyleChange={handleBasemapStyleChange}
+          activeSubOption={basemapSubOption}
+          onSubOptionChange={setBasemapSubOption}
+          onOpenInfoModal={(style) => {
+            setInfoModalLayerId(style as ZoomEarthLayerId);
+            setShowLayerInfoModal(true);
+          }}
+          showLabels={showLabels}
+          onToggleLabels={setShowLabels}
+          enable3dTerrain={enable3dTerrain}
+          onToggle3dTerrain={setEnable3dTerrain}
+          viewMode={viewMode}
+        />
+      </div>
 
       {/* ---------------- DYNAMIC COLOR SCALE STRIP (AUTOMATICALLY ADAPTS TO METEOROLOGICAL BASEMAP) ---------------- */}
       {(basemapStyle === "wind" ||
@@ -3081,6 +3086,7 @@ export function GlobeViewport({
       {/* ---------------- UNIFIED 2-TIER BOTTOM TELEMETRY DOCK ---------------- */}
       <div
         data-hud-overlay="layer-switcher"
+        data-tour="nasa-telemetry-dock"
         className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-[calc(100%-240px)] w-auto pointer-events-none select-none py-1 px-3"
       >
         {/* Minimized Compact Floating Capsule Pill */}

@@ -49,6 +49,12 @@ import {
   type HazardTranslation,
 } from "@/i18n/translations";
 import type { AgroTelemetry, HazardAlert, Severity } from "@/types/agroSpace";
+import {
+  GLOBAL_CROP_ATLAS_600,
+  resolveAgroZoneAndWorldRegion,
+  evaluateCrop600Suitability,
+  getCropSuitabilityColor,
+} from "@/data/globalCropAtlas600";
 
 export interface TacticalHazardItem {
   key:
@@ -645,6 +651,32 @@ export function FarmerAdvisoryModal({
   const borewellFlow = telemetry?.crop?.borewellYieldLph ?? 3400;
   const healthScore = telemetry?.plantHealth?.overall ?? 78;
 
+  // Resolve Top 5 Climate-Resilient Recommended Crops from 600-Crop Atlas
+  const topCrops = useMemo(() => {
+    const resolved = resolveAgroZoneAndWorldRegion(
+      lat,
+      lon,
+      region,
+      "India",
+      telemetry?.meta?.elevationM || 500,
+    );
+    const evalContext = {
+      lat,
+      lon,
+      zoneCode: resolved.zoneCode,
+      worldRegion: resolved.worldRegion,
+      soilMoisturePct: 25,
+      esiRatio: 0.75,
+      waterDeficitMm: deficit,
+      irrigationType: telemetry?.input?.irrigation || "Borewell",
+      season: telemetry?.input?.season || "Kharif",
+      elevationM: telemetry?.meta?.elevationM || 500,
+    };
+    return GLOBAL_CROP_ATLAS_600.map((c) => evaluateCrop600Suitability(c, evalContext))
+      .sort((a, b) => b.adjustedScore - a.adjustedScore)
+      .slice(0, 5);
+  }, [lat, lon, region, deficit, telemetry]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -757,6 +789,78 @@ export function FarmerAdvisoryModal({
                 {borewellFlow.toLocaleString()} LPH
               </div>
               <div className="font-mono text-xs text-muted-foreground">Deficit: {deficit} mm</div>
+            </div>
+          </div>
+
+          {/* Top 5 Climate-Resilient Recommended Crops (600-Crop Atlas) */}
+          <div className="rounded-lg border border-border/60 bg-background/30 p-4">
+            <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-4 text-cyan" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+                  Top 5 Climate-Resilient Recommended Crops (Global Atlas 600)
+                </h3>
+              </div>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                ZONAL SUITABILITY ENGINE · GEO-RESOLVED
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left font-mono text-xs">
+                <thead>
+                  <tr className="border-b border-border/40 text-[10px] text-muted-foreground uppercase">
+                    <th className="py-1.5 px-2">#</th>
+                    <th className="py-1.5 px-2">Crop & Botanical Name</th>
+                    <th className="py-1.5 px-2">Category</th>
+                    <th className="py-1.5 px-2">Suitability</th>
+                    <th className="py-1.5 px-2">Water Need</th>
+                    <th className="py-1.5 px-2">Cycle</th>
+                    <th className="py-1.5 px-2">Key Resilience Trait</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/20">
+                  {topCrops.map((c, idx) => {
+                    const color = getCropSuitabilityColor(c.adjustedScore);
+                    return (
+                      <tr key={c.id} className="hover:bg-white/5 transition-colors">
+                        <td className="py-2 px-2 font-bold text-muted-foreground">{idx + 1}</td>
+                        <td className="py-2 px-2">
+                          <span className="font-bold text-foreground text-xs">{c.name}</span>
+                          <span className="block text-[10px] italic text-muted-foreground">
+                            {c.botanicalName}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-muted-foreground text-[11px] capitalize">
+                          {c.category}
+                        </td>
+                        <td className="py-2 px-2">
+                          <span
+                            className={cn(
+                              "inline-block rounded px-2 py-0.5 font-bold text-[11px]",
+                              color.text,
+                              color.bg,
+                              color.border,
+                              "border",
+                            )}
+                          >
+                            {c.adjustedScore}/100
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-cyan font-semibold">
+                          {c.waterNeedMm} mm
+                        </td>
+                        <td className="py-2 px-2 text-muted-foreground">
+                          {c.growingPeriodDays} days
+                        </td>
+                        <td className="py-2 px-2 text-muted-foreground text-[10px] max-w-[200px] truncate">
+                          {c.agronomicNotes || c.fieldShiftRationale || "High zonal resilience"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 

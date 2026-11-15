@@ -12,15 +12,17 @@ import {
   Award,
   CheckCircle2,
   ChevronRight,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface NasaMissionBriefModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onStartTour?: () => void;
 }
 
-export function NasaMissionBriefModal({ isOpen, onClose }: NasaMissionBriefModalProps) {
+export function NasaMissionBriefModal({ isOpen, onClose, onStartTour }: NasaMissionBriefModalProps) {
   const [activeTab, setActiveTab] = useState<"satellites" | "architecture" | "impact">(
     "satellites",
   );
@@ -326,17 +328,33 @@ export function NasaMissionBriefModal({ isOpen, onClose }: NasaMissionBriefModal
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-card/40">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-card/40 flex-wrap gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">
             NASA Space Apps Challenge 2026 • AgroSpace Nexus Mission Architecture
           </span>
-          <Button
-            type="button"
-            onClick={onClose}
-            className="h-8 px-4 text-xs font-semibold rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono shadow-[0_0_15px_rgba(6,182,212,0.4)]"
-          >
-            Launch Live Mission HUD
-          </Button>
+          <div className="flex items-center gap-2">
+            {onStartTour && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  onClose();
+                  onStartTour();
+                }}
+                className="h-8 px-3 text-xs font-semibold rounded-lg border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 font-mono flex items-center gap-1.5 cursor-pointer"
+              >
+                <GraduationCap className="size-3.5 text-cyan-400 animate-pulse" />
+                <span>🎓 Interactive Tour</span>
+              </Button>
+            )}
+            <Button
+              type="button"
+              onClick={onClose}
+              className="h-8 px-4 text-xs font-semibold rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer"
+            >
+              Launch Live Mission HUD
+            </Button>
+          </div>
         </div>
       </div>
     </div>

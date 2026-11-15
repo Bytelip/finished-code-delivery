@@ -33,3 +33,5 @@ _stitch_reference/
 *.sln
 *.sw?
 .env
+.env*
+.smtp-config.json
