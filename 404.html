@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AgroSpace Nexus</title>
+    <script>
+      // Single Page Application redirect script for GitHub Pages / Static Hosting
+      // Automatically detects whether hosted on custom domain (GoDaddy) or github.io subpath
+      var segmentCount = window.location.hostname.endsWith('github.io') ? 1 : 0;
+      var l = window.location;
+      var basePath = segmentCount > 0 ? '/' + l.pathname.split('/')[1] : '';
+      var path = l.pathname.slice(1).split('/').slice(segmentCount).join('/');
+      l.replace(
+        l.protocol + '//' + l.host + basePath + '/?p=/' + path +
+        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    </script>
+  </head>
+  <body>
+    <div style="background:#050912;color:#38bdf8;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;">
+      Redirecting to AgroSpace Nexus...
+    </div>
+  </body>
+</html>
