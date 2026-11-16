@@ -56,26 +56,41 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   );
 
   // Editable Profile States
-  const [fullName, setFullName] = useState(profile.fullName);
-  const [callsign, setCallsign] = useState(profile.callsign);
+  const [fullName, setFullName] = useState(profile.fullName ?? profile.name ?? "");
+  const [callsign, setCallsign] = useState(profile.callsign ?? "");
+
+  // Older saved profiles may lack these blocks; fall back to the defaults used at sign-up
+  const savedPrefs = profile.preferences ?? {
+    homeBaseName: "Kolar Plateau, Karnataka",
+    homeCoords: { lat: 13.1367, lon: 78.1292 },
+    defaultViewMode: profile.defaultView === "2D" ? ("2d" as const) : ("3d" as const),
+    defaultActiveLayer: profile.defaultLayer || "NDVI",
+    units: profile.units || "metric",
+  };
+  const savedNotifications = profile.notifications ?? {
+    cycloneAlerts: profile.hazardAlerts ?? true,
+    usgsQuakeAlerts: profile.hazardAlerts ?? true,
+    droughtAlerts: profile.hazardAlerts ?? true,
+    emailAlerts: true,
+  };
   const [role, setRole] = useState<OperatorRole>(profile.role);
   const [avatarColor, setAvatarColor] = useState(profile.avatarColor || "#00F0FF");
 
   // Editable Preferences States
-  const [homeBaseName, setHomeBaseName] = useState(profile.preferences.homeBaseName);
-  const [homeLat, setHomeLat] = useState(profile.preferences.homeCoords.lat);
-  const [homeLon, setHomeLon] = useState(profile.preferences.homeCoords.lon);
-  const [defaultViewMode, setDefaultViewMode] = useState(profile.preferences.defaultViewMode);
+  const [homeBaseName, setHomeBaseName] = useState(savedPrefs.homeBaseName);
+  const [homeLat, setHomeLat] = useState(savedPrefs.homeCoords.lat);
+  const [homeLon, setHomeLon] = useState(savedPrefs.homeCoords.lon);
+  const [defaultViewMode, setDefaultViewMode] = useState(savedPrefs.defaultViewMode);
   const [defaultActiveLayer, setDefaultActiveLayer] = useState(
-    profile.preferences.defaultActiveLayer,
+    savedPrefs.defaultActiveLayer,
   );
-  const [units, setUnits] = useState(profile.preferences.units);
+  const [units, setUnits] = useState(savedPrefs.units);
 
   // Notification States
-  const [cycloneAlerts, setCycloneAlerts] = useState(profile.notifications.cycloneAlerts);
-  const [usgsQuakeAlerts, setUsgsQuakeAlerts] = useState(profile.notifications.usgsQuakeAlerts);
-  const [droughtAlerts, setDroughtAlerts] = useState(profile.notifications.droughtAlerts);
-  const [emailAlerts, setEmailAlerts] = useState(profile.notifications.emailAlerts);
+  const [cycloneAlerts, setCycloneAlerts] = useState(savedNotifications.cycloneAlerts);
+  const [usgsQuakeAlerts, setUsgsQuakeAlerts] = useState(savedNotifications.usgsQuakeAlerts);
+  const [droughtAlerts, setDroughtAlerts] = useState(savedNotifications.droughtAlerts);
+  const [emailAlerts, setEmailAlerts] = useState(savedNotifications.emailAlerts);
 
   // Security & API Keys
   const [nasaApiKey, setNasaApiKey] = useState(profile.apiKeys?.nasaApiKey || "");
@@ -555,7 +570,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <div>
                       Verified On:{" "}
                       <span className="font-mono text-slate-300">
-                        {new Date(profile.verifiedAt).toLocaleString()}
+                        {profile.verifiedAt ? new Date(profile.verifiedAt).toLocaleString() : "—"}
                       </span>
                     </div>
                     <div>

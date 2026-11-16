@@ -152,6 +152,24 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  // After a new deploy, an already-open page may request old script files that no longer exist.
+  // Reload once to pick up the fresh index instead of leaving a blank screen.
+  useEffect(() => {
+    const onPreloadError = (event: Event) => {
+      const key = "agrospace:chunk-reload";
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+      event.preventDefault();
+      window.location.reload();
+    };
+    window.addEventListener("vite:preloadError", onPreloadError);
+    const clearFlag = window.setTimeout(() => sessionStorage.removeItem("agrospace:chunk-reload"), 10000);
+    return () => {
+      window.removeEventListener("vite:preloadError", onPreloadError);
+      window.clearTimeout(clearFlag);
+    };
+  }, []);
+
   // Register PWA Service Worker in production
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator && !window.location.hostname.includes("localhost")) {

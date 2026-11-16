@@ -123,7 +123,7 @@ export function FieldShiftCropAdvisor({
 
   // 2. Extract NASA live telemetry values for Hard Feasibility Filtering
   const telemetryContext = useMemo(() => {
-    const rawSmap = telemetry.layers?.["SMAP Moisture"]?.value ?? telemetry.soil[0]?.surfaceMoisture ?? 30;
+    const rawSmap = telemetry.layers?.["SMAP Moisture"]?.value ?? telemetry.soil[0]?.sm0_5 ?? 30;
     const smapMoisture = typeof rawSmap === "number" && rawSmap <= 1 ? rawSmap * 100 : rawSmap;
     const isDroughtScenario =
       telemetry.input.scenario === "Severe Drought" ||
@@ -215,7 +215,7 @@ export function FieldShiftCropAdvisor({
 
   // 5. Selected Crop for 5-Factor Breakdown
   const selectedCrop = useMemo(() => {
-    return evaluatedCrops.find((c) => c.id === selectedCropId) ?? evaluatedCrops[0];
+    return evaluatedCrops.find((c) => c.id === selectedCropId) ?? evaluatedCrops[0]!;
   }, [evaluatedCrops, selectedCropId]);
 
   // 6. Generate 3-Season Sustainable Rotation Plan
@@ -225,11 +225,11 @@ export function FieldShiftCropAdvisor({
 
   // 7. Water & Economics Simulator calculations
   const baselineCrop = useMemo(() => {
-    return evaluatedCrops.find((c) => c.id === baselineCropId) ?? evaluatedCrops[0];
+    return evaluatedCrops.find((c) => c.id === baselineCropId) ?? evaluatedCrops[0]!;
   }, [evaluatedCrops, baselineCropId]);
 
   const targetCrop = useMemo(() => {
-    return evaluatedCrops.find((c) => c.id === targetCropId) ?? evaluatedCrops[0];
+    return evaluatedCrops.find((c) => c.id === targetCropId) ?? evaluatedCrops[0]!;
   }, [evaluatedCrops, targetCropId]);
 
   const waterSavingsMm = Math.max(

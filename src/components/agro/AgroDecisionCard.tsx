@@ -192,7 +192,7 @@ export function AgroDecisionCard({
       const match = evaluated600Crops.find((c) => c.id === selectedCropId);
       if (match) return match;
     }
-    return filteredRankedCrops[0] || evaluated600Crops[0];
+    return filteredRankedCrops[0] || evaluated600Crops[0]!;
   }, [selectedCropId, filteredRankedCrops, evaluated600Crops]);
 
   // Water savings vs baseline high-water crop (Paddy Rice requires 1250mm)
@@ -572,7 +572,7 @@ export function AgroDecisionCard({
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono text-xs font-bold text-white">
-                              {crop.name.split("/")[0].trim()}
+                              {(crop.name.split("/")[0] ?? crop.name).trim()}
                             </span>
                             <span className="text-muted-foreground text-[10px] font-mono">
                               ({categoryIcon} {crop.season})

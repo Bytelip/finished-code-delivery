@@ -337,7 +337,7 @@ export function getSupabaseUrl(): string | undefined {
     if (local && local.trim()) return local.trim();
   }
   return (
-    (typeof import.meta !== "undefined" && (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_URL) ||
+    (typeof import.meta !== "undefined" && (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_URL"]) ||
     getEnvVar("VITE_SUPABASE_URL")
   );
 }
@@ -349,8 +349,8 @@ export function getSupabaseAnonKey(): string | undefined {
   }
   return (
     (typeof import.meta !== "undefined" &&
-      ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_ANON_KEY ||
-        (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SUPABASE_PUBLISHABLE_KEY)) ||
+      ((import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_ANON_KEY"] ||
+        (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_PUBLISHABLE_KEY"])) ||
     getEnvVar("VITE_SUPABASE_ANON_KEY") ||
     getEnvVar("VITE_SUPABASE_PUBLISHABLE_KEY")
   );
@@ -424,6 +424,7 @@ export interface AuthResult {
   devCode?: string;
   previewUrl?: string;
   deliveryMethod?: string;
+  needsSmtpSetup?: boolean;
 }
 
 export function getGoogleClientId(): string | undefined {
@@ -433,9 +434,9 @@ export function getGoogleClientId(): string | undefined {
   }
   if (
     typeof import.meta !== "undefined" &&
-    (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_GOOGLE_CLIENT_ID
+    (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_GOOGLE_CLIENT_ID"]
   ) {
-    const envVal = (import.meta as unknown as { env?: Record<string, string> }).env.VITE_GOOGLE_CLIENT_ID;
+    const envVal = (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_GOOGLE_CLIENT_ID"];
     if (typeof envVal === "string" && envVal.trim()) return envVal.trim();
   }
   return getEnvVar("VITE_GOOGLE_CLIENT_ID");
@@ -457,7 +458,7 @@ interface GoogleOAuthTokenResponse {
 }
 
 interface GoogleOAuthClient {
-  requestAccessToken: () => void;
+  requestAccessToken: (overrides?: { prompt?: string }) => void;
 }
 
 interface GoogleGlobalWindow {
@@ -535,7 +536,7 @@ export async function initiateOAuthLogin(
       provider: targetProvider,
       options: {
         redirectTo: dynamicOrigin,
-        scopes: provider === "Microsoft" ? "email openid profile" : undefined,
+        ...(provider === "Microsoft" ? { scopes: "email openid profile" } : {}),
         queryParams: {
           prompt: "select_account",
         },
@@ -566,7 +567,7 @@ export async function initiateOAuthLogin(
     if (isLoaded && win.google?.accounts?.oauth2) {
       return new Promise<AuthResult>((resolve) => {
         try {
-          const tokenClient = win.google.accounts.oauth2.initTokenClient({
+          const tokenClient = win.google!.accounts!.oauth2!.initTokenClient({
             client_id: googleClientId,
             scope: "openid profile email",
             prompt: "select_account",
@@ -749,8 +750,7 @@ export function completeDirectOAuthLogin(
   // Sign up mode: create new record, save to database, and issue session
   const derivedName =
     customName ||
-    cleanEmail
-      .split("@")[0]
+    (cleanEmail.split("@")[0] ?? "")
       .replace(/[._-]/g, " ")
       .split(" ")
       .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
@@ -853,7 +853,7 @@ export async function signUpWithEmailPassword(
 
       const displayName =
         fullName?.trim() ||
-        (data.user?.user_metadata?.full_name as string) ||
+        (data.user?.user_metadata?.["full_name"] as string) ||
         cleanEmail.split("@")[0];
 
       const profile = createInitialProfile(cleanEmail, "Email", displayName);
@@ -920,7 +920,7 @@ export async function signInWithEmailPassword(
       let profile = await getUserFromDatabase(cleanEmail);
       if (!profile) {
         const displayName =
-          (data.user?.user_metadata?.full_name as string) || cleanEmail.split("@")[0];
+          (data.user?.user_metadata?.["full_name"] as string) || cleanEmail.split("@")[0];
         profile = createInitialProfile(cleanEmail, "Email", displayName);
       }
 
@@ -1020,7 +1020,7 @@ export async function sendEmailOtp(
   if (typeof crypto !== "undefined" && crypto.getRandomValues) {
     const arr = new Uint32Array(1);
     crypto.getRandomValues(arr);
-    randomVal = (arr[0] % 900000) + 100000;
+    randomVal = ((arr[0] ?? 0) % 900000) + 100000;
   } else {
     randomVal = Math.floor(100000 + Math.random() * 900000);
   }
@@ -1048,11 +1048,11 @@ export async function sendEmailOtp(
 
     const payload: Record<string, string> = {
       email: cleanEmail,
-      name: customName || cleanEmail.split("@")[0],
+      name: customName || cleanEmail.split("@")[0] || cleanEmail,
       otp: secureOtp,
     };
-    if (savedSmtp?.gmailUser) payload.gmailUser = savedSmtp.gmailUser;
-    if (savedSmtp?.gmailAppPassword) payload.gmailAppPassword = savedSmtp.gmailAppPassword;
+    if (savedSmtp?.gmailUser) payload["gmailUser"] = savedSmtp.gmailUser;
+    if (savedSmtp?.gmailAppPassword) payload["gmailAppPassword"] = savedSmtp.gmailAppPassword;
 
     const origin =
       typeof window !== "undefined" && window.location?.origin
@@ -1308,7 +1308,7 @@ export async function verifyEmailOtp(
 
       const sbUser = data.user;
       const name =
-        customName || (sbUser?.user_metadata?.full_name as string) || cleanEmail.split("@")[0];
+        customName || (sbUser?.user_metadata?.["full_name"] as string) || cleanEmail.split("@")[0];
 
       const profile = createInitialProfile(cleanEmail, provider, name);
       profile.verified = true;
@@ -1432,8 +1432,8 @@ export async function processIncomingAuthCallback(): Promise<UserProfile | null>
               : "Google";
 
         const profileName =
-          (u.user_metadata?.full_name as string) ||
-          (u.user_metadata?.name as string) ||
+          (u.user_metadata?.["full_name"] as string) ||
+          (u.user_metadata?.["name"] as string) ||
           u.email?.split("@")[0] ||
           "Commander";
 

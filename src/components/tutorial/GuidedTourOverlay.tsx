@@ -215,7 +215,12 @@ export function GuidedTourOverlay({
     },
   ];
 
-  const currentStep = steps[currentStepIndex] || steps[0];
+  const currentStep = steps[currentStepIndex] || steps[0]!;
+  // `steps` is rebuilt every render; read the latest step through a ref so the
+  // step-change effect below fires once per step instead of on every render
+  // (its auto-action updates the location, which re-renders and would loop forever).
+  const currentStepRef = useRef(currentStep);
+  currentStepRef.current = currentStep;
 
   // Recalculate spotlight cutout bounding box
   const updateCutout = useCallback(() => {
@@ -247,7 +252,7 @@ export function GuidedTourOverlay({
     if (!isOpen) return;
 
     // Run auto-action for the new step
-    currentStep.onAutoAction?.();
+    currentStepRef.current?.onAutoAction?.();
 
     // If moving from step 6 back to earlier or forward to step 7, ensure window is at top
     if (prevStepRef.current === 5 && currentStepIndex !== 5) {
@@ -263,7 +268,7 @@ export function GuidedTourOverlay({
       clearTimeout(timer);
       clearTimeout(retryTimer);
     };
-  }, [isOpen, currentStepIndex, currentStep, updateCutout]);
+  }, [isOpen, currentStepIndex, updateCutout]);
 
   // Window resize and scroll listeners
   useEffect(() => {

@@ -22,11 +22,11 @@ import {
 export interface UserProfile {
   id: string;
   name: string;
-  fullName?: string;
+  fullName?: string | undefined;
   email: string;
   provider: "Google" | "Microsoft" | "Apple" | "Email";
   verified: boolean;
-  isVerified?: boolean;
+  isVerified?: boolean | undefined;
   role: string;
   avatarColor: string;
   homeLocation: string;
@@ -47,7 +47,9 @@ export interface UserProfile {
     droughtAlerts: boolean;
     emailAlerts: boolean;
   };
-  callsign?: string;
+  callsign?: string | undefined;
+  apiKeys?: { nasaApiKey?: string };
+  verifiedAt?: string | undefined;
 }
 
 const STORAGE_KEY = "agrospace_user_profile_v1";

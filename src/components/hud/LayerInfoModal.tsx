@@ -26,7 +26,7 @@ export function LayerInfoModal({
 }: LayerInfoModalProps) {
   if (!open || !layerId) return null;
 
-  const meta = ZOOM_EARTH_LAYERS_META[layerId] || ZOOM_EARTH_LAYERS_META.satellite;
+  const meta = ZOOM_EARTH_LAYERS_META[layerId] || ZOOM_EARTH_LAYERS_META["satellite"]!;
   const activeSub = meta.subOptions?.find((s) => s.id === subLayerId);
 
   return (

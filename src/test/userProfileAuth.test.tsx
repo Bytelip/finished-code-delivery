@@ -24,7 +24,7 @@ describe("User Profile & Authentication System", () => {
     expect(profile.fullName).toBe("Naren Kolar");
     expect(profile.isVerified).toBe(true);
     expect(profile.role).toBe("Mission Commander");
-    expect(profile.preferences.homeBaseName).toBe("Kolar Plateau, Karnataka");
+    expect(profile.preferences?.homeBaseName).toBe("Kolar Plateau, Karnataka");
 
     saveStoredProfile(profile);
     const loaded = loadStoredProfile();
@@ -288,7 +288,7 @@ describe("User Profile & Authentication System", () => {
     fireEvent.click(saveBtn);
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    const updated = onSave.mock.calls[0][0] as UserProfile;
+    const updated = onSave.mock.calls[0]![0] as UserProfile;
     expect(updated.fullName).toBe("Flight Director Naren");
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -442,12 +442,11 @@ describe("User Profile & Authentication System", () => {
 
   it("signOutUser properly invokes supabase.auth.signOut and wipes all local auth storage", async () => {
     const mockSignOut = vi.fn().mockResolvedValue({ error: null });
-    // @ts-expect-error Mock Supabase client
     authService.setSupabaseClientOverride({
       auth: {
         signOut: mockSignOut,
       },
-    });
+    } as never);
 
     localStorage.setItem("agrospace_user_profile_v1", JSON.stringify({ email: "test@nasa.gov" }));
     localStorage.setItem("sb-enutgngbsatwgpemwzgx-auth-token", "mock-token");

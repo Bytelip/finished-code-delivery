@@ -50,7 +50,7 @@ export function DashboardSidebar({
   lon: number;
   onPreset: (p: FarmPreset) => void;
   activeHazards: number;
-  operator?: { email: string; fullName?: string } | null;
+  operator?: { email: string; fullName?: string | undefined } | null;
   onOpenAuth?: () => void;
   onOpenSettings?: () => void;
 }) {

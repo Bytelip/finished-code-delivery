@@ -37,8 +37,8 @@ export function calculatePolygonAreaHa(points: GeoPoint[]): number {
   let total = 0;
   for (let i = 0; i < points.length; i++) {
     const j = (i + 1) % points.length;
-    const p1 = points[i];
-    const p2 = points[j];
+    const p1 = points[i]!;
+    const p2 = points[j]!;
     const lat1 = (p1.lat * Math.PI) / 180;
     const lat2 = (p2.lat * Math.PI) / 180;
     const lng1 = (p1.lng * Math.PI) / 180;
@@ -61,7 +61,7 @@ export function FieldMeasurementOverlay({
   // Calculate cumulative distance
   let totalDistKm = 0;
   for (let i = 0; i < points.length - 1; i++) {
-    totalDistKm += calculateGeodesicDistanceKm(points[i], points[i + 1]);
+    totalDistKm += calculateGeodesicDistanceKm(points[i]!, points[i + 1]!);
   }
 
   // Calculate area if polygon is closed (>= 3 points)

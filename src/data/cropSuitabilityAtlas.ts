@@ -944,72 +944,72 @@ export function detectAgroClimaticZone(lat: number, lon: number): AgroClimaticZo
   // 1. Check coordinates inside or near India boundary (lat 6-37 N, lon 68-98 E)
   // Karnataka Plateau & Hills (Kolar, Bengaluru, Tumkur, Bellary, Rayalaseema)
   if (lat >= 11.5 && lat <= 18.5 && lon >= 74.8 && lon <= 80.0) {
-    return AGRO_CLIMATIC_ZONES[9]; // Zone 10: Southern Plateau & Hills
+    return AGRO_CLIMATIC_ZONES[9]!; // Zone 10: Southern Plateau & Hills
   }
 
   // Western Dry Region (Arid Rajasthan)
   if (lat >= 24.5 && lat <= 30.5 && lon >= 69.5 && lon <= 75.5) {
-    return AGRO_CLIMATIC_ZONES[13]; // Zone 14: Western Dry Region
+    return AGRO_CLIMATIC_ZONES[13]!; // Zone 14: Western Dry Region
   }
 
   // Trans-Gangetic Plains (Punjab, Haryana, Delhi)
   if (lat >= 28.0 && lat <= 32.5 && lon >= 73.8 && lon <= 77.8) {
-    return AGRO_CLIMATIC_ZONES[5]; // Zone 6: Trans-Gangetic Plains
+    return AGRO_CLIMATIC_ZONES[5]!; // Zone 6: Trans-Gangetic Plains
   }
 
   // Upper Gangetic Plains (Western/Central UP)
   if (lat >= 25.5 && lat <= 30.0 && lon >= 77.5 && lon <= 82.5) {
-    return AGRO_CLIMATIC_ZONES[4]; // Zone 5: Upper Gangetic Plains
+    return AGRO_CLIMATIC_ZONES[4]!; // Zone 5: Upper Gangetic Plains
   }
 
   // Middle Gangetic Plains (Bihar, Eastern UP)
   if (lat >= 24.5 && lat <= 27.5 && lon >= 82.5 && lon <= 88.5) {
-    return AGRO_CLIMATIC_ZONES[3]; // Zone 4: Middle Gangetic Plains
+    return AGRO_CLIMATIC_ZONES[3]!; // Zone 4: Middle Gangetic Plains
   }
 
   // Lower Gangetic Plains (West Bengal Delta)
   if (lat >= 21.5 && lat <= 27.0 && lon >= 87.5 && lon <= 89.9) {
-    return AGRO_CLIMATIC_ZONES[2]; // Zone 3: Lower Gangetic Plains
+    return AGRO_CLIMATIC_ZONES[2]!; // Zone 3: Lower Gangetic Plains
   }
 
   // Western Plateau & Hills (Maharashtra Deccan / Marathwada / Vidarbha)
   if (lat >= 16.0 && lat <= 22.0 && lon >= 72.8 && lon <= 80.5) {
-    return AGRO_CLIMATIC_ZONES[8]; // Zone 9: Western Plateau & Hills
+    return AGRO_CLIMATIC_ZONES[8]!; // Zone 9: Western Plateau & Hills
   }
 
   // Central Plateau & Hills (MP, Bundelkhand)
   if (lat >= 21.0 && lat <= 26.5 && lon >= 74.5 && lon <= 82.5) {
-    return AGRO_CLIMATIC_ZONES[7]; // Zone 8: Central Plateau & Hills
+    return AGRO_CLIMATIC_ZONES[7]!; // Zone 8: Central Plateau & Hills
   }
 
   // Eastern Plateau & Hills (Jharkhand, Odisha inland, Chota Nagpur)
   if (lat >= 18.5 && lat <= 25.0 && lon >= 82.5 && lon <= 87.5) {
-    return AGRO_CLIMATIC_ZONES[6]; // Zone 7: Eastern Plateau & Hills
+    return AGRO_CLIMATIC_ZONES[6]!; // Zone 7: Eastern Plateau & Hills
   }
 
   // Gujarat Plains & Hills (Saurashtra, Kutch, Gujarat)
   if (lat >= 20.5 && lat <= 24.5 && lon >= 68.5 && lon <= 74.5) {
-    return AGRO_CLIMATIC_ZONES[12]; // Zone 13: Gujarat Plains & Hills
+    return AGRO_CLIMATIC_ZONES[12]!; // Zone 13: Gujarat Plains & Hills
   }
 
   // West Coast Plains & Ghats (Kerala, Malnad, Konkan, Goa)
   if (lat >= 8.2 && lat <= 18.5 && lon >= 73.0 && lon <= 77.2) {
-    return AGRO_CLIMATIC_ZONES[11]; // Zone 12: West Coast Plains & Ghats
+    return AGRO_CLIMATIC_ZONES[11]!; // Zone 12: West Coast Plains & Ghats
   }
 
   // East Coast Plains & Hills (Tamil Nadu & Andhra Coastal)
   if (lat >= 8.5 && lat <= 20.0 && lon >= 79.5 && lon <= 86.5) {
-    return AGRO_CLIMATIC_ZONES[10]; // Zone 11: East Coast Plains & Hills
+    return AGRO_CLIMATIC_ZONES[10]!; // Zone 11: East Coast Plains & Hills
   }
 
   // Western Himalayan Region (J&K, HP, Uttarakhand)
   if (lat >= 29.5 && lat <= 37.0 && lon >= 73.5 && lon <= 81.0) {
-    return AGRO_CLIMATIC_ZONES[0]; // Zone 1: Western Himalayan Region
+    return AGRO_CLIMATIC_ZONES[0]!; // Zone 1: Western Himalayan Region
   }
 
   // Eastern Himalayan Region (Assam, NE states)
   if (lat >= 22.0 && lat <= 29.5 && lon >= 89.5 && lon <= 97.5) {
-    return AGRO_CLIMATIC_ZONES[1]; // Zone 2: Eastern Himalayan Region
+    return AGRO_CLIMATIC_ZONES[1]!; // Zone 2: Eastern Himalayan Region
   }
 
   // The Islands (Andaman & Nicobar, Lakshadweep)
@@ -1017,11 +1017,11 @@ export function detectAgroClimaticZone(lat: number, lon: number): AgroClimaticZo
     (lat >= 6.5 && lat <= 14.0 && lon >= 92.0 && lon <= 94.5) ||
     (lat >= 8.0 && lat <= 12.5 && lon >= 71.0 && lon <= 74.0)
   ) {
-    return AGRO_CLIMATIC_ZONES[14]; // Zone 15: The Islands
+    return AGRO_CLIMATIC_ZONES[14]!; // Zone 15: The Islands
   }
 
   // Default fallback for general semi-arid Deccan plateau or coordinates outside India
-  return AGRO_CLIMATIC_ZONES[9]; // Zone 10: Southern Plateau & Hills
+  return AGRO_CLIMATIC_ZONES[9]!; // Zone 10: Southern Plateau & Hills
 }
 
 export interface LiveTelemetryContext {
@@ -1038,7 +1038,7 @@ export interface EvaluatedCropSuitability extends CropAtlasEntry {
   adjustedScore: number;
   suitabilityTier: "VERY HIGH" | "HIGH" | "MODERATE" | "LOW / INFEASIBLE";
   hardFilterViolation: boolean;
-  hardFilterMessage?: string;
+  hardFilterMessage?: string | undefined;
   waterSavingsPercentVsBaseline?: number;
   capitalSafetyScore: number;
 }

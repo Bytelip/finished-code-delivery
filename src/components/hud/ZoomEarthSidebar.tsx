@@ -42,7 +42,7 @@ export function ZoomEarthSidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isNasaSectionOpen, setIsNasaSectionOpen] = useState(false);
 
-  const activeMeta = ZOOM_EARTH_LAYERS_META[activeLayer] || ZOOM_EARTH_LAYERS_META.satellite;
+  const activeMeta = ZOOM_EARTH_LAYERS_META[activeLayer] || ZOOM_EARTH_LAYERS_META["satellite"]!;
 
   const handleSelectParent = (id: ZoomEarthLayerId) => {
     onLayerChange(id);

@@ -1,5 +1,5 @@
 // AgroSpace Nexus — PWA Offline & Demo Cache Service Worker
-const CACHE_NAME = 'agrospace-nexus-v1';
+const CACHE_NAME = 'agrospace-nexus-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json',
@@ -34,8 +34,8 @@ self.addEventListener('fetch', (event) => {
   // For navigation requests, network first then cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/') || caches.match('/404.html');
+      fetch(event.request).catch(async () => {
+        return (await caches.match('/')) || (await caches.match('/404.html')) || Response.error();
       })
     );
     return;
@@ -54,12 +54,14 @@ self.addEventListener('fetch', (event) => {
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
         return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          const type = networkResponse.headers.get('content-type') || '';
+          // Missing chunks come back as an HTML page: never cache that as a script/style.
+          if (networkResponse && networkResponse.status === 200 && !type.includes('text/html')) {
             const clone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return networkResponse;
-        }).catch(() => cached);
+        }).catch(() => Response.error());
       })
     );
   }
