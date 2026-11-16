@@ -19,11 +19,15 @@ import {
   globeTransportationTileUrl,
 } from "@/components/globe/globeTiles";
 import {
+  GLOBE_FLY_DURATION_MS,
   GLOBE_MAX_ZOOM,
   GLOBE_MIN_ZOOM,
   GLOBE_ZOOM_DURATION_MS,
   clampGlobeZoom,
+  easeInOutCubic,
   flyToZoomFor,
+  projectionForZoom,
+  type GlobeProjectionId,
 } from "@/lib/orbitalZoom";
 
 export interface OrbitalGlobeApi {
@@ -59,6 +63,16 @@ export interface OrbitalSatelliteGlobeProps {
 }
 
 const round4 = (v: number) => Math.round(v * 10000) / 10000;
+
+function cinematicFlight(lat: number, lon: number, zoom: number) {
+  return {
+    center: [lon, lat] as [number, number],
+    zoom,
+    essential: true,
+    duration: GLOBE_FLY_DURATION_MS,
+    easing: easeInOutCubic,
+  };
+}
 
 function buildStyle(p: OrbitalSatelliteGlobeProps): StyleSpecification {
   return {
@@ -163,9 +177,19 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
       if (!/tile|Failed to fetch|AJAXError|404/i.test(msg)) console.warn("Globe:", msg);
     });
 
+    let projection: GlobeProjectionId = "globe";
+    const syncProjection = () => {
+      const next = projectionForZoom(map.getZoom(), projection);
+      if (next === projection) return;
+      projection = next;
+      map.setProjection({ type: next });
+    };
+    map.on("style.load", syncProjection);
+
     let raf = 0;
     let lastSent = Number.NaN;
     map.on("zoom", () => {
+      syncProjection();
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
@@ -189,21 +213,17 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
       const lat = round4(e.lngLat.lat);
       const lon = round4(e.lngLat.lng);
       lastTargetRef.current = { lat, lon };
-      map.flyTo({ center: [lon, lat], zoom: flyToZoomFor(map.getZoom()), essential: true });
+      map.flyTo(cinematicFlight(lat, lon, flyToZoomFor(map.getZoom())));
       propsRef.current.onPick(lat, lon);
     });
 
     const api: OrbitalGlobeApi = {
       zoomIn: () => map.zoomIn({ duration: GLOBE_ZOOM_DURATION_MS }),
       zoomOut: () => map.zoomOut({ duration: GLOBE_ZOOM_DURATION_MS }),
-      zoomTo: (z) => map.zoomTo(clampGlobeZoom(z), { duration: 0 }),
+      zoomTo: (z) => map.zoomTo(clampGlobeZoom(z), { duration: GLOBE_ZOOM_DURATION_MS }),
       flyTo: (lat, lon, zoom) => {
         lastTargetRef.current = { lat, lon };
-        map.flyTo({
-          center: [lon, lat],
-          zoom: clampGlobeZoom(zoom ?? flyToZoomFor(map.getZoom())),
-          essential: true,
-        });
+        map.flyTo(cinematicFlight(lat, lon, clampGlobeZoom(zoom ?? flyToZoomFor(map.getZoom()))));
       },
       getZoom: () => map.getZoom(),
     };
@@ -237,7 +257,7 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     const prev = lastTargetRef.current;
     if (Math.abs(prev.lat - props.lat) < 0.0005 && Math.abs(prev.lon - props.lon) < 0.0005) return;
     lastTargetRef.current = { lat: props.lat, lon: props.lon };
-    map.flyTo({ center: [props.lon, props.lat], zoom: flyToZoomFor(map.getZoom()), essential: true });
+    map.flyTo(cinematicFlight(props.lat, props.lon, flyToZoomFor(map.getZoom())));
   }, [props.lat, props.lon]);
 
   // Basemap + label tile swaps.

@@ -10,6 +10,26 @@ export const GLOBE_DEFAULT_ZOOM = 2.6;
 export const GLOBE_FLY_TO_MIN_ZOOM = 11;
 /** Zoom +/- animation length in milliseconds. */
 export const GLOBE_ZOOM_DURATION_MS = 300;
+/** Cinematic fly-to length in milliseconds for location picks. */
+export const GLOBE_FLY_DURATION_MS = 2200;
+/** Zooming in past this level morphs the sphere into a flat mercator map. */
+export const GLOBE_FLAT_ZOOM = 12;
+/** Zooming back out above this level restores the spherical globe (hysteresis). */
+export const GLOBE_SPHERE_ZOOM = 10;
+
+export type GlobeProjectionId = "globe" | "mercator";
+
+/** Keeps the current projection between thresholds so the view does not flicker. */
+export function projectionForZoom(zoom: number, current: GlobeProjectionId): GlobeProjectionId {
+  if (current === "globe" && zoom > GLOBE_FLAT_ZOOM) return "mercator";
+  if (current === "mercator" && zoom < GLOBE_SPHERE_ZOOM) return "globe";
+  return current;
+}
+
+/** Ease-in-out cubic: starts gently, cruises, and decelerates onto the target. */
+export function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
 export function clampGlobeZoom(zoom: number): number {
   if (!Number.isFinite(zoom)) return GLOBE_DEFAULT_ZOOM;
