@@ -76,7 +76,11 @@ export const Route = createFileRoute("/")({
 });
 
 function AgroSpaceAppRoot() {
-  const [liveFlyTarget, setLiveFlyTarget] = useState<{ lat: number; lon: number; label: string } | null>(null);
+  const [liveFlyTarget, setLiveFlyTarget] = useState<{
+    lat: number;
+    lon: number;
+    label: string;
+  } | null>(null);
 
   return (
     <AuthGate
@@ -149,7 +153,7 @@ function AgroSpaceDashboard({
   } | null>(null);
 
   const [operator, setOperator] = useState<UserProfile | null>(
-    () => user || getStoredUser() || loadStoredProfile()
+    () => user || getStoredUser() || loadStoredProfile(),
   );
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -415,7 +419,7 @@ function AgroSpaceDashboard({
           onOpenTour={() => setShowTour(true)}
         />
 
-        <div className="space-y-2.5 p-2 sm:p-3 lg:p-4 pl-18 sm:pl-20">
+        <div className="mx-auto w-full max-w-[2200px] space-y-2.5 p-2 sm:p-3 lg:p-4 pl-18 sm:pl-20 xl:pl-24">
           <GlobeContainer
             telemetry={telemetry}
             activeLayer={activeLayer}
@@ -525,7 +529,9 @@ function AgroSpaceDashboard({
           {/* Live Telemetry Bottom Mission Tape (Google Stitch) */}
           <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-[11px] mt-6 shadow-xl">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-cyan-400 font-bold uppercase tracking-wider">TELEMETRY STREAM:</span>
+              <span className="text-cyan-400 font-bold uppercase tracking-wider">
+                TELEMETRY STREAM:
+              </span>
               <span className="text-foreground/90">SENTINEL-1 C-SAR PASS: 41.2° INCLINATION</span>
               <span className="hidden md:inline text-white/30">•</span>
               <span className="hidden md:inline text-foreground/80">

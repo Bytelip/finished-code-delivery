@@ -143,7 +143,11 @@ export function DashboardSidebar({
                 ? "bg-cyan-500/20 border-cyan-400/50 text-cyan-300"
                 : "border-white/10 text-muted-foreground hover:text-white hover:bg-white/5",
             )}
-            title={isPinned ? "Pinned: Will not auto-collapse on map drag" : "Unpinned: Auto-collapses on map rotation"}
+            title={
+              isPinned
+                ? "Pinned: Will not auto-collapse on map drag"
+                : "Unpinned: Auto-collapses on map rotation"
+            }
           >
             {isPinned ? <Pin className="size-3.5 fill-current" /> : <PinOff className="size-3.5" />}
           </button>
@@ -151,7 +155,10 @@ export function DashboardSidebar({
       </div>
 
       {/* Navigation Modules */}
-      <nav className="flex flex-col gap-1 p-2 overflow-y-auto no-scrollbar shrink-0" aria-label="Dashboard sections">
+      <nav
+        className="flex min-h-0 flex-col gap-1 overflow-y-auto px-1.5 py-2 no-scrollbar sm:p-2"
+        aria-label="Dashboard sections"
+      >
         {!collapsed && (
           <div className="flex items-center justify-between px-2 pb-1 pt-1">
             <span className="hud-label tracking-widest text-[9.5px] text-muted-foreground/80 font-bold">
@@ -172,7 +179,7 @@ export function DashboardSidebar({
                 title={collapsed ? displayLabel : undefined}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex h-9.5 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-xs font-medium transition-all duration-150 cursor-pointer",
+                  "relative flex h-9.5 min-h-11 w-full items-center gap-2.5 overflow-hidden rounded-xl px-2.5 text-left text-xs font-medium transition-all duration-150 cursor-pointer sm:min-h-0",
                   active
                     ? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/40 shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                     : "text-muted-foreground hover:bg-white/5 hover:text-white border border-transparent",
@@ -207,7 +214,7 @@ export function DashboardSidebar({
 
               {/* Collapsed Instant Tooltip */}
               {collapsed && (
-                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 z-50 rounded-lg bg-[#0b0f19]/95 border border-cyan-500/30 px-2.5 py-1 text-xs font-mono text-cyan-200 shadow-2xl backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden sm:block z-50 rounded-lg bg-[#0b0f19]/95 border border-cyan-500/30 px-2.5 py-1 text-xs font-mono text-cyan-200 shadow-2xl backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   {displayLabel}
                   {id === "hazards" && activeHazards > 0 && ` (${activeHazards} active)`}
                 </div>
@@ -218,7 +225,7 @@ export function DashboardSidebar({
       </nav>
 
       {/* Preset Target Waypoints */}
-      <div className="flex flex-col gap-1 border-t border-white/[0.08] p-2 flex-1 overflow-y-auto no-scrollbar">
+      <div className="flex flex-1 flex-col gap-1 overflow-y-auto border-t border-white/[0.08] px-1.5 py-2 no-scrollbar sm:p-2">
         {!collapsed && (
           <div className="flex items-center justify-between px-2 pb-1 pt-1 shrink-0">
             <span className="hud-label tracking-widest text-[9.5px] text-muted-foreground/80 font-bold">
@@ -235,9 +242,11 @@ export function DashboardSidebar({
               <button
                 type="button"
                 onClick={() => onPreset(p)}
-                title={collapsed ? `${p.name} [${p.lat.toFixed(2)}, ${p.lon.toFixed(2)}]` : undefined}
+                title={
+                  collapsed ? `${p.name} [${p.lat.toFixed(2)}, ${p.lon.toFixed(2)}]` : undefined
+                }
                 className={cn(
-                  "relative flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-all duration-150 cursor-pointer",
+                  "relative flex min-h-11 w-full items-center gap-2 overflow-hidden rounded-lg border px-2 py-1.5 text-left transition-all duration-150 cursor-pointer sm:min-h-0",
                   active
                     ? "border-emerald-500/60 bg-emerald-500/15 shadow-[0_0_14px_rgba(0,255,157,0.22)]"
                     : "border-transparent hover:border-cyan-500/40 hover:bg-white/5",
@@ -273,7 +282,7 @@ export function DashboardSidebar({
 
               {/* Collapsed Instant Tooltip */}
               {collapsed && (
-                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 z-50 rounded-lg bg-[#0b0f19]/95 border border-emerald-500/40 px-2.5 py-1 text-xs font-mono text-emerald-200 shadow-2xl backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden sm:block z-50 rounded-lg bg-[#0b0f19]/95 border border-emerald-500/40 px-2.5 py-1 text-xs font-mono text-emerald-200 shadow-2xl backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   {p.name} [{p.lat.toFixed(2)}°, {p.lon.toFixed(2)}°]
                 </div>
               )}
@@ -287,7 +296,9 @@ export function DashboardSidebar({
         type="button"
         onClick={onToggle}
         className="mt-auto flex h-10 items-center justify-between border-t border-white/[0.08] px-3 text-xs font-mono text-muted-foreground transition-colors hover:text-cyan-300 hover:bg-cyan-500/10 cursor-pointer shrink-0"
-        aria-label={collapsed ? t("expand_dock", "Expand sidebar") : t("collapse_dock", "Collapse sidebar")}
+        aria-label={
+          collapsed ? t("expand_dock", "Expand sidebar") : t("collapse_dock", "Collapse sidebar")
+        }
       >
         <div className="flex items-center gap-2">
           {collapsed ? (
@@ -295,7 +306,9 @@ export function DashboardSidebar({
           ) : (
             <ChevronsLeft className="size-4 text-cyan-400" />
           )}
-          {!collapsed && <span className="hud-label text-[9px]">{t("collapse_dock", "Collapse Dock")}</span>}
+          {!collapsed && (
+            <span className="hud-label text-[9px]">{t("collapse_dock", "Collapse Dock")}</span>
+          )}
         </div>
         {!collapsed && <span className="text-[9px] text-muted-foreground/60">[TAB / H]</span>}
       </button>

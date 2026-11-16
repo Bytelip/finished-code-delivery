@@ -45,28 +45,28 @@ export function DynamicColorScaleBar({
     <div
       data-hud-overlay="dynamic-color-scale"
       className={cn(
-        "pointer-events-auto rounded-xl bg-[#181C24]/85 backdrop-blur-xl border border-white/12 shadow-[0_4px_24px_rgba(0,0,0,0.5)] px-3 py-1.5 text-white select-none transition-all duration-200",
+        "pointer-events-auto box-border min-w-0 max-w-full overflow-hidden rounded-xl bg-[#181C24]/85 backdrop-blur-xl border border-white/12 shadow-[0_4px_24px_rgba(0,0,0,0.5)] px-3 py-1.5 text-white select-none transition-all duration-200",
         className,
       )}
     >
       {/* Title & Unit Header */}
-      <div className="flex items-center justify-between text-[10px] font-mono mb-1 text-slate-300">
-        <span className="font-semibold text-slate-200 flex items-center gap-1">
-          <span>{meta.emoji}</span>
-          <span>{isWetBulb ? "Wet-Bulb Heat Stress" : scale.title}</span>
+      <div className="mb-1 flex min-w-0 items-center justify-between gap-2 text-[10px] font-mono text-slate-300">
+        <span className="flex min-w-0 items-center gap-1 font-semibold text-slate-200">
+          <span className="shrink-0">{meta.emoji}</span>
+          <span className="truncate">{isWetBulb ? "Wet-Bulb Heat Stress" : scale.title}</span>
         </span>
-        <span className="text-cyan-400 font-bold bg-white/10 px-1.5 py-0.2 rounded border border-white/10">
+        <span className="shrink-0 rounded border border-white/10 bg-white/10 px-1.5 py-0.2 font-bold text-cyan-400">
           {unit}
         </span>
       </div>
 
       {/* Gradient Bar */}
-      <div className="relative w-44 sm:w-52 h-2.5 rounded-full overflow-hidden border border-white/20 shadow-inner">
-        <div className="w-full h-full" style={{ background: gradient }} />
+      <div className="relative h-2.5 w-[min(11rem,52vw)] overflow-hidden rounded-full border border-white/20 shadow-inner sm:w-52">
+        <div className="h-full w-full" style={{ background: gradient }} />
       </div>
 
       {/* Stop Labels */}
-      <div className="flex justify-between w-44 sm:w-52 mt-1 text-[9px] font-mono text-slate-400 px-0.5">
+      <div className="mt-1 flex w-[min(11rem,52vw)] justify-between px-0.5 text-[9px] font-mono text-slate-400 sm:w-52">
         {stops.map((stop, idx) => (
           <span
             key={idx}
@@ -82,9 +82,9 @@ export function DynamicColorScaleBar({
 
       {/* Optional Hover / Reticle Live Telemetry Tag */}
       {hoverValue !== undefined && hoverValue !== null && (
-        <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between text-[10px] font-mono text-cyan-300">
-          <span>Target Field:</span>
-          <span className="font-bold text-white bg-cyan-500/20 px-1 rounded border border-cyan-400/30">
+        <div className="mt-1 flex items-center justify-between gap-2 border-t border-white/10 pt-1 text-[10px] font-mono text-cyan-300">
+          <span className="truncate">Target Field:</span>
+          <span className="shrink-0 rounded border border-cyan-400/30 bg-cyan-500/20 px-1 font-bold text-white">
             {hoverValue} {unit}
           </span>
         </div>

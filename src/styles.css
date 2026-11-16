@@ -1055,6 +1055,69 @@ html[data-theme="emerald-terra"] {
   color: #06b6d4 !important;
 }
 
+/* ==========================================================================
+   HUD Overlay Containment & Fluid Responsive Scaling
+   --------------------------------------------------------------------------
+   Every floating HUD surface that lives inside #globe-container is sized with
+   clamp() against the viewport and boxed in with border-box + min-width: 0, so
+   icons, badges and panels can never spill past the globe frame on phones,
+   tablets, laptops or ultra-wide monitors. Overlay layers stay
+   pointer-events: none so drag / wheel gestures reach the map canvas beneath,
+   while interactive surfaces opt back in with pointer-events: auto.
+   ========================================================================== */
+:root {
+  --hud-inset: clamp(0.375rem, 0.9vw, 0.75rem);
+  --hud-gap: clamp(0.25rem, 0.5vw, 0.5rem);
+  --hud-tap: 2.75rem; /* 44px minimum touch target */
+}
+
+#globe-container,
+#globe-container *,
+#globe-container *::before,
+#globe-container *::after {
+  box-sizing: border-box;
+}
+
+#globe-container [data-hud-overlay],
+#globe-container [data-tour] {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Bottom HUD stage: one vertical flex stack so HUD rows can never overlap */
+.hud-stage {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--hud-gap);
+  padding: var(--hud-inset);
+  padding-bottom: calc(var(--hud-inset) + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  max-width: 100%;
+  pointer-events: none;
+}
+
+/* Interactive HUD surface nested inside a pointer-events-none layer.
+   Shrinks like a normal flex item (min-width: 0) but never grows past its box. */
+.hud-surface {
+  pointer-events: auto;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Bounded internal scrolling for tall HUD panels */
+.hud-scroll-area {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media print {
   @page {
     margin: 12mm 15mm;

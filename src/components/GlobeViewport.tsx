@@ -30,7 +30,26 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import { Globe as GlobeIcon, Map as MapIcon, Layers, Radar, Radio, Plus, Minus, Crosshair, Flame, Wind, Activity, TriangleAlert as AlertTriangle, Eye, EyeOff, Compass, Satellite, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Globe as GlobeIcon,
+  Map as MapIcon,
+  Layers,
+  Radar,
+  Radio,
+  Plus,
+  Minus,
+  Crosshair,
+  Flame,
+  Wind,
+  Activity,
+  TriangleAlert as AlertTriangle,
+  Eye,
+  EyeOff,
+  Compass,
+  Satellite,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { formatCoord } from "@/components/agro/hud";
@@ -261,7 +280,6 @@ interface GlobeHtmlMarkerItem {
   html: string;
 }
 
-
 /* ---------------- 3D SLEEK CIRCULAR HAZARD MARKERS WITH INTERACTIVE HOVER TOOLTIPS ---------------- */
 function renderCyclone3DMarker(metricText = "CYCLONE TRACK • 115 km/h"): string {
   return `
@@ -403,6 +421,8 @@ export function GlobeViewport({
     return false;
   });
   const [isDockMinimized, setIsDockMinimized] = useState(false);
+  // Phone-only: the hazard legend collapses into a single chip so the bottom stage stays compact
+  const [isHazardFilterOpen, setIsHazardFilterOpen] = useState(false);
   const { t } = useLanguage();
 
   // Keyboard shortcut listener for 'L' (Toggle Telemetry Dock)
@@ -482,7 +502,11 @@ export function GlobeViewport({
   const leafletMapRef = useRef<LeafletMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 500 });
-  const lastGlobeClickRef = useRef<{ time: number; lat: number; lon: number }>({ time: 0, lat: 0, lon: 0 });
+  const lastGlobeClickRef = useRef<{ time: number; lat: number; lon: number }>({
+    time: 0,
+    lat: 0,
+    lon: 0,
+  });
 
   // Safe client-side dynamic loading of WebGL & Leaflet to keep SSR 100% deterministic
   useEffect(() => {
@@ -521,7 +545,10 @@ export function GlobeViewport({
       import("@/components/globe/OrbitalSatelliteGlobe")
         .then((gMod) => {
           if (!active) return;
-          setGlobeModule(() => gMod.OrbitalSatelliteGlobe as unknown as ComponentType<OrbitalSatelliteGlobeProps>);
+          setGlobeModule(
+            () =>
+              gMod.OrbitalSatelliteGlobe as unknown as ComponentType<OrbitalSatelliteGlobeProps>,
+          );
         })
         .catch((err) => {
           console.warn("3D Globe load warning, defaulting to 2D:", err);
@@ -1146,12 +1173,12 @@ export function GlobeViewport({
 
       {/* ---------------- TARGET LOCKED RETICLE BANNER OVERLAY ---------------- */}
       {targetLockedBanner.visible && (
-        <div className="pointer-events-none absolute top-12 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-cyan-400/60 bg-slate-950/90 px-4 py-1 backdrop-blur-xl shadow-[0_0_25px_rgba(34,211,238,0.45)] text-xs font-mono animate-in fade-in zoom-in-95 duration-200">
+        <div className="pointer-events-none absolute top-12 left-1/2 z-30 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 overflow-hidden rounded-full border border-cyan-400/60 bg-slate-950/90 px-4 py-1 backdrop-blur-xl shadow-[0_0_25px_rgba(34,211,238,0.45)] text-xs font-mono animate-in fade-in zoom-in-95 duration-200">
           <span className="relative flex size-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-80" />
             <span className="relative inline-flex rounded-full size-2 bg-cyan-400" />
           </span>
-          <span className="font-bold text-cyan-300 tracking-wider">
+          <span className="truncate font-bold text-cyan-300 tracking-wider">
             [ TARGET LOCKED: {Math.abs(targetLockedBanner.lat).toFixed(4)}°{" "}
             {targetLockedBanner.lat >= 0 ? "N" : "S"}, {Math.abs(targetLockedBanner.lon).toFixed(4)}
             ° {targetLockedBanner.lon >= 0 ? "E" : "W"} ]
@@ -1430,18 +1457,23 @@ export function GlobeViewport({
       />
 
       {/* ---------------- TOP UNIFIED HUD CONTROL HEADER ROW (ZERO COLLISION FLEXBOX) ---------------- */}
-      <div className="absolute top-3 inset-x-3 flex items-start justify-between pointer-events-none z-20 gap-2">
+      <div className="absolute inset-x-[var(--hud-inset)] top-[var(--hud-inset)] z-20 flex min-w-0 flex-nowrap items-start justify-between gap-2 pointer-events-none">
         {/* Left: TARGET RETICLE LOCK CARD */}
         <div
           data-hud-overlay="reticle"
           data-tour="reticle-lock"
           className={cn(
-            "hud-card pointer-events-auto min-w-0 max-w-[calc(100vw-1.5rem)] backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl transition-all",
-            isReticleMinimized ? "w-40 p-2 sm:w-52" : "w-52 p-3 sm:w-64"
+            "hud-card hud-surface max-w-[calc(100%-7.25rem)] backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl transition-all",
+            isReticleMinimized
+              ? "w-[min(10rem,42vw)] p-2 sm:w-52"
+              : "w-[min(13rem,54vw)] p-2.5 sm:w-64 sm:p-3",
           )}
         >
           <div className="flex items-center gap-2 border-b border-cyan/20 pb-1.5">
-            <Radar className="size-3.5 text-cyan animate-spin shrink-0" style={{ animationDuration: "8s" }} />
+            <Radar
+              className="size-3.5 text-cyan animate-spin shrink-0"
+              style={{ animationDuration: "8s" }}
+            />
             <span className="hud-label font-bold text-cyan/90 text-[10px] truncate">
               {t("target_reticle_lock", "Target Reticle Lock")}
             </span>
@@ -1473,7 +1505,9 @@ export function GlobeViewport({
                 <span className="text-muted-foreground/80 font-medium">
                   {t("elevation", "ELEVATION")}
                 </span>
-                <span className="text-right tabular-nums font-semibold">{meta.elevationM} m ASL</span>
+                <span className="text-right tabular-nums font-semibold">
+                  {meta.elevationM} m ASL
+                </span>
                 <span className="text-muted-foreground/80 font-medium">
                   {t("satellite_pass", "PASS")}
                 </span>
@@ -1491,17 +1525,17 @@ export function GlobeViewport({
               {/* Integrated Sensor Metric Readout in Reticle Card (data-hud-overlay="layer-readout") */}
               <div
                 data-hud-overlay="layer-readout"
-                className="mt-2 pt-1.5 border-t border-cyan/20 flex items-center justify-between text-xs font-mono"
+                className="mt-2 pt-1.5 border-t border-cyan/20 flex min-w-0 items-center justify-between gap-2 text-xs font-mono"
               >
-                <span className="text-cyan font-bold">{activeLayer}</span>
-                <div className="flex items-center gap-1.5">
+                <span className="truncate text-cyan font-bold">{activeLayer}</span>
+                <div className="flex min-w-0 items-center justify-end gap-1.5">
                   <span
-                    className="font-extrabold tabular-nums drop-shadow-[0_0_8px_currentColor]"
+                    className="shrink-0 font-extrabold tabular-nums drop-shadow-[0_0_8px_currentColor]"
                     style={{ color: tone }}
                   >
                     {reading.value} {reading.unit}
                   </span>
-                  <span className="text-[9px] text-muted-foreground font-mono">
+                  <span className="hidden truncate text-[9px] text-muted-foreground font-mono sm:inline">
                     [{activeSatelliteConfig.sensorName}]
                   </span>
                 </div>
@@ -1560,12 +1594,12 @@ export function GlobeViewport({
           ) : (
             <div
               data-hud-overlay="layer-readout"
-              className="mt-1 pt-1 flex items-center justify-between text-[11px] font-mono"
+              className="mt-1 pt-1 flex min-w-0 items-center justify-between gap-2 text-[11px] font-mono"
             >
-              <span className="text-cyan font-semibold">
+              <span className="truncate text-cyan font-semibold">
                 {lat.toFixed(2)}°, {lon.toFixed(2)}°
               </span>
-              <span className="font-bold text-emerald-400">
+              <span className="shrink-0 font-bold text-emerald-400">
                 {reading.value} {reading.unit}
               </span>
             </div>
@@ -1575,7 +1609,7 @@ export function GlobeViewport({
         {/* Center: STAGE 1 ORBITAL VIEW PILL */}
         <div
           data-hud-overlay="zoom-stage-pill"
-          className="pointer-events-auto hidden md:flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none whitespace-nowrap transition-all duration-300 shrink-0"
+          className="hud-surface hidden shrink-0 items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none whitespace-nowrap transition-all duration-300 lg:flex"
         >
           <span
             className="size-2 rounded-full animate-pulse shrink-0"
@@ -1600,7 +1634,7 @@ export function GlobeViewport({
         {/* Right: 3D ORBITAL | 2D FIELD GIS TOGGLE */}
         <div
           data-tour="view-toggle-dock"
-          className="pointer-events-auto flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] shrink-0"
+          className="hud-surface flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)]"
         >
           <Button
             type="button"
@@ -1613,7 +1647,7 @@ export function GlobeViewport({
                 : "3D WebGL is unavailable in your browser environment"
             }
             className={cn(
-              "h-7 px-3 font-mono text-xs transition-all",
+              "h-11 min-w-11 justify-center px-2 font-mono text-xs transition-all sm:h-7 sm:min-w-0 sm:px-3",
               viewMode === "3d"
                 ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
                 : "text-muted-foreground hover:text-foreground",
@@ -1630,7 +1664,7 @@ export function GlobeViewport({
             size="sm"
             variant="ghost"
             className={cn(
-              "h-7 px-3 font-mono text-xs transition-all",
+              "h-11 min-w-11 justify-center px-2 font-mono text-xs transition-all sm:h-7 sm:min-w-0 sm:px-3",
               viewMode === "2d"
                 ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
                 : "text-muted-foreground hover:text-foreground",
@@ -1647,11 +1681,11 @@ export function GlobeViewport({
       {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}
       <div
         data-hud-overlay="zoom-controls"
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none max-h-[calc(100%-9.5rem)] overflow-y-auto no-scrollbar py-2 pointer-events-auto"
+        className="hud-surface absolute right-[var(--hud-inset)] top-1/2 z-30 flex w-auto max-w-[calc(100%-1rem)] -translate-y-1/2 flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 py-2 backdrop-blur-md shadow-2xl select-none hud-scroll-area no-scrollbar max-h-[calc(100%-18rem)] sm:max-h-[calc(100%-9.5rem)]"
       >
         {/* Live Altitude / Zoom Readout Badge directly above the + button */}
         <div
-          className="rounded border border-cyan-500/40 bg-black/80 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-cyan-300 tabular-nums text-center whitespace-nowrap shadow-[0_0_8px_rgba(6,182,212,0.3)] mb-0.5"
+          className="hidden rounded border border-cyan-500/40 bg-black/80 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-cyan-300 tabular-nums text-center whitespace-nowrap shadow-[0_0_8px_rgba(6,182,212,0.3)] mb-0.5 sm:block"
           title={
             viewMode === "3d"
               ? `Orbital Altitude: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`
@@ -1671,7 +1705,7 @@ export function GlobeViewport({
           onClick={handleZoomIn}
           title="Zoom In (+)"
           aria-label="Zoom In"
-          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
+          className="size-11 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
         >
           <Plus className="size-3.5" />
         </Button>
@@ -1698,14 +1732,14 @@ export function GlobeViewport({
           onClick={handleZoomOut}
           title="Zoom Out (-)"
           aria-label="Zoom Out"
-          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
+          className="size-11 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
         >
           <Minus className="size-3.5" />
         </Button>
 
         {/* Live Readout Badge */}
         <div
-          className="rounded border border-cyan-500/30 bg-black/60 px-1 py-0.5 font-mono text-[8px] text-cyan tabular-nums text-center w-full"
+          className="hidden w-full rounded border border-cyan-500/30 bg-black/60 px-1 py-0.5 font-mono text-[8px] text-cyan tabular-nums text-center sm:block"
           title={
             viewMode === "3d"
               ? `Orbital Altitude: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`
@@ -1715,7 +1749,7 @@ export function GlobeViewport({
           Z:{viewMode === "3d" ? globeZoom.toFixed(2) : currentZoomLevel}
         </div>
 
-        <div className="w-full h-px bg-cyan-500/30 my-0.5" />
+        <div className="my-0.5 hidden h-px w-full bg-cyan-500/30 sm:block" />
 
         {/* Quick Action: Target Farm (Z:15) */}
         <Button
@@ -1725,7 +1759,7 @@ export function GlobeViewport({
           onClick={handleTargetFarm}
           title="Target Farm (Z:15)"
           aria-label="Target Farm"
-          className="size-9 sm:size-7 rounded-lg text-emerald hover:bg-emerald-500/20 hover:text-emerald-300 cursor-pointer"
+          className="hidden size-11 rounded-lg text-emerald hover:bg-emerald-500/20 hover:text-emerald-300 cursor-pointer sm:inline-flex sm:size-7"
         >
           <Crosshair className="size-3.5" />
         </Button>
@@ -1738,304 +1772,339 @@ export function GlobeViewport({
           onClick={handleFullOrbit}
           title="Full Orbit (Z:3)"
           aria-label="Full Orbit"
-          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
+          className="hidden size-11 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer sm:inline-flex sm:size-7"
         >
           <Compass className="size-3.5" />
         </Button>
       </div>
 
-      {/* ---------------- 2D MAP HAZARD LEGEND & FILTER BAR ---------------- */}
-      <div
-        data-hud-overlay="hazard-filter"
-        className="absolute left-3 right-3 bottom-[9rem] sm:left-4 sm:right-auto sm:bottom-16 sm:max-w-[calc(100%-2rem)] max-h-28 overflow-y-auto z-20 flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/40 bg-[#0D1322]/95 px-3 py-1.5 backdrop-blur-md shadow-2xl text-xs font-mono"
-      >
-        <div className="flex items-center gap-1.5 pr-1 border-r border-cyan-500/30">
-          <AlertTriangle className="size-3.5 text-amber-400 shrink-0 animate-pulse" />
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => setHazardsVisible((v) => !v)}
-            className={cn(
-              "h-6 px-1.5 text-[10px] font-mono font-bold transition-all",
-              hazardsVisible ? "text-amber-300 bg-amber-500/10" : "text-muted-foreground opacity-60",
-            )}
-            title="Toggle Hazard Overlays"
-          >
-            {hazardsVisible ? (
-              <Eye className="size-3 mr-1 text-amber-400" />
-            ) : (
-              <EyeOff className="size-3 mr-1" />
-            )}
-            Hazards: {hazardsVisible ? "ON" : "OFF"}
-          </Button>
-        </div>
-
-        {hazardsVisible && (
-          <>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("all")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "all"
-                  ? "bg-cyan/25 text-cyan font-bold border border-cyan/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("fire")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "fire"
-                  ? "bg-amber/25 text-amber font-bold border border-amber/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              🔥 Fires
-            </button>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("wind")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "wind"
-                  ? "bg-amber/25 text-amber font-bold border border-amber/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              💨 Wind
-            </button>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("cyclone")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "cyclone"
-                  ? "bg-crimson/25 text-crimson font-bold border border-crimson/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              🌀 Storms
-            </button>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("earthquake")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "earthquake"
-                  ? "bg-emerald/25 text-emerald font-bold border border-emerald/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              ⚡ Seismic
-            </button>
-
-            <div className="h-3 w-px bg-cyan-500/30" />
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={handleFitAllHazards}
-              className="h-6 px-2 text-[10px] text-cyan hover:bg-cyan-500/20 font-mono"
-              title="Fit viewport to encompass all active hazards"
-            >
-              🎯 Fit All Hazards
-            </Button>
-          </>
-        )}
-      </div>
-
-      {/* ---------------- FLOATING BASEMAP & TERRAIN SWITCHER (BOTTOM-LEFT ALIGNED) ---------------- */}
-      <div data-tour="basemap-switcher" className="absolute left-3 bottom-3 z-30">
-        <MapLayerSwitcher
-          currentStyle={basemapStyle}
-          onStyleChange={handleBasemapStyleChange}
-          activeSubOption={basemapSubOption}
-          onSubOptionChange={setBasemapSubOption}
-          onOpenInfoModal={(style) => {
-            setInfoModalLayerId(style as ZoomEarthLayerId);
-            setShowLayerInfoModal(true);
-          }}
-          showLabels={showLabels}
-          onToggleLabels={setShowLabels}
-          enable3dTerrain={enable3dTerrain}
-          onToggle3dTerrain={setEnable3dTerrain}
-          viewMode={viewMode}
-        />
-      </div>
-
-      {/* ---------------- DYNAMIC COLOR SCALE STRIP (AUTOMATICALLY ADAPTS TO METEOROLOGICAL BASEMAP) ---------------- */}
-      {(basemapStyle === "wind" ||
-        basemapStyle === "temperature" ||
-        basemapStyle === "humidity" ||
-        basemapStyle === "pressure" ||
-        basemapStyle === "precipitation" ||
-        basemapStyle === "radar") && (
-        <DynamicColorScaleBar
-          activeLayer={basemapStyle as ZoomEarthLayerId}
-          activeSubLayer={basemapSubOption}
-          hoverValue={
-            basemapStyle === "wind"
-              ? weatherForecast?.current?.windSpeed
-              : basemapStyle === "temperature"
-                ? weatherForecast?.current?.temperature
-                : basemapStyle === "humidity"
-                  ? basemapSubOption === "hum_wetbulb"
-                    ? weatherForecast?.current?.wetBulb
-                    : weatherForecast?.current?.relativeHumidity
-                  : basemapStyle === "pressure"
-                    ? weatherForecast?.current?.pressure
-                    : weatherForecast?.current?.precipitation
-          }
-          className="absolute left-3 bottom-14 sm:bottom-3 sm:left-[116px] z-20"
-        />
-      )}
-
-      {/* ---------------- UNIFIED 2-TIER BOTTOM TELEMETRY DOCK ---------------- */}
-      <div
-        data-hud-overlay="layer-switcher"
-        data-tour="nasa-telemetry-dock"
-        className="absolute bottom-14 inset-x-3 sm:inset-x-auto sm:bottom-3 sm:left-1/2 sm:-translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-full sm:max-w-[calc(100%-240px)] w-auto pointer-events-none select-none py-1 px-3"
-      >
-        {/* Minimized Compact Floating Capsule Pill */}
-        {isDockMinimized && (
+      {/* ---------------- BOTTOM HUD STAGE (SINGLE NON-OVERLAPPING VERTICAL STACK) ----------------
+          Hazard pills, telemetry dock, basemap switcher and color scale live in one flex column, so
+          no two HUD rows can collide between 320px phones and 4K monitors. The stage stays
+          pointer-events-none: wheel/drag gestures between panels fall through to the map canvas;
+          each interactive child opts back in via .hud-surface (pointer-events-auto). */}
+      <div className="hud-stage" onPointerDown={(e) => e.stopPropagation()}>
+        {/* Row 1: hazard legend & filters — collapses to a single chip on phones */}
+        <div className="order-1 flex w-full min-w-0 flex-wrap items-center gap-[var(--hud-gap)] sm:relative">
           <button
             type="button"
-            onClick={() => setIsDockMinimized(false)}
-            className="pointer-events-auto h-8 px-3.5 rounded-full bg-[#0D1322]/95 backdrop-blur-2xl border border-cyan-500/40 text-cyan-200 font-mono text-xs flex items-center gap-2 shadow-[0_8px_25px_rgba(0,0,0,0.85)] hover:border-cyan-400 hover:bg-[#0f172a] transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-200"
-            title="Open Orbital Layers Dock (L)"
+            onClick={() => setIsHazardFilterOpen((v) => !v)}
+            aria-expanded={isHazardFilterOpen}
+            aria-controls="hazard-filter-bar"
+            className="hud-surface flex h-11 min-w-0 max-w-full shrink-0 items-center gap-1.5 rounded-full border border-amber-500/40 bg-[#0D1322]/95 px-3 font-mono text-[10px] font-bold text-amber-300 shadow-2xl backdrop-blur-md sm:hidden"
           >
-            <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-            <span className="font-semibold text-white">
-              {activeLayer}: {reading.value} {reading.unit}
-            </span>
-            <span className="text-white/30">•</span>
-            <span className="text-cyan-400 font-bold flex items-center gap-1">
-              <ChevronUp className="size-3.5" /> {t("open_orbital_layers", "Telemetry Dock")}
-            </span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-black/50 border border-white/10 text-[9px] text-white/50 font-sans">
-              L
-            </kbd>
+            <AlertTriangle className="size-3.5 shrink-0 text-amber-400" />
+            <span className="truncate">Hazards: {hazardsVisible ? "ON" : "OFF"}</span>
+            {isHazardFilterOpen ? (
+              <ChevronDown className="size-3.5 shrink-0 text-slate-400" />
+            ) : (
+              <ChevronUp className="size-3.5 shrink-0 text-slate-400" />
+            )}
           </button>
-        )}
 
-        <div
-          className={cn(
-            "pointer-events-auto transition-all duration-300 flex flex-col items-center gap-1.5",
-            isDockMinimized
-              ? "max-h-0 opacity-0 pointer-events-none overflow-hidden scale-95"
-              : "max-h-[220px] opacity-100 scale-100",
-          )}
-        >
-          {/* Tier 1: Upper Slim Row (Clean Essential Telemetry Bar, max height 38px) */}
-          <div className="h-[38px] max-h-[38px] max-w-full overflow-hidden py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs font-mono">
-            {/* Left Side: Sensor title + Color scale ramp + FIELD readout + GLOW opacity slider */}
-            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-              {/* Sensor Title */}
-              <div className="flex items-center gap-1.5 font-bold text-cyan">
-                <Radio className="size-3 text-emerald animate-pulse shrink-0" />
-                <span className="truncate max-w-28 sm:max-w-40">
-                  {activeSatelliteConfig.sensorName}
-                </span>
-              </div>
-
-              {/* Color Scale Ramp */}
-              <div className="hidden md:flex items-center gap-1 shrink-0">
-                <span className="text-[9px] text-muted-foreground font-mono">
-                  {activeSatelliteConfig.colorRamp.minLabel}
-                </span>
-                <div
-                  className="h-1.5 w-16 sm:w-24 rounded-full border border-white/10 shadow-inner"
-                  style={{ background: activeSatelliteConfig.colorRamp.gradient }}
-                />
-                <span className="text-[9px] text-muted-foreground font-mono">
-                  {activeSatelliteConfig.colorRamp.maxLabel}
-                </span>
-              </div>
-
-              {/* FIELD Readout */}
-              <span className="px-2 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/40 text-cyan text-[10.5px] tabular-nums shrink-0">
-                FIELD: {reading.value} {reading.unit}
-              </span>
-
-              {/* GLOW Opacity Slider */}
-              <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
-                <Slider
-                  aria-label="Layer opacity"
-                  className="w-14 sm:w-18"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={[opacity]}
-                  onValueChange={([v]) => v !== undefined && onOpacity(v)}
-                />
-                <span className="text-[10px] text-cyan tabular-nums w-7 text-right font-bold">
-                  {opacity}%
-                </span>
-              </div>
+          <div
+            id="hazard-filter-bar"
+            data-hud-overlay="hazard-filter"
+            className={cn(
+              // Phones: floats above the stage as a bottom sheet so the stage height never grows
+              // and the zoom dock can never collide with it. Tablet and up: normal flow row.
+              "hud-surface hud-scroll-area absolute bottom-full left-0 z-10 mb-1 w-full max-w-full flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/40 bg-[#0D1322]/95 px-3 py-1.5 text-xs font-mono shadow-2xl backdrop-blur-md max-h-[min(9rem,40vh)] sm:static sm:z-auto sm:mb-0 sm:w-auto sm:max-h-24",
+              isHazardFilterOpen ? "flex" : "hidden sm:flex",
+            )}
+          >
+            <div className="flex items-center gap-1.5 pr-1 border-r border-cyan-500/30">
+              <AlertTriangle className="size-3.5 text-amber-400 shrink-0 animate-pulse" />
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setHazardsVisible((v) => !v)}
+                className={cn(
+                  "h-6 px-1.5 text-[10px] font-mono font-bold transition-all",
+                  hazardsVisible
+                    ? "text-amber-300 bg-amber-500/10"
+                    : "text-muted-foreground opacity-60",
+                )}
+                title="Toggle Hazard Overlays"
+              >
+                {hazardsVisible ? (
+                  <Eye className="size-3 mr-1 text-amber-400" />
+                ) : (
+                  <EyeOff className="size-3 mr-1" />
+                )}
+                Hazards: {hazardsVisible ? "ON" : "OFF"}
+              </Button>
             </div>
 
-            {/* 1px Vertical Divider */}
-            <div className="h-4 w-px bg-cyan-500/30 shrink-0" />
+            {hazardsVisible && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setHazardFilter("all")}
+                  className={cn(
+                    "rounded px-2 py-0.5 text-[10px] transition-all",
+                    hazardFilter === "all"
+                      ? "bg-cyan/25 text-cyan font-bold border border-cyan/40"
+                      : "text-muted-foreground hover:text-slate-200",
+                  )}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHazardFilter("fire")}
+                  className={cn(
+                    "rounded px-2 py-0.5 text-[10px] transition-all",
+                    hazardFilter === "fire"
+                      ? "bg-amber/25 text-amber font-bold border border-amber/40"
+                      : "text-muted-foreground hover:text-slate-200",
+                  )}
+                >
+                  🔥 Fires
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHazardFilter("wind")}
+                  className={cn(
+                    "rounded px-2 py-0.5 text-[10px] transition-all",
+                    hazardFilter === "wind"
+                      ? "bg-amber/25 text-amber font-bold border border-amber/40"
+                      : "text-muted-foreground hover:text-slate-200",
+                  )}
+                >
+                  💨 Wind
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHazardFilter("cyclone")}
+                  className={cn(
+                    "rounded px-2 py-0.5 text-[10px] transition-all",
+                    hazardFilter === "cyclone"
+                      ? "bg-crimson/25 text-crimson font-bold border border-crimson/40"
+                      : "text-muted-foreground hover:text-slate-200",
+                  )}
+                >
+                  🌀 Storms
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHazardFilter("earthquake")}
+                  className={cn(
+                    "rounded px-2 py-0.5 text-[10px] transition-all",
+                    hazardFilter === "earthquake"
+                      ? "bg-emerald/25 text-emerald font-bold border border-emerald/40"
+                      : "text-muted-foreground hover:text-slate-200",
+                  )}
+                >
+                  ⚡ Seismic
+                </button>
 
-            {/* Right Side: Collapse/Minimize button cleanly nested INSIDE the border container */}
-            <button
-              type="button"
-              onClick={() => setIsDockMinimized(true)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 hover:text-cyan-100 transition-all cursor-pointer shrink-0"
-              title="Minimize Telemetry Dock (L)"
-            >
-              <ChevronDown className="size-3 text-cyan-400" />
-              <span className="hidden sm:inline">{t("minimize_dock", "Minimize")}</span>
-            </button>
+                <div className="h-3 w-px bg-cyan-500/30" />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleFitAllHazards}
+                  className="h-6 px-2 text-[10px] text-cyan hover:bg-cyan-500/20 font-mono"
+                  title="Fit viewport to encompass all active hazards"
+                >
+                  🎯 Fit All Hazards
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Row 3 (bottom edge): basemap switcher + meteorological color scale */}
+        <div className="order-3 flex w-full min-w-0 flex-wrap items-end justify-between gap-[var(--hud-gap)]">
+          <div data-tour="basemap-switcher" className="hud-surface min-w-0 max-w-full">
+            <MapLayerSwitcher
+              currentStyle={basemapStyle}
+              onStyleChange={handleBasemapStyleChange}
+              activeSubOption={basemapSubOption}
+              onSubOptionChange={setBasemapSubOption}
+              onOpenInfoModal={(style) => {
+                setInfoModalLayerId(style as ZoomEarthLayerId);
+                setShowLayerInfoModal(true);
+              }}
+              showLabels={showLabels}
+              onToggleLabels={setShowLabels}
+              enable3dTerrain={enable3dTerrain}
+              onToggle3dTerrain={setEnable3dTerrain}
+              viewMode={viewMode}
+            />
           </div>
 
-          {/* Tier 2: Lower Slim Row (The 8 NASA Layer Pills with AnimatedBackground) */}
-          <div
-            role="radiogroup"
-            aria-label="Map layer"
-            className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-full"
-          >
-            <AnimatedBackground
-              defaultValue={activeLayer}
-              className="rounded-full bg-cyan-500/15 border border-cyan-400/50 shadow-[0_0_16px_rgba(34,211,238,0.3)]"
-              transition={{
-                type: "spring",
-                bounce: 0.2,
-                duration: 0.3,
-              }}
-              enableHover
+          {/* Dynamic color scale strip (adapts to the active meteorological basemap) */}
+          {(basemapStyle === "wind" ||
+            basemapStyle === "temperature" ||
+            basemapStyle === "humidity" ||
+            basemapStyle === "pressure" ||
+            basemapStyle === "precipitation" ||
+            basemapStyle === "radar") && (
+            <DynamicColorScaleBar
+              activeLayer={basemapStyle as ZoomEarthLayerId}
+              activeSubLayer={basemapSubOption}
+              hoverValue={
+                basemapStyle === "wind"
+                  ? weatherForecast?.current?.windSpeed
+                  : basemapStyle === "temperature"
+                    ? weatherForecast?.current?.temperature
+                    : basemapStyle === "humidity"
+                      ? basemapSubOption === "hum_wetbulb"
+                        ? weatherForecast?.current?.wetBulb
+                        : weatherForecast?.current?.relativeHumidity
+                      : basemapStyle === "pressure"
+                        ? weatherForecast?.current?.pressure
+                        : weatherForecast?.current?.precipitation
+              }
+              className="hud-surface min-w-0 max-w-full"
+            />
+          )}
+        </div>
+
+        {/* Row 2 (above the bottom edge): unified 2-tier telemetry dock, centered */}
+        <div
+          data-hud-overlay="layer-switcher"
+          data-tour="nasa-telemetry-dock"
+          className="hud-surface order-2 flex w-auto min-w-0 max-w-full shrink-0 flex-col items-center gap-1.5 self-center select-none"
+        >
+          {/* Minimized Compact Floating Capsule Pill */}
+          {isDockMinimized && (
+            <button
+              type="button"
+              onClick={() => setIsDockMinimized(false)}
+              className="pointer-events-auto h-8 px-3.5 rounded-full bg-[#0D1322]/95 backdrop-blur-2xl border border-cyan-500/40 text-cyan-200 font-mono text-xs flex items-center gap-2 shadow-[0_8px_25px_rgba(0,0,0,0.85)] hover:border-cyan-400 hover:bg-[#0f172a] transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-200"
+              title="Open Orbital Layers Dock (L)"
             >
-              {TELEMETRY_TABS.map((tab) => {
-                const isSelected = activeLayer === tab;
-                return (
-                  <button
-                    key={tab}
-                    data-id={tab}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    aria-label={tab}
-                    onClick={() => handleSelectTelemetryLayer(tab)}
-                    className={`px-2.5 sm:px-3 py-1 font-mono text-[11px] sm:text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
-                      isSelected
-                        ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
-                        : "text-slate-400 hover:text-cyan-100 border border-white/5"
-                    }`}
-                  >
-                    {isSelected && (
-                      <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee] animate-pulse" />
-                    )}
-                    <span>{tab}</span>
-                  </button>
-                );
-              })}
-            </AnimatedBackground>
+              <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
+              <span className="font-semibold text-white">
+                {activeLayer}: {reading.value} {reading.unit}
+              </span>
+              <span className="text-white/30">•</span>
+              <span className="text-cyan-400 font-bold flex items-center gap-1">
+                <ChevronUp className="size-3.5" /> {t("open_orbital_layers", "Telemetry Dock")}
+              </span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-black/50 border border-white/10 text-[9px] text-white/50 font-sans">
+                L
+              </kbd>
+            </button>
+          )}
+
+          <div
+            className={cn(
+              "pointer-events-auto transition-all duration-300 flex flex-col items-center gap-1.5",
+              isDockMinimized
+                ? "max-h-0 opacity-0 pointer-events-none overflow-hidden scale-95"
+                : "max-h-[220px] opacity-100 scale-100",
+            )}
+          >
+            {/* Tier 1: Upper Slim Row (Clean Essential Telemetry Bar, max height 38px) */}
+            <div className="h-[38px] max-h-[38px] max-w-full overflow-hidden py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs font-mono">
+              {/* Left Side: Sensor title + Color scale ramp + FIELD readout + GLOW opacity slider */}
+              <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                {/* Sensor Title */}
+                <div className="flex items-center gap-1.5 font-bold text-cyan">
+                  <Radio className="size-3 text-emerald animate-pulse shrink-0" />
+                  <span className="truncate max-w-28 sm:max-w-40">
+                    {activeSatelliteConfig.sensorName}
+                  </span>
+                </div>
+
+                {/* Color Scale Ramp */}
+                <div className="hidden md:flex items-center gap-1 shrink-0">
+                  <span className="text-[9px] text-muted-foreground font-mono">
+                    {activeSatelliteConfig.colorRamp.minLabel}
+                  </span>
+                  <div
+                    className="h-1.5 w-16 sm:w-24 rounded-full border border-white/10 shadow-inner"
+                    style={{ background: activeSatelliteConfig.colorRamp.gradient }}
+                  />
+                  <span className="text-[9px] text-muted-foreground font-mono">
+                    {activeSatelliteConfig.colorRamp.maxLabel}
+                  </span>
+                </div>
+
+                {/* FIELD Readout */}
+                <span className="px-2 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/40 text-cyan text-[10.5px] tabular-nums shrink-0">
+                  FIELD: {reading.value} {reading.unit}
+                </span>
+
+                {/* GLOW Opacity Slider */}
+                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                  <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
+                  <Slider
+                    aria-label="Layer opacity"
+                    className="w-14 sm:w-18"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={[opacity]}
+                    onValueChange={([v]) => v !== undefined && onOpacity(v)}
+                  />
+                  <span className="text-[10px] text-cyan tabular-nums w-7 text-right font-bold">
+                    {opacity}%
+                  </span>
+                </div>
+              </div>
+
+              {/* 1px Vertical Divider */}
+              <div className="h-4 w-px bg-cyan-500/30 shrink-0" />
+
+              {/* Right Side: Collapse/Minimize button cleanly nested INSIDE the border container */}
+              <button
+                type="button"
+                onClick={() => setIsDockMinimized(true)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 hover:text-cyan-100 transition-all cursor-pointer shrink-0"
+                title="Minimize Telemetry Dock (L)"
+              >
+                <ChevronDown className="size-3 text-cyan-400" />
+                <span className="hidden sm:inline">{t("minimize_dock", "Minimize")}</span>
+              </button>
+            </div>
+
+            {/* Tier 2: Lower Slim Row (The 8 NASA Layer Pills with AnimatedBackground) */}
+            <div
+              role="radiogroup"
+              aria-label="Map layer"
+              className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-full"
+            >
+              <AnimatedBackground
+                defaultValue={activeLayer}
+                className="rounded-full bg-cyan-500/15 border border-cyan-400/50 shadow-[0_0_16px_rgba(34,211,238,0.3)]"
+                transition={{
+                  type: "spring",
+                  bounce: 0.2,
+                  duration: 0.3,
+                }}
+                enableHover
+              >
+                {TELEMETRY_TABS.map((tab) => {
+                  const isSelected = activeLayer === tab;
+                  return (
+                    <button
+                      key={tab}
+                      data-id={tab}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      aria-label={tab}
+                      onClick={() => handleSelectTelemetryLayer(tab)}
+                      className={`px-2.5 sm:px-3 py-1 font-mono text-[11px] sm:text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
+                          : "text-slate-400 hover:text-cyan-100 border border-white/5"
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee] animate-pulse" />
+                      )}
+                      <span>{tab}</span>
+                    </button>
+                  );
+                })}
+              </AnimatedBackground>
+            </div>
           </div>
         </div>
       </div>

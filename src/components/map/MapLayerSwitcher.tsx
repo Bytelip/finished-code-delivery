@@ -295,7 +295,7 @@ export function MapLayerSwitcher({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          "group flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-mono font-semibold transition-all duration-300 shadow-2xl backdrop-blur-xl cursor-pointer",
+          "group flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-xs font-mono font-semibold transition-all duration-300 shadow-2xl backdrop-blur-xl cursor-pointer min-h-11 sm:min-h-0",
           isOpen
             ? "border-cyan-400 bg-[#090D18]/95 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.35)]"
             : "border-cyan-500/40 bg-[#080D1A]/90 text-slate-300 hover:border-cyan-400 hover:text-cyan-200 hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]",
@@ -325,7 +325,7 @@ export function MapLayerSwitcher({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ type: "spring", bounce: 0.2, duration: 0.25 }}
-            className="absolute left-0 bottom-12 mb-1 w-56 max-h-[440px] overflow-y-auto rounded-2xl bg-[#141821]/92 backdrop-blur-2xl border border-white/15 shadow-2xl p-2 select-none scrollbar-thin text-white"
+            className="absolute bottom-12 left-0 z-50 mb-1 max-h-[min(440px,55vh)] w-56 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-[#141821]/92 p-2 text-white shadow-2xl backdrop-blur-2xl select-none scrollbar-thin"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2 px-1">
