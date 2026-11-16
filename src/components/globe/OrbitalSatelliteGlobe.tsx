@@ -56,6 +56,8 @@ export interface OrbitalSatelliteGlobeProps {
   /** 0..1 */
   overlayOpacity: number;
   markers: OrbitalGlobeMarker[];
+  /** Radar Lock: when false the camera is not forced onto the target coordinates. */
+  lockToTarget?: boolean;
   onPick: (lat: number, lon: number) => void;
   onZoom: (zoom: number) => void;
   onReady: (api: OrbitalGlobeApi | null) => void;
@@ -251,14 +253,16 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
   }, []);
 
   // Fly to coordinates chosen outside the globe (search, presets, tour).
+  // Skipped when Radar Lock is off so the user keeps free pan/orbit control.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    if (props.lockToTarget === false) return;
     const prev = lastTargetRef.current;
     if (Math.abs(prev.lat - props.lat) < 0.0005 && Math.abs(prev.lon - props.lon) < 0.0005) return;
     lastTargetRef.current = { lat: props.lat, lon: props.lon };
     map.flyTo(cinematicFlight(props.lat, props.lon, flyToZoomFor(map.getZoom())));
-  }, [props.lat, props.lon]);
+  }, [props.lat, props.lon, props.lockToTarget]);
 
   // Basemap + label tile swaps.
   useEffect(() => {

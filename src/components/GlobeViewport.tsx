@@ -421,6 +421,8 @@ export function GlobeViewport({
     return false;
   });
   const [isDockMinimized, setIsDockMinimized] = useState(false);
+  // Radar Lock: keeps the camera tracking the selected target coordinates
+  const [isRadarLocked, setIsRadarLocked] = useState(true);
   // Phone-only: the hazard legend collapses into a single chip so the bottom stage stays compact
   const [isHazardFilterOpen, setIsHazardFilterOpen] = useState(false);
   const { t } = useLanguage();
@@ -934,6 +936,30 @@ export function GlobeViewport({
     }
   };
 
+  // Radar Lock toggle: engaged = camera tracks the target coordinates, released = free pan/orbit
+  const handleToggleRadarLock = useCallback(() => {
+    setIsRadarLocked((prev) => {
+      const next = !prev;
+      if (next) {
+        // Re-acquire the target immediately on both engines
+        const zoom = globeApiRef.current?.getZoom() ?? globeZoomRef.current;
+        globeApiRef.current?.flyTo(lat, lon, zoom);
+        leafletMapRef.current?.flyTo?.([lat, lon], leafletMapRef.current?.getZoom?.() ?? gisZoom, {
+          animate: true,
+          duration: 1,
+        });
+        toast.info("Radar Lock engaged", {
+          description: "Camera tracking the selected target coordinates.",
+        });
+      } else {
+        toast.info("Radar Lock released", {
+          description: "Free pan and orbit mode enabled.",
+        });
+      }
+      return next;
+    });
+  }, [lat, lon, gisZoom]);
+
   // Telemetry layer click: the NASA GIBS overlay is drawn on whichever view is active
   const handleSelectTelemetryLayer = useCallback(
     (layerKey: MapLayer) => {
@@ -1117,11 +1143,26 @@ export function GlobeViewport({
         <span className="absolute bottom-2 left-2 size-3 border-b-2 border-l-2 border-cyan-400" />
         <span className="absolute bottom-2 right-2 size-3 border-b-2 border-r-2 border-cyan-400" />
 
-        {/* Center Sci-Fi Orbital Targeting Reticle */}
+        {/* Center Sci-Fi Orbital Targeting Reticle (glows + pulses while Radar Lock is engaged) */}
         <div
           data-hud-overlay="reticle"
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-24 pointer-events-none flex items-center justify-center select-none opacity-80"
+          data-radar-lock={isRadarLocked ? "engaged" : "idle"}
+          className={cn(
+            "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center select-none transition-all duration-500",
+            isRadarLocked ? "size-40 opacity-100" : "size-24 opacity-80",
+          )}
         >
+          {/* Radar Lock: sweeping beam + pulsing sonar rings */}
+          {isRadarLocked && (
+            <>
+              <div className="absolute inset-0 rounded-full overflow-hidden">
+                <div className="hud-radar-sweep absolute inset-0 rounded-full" />
+              </div>
+              <span className="absolute inset-0 rounded-full border border-cyan-400/40 animate-sonar-ripple" />
+              <span className="absolute inset-4 rounded-full border border-cyan-300/30 animate-sonar-ripple [animation-delay:900ms]" />
+              <span className="absolute inset-0 rounded-full border border-cyan-400/60 shadow-[0_0_28px_rgba(34,211,238,0.55),inset_0_0_18px_rgba(34,211,238,0.35)] animate-radar-pulse" />
+            </>
+          )}
           {/* Rotating outer dashed ring */}
           <div className="absolute inset-0 rounded-full border border-dashed border-cyan-400/50 animate-spin-slow" />
           {/* Inner concentric ring */}
@@ -1162,6 +1203,7 @@ export function GlobeViewport({
               overlayMaxZoom={activeSatelliteConfig.maxZoom}
               overlayOpacity={opacity / 100}
               markers={globeMarkers}
+              lockToTarget={isRadarLocked}
               onPick={onPick}
               onZoom={handleGlobeZoom}
               onReady={handleGlobeReady}
@@ -1425,7 +1467,12 @@ export function GlobeViewport({
 
             {/* Map click listener & bridge */}
             <LeafletClickHandler onPick={onPick} useMapEvents={LeafletComp.useMapEvents} />
-            <LeafletRecenter lat={lat} lon={lon} useMap={LeafletComp.useMap} />
+            <LeafletRecenter
+              lat={lat}
+              lon={lon}
+              enabled={isRadarLocked}
+              useMap={LeafletComp.useMap}
+            />
             <LeafletBridge
               setMapInstance={(m) => {
                 leafletMapRef.current = m;
@@ -1981,6 +2028,16 @@ export function GlobeViewport({
               <span className="font-semibold text-white">
                 {activeLayer}: {reading.value} {reading.unit}
               </span>
+              {isRadarLocked && (
+                <span
+                  className="flex items-center gap-1 text-cyan-300"
+                  title="Radar Lock engaged"
+                  data-hud-indicator="radar-lock"
+                >
+                  <Radar className="size-3 animate-pulse" />
+                  <span className="hidden text-[9px] font-bold tracking-wider sm:inline">LOCK</span>
+                </span>
+              )}
               <span className="text-white/30">•</span>
               <span className="text-cyan-400 font-bold flex items-center gap-1">
                 <ChevronUp className="size-3.5" /> {t("open_orbital_layers", "Telemetry Dock")}
@@ -1993,34 +2050,34 @@ export function GlobeViewport({
 
           <div
             className={cn(
-              "pointer-events-auto transition-all duration-300 flex flex-col items-center gap-1.5",
+              "pointer-events-auto w-full max-w-full transition-all duration-300 flex flex-col items-center gap-1.5",
               isDockMinimized
                 ? "max-h-0 opacity-0 pointer-events-none overflow-hidden scale-95"
                 : "max-h-[220px] opacity-100 scale-100",
             )}
           >
             {/* Tier 1: Upper Slim Row (Clean Essential Telemetry Bar, max height 38px) */}
-            <div className="h-[38px] max-h-[38px] max-w-full overflow-hidden py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs font-mono">
+            <div className="h-[38px] max-h-[38px] max-w-full overflow-hidden py-1.5 px-3 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-1.5 sm:gap-3 text-xs font-mono">
               {/* Left Side: Sensor title + Color scale ramp + FIELD readout + GLOW opacity slider */}
               <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-                {/* Sensor Title */}
-                <div className="flex items-center gap-1.5 font-bold text-cyan">
+                {/* Sensor Title (hidden on phones so Radar Lock + Minimize always fit) */}
+                <div className="hidden items-center gap-1.5 font-bold text-cyan sm:flex">
                   <Radio className="size-3 text-emerald animate-pulse shrink-0" />
-                  <span className="truncate max-w-28 sm:max-w-40">
+                  <span className="truncate max-w-20 sm:max-w-40">
                     {activeSatelliteConfig.sensorName}
                   </span>
                 </div>
 
-                {/* Color Scale Ramp */}
+                {/* Color Scale Ramp (labels appear at xl so Radar Lock + Minimize always fit) */}
                 <div className="hidden md:flex items-center gap-1 shrink-0">
-                  <span className="text-[9px] text-muted-foreground font-mono">
+                  <span className="hidden xl:inline text-[9px] text-muted-foreground font-mono">
                     {activeSatelliteConfig.colorRamp.minLabel}
                   </span>
                   <div
-                    className="h-1.5 w-16 sm:w-24 rounded-full border border-white/10 shadow-inner"
+                    className="h-1.5 w-16 xl:w-24 rounded-full border border-white/10 shadow-inner"
                     style={{ background: activeSatelliteConfig.colorRamp.gradient }}
                   />
-                  <span className="text-[9px] text-muted-foreground font-mono">
+                  <span className="hidden xl:inline text-[9px] text-muted-foreground font-mono">
                     {activeSatelliteConfig.colorRamp.maxLabel}
                   </span>
                 </div>
@@ -2030,8 +2087,8 @@ export function GlobeViewport({
                   FIELD: {reading.value} {reading.unit}
                 </span>
 
-                {/* GLOW Opacity Slider */}
-                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                {/* GLOW Opacity Slider (lg+: the dock keeps Radar Lock + Minimize visible below that) */}
+                <div className="hidden lg:flex items-center gap-1.5 shrink-0">
                   <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
                   <Slider
                     aria-label="Layer opacity"
@@ -2049,18 +2106,54 @@ export function GlobeViewport({
               </div>
 
               {/* 1px Vertical Divider */}
-              <div className="h-4 w-px bg-cyan-500/30 shrink-0" />
+              <div className="hidden h-4 w-px bg-cyan-500/30 shrink-0 sm:block" />
 
-              {/* Right Side: Collapse/Minimize button cleanly nested INSIDE the border container */}
-              <button
-                type="button"
-                onClick={() => setIsDockMinimized(true)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 hover:text-cyan-100 transition-all cursor-pointer shrink-0"
-                title="Minimize Telemetry Dock (L)"
-              >
-                <ChevronDown className="size-3 text-cyan-400" />
-                <span className="hidden sm:inline">{t("minimize_dock", "Minimize")}</span>
-              </button>
+              {/* Right Side: Radar Lock toggle + Collapse button, nested INSIDE the border container */}
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleToggleRadarLock}
+                  aria-pressed={isRadarLocked}
+                  aria-label="Radar Lock"
+                  title={
+                    isRadarLocked
+                      ? "Radar Lock: camera tracking target — click for free pan & orbit"
+                      : "Radar Lock off: free pan & orbit — click to lock camera on target"
+                  }
+                  className={cn(
+                    "flex items-center gap-1 px-1.5 py-0.5 sm:px-2 rounded-full border font-mono text-[10px] transition-all cursor-pointer shrink-0",
+                    isRadarLocked
+                      ? "bg-cyan-500/25 border-cyan-400/70 text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.45)]"
+                      : "bg-white/5 border-white/15 text-slate-400 opacity-80 hover:opacity-100 hover:border-cyan-400/40 hover:text-slate-200",
+                  )}
+                >
+                  <Radar
+                    className={cn(
+                      "size-3 shrink-0",
+                      isRadarLocked ? "text-cyan-300 animate-pulse" : "text-slate-500",
+                    )}
+                  />
+                  <span className="hidden md:inline">RADAR LOCK</span>
+                  <span
+                    className={cn(
+                      "hidden size-1.5 rounded-full shrink-0 sm:block",
+                      isRadarLocked
+                        ? "bg-cyan-300 shadow-[0_0_6px_#22d3ee]"
+                        : "bg-slate-600 opacity-70",
+                    )}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDockMinimized(true)}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 hover:text-cyan-100 transition-all cursor-pointer shrink-0"
+                  title="Minimize Telemetry Dock (L)"
+                >
+                  <ChevronDown className="size-3 text-cyan-400" />
+                  <span className="hidden sm:inline">{t("minimize_dock", "Minimize")}</span>
+                </button>
+              </div>
             </div>
 
             {/* Tier 2: Lower Slim Row (The 8 NASA Layer Pills with AnimatedBackground) */}
@@ -2142,10 +2235,13 @@ function LeafletClickHandler({
 function LeafletRecenter({
   lat,
   lon,
+  enabled = true,
   useMap,
 }: {
   lat: number;
   lon: number;
+  /** Radar Lock: when false the map keeps the user's free pan position. */
+  enabled?: boolean;
   useMap: LeafletBundle["useMap"];
 }) {
   const map = useMap();
@@ -2153,6 +2249,8 @@ function LeafletRecenter({
 
   useEffect(() => {
     if (!isLeafletMapAlive(map)) return;
+    // Radar Lock released: never force the camera back onto the target coordinates
+    if (!enabled) return;
 
     if (prevCenterRef.current) {
       const dLat = Math.abs(prevCenterRef.current.lat - lat);
@@ -2171,7 +2269,7 @@ function LeafletRecenter({
     } else if (typeof map.panTo === "function") {
       map.panTo([lat, lon], { animate: true });
     }
-  }, [lat, lon, map]);
+  }, [lat, lon, map, enabled]);
   return null;
 }
 

@@ -162,6 +162,33 @@ describe("GlobeViewport", () => {
     }
   });
 
+  it("toggles Radar Lock from the dock and reflects it on the targeting reticle", () => {
+    const { container } = render(
+      <GlobeViewport
+        telemetry={telemetry}
+        activeLayer="NDVI"
+        onLayer={vi.fn()}
+        opacity={70}
+        onOpacity={vi.fn()}
+        onPick={vi.fn()}
+      />,
+    );
+
+    const radarLockBtn = screen.getByRole("button", { name: "Radar Lock" });
+    const reticle = container.querySelector('[data-hud-overlay="reticle"]');
+
+    expect(radarLockBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(reticle?.getAttribute("data-radar-lock")).toBe("engaged");
+
+    fireEvent.click(radarLockBtn);
+    expect(radarLockBtn.getAttribute("aria-pressed")).toBe("false");
+    expect(reticle?.getAttribute("data-radar-lock")).toBe("idle");
+
+    fireEvent.click(radarLockBtn);
+    expect(radarLockBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(reticle?.getAttribute("data-radar-lock")).toBe("engaged");
+  });
+
   it("handles basemap style changes and toggles between Terrain, Default, Satellite, and Dark", () => {
     const { container } = render(
       <GlobeViewport

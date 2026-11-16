@@ -710,6 +710,18 @@ html[data-theme="emerald-terra"] {
   animation: radarPulse 2.4s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
 }
 
+/* Radar Lock: conic beam sweeping around the centre targeting reticle */
+.hud-radar-sweep {
+  background: conic-gradient(
+    from 0deg,
+    rgba(34, 211, 238, 0.35),
+    rgba(34, 211, 238, 0.06) 35%,
+    transparent 60%
+  );
+  animation: radar-sweep 4s linear infinite;
+  will-change: transform;
+}
+
 .animate-spin-slow {
   animation: spinSlow 7s linear infinite;
 }
