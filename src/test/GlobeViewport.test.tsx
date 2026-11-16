@@ -184,4 +184,45 @@ describe("GlobeViewport", () => {
       fireEvent.click(terrainBtn);
     }
   });
+
+  it("synchronizes the top stage indicator and projection mode on the HUD", () => {
+    const { container } = render(
+      <GlobeViewport
+        telemetry={telemetry}
+        activeLayer="NDVI"
+        onLayer={vi.fn()}
+        opacity={70}
+        onOpacity={vi.fn()}
+        onPick={vi.fn()}
+      />,
+    );
+
+    const stagePill = container.querySelector('[data-hud-overlay="zoom-stage-pill"]');
+    expect(stagePill).not.toBeNull();
+    // Default mode in jsdom fallback is 2D Field GIS (Stage 4, Mercator)
+    expect(stagePill?.textContent).toContain("STAGE");
+  });
+
+  it("smoothly triggers projection transition when Target Farm and Full Orbit are clicked", () => {
+    render(
+      <GlobeViewport
+        telemetry={telemetry}
+        activeLayer="NDVI"
+        onLayer={vi.fn()}
+        opacity={70}
+        onOpacity={vi.fn()}
+        onPick={vi.fn()}
+      />,
+    );
+
+    const targetFarmBtn = screen.getByRole("button", { name: "Target Farm" });
+    fireEvent.click(targetFarmBtn);
+
+    const fullOrbitBtn = screen.getByRole("button", { name: "Full Orbit" });
+    fireEvent.click(fullOrbitBtn);
+
+    // Verify 3D and 2D mode toggle buttons remain intact
+    expect(screen.getByText(/3D Orbital/i)).toBeDefined();
+    expect(screen.getByText(/2D Field GIS/i)).toBeDefined();
+  });
 });

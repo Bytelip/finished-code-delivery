@@ -636,14 +636,14 @@ export function GlobeViewport({
 
   // Zoom & LOD control state (Synchronized 3D Orbital Altitude & 2D Map Zoom)
   const [orbitalAltitude, setOrbitalAltitude] = useState(0.85);
-  const [gisZoom, setGisZoom] = useState(12);
+  const [gisZoom, setGisZoom] = useState(14);
 
   const liveAltitudeRef = useRef<number>(0.85);
   const [zoomStage, setZoomStage] = useState<1 | 2 | 3 | 4>(() => {
     const initAlt = 0.85;
     if (initAlt > 1.25) return 1;
     if (initAlt > 0.55) return 2;
-    if (initAlt > 0.14) return 3;
+    if (initAlt > 0.05) return 3;
     return 4;
   });
 
@@ -661,11 +661,11 @@ export function GlobeViewport({
       }
       if (prevStage === 3) {
         if (alt > 0.6) return 2;
-        if (alt <= 0.14) return 4;
+        if (alt <= 0.05 || alt * 6371 <= 1.0) return 4;
         return 3;
       }
       if (prevStage === 4) {
-        if (alt > 0.18) return 3;
+        if (alt > 0.08 && alt * 6371 > 2.0) return 3;
         return 4;
       }
       return prevStage;
@@ -1331,7 +1331,81 @@ export function GlobeViewport({
     return () => clearTimeout(timer);
   }, [viewMode, dynamicGlobeHtmlMarkers, runCollisionCull]);
 
-  // Configure Three.js OrbitControls: explicitly unblock mouse wheel & pinch zoom
+  const transitionLockRef = useRef(false);
+  const lastAutoTransitionRef = useRef(0);
+
+  // 1. Altitude-Triggered 3D-to-2D Auto-Transition (Altitude <= 1.0 km or Field Level)
+  const handleAutoTransitionTo2D = useCallback(() => {
+    const now = Date.now();
+    if (now - lastAutoTransitionRef.current < 600 || transitionLockRef.current) return;
+    lastAutoTransitionRef.current = now;
+    transitionLockRef.current = true;
+
+    if (globeRef.current && typeof globeRef.current.pointOfView === "function") {
+      try {
+        const pov = globeRef.current.pointOfView();
+        if (pov && typeof pov.altitude === "number") {
+          lastPovRef.current = {
+            lat: typeof pov.lat === "number" ? pov.lat : lat,
+            lng: typeof pov.lng === "number" ? pov.lng : lon,
+            altitude: pov.altitude,
+          };
+        }
+      } catch {
+        // ignore
+      }
+    }
+    isFirst3dMountRef.current = true;
+    setViewMode("2d");
+    setGisZoom((prev) => Math.max(prev, 14));
+    toast.info("Auto-Transition: 2D Flat Mercator Active", {
+      description: "Altitude reached ≤ 1.0 km (Field Level). Switched projection from 3D Globe to 2D Mercator.",
+    });
+
+    setTimeout(() => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.invalidateSize?.({ animate: false });
+        leafletMapRef.current.setView?.([lat, lon], Math.max(gisZoom, 14), { animate: false });
+      }
+      transitionLockRef.current = false;
+    }, 700);
+  }, [lat, lon, gisZoom]);
+
+  // 2. Smooth Reverse Transition on Zoom Out (Past 1 km into Regional/Continental View)
+  const handleAutoTransitionTo3D = useCallback(() => {
+    const now = Date.now();
+    if (now - lastAutoTransitionRef.current < 600 || transitionLockRef.current) return;
+    lastAutoTransitionRef.current = now;
+    transitionLockRef.current = true;
+
+    if (webGLSupported) {
+      const targetAlt = 0.85;
+      lastPovRef.current = { lat, lng: lon, altitude: targetAlt };
+      isFirst3dMountRef.current = false;
+      setViewMode("3d");
+      setOrbitalAltitude(targetAlt);
+      updateZoomStage(targetAlt);
+      globeRef.current?.pointOfView?.({ lat, lng: lon, altitude: targetAlt }, 1200);
+      toast.info("Auto-Transition: 3D Spherical Globe Active", {
+        description: "Zoomed out to continental view (> 1.0 km). Switched projection from 2D Mercator to 3D Globe with starfield & atmospheric glow.",
+      });
+
+      setTimeout(() => {
+        try {
+          const globeAny = globeRef.current as unknown as Record<string, unknown>;
+          if (typeof globeAny?.renderer === "function") {
+            const renderer = (globeAny.renderer as () => { setSize?: (w: number, h: number) => void })?.();
+            renderer?.setSize?.(containerDimensions.width, containerDimensions.height);
+          }
+        } catch {
+          // ignore
+        }
+        transitionLockRef.current = false;
+      }, 700);
+    }
+  }, [webGLSupported, lat, lon, updateZoomStage, containerDimensions]);
+
+  // Configure Three.js OrbitControls: explicitly unblock mouse wheel & pinch zoom down to 1 km
   const configureOrbitControls = useCallback((inst?: GlobeMethods | null) => {
     const target = inst || globeRef.current;
     if (!target || typeof target.controls !== "function") return null;
@@ -1350,7 +1424,7 @@ export function GlobeViewport({
       if (ctrl) {
         ctrl.enableZoom = true;
         ctrl.zoomSpeed = 1.0;
-        ctrl.minDistance = 101; // unconstrained altitude down to 0.01 (globe radius = 100)
+        ctrl.minDistance = 100.001; // unconstrained altitude down to 0.0001 (allows 1 km threshold)
         ctrl.maxDistance = 350; // unconstrained altitude up to 2.5 (continuous zoom in/out)
         ctrl.enableDamping = true;
         ctrl.dampingFactor = 0.06;
@@ -1363,7 +1437,7 @@ export function GlobeViewport({
     return null;
   }, []);
 
-  // Attach collision culling and altitude tracking to OrbitControls
+  // Attach collision culling and continuous altitude tracking to OrbitControls
   useEffect(() => {
     if (viewMode !== "3d") return;
     let controlsInstance: {
@@ -1376,7 +1450,7 @@ export function GlobeViewport({
         try {
           const pov = globeRef.current.pointOfView();
           if (pov && typeof pov.altitude === "number") {
-            const clamped = Math.max(0.04, Math.min(2.5, pov.altitude));
+            const clamped = Math.max(0.00015, Math.min(2.5, pov.altitude));
             lastPovRef.current = {
               lat: typeof pov.lat === "number" ? pov.lat : lastPovRef.current.lat,
               lng: typeof pov.lng === "number" ? pov.lng : lastPovRef.current.lng,
@@ -1384,11 +1458,18 @@ export function GlobeViewport({
             };
             updateZoomStage(clamped);
             setOrbitalAltitude((prev) => {
-              if (Math.abs(prev - clamped) > 0.02) {
+              if (Math.abs(prev - clamped) > 0.01) {
                 return clamped;
               }
               return prev;
             });
+
+            // Altitude-Triggered 3D-to-2D Auto-Transition:
+            // When altitude <= 1.0 km or camera reaches field/street level
+            const altKm = clamped * 6371;
+            if ((altKm <= 1.0 || clamped <= 0.0002 || clamped <= 0.04) && !transitionLockRef.current) {
+              handleAutoTransitionTo2D();
+            }
           }
         } catch {
           // ignore
@@ -1420,7 +1501,7 @@ export function GlobeViewport({
         controlsInstance.removeEventListener("change", handleControlsChange);
       }
     };
-  }, [viewMode, globeModule, runCollisionCull, configureOrbitControls, updateZoomStage]);
+  }, [viewMode, globeModule, runCollisionCull, configureOrbitControls, updateZoomStage, handleAutoTransitionTo2D]);
 
   // 2D Field GIS Hazard Features List
   const mapHazardsList = useMemo(() => {
@@ -1532,18 +1613,17 @@ export function GlobeViewport({
   // Synchronized Zoom Level (1..18 linear mapping for 3D & 2D)
   const currentZoomLevel = useMemo(() => {
     if (viewMode === "3d") {
-      const clampedAlt = Math.max(0.04, Math.min(2.4, orbitalAltitude));
-      const pct = (2.4 - clampedAlt) / (2.4 - 0.04);
+      const clampedAlt = Math.max(0.00015, Math.min(2.4, orbitalAltitude));
+      const pct = (2.4 - clampedAlt) / (2.4 - 0.00015);
       return Math.max(1, Math.min(18, Math.round(1 + pct * 17)));
     }
     return gisZoom;
   }, [viewMode, orbitalAltitude, gisZoom]);
 
-  const lastAutoTransitionRef = useRef(0);
-
   // Explicit View Mode Switchers with Camera Preservation (Zero reset to Africa/Europe)
   const handleSwitchTo3D = useCallback(() => {
     if (!webGLSupported) return;
+    transitionLockRef.current = true;
     const targetAlt =
       lastPovRef.current.altitude &&
       lastPovRef.current.altitude >= 0.15 &&
@@ -1559,9 +1639,13 @@ export function GlobeViewport({
     setOrbitalAltitude(targetAlt);
     isFirst3dMountRef.current = true;
     setViewMode("3d");
+    setTimeout(() => {
+      transitionLockRef.current = false;
+    }, 700);
   }, [webGLSupported, lat, lon, updateZoomStage]);
 
   const handleSwitchTo2D = useCallback(() => {
+    transitionLockRef.current = true;
     if (globeRef.current && typeof globeRef.current.pointOfView === "function") {
       try {
         const pov = globeRef.current.pointOfView();
@@ -1578,53 +1662,14 @@ export function GlobeViewport({
     }
     isFirst3dMountRef.current = true;
     setViewMode("2d");
-  }, [lat, lon]);
-
-  // Two-way auto-zoom transitions between 2D Map & 3D Orbital Globe (Wide Hysteresis Buffer)
-  const handleAutoTransitionTo3D = useCallback(() => {
-    const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 400) return;
-    lastAutoTransitionRef.current = now;
-
-    if (webGLSupported) {
-      lastPovRef.current = { lat, lng: lon, altitude: 1.35 };
-      isFirst3dMountRef.current = false;
-      setViewMode("3d");
-      setOrbitalAltitude(1.35);
-      updateZoomStage(1.35);
-      globeRef.current?.pointOfView({ lat, lng: lon, altitude: 1.35 }, 1000);
-      toast.info("Entering 3D Orbital Overview", {
-        description: "Zoomed out to global threshold (zoom <= 2). Switched to 3D Globe.",
-      });
-    }
-  }, [webGLSupported, lat, lon, updateZoomStage]);
-
-  const handleAutoTransitionTo2D = useCallback(() => {
-    const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 400) return;
-    lastAutoTransitionRef.current = now;
-
-    if (globeRef.current && typeof globeRef.current.pointOfView === "function") {
-      try {
-        const pov = globeRef.current.pointOfView();
-        if (pov && typeof pov.altitude === "number") {
-          lastPovRef.current = {
-            lat: typeof pov.lat === "number" ? pov.lat : lat,
-            lng: typeof pov.lng === "number" ? pov.lng : lon,
-            altitude: pov.altitude,
-          };
-        }
-      } catch {
-        // ignore
+    setTimeout(() => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.invalidateSize?.({ animate: false });
+        leafletMapRef.current.setView?.([lat, lon], Math.max(gisZoom, 14), { animate: false });
       }
-    }
-    isFirst3dMountRef.current = true;
-    setViewMode("2d");
-    setGisZoom((prev) => Math.max(prev, 13));
-    toast.info("Entering High-Resolution 2D Field GIS", {
-      description: "Street & field orbit reached (altitude <= 0.12). Switched to 2D Regional GIS.",
-    });
-  }, [lat, lon]);
+      transitionLockRef.current = false;
+    }, 700);
+  }, [lat, lon, gisZoom]);
 
   // Unified Bi-Directional Zoom In Handler (Smooth camera altitude interpolation & 2D zoom)
   const handleZoomIn = useCallback(() => {
@@ -1634,17 +1679,18 @@ export function GlobeViewport({
       const curLat = typeof curPov?.lat === "number" && !isNaN(curPov.lat) ? curPov.lat : lat;
       const curLon = typeof curPov?.lng === "number" && !isNaN(curPov.lng) ? curPov.lng : lon;
 
-      if (curAlt <= 0.12) {
+      const altKm = curAlt * 6371;
+      if (altKm <= 1.0 || curAlt <= 0.0002 || curAlt <= 0.05) {
         handleAutoTransitionTo2D();
         return;
       }
 
-      const nextAlt = Math.max(0.04, Math.min(curAlt * 0.68, curAlt - 0.08));
+      const nextAlt = Math.max(0.00015, Math.min(curAlt * 0.65, curAlt - 0.08));
       setOrbitalAltitude(nextAlt);
       updateZoomStage(nextAlt);
       lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
       globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 300);
-      if (nextAlt <= 0.12) {
+      if (nextAlt * 6371 <= 1.0 || nextAlt <= 0.0002 || nextAlt <= 0.05) {
         handleAutoTransitionTo2D();
       }
     } else {
@@ -1659,14 +1705,14 @@ export function GlobeViewport({
       const curAlt = typeof curPov?.altitude === "number" && !isNaN(curPov.altitude) ? curPov.altitude : orbitalAltitude;
       const curLat = typeof curPov?.lat === "number" && !isNaN(curPov.lat) ? curPov.lat : lat;
       const curLon = typeof curPov?.lng === "number" && !isNaN(curPov.lng) ? curPov.lng : lon;
-      const nextAlt = Math.min(2.5, Math.max(curAlt * 1.4, curAlt + 0.15));
+      const nextAlt = Math.min(2.5, Math.max(curAlt * 1.45, curAlt + 0.15));
       setOrbitalAltitude(nextAlt);
       updateZoomStage(nextAlt);
       lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
       globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 300);
     } else {
       const curZ = leafletMapRef.current?.getZoom?.() ?? gisZoom;
-      if (curZ <= 2) {
+      if (curZ <= 5) {
         handleAutoTransitionTo3D();
       } else {
         leafletMapRef.current?.zoomOut?.(1, { animate: true });
@@ -1678,7 +1724,7 @@ export function GlobeViewport({
   const handleSliderChange = useCallback((newZoom: number) => {
     if (viewMode === "3d") {
       const pct = Math.max(0, Math.min(1, (newZoom - 1) / 17));
-      const nextAlt = Math.max(0.04, Math.min(2.4, 2.4 - pct * (2.4 - 0.04)));
+      const nextAlt = Math.max(0.00015, Math.min(2.4, 2.4 - pct * (2.4 - 0.00015)));
       setOrbitalAltitude(nextAlt);
       updateZoomStage(nextAlt);
       const curPov = typeof globeRef.current?.pointOfView === "function" ? globeRef.current.pointOfView() : null;
@@ -1686,11 +1732,11 @@ export function GlobeViewport({
       const curLon = typeof curPov?.lng === "number" && !isNaN(curPov.lng) ? curPov.lng : lon;
       lastPovRef.current = { lat: curLat, lng: curLon, altitude: nextAlt };
       globeRef.current?.pointOfView?.({ lat: curLat, lng: curLon, altitude: nextAlt }, 200);
-      if (nextAlt <= 0.12) {
+      if (newZoom >= 14 || nextAlt * 6371 <= 1.0 || nextAlt <= 0.0002) {
         handleAutoTransitionTo2D();
       }
     } else {
-      if (newZoom <= 2) {
+      if (newZoom <= 5) {
         handleAutoTransitionTo3D();
         return;
       }
@@ -1777,14 +1823,16 @@ export function GlobeViewport({
     [onLayer, viewMode, lat, lon],
   );
 
-  // 4-Stage Zoom HUD Status Information
+  // 4-Stage Zoom HUD Status Information (Real-time 3D Globe & 2D Mercator synchronization)
   const zoomStageInfo = useMemo(() => {
     if (viewMode === "3d") {
+      const altKm = Math.max(1, Math.round(orbitalAltitude * 6371));
       if (zoomStage === 1) {
         return {
           stage: "STAGE 1",
           label: "ORBITAL VIEW • CONTINENT / GLOBAL",
-          detail: `Alt: ${Math.round(orbitalAltitude * 6371)} km`,
+          projection: "3D Globe",
+          detail: `Alt: ${altKm.toLocaleString()} km`,
           color: "#38BDF8",
           badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
         };
@@ -1793,7 +1841,8 @@ export function GlobeViewport({
         return {
           stage: "STAGE 2",
           label: "ORBITAL VIEW • STATE LEVEL",
-          detail: `Alt: ${Math.round(orbitalAltitude * 6371)} km`,
+          projection: "3D Globe",
+          detail: `Alt: ${altKm.toLocaleString()} km`,
           color: "#06B6D4",
           badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
         };
@@ -1802,33 +1851,47 @@ export function GlobeViewport({
         return {
           stage: "STAGE 3",
           label: "ORBITAL VIEW • DISTRICT LEVEL",
-          detail: `Alt: ${Math.round(orbitalAltitude * 6371)} km`,
+          projection: "3D Globe",
+          detail: `Alt: ${altKm.toLocaleString()} km`,
           color: "#10B981",
           badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
         };
       }
       return {
         stage: "STAGE 4",
-        label: "AUTO-HAND-OFF • 2D TACTICAL MAP",
-        detail: "Transitioning...",
+        label: "AUTO-HAND-OFF • 2D FLAT MERCATOR",
+        projection: "Transitioning to 2D...",
+        detail: altKm <= 1 ? "Alt: ≤ 1.0 km • Field Level" : `Alt: ${altKm} km`,
         color: "#F59E0B",
         badgeColor: "bg-amber-500/20 text-amber-300 border-amber-400/40",
       };
     } else {
-      if (gisZoom >= 13) {
+      if (gisZoom >= 14) {
         return {
           stage: "STAGE 4",
           label: "2D TACTICAL MAP • FIELD PARCEL GIS",
-          detail: `Zoom ${gisZoom} • High-Res`,
+          projection: "2D Mercator",
+          detail: `Zoom ${gisZoom}x • Alt ≤ 1.0 km (Field Level)`,
           color: "#10B981",
           badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
         };
       }
-      if (gisZoom > 2) {
+      if (gisZoom >= 10) {
         return {
           stage: "STAGE 4",
+          label: "2D TACTICAL MAP • LOCAL DISTRICT",
+          projection: "2D Mercator",
+          detail: `Zoom ${gisZoom}x • High-Res`,
+          color: "#10B981",
+          badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
+        };
+      }
+      if (gisZoom > 5) {
+        return {
+          stage: "STAGE 3",
           label: "2D TACTICAL MAP • REGIONAL OVERVIEW",
-          detail: `Zoom ${gisZoom}`,
+          projection: "2D Mercator",
+          detail: `Zoom ${gisZoom}x`,
           color: "#06B6D4",
           badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
         };
@@ -1836,7 +1899,8 @@ export function GlobeViewport({
       return {
         stage: "STAGE 1",
         label: "AUTO-HAND-OFF • 3D ORBITAL GLOBE",
-        detail: `Zoom ${gisZoom} <= 2`,
+        projection: "Transitioning to 3D Globe...",
+        detail: `Zoom ${gisZoom}x • Continental`,
         color: "#38BDF8",
         badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
       };
@@ -1992,19 +2056,27 @@ export function GlobeViewport({
         </div>
       </div>
       {/* ---------------- 3D ORBITAL GLOBE MODE (NASA GIBS WMTS + THREE.JS OVERLAYS) ---------------- */}
-      {viewMode === "3d" && GlobeComponent && mounted && webGLSupported ? (
-        <SafeGlobeErrorBoundary
-          fallback={graticuleGridFallback}
-          onFailure={() => setViewMode("2d")}
+      {GlobeComponent && mounted && webGLSupported ? (
+        <div
+          className={cn(
+            "absolute inset-0 transition-all duration-700 ease-in-out",
+            viewMode === "3d"
+              ? "opacity-100 pointer-events-auto z-10 scale-100 filter-none"
+              : "opacity-0 pointer-events-none z-0 scale-105 blur-[1px]",
+          )}
         >
-          <div className="absolute inset-0">
-            {/* Multi-Layer Cosmic Starfield Background */}
-            <div className="cosmic-starfield-canvas">
-              <div className="cosmic-stars-1" />
-              <div className="cosmic-stars-2" />
-              <div className="cosmic-stars-3" />
-            </div>
-            <GlobeComponent
+          <SafeGlobeErrorBoundary
+            fallback={graticuleGridFallback}
+            onFailure={() => setViewMode("2d")}
+          >
+            <div className="absolute inset-0">
+              {/* Multi-Layer Cosmic Starfield Background */}
+              <div className="cosmic-starfield-canvas">
+                <div className="cosmic-stars-1" />
+                <div className="cosmic-stars-2" />
+                <div className="cosmic-stars-3" />
+              </div>
+              <GlobeComponent
               key="agrospace-3d-globe-singleton"
               ref={(inst: GlobeMethods | null) => {
                 globeRef.current = inst;
@@ -2308,6 +2380,7 @@ export function GlobeViewport({
             />
           </div>
         </SafeGlobeErrorBoundary>
+      </div>
       ) : null}
 
       {/* ---------------- TARGET LOCKED RETICLE BANNER OVERLAY ---------------- */}
@@ -2326,8 +2399,15 @@ export function GlobeViewport({
       )}
 
       {/* ---------------- 2D FIELD GIS MODE (LEAFLET + NASA GIBS + HAZARDS) ---------------- */}
-      {viewMode === "2d" && LeafletComp && mounted ? (
-        <div className="absolute inset-0 z-0 w-full h-full rounded-2xl overflow-hidden">
+      {LeafletComp && mounted ? (
+        <div
+          className={cn(
+            "absolute inset-0 z-0 w-full h-full rounded-2xl overflow-hidden transition-all duration-700 ease-in-out",
+            viewMode === "2d"
+              ? "opacity-100 pointer-events-auto z-10 scale-100 filter-none"
+              : "opacity-0 pointer-events-none z-0 scale-95 blur-[1px]",
+          )}
+        >
           <LeafletComp.MapContainer
             center={[lat, lon]}
             zoom={gisZoom}
@@ -2761,6 +2841,9 @@ export function GlobeViewport({
           <span className="text-[10px] text-muted-foreground tabular-nums">
             ({zoomStageInfo.detail})
           </span>
+          <span className="hidden md:inline-block px-1.5 py-0.2 rounded bg-cyan-950/60 border border-cyan-500/30 text-[9px] font-bold text-cyan-300 tracking-wider uppercase">
+            {viewMode === "3d" ? "GLOBE (3D)" : "MERCATOR (2D)"}
+          </span>
         </div>
 
         {/* Right: 3D ORBITAL | 2D FIELD GIS TOGGLE */}
@@ -2818,13 +2901,13 @@ export function GlobeViewport({
           className="rounded border border-cyan-500/40 bg-black/80 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-cyan-300 tabular-nums text-center whitespace-nowrap shadow-[0_0_8px_rgba(6,182,212,0.3)] mb-0.5"
           title={
             viewMode === "3d"
-              ? `Orbital Altitude: ${Math.round(orbitalAltitude * 6371).toLocaleString()} km`
-              : `Field Resolution: Zoom ${gisZoom}x`
+              ? `3D Globe Altitude: ${Math.max(1, Math.round(orbitalAltitude * 6371)).toLocaleString()} km`
+              : `2D Mercator Zoom: ${gisZoom}x (Alt ≤ 1.0 km)`
           }
         >
           {viewMode === "3d"
-            ? `Alt: ${Math.round(orbitalAltitude * 6371).toLocaleString()} km`
-            : `Zoom: ${gisZoom}x`}
+            ? `Alt: ${Math.max(1, Math.round(orbitalAltitude * 6371)).toLocaleString()} km`
+            : `2D • ${gisZoom >= 14 ? "Alt ≤ 1 km" : `Z:${gisZoom}x`}`}
         </div>
 
         {/* Zoom In Button */}
@@ -3306,7 +3389,16 @@ function LeafletBridge({
       if (e?.target && typeof e.target.getZoom === "function") {
         const z = e.target.getZoom();
         onZoomChange(z);
-        if (z <= 2 && onAutoSwitchTo3D) {
+        if (z <= 5 && onAutoSwitchTo3D) {
+          onAutoSwitchTo3D();
+        }
+      }
+    },
+    zoom(e) {
+      if (e?.target && typeof e.target.getZoom === "function") {
+        const z = e.target.getZoom();
+        onZoomChange(z);
+        if (z <= 5 && onAutoSwitchTo3D) {
           onAutoSwitchTo3D();
         }
       }
