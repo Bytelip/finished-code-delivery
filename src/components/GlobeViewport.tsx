@@ -30,26 +30,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import {
-  Globe as GlobeIcon,
-  Map as MapIcon,
-  Layers,
-  Radar,
-  Radio,
-  Plus,
-  Minus,
-  Crosshair,
-  Flame,
-  Wind,
-  Activity,
-  AlertTriangle,
-  Eye,
-  EyeOff,
-  Compass,
-  Satellite,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { Globe as GlobeIcon, Map as MapIcon, Layers, Radar, Radio, Plus, Minus, Crosshair, Flame, Wind, Activity, TriangleAlert as AlertTriangle, Eye, EyeOff, Compass, Satellite, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { formatCoord } from "@/components/agro/hud";
@@ -1090,7 +1071,7 @@ export function GlobeViewport({
       data-lon={lon}
       data-layer={activeLayer}
       onPointerDown={() => onInteraction?.()}
-      className="relative w-full h-[calc(100dvh-4.25rem)] min-h-[500px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
+      className="relative mx-auto w-full max-w-[1920px] h-[calc(100dvh-4.25rem)] min-h-[500px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
     >
       {/* Ambient Radiant Orbital Glows (Google Stitch) */}
       <div
@@ -1455,8 +1436,8 @@ export function GlobeViewport({
           data-hud-overlay="reticle"
           data-tour="reticle-lock"
           className={cn(
-            "hud-card pointer-events-auto backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl transition-all",
-            isReticleMinimized ? "w-52 p-2" : "w-64 p-3"
+            "hud-card pointer-events-auto min-w-0 max-w-[calc(100vw-1.5rem)] backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl transition-all",
+            isReticleMinimized ? "w-40 p-2 sm:w-52" : "w-52 p-3 sm:w-64"
           )}
         >
           <div className="flex items-center gap-2 border-b border-cyan/20 pb-1.5">
@@ -1594,7 +1575,7 @@ export function GlobeViewport({
         {/* Center: STAGE 1 ORBITAL VIEW PILL */}
         <div
           data-hud-overlay="zoom-stage-pill"
-          className="pointer-events-auto hidden sm:flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none whitespace-nowrap transition-all duration-300 shrink-0"
+          className="pointer-events-auto hidden md:flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none whitespace-nowrap transition-all duration-300 shrink-0"
         >
           <span
             className="size-2 rounded-full animate-pulse shrink-0"
@@ -1638,10 +1619,11 @@ export function GlobeViewport({
                 : "text-muted-foreground hover:text-foreground",
               !webGLSupported && "opacity-50 cursor-not-allowed",
             )}
+            aria-label="3D Orbital View"
             onClick={handleSwitchTo3D}
           >
             <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />{" "}
-            {t("view_3d_orbital", "3D Orbital")}
+            <span className="hidden md:inline">{t("view_3d_orbital", "3D Orbital")}</span>
           </Button>
           <Button
             type="button"
@@ -1653,10 +1635,11 @@ export function GlobeViewport({
                 ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
                 : "text-muted-foreground hover:text-foreground",
             )}
+            aria-label="2D Field GIS View"
             onClick={handleSwitchTo2D}
           >
             <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />{" "}
-            {t("view_2d_field_gis", "2D Field GIS")}
+            <span className="hidden md:inline">{t("view_2d_field_gis", "2D Field GIS")}</span>
           </Button>
         </div>
       </div>
@@ -1664,7 +1647,7 @@ export function GlobeViewport({
       {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}
       <div
         data-hud-overlay="zoom-controls"
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none max-h-[300px] py-2 pointer-events-auto"
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none max-h-[calc(100%-9.5rem)] overflow-y-auto no-scrollbar py-2 pointer-events-auto"
       >
         {/* Live Altitude / Zoom Readout Badge directly above the + button */}
         <div
@@ -1688,7 +1671,7 @@ export function GlobeViewport({
           onClick={handleZoomIn}
           title="Zoom In (+)"
           aria-label="Zoom In"
-          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
+          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
         >
           <Plus className="size-3.5" />
         </Button>
@@ -1703,7 +1686,7 @@ export function GlobeViewport({
             value={currentZoomLevel}
             onChange={(e) => handleSliderChange(Number(e.target.value))}
             aria-label="Zoom Level Slider"
-            className="h-20 w-2 cursor-pointer appearance-none rounded-full bg-slate-800 accent-cyan [writing-mode:vertical-lr] [direction:rtl]"
+            className="h-16 sm:h-20 w-2 cursor-pointer appearance-none rounded-full bg-slate-800 accent-cyan [writing-mode:vertical-lr] [direction:rtl]"
           />
         </div>
 
@@ -1715,7 +1698,7 @@ export function GlobeViewport({
           onClick={handleZoomOut}
           title="Zoom Out (-)"
           aria-label="Zoom Out"
-          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
+          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
         >
           <Minus className="size-3.5" />
         </Button>
@@ -1742,7 +1725,7 @@ export function GlobeViewport({
           onClick={handleTargetFarm}
           title="Target Farm (Z:15)"
           aria-label="Target Farm"
-          className="size-7 rounded-lg text-emerald hover:bg-emerald-500/20 hover:text-emerald-300 cursor-pointer"
+          className="size-9 sm:size-7 rounded-lg text-emerald hover:bg-emerald-500/20 hover:text-emerald-300 cursor-pointer"
         >
           <Crosshair className="size-3.5" />
         </Button>
@@ -1755,7 +1738,7 @@ export function GlobeViewport({
           onClick={handleFullOrbit}
           title="Full Orbit (Z:3)"
           aria-label="Full Orbit"
-          className="size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
+          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
         >
           <Compass className="size-3.5" />
         </Button>
@@ -1764,7 +1747,7 @@ export function GlobeViewport({
       {/* ---------------- 2D MAP HAZARD LEGEND & FILTER BAR ---------------- */}
       <div
         data-hud-overlay="hazard-filter"
-        className="absolute left-4 bottom-16 z-20 flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/40 bg-[#0D1322]/95 px-3 py-1.5 backdrop-blur-md shadow-2xl text-xs font-mono"
+        className="absolute left-3 right-3 bottom-[9rem] sm:left-4 sm:right-auto sm:bottom-16 sm:max-w-[calc(100%-2rem)] max-h-28 overflow-y-auto z-20 flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/40 bg-[#0D1322]/95 px-3 py-1.5 backdrop-blur-md shadow-2xl text-xs font-mono"
       >
         <div className="flex items-center gap-1.5 pr-1 border-r border-cyan-500/30">
           <AlertTriangle className="size-3.5 text-amber-400 shrink-0 animate-pulse" />
@@ -1916,7 +1899,7 @@ export function GlobeViewport({
       <div
         data-hud-overlay="layer-switcher"
         data-tour="nasa-telemetry-dock"
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-[calc(100%-240px)] w-auto pointer-events-none select-none py-1 px-3"
+        className="absolute bottom-14 inset-x-3 sm:inset-x-auto sm:bottom-3 sm:left-1/2 sm:-translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-full sm:max-w-[calc(100%-240px)] w-auto pointer-events-none select-none py-1 px-3"
       >
         {/* Minimized Compact Floating Capsule Pill */}
         {isDockMinimized && (
@@ -1949,7 +1932,7 @@ export function GlobeViewport({
           )}
         >
           {/* Tier 1: Upper Slim Row (Clean Essential Telemetry Bar, max height 38px) */}
-          <div className="h-[38px] max-h-[38px] py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs font-mono">
+          <div className="h-[38px] max-h-[38px] max-w-full overflow-hidden py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs font-mono">
             {/* Left Side: Sensor title + Color scale ramp + FIELD readout + GLOW opacity slider */}
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
               {/* Sensor Title */}
@@ -2016,7 +1999,7 @@ export function GlobeViewport({
           <div
             role="radiogroup"
             aria-label="Map layer"
-            className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-[calc(100vw-2rem)]"
+            className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-full"
           >
             <AnimatedBackground
               defaultValue={activeLayer}
