@@ -112,6 +112,30 @@ interface LeafletMapInstance {
   invalidateSize?: (options?: boolean | { animate?: boolean; pan?: boolean }) => void;
 }
 
+/**
+ * A Leaflet map stays referenced after its <MapContainer> unmounts (e.g. switching to 3D).
+ * Calling invalidateSize/flyTo on that removed map reads `_leaflet_pos` of a deleted pane
+ * and throws, blanking the page. Only touch maps whose panes and container still exist.
+ */
+function isLeafletMapAlive(map: LeafletMapInstance | null | undefined): map is LeafletMapInstance {
+  if (!map) return false;
+  const internal = map as unknown as {
+    _mapPane?: HTMLElement;
+    _container?: HTMLElement;
+    _loaded?: boolean;
+  };
+  return Boolean(internal._mapPane && internal._loaded && internal._container?.isConnected);
+}
+
+function safeInvalidateSize(map: LeafletMapInstance | null | undefined) {
+  if (!isLeafletMapAlive(map) || typeof map.invalidateSize !== "function") return;
+  try {
+    map.invalidateSize({ animate: false });
+  } catch {
+    // map was torn down between the check and the call
+  }
+}
+
 interface LeafletBundle {
   MapContainer: ComponentType<{
     center: [number, number];
@@ -755,9 +779,7 @@ export function GlobeViewport({
       }
 
       // Recalibrate Leaflet map
-      if (leafletMapRef.current && typeof leafletMapRef.current.invalidateSize === "function") {
-        leafletMapRef.current.invalidateSize({ animate: false });
-      }
+      safeInvalidateSize(leafletMapRef.current);
     };
 
     if (containerRef.current.clientWidth && containerRef.current.clientHeight) {
@@ -1767,9 +1789,10 @@ export function GlobeViewport({
           description: "High-resolution NASA telemetry heatmap active.",
         });
         setTimeout(() => {
-          if (leafletMapRef.current) {
-            leafletMapRef.current.invalidateSize?.({ animate: false });
-            leafletMapRef.current.flyTo?.([lat, lon], 11, { duration: 0.8 });
+          const liveMap = leafletMapRef.current;
+          if (isLeafletMapAlive(liveMap)) {
+            safeInvalidateSize(liveMap);
+            liveMap.flyTo?.([lat, lon], 11, { duration: 0.8 });
           }
         }, 80);
       }
@@ -3247,7 +3270,7 @@ function LeafletRecenter({
   const prevCenterRef = useRef<{ lat: number; lon: number } | null>(null);
 
   useEffect(() => {
-    if (!map) return;
+    if (!isLeafletMapAlive(map)) return;
 
     if (prevCenterRef.current) {
       const dLat = Math.abs(prevCenterRef.current.lat - lat);
@@ -3278,7 +3301,7 @@ function LeafletBridge({
   useMap,
   useMapEvents,
 }: {
-  setMapInstance: (m: LeafletMapInstance) => void;
+  setMapInstance: (m: LeafletMapInstance | null) => void;
   onZoomChange: (z: number) => void;
   onAutoSwitchTo3D?: () => void;
   useMap: LeafletBundle["useMap"];
@@ -3291,14 +3314,15 @@ function LeafletBridge({
       if (typeof map.getZoom === "function") {
         onZoomChange(map.getZoom());
       }
-      if (typeof map.invalidateSize === "function") {
-        map.invalidateSize();
-        const timer = setTimeout(() => {
-          map.invalidateSize?.();
-        }, 150);
-        return () => clearTimeout(timer);
-      }
+      safeInvalidateSize(map);
+      const timer = setTimeout(() => safeInvalidateSize(map), 150);
+      return () => {
+        clearTimeout(timer);
+        // Drop the reference so resize/zoom handlers never reach a removed map
+        setMapInstance(null);
+      };
     }
+    return undefined;
   }, [map, setMapInstance, onZoomChange]);
 
   useMapEvents({
