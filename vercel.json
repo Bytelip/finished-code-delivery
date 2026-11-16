@@ -1,5 +1,8 @@
 {
   "outputDirectory": "dist",
+  "env": {
+    "NITRO_PRESET": "static"
+  },
   "rewrites": [
     {
       "source": "/((?!assets/|api/|.*\\..*).*)",

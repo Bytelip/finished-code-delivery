@@ -8,7 +8,7 @@
     "dev": "vite dev",
     "dev:https": "VITE_HTTPS=true vite --host 0.0.0.0 --port 8080",
     "build": "vite build && node scripts/build-static-index.mjs",
-    "vercel-build": "vite build && node scripts/build-static-index.mjs && node scripts/copy-to-dist.mjs",
+    "vercel-build": "vite build; node scripts/build-static-index.mjs; node scripts/copy-to-dist.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview --outDir .output/public --host 0.0.0.0 --port 8080",
     "lint": "eslint .",
