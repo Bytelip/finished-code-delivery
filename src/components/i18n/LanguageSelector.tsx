@@ -8,7 +8,7 @@ export function LanguageSelector({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const currentLang = languages.find((l) => l.code === language) || languages[0];
+  const currentLang = languages.find((l) => l.code === language) || languages[0]!;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

@@ -48,14 +48,14 @@ describe("preciseLocation utilities", () => {
       const origLocation = window.location;
       // @ts-expect-error Mocking window.location for test
       delete window.location;
-      window.location = new URL(
+      (window as unknown as { location: unknown }).location = new URL(
         "http://localhost:8080/?lat=15.1234&lon=77.5678",
-      ) as unknown as Location;
+      );
 
       const coords = getUrlCoords();
       expect(coords).toEqual({ lat: 15.1234, lon: 77.5678 });
 
-      window.location = origLocation;
+      (window as unknown as { location: unknown }).location = origLocation;
     });
 
     it("synchronizes coordinates into URL parameters via history.replaceState", () => {
@@ -63,7 +63,7 @@ describe("preciseLocation utilities", () => {
       syncUrlCoords(14.5, 75.8);
 
       expect(replaceStateSpy).toHaveBeenCalled();
-      const calledUrl = replaceStateSpy.mock.calls[0][2] as string;
+      const calledUrl = replaceStateSpy.mock.calls[0]![2] as string;
       expect(calledUrl).toContain("lat=14.5");
       expect(calledUrl).toContain("lon=75.8");
     });
@@ -111,8 +111,10 @@ describe("preciseLocation utilities", () => {
                   altitudeAccuracy: null,
                   heading: null,
                   speed: null,
+                  toJSON: () => ({}),
                 },
                 timestamp: Date.now(),
+                toJSON: () => ({}),
               });
             }
           }, 10);
@@ -151,8 +153,10 @@ describe("preciseLocation utilities", () => {
                   altitudeAccuracy: null,
                   heading: null,
                   speed: null,
+                  toJSON: () => ({}),
                 },
                 timestamp: Date.now(),
+                toJSON: () => ({}),
               });
             }
           }, 10);
@@ -196,10 +200,10 @@ describe("preciseLocation utilities", () => {
 
       const places = await searchNominatimPlaces("Kolar");
       expect(places.length).toBe(1);
-      expect(places[0].shortName).toBe("Kolar");
-      expect(places[0].lat).toBe(13.1367);
-      expect(places[0].lon).toBe(78.1292);
-      expect(places[0].displayName).toContain("563101");
+      expect(places[0]!.shortName).toBe("Kolar");
+      expect(places[0]!.lat).toBe(13.1367);
+      expect(places[0]!.lon).toBe(78.1292);
+      expect(places[0]!.displayName).toContain("563101");
     });
   });
 
@@ -225,11 +229,11 @@ describe("preciseLocation utilities", () => {
 
       const places = await searchDualProviderPlaces("Bengaluru");
       expect(places.length).toBe(1);
-      expect(places[0].name).toBe("Bengaluru");
-      expect(places[0].subtitle).toContain("Karnataka, India");
-      expect(places[0].lat).toBe(12.9719);
-      expect(places[0].lon).toBe(77.5937);
-      expect(places[0].source).toBe("open-meteo");
+      expect(places[0]!.name).toBe("Bengaluru");
+      expect(places[0]!.subtitle).toContain("Karnataka, India");
+      expect(places[0]!.lat).toBe(12.9719);
+      expect(places[0]!.lon).toBe(77.5937);
+      expect(places[0]!.source).toBe("open-meteo");
     });
 
     it("falls back to Nominatim if Open-Meteo returns no results", async () => {
@@ -261,8 +265,8 @@ describe("preciseLocation utilities", () => {
 
       const places = await searchDualProviderPlaces("Chintamani");
       expect(places.length).toBe(1);
-      expect(places[0].name).toBe("Chintamani");
-      expect(places[0].source).toBe("nominatim");
+      expect(places[0]!.name).toBe("Chintamani");
+      expect(places[0]!.source).toBe("nominatim");
     });
   });
 

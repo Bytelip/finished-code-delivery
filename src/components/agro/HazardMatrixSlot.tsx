@@ -7,7 +7,7 @@ export function HazardMatrixSlot({
   variant = "summary",
 }: {
   hazards: HazardAlert[];
-  telemetry?: AgroTelemetry;
+  telemetry?: AgroTelemetry | undefined;
   variant?: "summary" | "full";
 }) {
   return <HazardAlertCenter hazards={hazards} telemetry={telemetry} variant={variant} />;

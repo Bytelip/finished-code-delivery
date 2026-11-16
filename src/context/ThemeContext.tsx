@@ -102,7 +102,7 @@ export const AVAILABLE_THEMES: ThemeConfig[] = Object.values(THEME_CONFIGS);
 
 const STORAGE_KEY = "agro_theme";
 const CUSTOM_STORAGE_KEY = "agro_custom_theme";
-const DEFAULT_THEME: ThemeId = "orbital-cyan";
+const DEFAULT_THEME: Exclude<ThemeId, "custom"> = "orbital-cyan";
 
 function isColorDark(hex: string): boolean {
   const clean = hex.replace("#", "");
@@ -195,7 +195,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         },
       };
     }
-    return THEME_CONFIGS[theme] || THEME_CONFIGS[DEFAULT_THEME];
+    return THEME_CONFIGS[theme as Exclude<ThemeId, "custom">] || THEME_CONFIGS[DEFAULT_THEME];
   }, [theme, customSettings]);
 
   useEffect(() => {
@@ -247,7 +247,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.removeProperty("--border-subtle");
       root.style.removeProperty("--hud-blur");
 
-      const config = THEME_CONFIGS[theme] || THEME_CONFIGS[DEFAULT_THEME];
+      const config = THEME_CONFIGS[theme as Exclude<ThemeId, "custom">] || THEME_CONFIGS[DEFAULT_THEME];
       if (config.isDark) {
         root.classList.add("dark");
         root.classList.remove("light");

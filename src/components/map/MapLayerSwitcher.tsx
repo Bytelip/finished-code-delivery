@@ -268,7 +268,7 @@ export function MapLayerSwitcher({
     };
   }, [isOpen]);
 
-  const activeOption = BASEMAP_OPTIONS.find((o) => o.id === currentStyle) ?? BASEMAP_OPTIONS[0];
+  const activeOption = BASEMAP_OPTIONS.find((o) => o.id === currentStyle) ?? BASEMAP_OPTIONS[0]!;
 
   const handleSelectOption = (opt: MapLayerOption) => {
     onStyleChange(opt.id);

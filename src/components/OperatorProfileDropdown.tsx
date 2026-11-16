@@ -17,7 +17,7 @@ export interface OperatorProfileDropdownProps {
   profile: UserProfile | null;
   onOpenAuth: () => void;
   onOpenSettings: () => void;
-  onNavigateHome?: (lat: number, lon: number, label: string) => void;
+  onNavigateHome?: ((lat: number, lon: number, label: string) => void) | undefined;
   onSignOut: () => void;
   className?: string;
 }

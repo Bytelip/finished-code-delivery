@@ -118,7 +118,7 @@ export function VibeCosmicBackground() {
 
       // Render Stars
       for (let i = 0; i < stars.length; i++) {
-        const star = stars[i];
+        const star = stars[i]!;
         star.phase += star.speed;
         const twinkle = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(star.phase));
 
@@ -149,7 +149,7 @@ export function VibeCosmicBackground() {
 
       // Render Meteors
       for (let i = meteors.length - 1; i >= 0; i--) {
-        const m = meteors[i];
+        const m = meteors[i]!;
         const dx = Math.cos(m.angle) * m.speed;
         const dy = Math.sin(m.angle) * m.speed;
 

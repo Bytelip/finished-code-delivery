@@ -32,7 +32,7 @@ Object.defineProperty(window, "matchMedia", {
 
 // Mock HTMLCanvasElement.prototype.getContext for jsdom
 if (typeof HTMLCanvasElement !== "undefined" && !HTMLCanvasElement.prototype.getContext) {
-  HTMLCanvasElement.prototype.getContext = () =>
+  HTMLCanvasElement.prototype.getContext = (() =>
     ({
       clearRect: () => {},
       beginPath: () => {},
@@ -44,5 +44,5 @@ if (typeof HTMLCanvasElement !== "undefined" && !HTMLCanvasElement.prototype.get
       createLinearGradient: () => ({
         addColorStop: () => {},
       }),
-    }) as unknown as RenderingContext;
+    }) as unknown as RenderingContext) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 }

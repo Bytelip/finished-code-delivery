@@ -140,6 +140,9 @@ interface LeafletBundle {
   MapContainer: ComponentType<{
     center: [number, number];
     zoom: number;
+    minZoom?: number;
+    maxZoom?: number;
+    attributionControl?: boolean;
     scrollWheelZoom?: boolean;
     style?: React.CSSProperties;
     children: ReactNode;
@@ -180,6 +183,7 @@ interface LeafletBundle {
       weight?: number;
       dashArray?: string;
       opacity?: number;
+      className?: string;
     };
     children?: ReactNode;
   }>;
@@ -234,7 +238,7 @@ class SafeGlobeErrorBoundary extends Component<
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.warn(
       "3D WebGL Globe failed to render, auto-reverting to 2D GIS map:",
       error,
@@ -243,7 +247,7 @@ class SafeGlobeErrorBoundary extends Component<
     this.props.onFailure?.();
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.hasError) {
       return this.props.fallback;
     }
@@ -770,8 +774,8 @@ export function GlobeViewport({
       // Recalibrate Three.js WebGL renderer
       try {
         const globeAny = globeRef.current as unknown as Record<string, unknown>;
-        if (typeof globeAny?.renderer === "function") {
-          const renderer = (globeAny.renderer as () => { setSize?: (w: number, h: number) => void })?.();
+        if (typeof globeAny?.["renderer"] === "function") {
+          const renderer = (globeAny["renderer"] as () => { setSize?: (w: number, h: number) => void })?.();
           renderer?.setSize?.(width, height);
         }
       } catch {
@@ -856,6 +860,7 @@ export function GlobeViewport({
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [lat, lon, viewMode]);
 
   // 3D Orbital in-place basemap switching: updates Three.js globe texture, tile engine URL and atmosphere in real-time
@@ -865,8 +870,8 @@ export function GlobeViewport({
     // Immediately clear tile engine cache if supported
     try {
       const globeAny = globeRef.current as unknown as Record<string, unknown>;
-      if (typeof globeAny?.globeTileEngineClearCache === "function") {
-        (globeAny.globeTileEngineClearCache as () => void)();
+      if (typeof globeAny?.["globeTileEngineClearCache"] === "function") {
+        (globeAny["globeTileEngineClearCache"] as () => void)();
       }
     } catch {
       // ignore
@@ -1049,7 +1054,7 @@ export function GlobeViewport({
           name: `Seismic Epicenter: ${h.metric}`,
         });
       }
-      if (h.type === "fire") {
+      if (h.type === "fire-smoke") {
         rings.push({
           lat: lat + 0.08,
           lng: lon - 0.06,
@@ -1227,7 +1232,7 @@ export function GlobeViewport({
             priority: 1,
             html: renderCyclone3DMarker(`CYCLONE TRACK • ${h.metric || "115 km/h"}`),
           });
-        } else if (h.type === "fire") {
+        } else if (h.type === "fire-smoke") {
           list.push({
             id: `hazard-${h.id || "fire"}`,
             lat: lat + 0.08,
@@ -1276,23 +1281,23 @@ export function GlobeViewport({
 
     // Sort candidates by priority ascending: 1 (highest) to 7 (lowest)
     domLabels.sort((a, b) => {
-      const pA = Number(a.dataset.priority || 99);
-      const pB = Number(b.dataset.priority || 99);
+      const pA = Number(a.dataset["priority"] || 99);
+      const pB = Number(b.dataset["priority"] || 99);
       return pA - pB;
     });
 
     const acceptedBoxes: DOMRect[] = [];
 
     for (const label of domLabels) {
-      const priority = Number(label.dataset.priority || 99);
-      const labelLat = Number(label.dataset.lat);
-      const labelLng = Number(label.dataset.lng);
+      const priority = Number(label.dataset["priority"] || 99);
+      const labelLat = Number(label.dataset["lat"]);
+      const labelLng = Number(label.dataset["lng"]);
 
       // Back-hemisphere occlusion check: if label is > 75° (or > 52° for oceans) away from camera center, hide immediately
       if (priority > 1 && !isNaN(labelLat) && !isNaN(labelLng)) {
         const angDist = getAngularDistanceDeg(labelLat, labelLng, camLat, camLng);
         const isOcean =
-          label.dataset.labelId?.startsWith("oc-") ||
+          label.dataset["labelId"]?.startsWith("oc-") ||
           label.innerText?.includes("OCEAN") ||
           label.innerText?.includes("SEA");
         const maxAngle = isOcean ? 52 : 75;
@@ -2264,10 +2269,10 @@ export function GlobeViewport({
                 const el = document.createElement("div");
                 el.className =
                   item.priority === 1 ? "globe-lod-label globe-hazard-marker" : "globe-lod-label";
-                if (item.id) el.dataset.labelId = item.id;
-                el.dataset.priority = String(item.priority ?? 99);
-                if (typeof item.lat === "number") el.dataset.lat = String(item.lat);
-                if (typeof item.lng === "number") el.dataset.lng = String(item.lng);
+                if (item.id) el.dataset["labelId"] = item.id;
+                el.dataset["priority"] = String(item.priority ?? 99);
+                if (typeof item.lat === "number") el.dataset["lat"] = String(item.lat);
+                if (typeof item.lng === "number") el.dataset["lng"] = String(item.lng);
                 el.style.transition = "opacity 200ms ease-out, transform 200ms ease-out";
                 el.style.opacity = "1";
                 el.style.willChange = "opacity";

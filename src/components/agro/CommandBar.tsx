@@ -314,15 +314,15 @@ export function CommandBar({
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (selectedIndex >= 0 && searchResults[selectedIndex]) {
-        selectPlace(searchResults[selectedIndex]);
+        selectPlace(searchResults[selectedIndex]!);
       } else if (searchResults.length > 0) {
-        selectPlace(searchResults[0]);
+        selectPlace(searchResults[0]!);
       } else if (searchQuery.trim().length >= 2) {
         setSearching(true);
         const places = await searchDualProviderPlaces(searchQuery.trim());
         setSearching(false);
         if (places.length > 0) {
-          selectPlace(places[0]);
+          selectPlace(places[0]!);
         } else {
           toast.error(
             `No locations found for "${searchQuery.trim()}". Try village, city, or pincode.`,

@@ -168,6 +168,7 @@ function AgroSpaceDashboard({
       }, 1200);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, []);
 
   useEffect(() => {

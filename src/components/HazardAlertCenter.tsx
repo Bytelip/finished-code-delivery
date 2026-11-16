@@ -75,7 +75,7 @@ export interface TacticalHazardItem {
 }
 
 export interface HazardAlertCenterProps {
-  telemetry?: AgroTelemetry;
+  telemetry?: AgroTelemetry | undefined;
   hazards?: HazardAlert[];
   variant?: "summary" | "full";
   initialLanguage?: SupportedLanguage;
@@ -630,7 +630,7 @@ export function FarmerAdvisoryModal({
   onLanguageChange,
   onClose,
 }: {
-  telemetry?: AgroTelemetry;
+  telemetry?: AgroTelemetry | undefined;
   tacticalHazards: TacticalHazardItem[];
   checkedSteps: Record<string, boolean>;
   language: SupportedLanguage;
@@ -667,13 +667,10 @@ export function FarmerAdvisoryModal({
     const evalContext = {
       lat,
       lon,
-      zoneCode: zoneInfo.zoneCode,
+      indiaZone: zoneInfo.indiaZone,
       worldRegion: zoneInfo.worldRegion,
-      soilMoisturePct: 25,
-      esiRatio: 0.75,
-      waterDeficitMm: deficit,
-      irrigationType: telemetry?.input?.irrigation || "Borewell",
-      season: telemetry?.input?.season || "Kharif",
+      smapMoisture: 25,
+      ecostressESI: 0.75,
       elevationM: telemetry?.meta?.elevationM || 500,
     };
     return GLOBAL_CROP_ATLAS_600.map((c) => evaluateCrop600Suitability(c, evalContext))
@@ -772,7 +769,7 @@ export function FarmerAdvisoryModal({
               <div className="font-semibold text-sm">{region}</div>
               <div className="font-mono text-xs text-muted-foreground">{climateZone}</div>
               <div className="font-mono text-[10px] text-primary mt-0.5">
-                Zone: {zoneInfo.zoneCode} · {zoneInfo.worldRegion}
+                Zone: {zoneInfo.zoneDisplay} · {zoneInfo.worldRegion}
               </div>
             </div>
             <div>
@@ -855,13 +852,13 @@ export function FarmerAdvisoryModal({
                           </span>
                         </td>
                         <td className="py-2 px-2 text-cyan font-semibold">
-                          {c.waterNeedMm} mm
+                          {c.waterRequirementMm} mm
                         </td>
                         <td className="py-2 px-2 text-muted-foreground">
-                          {c.growingPeriodDays} days
+                          {c.durationDays} days
                         </td>
                         <td className="py-2 px-2 text-muted-foreground text-[10px] max-w-[200px] truncate">
-                          {c.agronomicNotes || c.fieldShiftRationale || "High zonal resilience"}
+                          {c.agronomicNotes || "High zonal resilience"}
                         </td>
                       </tr>
                     );

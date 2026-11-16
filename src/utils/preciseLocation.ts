@@ -21,7 +21,7 @@ export interface PreciseLocationResult {
   country?: string;
   isFallback: boolean;
   isCoarse: boolean;
-  warning?: string;
+  warning?: string | undefined;
   networkBlocked?: boolean;
 }
 
@@ -48,7 +48,7 @@ export interface PlaceSearchResult {
   subtitle: string;
   lat: number;
   lon: number;
-  elevationM?: number;
+  elevationM?: number | undefined;
   source: "open-meteo" | "nominatim";
 }
 
@@ -283,7 +283,7 @@ export async function resolvePreciseLocation(options?: {
             timeout: 8000,
           }
         );
-      } else if (typeof (navigator.geolocation as unknown as Record<string, unknown>).watchPosition === "function") {
+      } else if (typeof (navigator.geolocation as unknown as Record<string, unknown>)["watchPosition"] === "function") {
         watchId = ((navigator.geolocation as unknown as { watchPosition: Function }).watchPosition)(
           (pos: GeolocationPosition) => {
             onPosition(pos);

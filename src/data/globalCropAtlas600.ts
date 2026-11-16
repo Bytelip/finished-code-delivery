@@ -359,7 +359,7 @@ export interface EvaluatedCrop600 extends CropAtlas600Entry {
   adjustedScore: number;
   suitabilityTier: "OPTIMAL / VERY HIGH" | "FAVOURABLE / HIGH" | "MODERATE / CONDITIONAL" | "UNSUITABLE / HIGH RISK";
   hardFilterViolation: boolean;
-  hardFilterMessage?: string;
+  hardFilterMessage?: string | undefined;
   tierColorHex: string;
   tierBadgeClass: string;
   waterWeightPct: number;

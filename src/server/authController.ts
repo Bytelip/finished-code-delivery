@@ -134,8 +134,8 @@ async function sendViaSendGrid(
   toEmail: string,
   otp: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL || "mission-control@agrospace.nasa.gov";
+  const apiKey = process.env["SENDGRID_API_KEY"];
+  const fromEmail = process.env["SENDGRID_FROM_EMAIL"] || "mission-control@agrospace.nasa.gov";
 
   if (!apiKey) {
     return { success: false, error: "SENDGRID_API_KEY is not configured on server." };
@@ -188,7 +188,7 @@ async function sendViaResend(
   toEmail: string,
   otp: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = process.env["RESEND_API_KEY"];
   if (!apiKey) {
     return { success: false, error: "RESEND_API_KEY is not configured on server." };
   }
@@ -201,7 +201,7 @@ async function sendViaResend(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || "AgroSpace Nexus <onboarding@resend.dev>",
+        from: process.env["RESEND_FROM_EMAIL"] || "AgroSpace Nexus <onboarding@resend.dev>",
         to: [toEmail],
         subject: `Your AgroSpace Verification Code: ${otp}`,
         html: `
@@ -235,9 +235,9 @@ async function sendViaTwilioSms(
   phoneNumber: string,
   otp: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+  const sid = process.env["TWILIO_ACCOUNT_SID"];
+  const token = process.env["TWILIO_AUTH_TOKEN"];
+  const fromPhone = process.env["TWILIO_PHONE_NUMBER"];
 
   if (!sid || !token || !fromPhone) {
     return { success: false, error: "Twilio credentials are not configured on server." };
@@ -349,7 +349,7 @@ export async function handleSendCode(
   });
 
   // 5. Provider Dispatch with Fallback
-  let dispatchResult = { success: false, error: "" };
+  let dispatchResult: { success: boolean; error?: string | undefined } = { success: false, error: "" };
 
   if (channel === "sms" && phoneNumber) {
     console.info(
@@ -379,7 +379,7 @@ export async function handleSendCode(
 
   if (!dispatchResult.success) {
     // If external providers are unconfigured in dev mode, provide graceful diagnostic
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env["NODE_ENV"] !== "production") {
       console.info(`[DEV MODE] Delivery service unconfigured. Verification code is: ${otp}`);
       return res.status(200).json({
         success: true,
@@ -482,7 +482,7 @@ export async function handleVerifyCode(
     if (!user) {
       user = await userRepo.createUser({
         email: cleanEmail,
-        fullName: fullName || cleanEmail.split("@")[0],
+        fullName: fullName || cleanEmail.split("@")[0] || cleanEmail,
         role: "Mission Commander",
         isVerified: true,
       });
@@ -540,7 +540,7 @@ export async function handleGoogleAuth(
         given_name?: string;
       };
       email = info.email?.trim().toLowerCase() || "";
-      name = info.name || info.given_name || email.split("@")[0];
+      name = info.name || info.given_name || email.split("@")[0] || email;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return res.status(500).json({ success: false, error: `Google verification failed: ${msg}` });
@@ -555,7 +555,7 @@ export async function handleGoogleAuth(
       }
       const info = (await googleRes.json()) as { email?: string; name?: string };
       email = info.email?.trim().toLowerCase() || "";
-      name = info.name || email.split("@")[0];
+      name = info.name || email.split("@")[0] || email;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return res.status(500).json({ success: false, error: `Google verification failed: ${msg}` });

@@ -19,7 +19,7 @@ export function DynamicColorScaleBar({
   hoverValue,
   className,
 }: DynamicColorScaleBarProps) {
-  const meta = ZOOM_EARTH_LAYERS_META[activeLayer] || ZOOM_EARTH_LAYERS_META.satellite;
+  const meta = ZOOM_EARTH_LAYERS_META[activeLayer] || ZOOM_EARTH_LAYERS_META["satellite"]!;
   const scale = meta.colorScale;
 
   // Custom adjustments for Wet-Bulb or Specific Sublayers

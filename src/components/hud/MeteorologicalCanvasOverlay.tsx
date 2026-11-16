@@ -261,9 +261,9 @@ export function MeteorologicalCanvasOverlay({
             const isGusts = activeSubLayer === "wind_gusts";
 
             ctx.beginPath();
-            ctx.moveTo(p.path[0].x, p.path[0].y);
+            ctx.moveTo(p.path[0]!.x, p.path[0]!.y);
             for (let j = 1; j < p.path.length; j++) {
-              ctx.lineTo(p.path[j].x, p.path[j].y);
+              ctx.lineTo(p.path[j]!.x, p.path[j]!.y);
             }
             ctx.lineWidth = isGusts ? 2.2 : 1.6;
             ctx.strokeStyle =

@@ -81,7 +81,7 @@ describe("Vibe Design System Components", () => {
       expect(compareButtons.length).toBeGreaterThan(0);
 
       // Click the first compare button
-      fireEvent.click(compareButtons[0]);
+      fireEvent.click(compareButtons[0]!);
 
       // Verify modal content
       expect(screen.getByText(/Field Shift Suitability & Crop Comparison Engine/i)).toBeDefined();

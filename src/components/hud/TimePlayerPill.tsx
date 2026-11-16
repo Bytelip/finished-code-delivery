@@ -61,7 +61,7 @@ export function TimePlayerPill({
   onTogglePlay,
   className,
 }: TimePlayerPillProps) {
-  const currentStep = ZOOM_EARTH_TIME_STEPS[currentStepIndex] || ZOOM_EARTH_TIME_STEPS[4];
+  const currentStep = ZOOM_EARTH_TIME_STEPS[currentStepIndex] || ZOOM_EARTH_TIME_STEPS[4]!;
   const isLive = currentStep.id === "live";
 
   const handlePrev = () => {

@@ -215,7 +215,7 @@ export function GuidedTourOverlay({
     },
   ];
 
-  const currentStep = steps[currentStepIndex] || steps[0];
+  const currentStep = steps[currentStepIndex] || steps[0]!;
   // `steps` is rebuilt every render; read the latest step through a ref so the
   // step-change effect below fires once per step instead of on every render
   // (its auto-action updates the location, which re-renders and would loop forever).
