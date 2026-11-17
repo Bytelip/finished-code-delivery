@@ -28,7 +28,10 @@ async function generateStaticIndex() {
       return;
     }
 
-    const res = await handler.fetch(new Request("http://localhost/"), {}, {
+    const basePath = process.env.VITE_BASE_PATH || "/";
+    const normalizedBasePath = basePath.startsWith("/") ? basePath : `/${basePath}`;
+    const requestPath = normalizedBasePath.endsWith("/") ? normalizedBasePath : `${normalizedBasePath}/`;
+    const res = await handler.fetch(new Request(`http://localhost${requestPath}`), {}, {
       waitUntil() {},
       passThroughOnException() {},
     });
@@ -46,7 +49,6 @@ async function generateStaticIndex() {
     // path (e.g. /farm/123 -> /farm/assets/x.js), which the host answers with HTML and the
     // browser rejects with "Expected a JavaScript-or-Wasm module script". Only rewrite when the
     // site is deployed under a sub-path (GitHub Pages), using that absolute sub-path.
-    const basePath = process.env.VITE_BASE_PATH || "/";
     if (basePath !== "/") {
       const basePrefix = basePath.endsWith("/") ? basePath : `${basePath}/`;
       html = html.replace(
