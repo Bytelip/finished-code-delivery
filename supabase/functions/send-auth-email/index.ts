@@ -6,7 +6,7 @@
  * NEVER persisted — only a salted SHA-256 hash is written to the database.
  *
  * Called from the browser (sign-up flow) with:
- *   { email: string, name?: string, action?: "signup" | "verify" }
+ *   { email: string, name?: string, action?: "signup" | "verify" | "welcome" }
  *
  * Resend credentials come from RESEND_API_KEY. The sender address defaults to
  * onboarding@resend.dev (Resend's shared sandbox sender) so that requests do
@@ -42,6 +42,19 @@ async function sha256(str: string): Promise<string> {
     .join("");
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[char] ?? char;
+  });
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -67,8 +80,9 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "A valid email address is required." }, 400);
     }
 
-    const displayName = (body.name || recipientEmail.split("@")[0] || "").trim();
-    const actionType = body.action === "verify" ? "verify" : "signup";
+    const displayName = (body.name || recipientEmail.split("@")[0] || "").trim().slice(0, 80);
+    const actionType =
+      body.action === "welcome" ? "welcome" : body.action === "verify" ? "verify" : "signup";
 
     // 2. Resend credentials
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -76,8 +90,7 @@ Deno.serve(async (req: Request) => {
       console.error("[send-auth-email] RESEND_API_KEY is not configured.");
       return jsonResponse(
         {
-          error:
-            "Email delivery is not configured. Add RESEND_API_KEY to the project secrets.",
+          error: "Email delivery is not configured. Add RESEND_API_KEY to the project secrets.",
         },
         500,
       );
@@ -86,55 +99,83 @@ Deno.serve(async (req: Request) => {
     const fromEmail =
       Deno.env.get("RESEND_FROM_EMAIL") || "AgroSpace Nexus <onboarding@resend.dev>";
 
+    if (actionType === "welcome") {
+      const safeName = escapeHtml(displayName || recipientEmail.split("@")[0] || "there");
+      const welcomeResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [recipientEmail],
+          subject: "Welcome to AgroSpace Nexus",
+          html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px;color:#e2e8f0;background:#0b111e;border-radius:16px"><h1 style="color:#22d3ee">Welcome to AgroSpace Nexus</h1><p>Hello ${safeName},</p><p>Your account is verified and ready. You can now explore orbital telemetry and Earth intelligence from your AgroSpace workspace.</p><p style="color:#94a3b8">If you did not create this account, please contact support.</p></div>`,
+        }),
+      });
+      const welcomeData = await welcomeResponse.json().catch(() => ({}));
+      if (!welcomeResponse.ok) {
+        console.error(
+          "[send-auth-email] Resend welcome-email error:",
+          welcomeResponse.status,
+          welcomeData,
+        );
+        const apiMessage =
+          (welcomeData as { message?: string }).message || "Welcome email delivery failed.";
+        return jsonResponse({ error: apiMessage }, welcomeResponse.status);
+      }
+      return jsonResponse({
+        success: true,
+        id: (welcomeData as { id?: string }).id,
+        message: "Welcome email dispatched.",
+      });
+    }
+
     // 3. Generate a cryptographically secure 6-digit code
     const arr = new Uint32Array(1);
     crypto.getRandomValues(arr);
     const otpCode = (((arr[0] ?? 0) % 900000) + 100000).toString();
 
-    const salt = Math.random().toString(36).substring(2);
+    const saltBytes = new Uint8Array(16);
+    crypto.getRandomValues(saltBytes);
+    const salt = Array.from(saltBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
     const codeHash = await sha256(`${recipientEmail}:${otpCode}:${salt}`);
 
     // 4. Persist the hash (not the plaintext) to the database via the service
     // role key. Replace any existing pending code for this email.
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (supabaseUrl && serviceRoleKey) {
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-
-      const upsertRes = await fetch(
-        `${supabaseUrl}/rest/v1/pending_otps?on_conflict=email`,
-        {
-          method: "POST",
-          headers: {
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
-            "Content-Type": "application/json",
-            Prefer: "resolution=merge-duplicates,return=minimal",
-          },
-          body: JSON.stringify({
-            email: recipientEmail,
-            code_hash: codeHash,
-            salt,
-            attempts: 0,
-            verified: false,
-            expires_at: expiresAt,
-          }),
-        },
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error(
+        "[send-auth-email] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured.",
       );
+      return jsonResponse({ error: "Email verification is not configured on the server." }, 500);
+    }
 
-      if (!upsertRes.ok) {
-        const errText = await upsertRes.text();
-        console.error("[send-auth-email] Failed to persist OTP:", upsertRes.status, errText);
-        return jsonResponse(
-          { error: "Failed to stage verification code. Please try again." },
-          500,
-        );
-      }
-    } else {
-      console.warn(
-        "[send-auth-email] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing — OTP not persisted.",
-      );
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const upsertRes = await fetch(`${supabaseUrl}/rest/v1/pending_otps?on_conflict=email`, {
+      method: "POST",
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({
+        email: recipientEmail,
+        code_hash: codeHash,
+        salt,
+        attempts: 0,
+        verified: false,
+        expires_at: expiresAt,
+      }),
+    });
+
+    if (!upsertRes.ok) {
+      const errText = await upsertRes.text();
+      console.error("[send-auth-email] Failed to persist OTP:", upsertRes.status, errText);
+      return jsonResponse({ error: "Failed to stage verification code. Please try again." }, 500);
     }
 
     // 5. Build the email body
@@ -166,7 +207,7 @@ Deno.serve(async (req: Request) => {
           <tr>
             <td align="center" style="padding:22px 0 16px;">
               <p style="margin:0;font-size:14px;line-height:1.6;color:#94A3B8;">
-                Hello <strong style="color:#F8FAFC;">${displayName}</strong>, use this single-use 6-digit verification code to complete your mission clearance on <strong style="color:#F8FAFC;">${recipientEmail}</strong>:
+                Hello <strong style="color:#F8FAFC;">${escapeHtml(displayName)}</strong>, use this single-use 6-digit verification code to complete your mission clearance on <strong style="color:#F8FAFC;">${escapeHtml(recipientEmail)}</strong>:
               </p>
             </td>
           </tr>
@@ -211,11 +252,7 @@ Deno.serve(async (req: Request) => {
     const resendData = await resendResponse.json().catch(() => ({}));
 
     if (!resendResponse.ok) {
-      console.error(
-        "[send-auth-email] Resend API error:",
-        resendResponse.status,
-        resendData,
-      );
+      console.error("[send-auth-email] Resend API error:", resendResponse.status, resendData);
       const apiMessage =
         (resendData as { message?: string }).message ||
         "Email delivery failed. Please try again shortly.";

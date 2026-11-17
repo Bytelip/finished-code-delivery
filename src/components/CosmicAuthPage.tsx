@@ -5,6 +5,7 @@ import {
   signInWithEmailPassword,
   signUpWithEmailPassword,
   dispatchVerificationEmail,
+  dispatchWelcomeEmail,
   verifyOtpCode,
   processIncomingAuthCallback,
   getUserFromDatabase,
@@ -379,6 +380,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [resendCooldown, setResendCooldown] = useState<number>(0);
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const isNameValid = name.trim().length >= 2 && name.trim().length <= 80;
 
   const handleBackToEntry = () => {
     setStep("entry");
@@ -494,29 +496,28 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setAuthError("");
 
     if (!isEmailValid) {
-      setAuthError("Please enter a valid email address.");
-      toast.error("Please enter a valid email address.");
+      const msg = "Please enter a valid email address.";
+      setAuthError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (!password || password.length < 6 || password.length > 128) {
+      const msg = "Password must be between 6 and 128 characters long.";
+      setAuthError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (authMode === "signup" && !isNameValid) {
+      const msg = "Please enter a name between 2 and 80 characters.";
+      setAuthError(msg);
+      toast.error(msg);
       return;
     }
 
-    if (!password) {
-      setAuthError("Please enter your password.");
-      toast.error("Please enter your password.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setAuthError("Password must be at least 6 characters long.");
-      toast.error("Password must be at least 6 characters long.");
-      return;
-    }
-
-    // Sign In: authenticate immediately.
-    if (authMode === "signin") {
-      setIsSubmitting(true);
-      try {
+    setIsSubmitting(true);
+    try {
+      if (authMode === "signin") {
         const result = await signInWithEmailPassword(email.trim(), password);
-        setIsSubmitting(false);
         if (!result.success || !result.user) {
           const msg = result.error || "Authentication failed. Please verify credentials.";
           setAuthError(msg);
@@ -530,27 +531,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         });
         onAuthComplete?.(result.user);
         onSuccess?.(result.user);
-      } catch (err: unknown) {
-        setIsSubmitting(false);
-        const msg = err instanceof Error ? err.message : String(err);
-        setAuthError(`Authentication error: ${msg}`);
-        toast.error(`Authentication error: ${msg}`);
+        return;
       }
-      return;
-    }
 
-    // Sign Up: dispatch a verification email via the send-auth-email edge
-    // function, then transition to the OTP verification step. The account is
-    // NOT created until the code is confirmed.
-    setIsSubmitting(true);
-    try {
-      const dispatchResult = await dispatchVerificationEmail(
-        email.trim(),
-        name.trim() || undefined,
-        "signup",
-      );
-      setIsSubmitting(false);
-
+      // Account creation is deferred until the email code has been confirmed.
+      const dispatchResult = await dispatchVerificationEmail(email.trim(), name.trim(), "signup");
       if (!dispatchResult.success) {
         const msg = dispatchResult.error || "Could not send verification email.";
         setAuthError(msg);
@@ -566,10 +551,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         duration: 4000,
       });
     } catch (err: unknown) {
-      setIsSubmitting(false);
       const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(`Could not send verification email: ${msg}`);
-      toast.error(`Could not send verification email: ${msg}`);
+      const prefix =
+        authMode === "signin" ? "Authentication error" : "Could not send verification email";
+      setAuthError(`${prefix}: ${msg}`);
+      toast.error(`${prefix}: ${msg}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -578,12 +566,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setAuthError("");
     setIsSubmitting(true);
     try {
-      const result = await dispatchVerificationEmail(
-        email.trim(),
-        name.trim() || undefined,
-        "signup",
-      );
-      setIsSubmitting(false);
+      const result = await dispatchVerificationEmail(email.trim(), name.trim(), "signup");
       if (!result.success) {
         const msg = result.error || "Could not resend verification code.";
         setAuthError(msg);
@@ -595,10 +578,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         description: `A new 6-digit code was emailed to ${email.trim()}.`,
       });
     } catch (err: unknown) {
-      setIsSubmitting(false);
       const msg = err instanceof Error ? err.message : String(err);
       setAuthError(`Could not resend code: ${msg}`);
       toast.error(`Could not resend code: ${msg}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -617,7 +601,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       // 1. Verify the code via the verify-auth-otp edge function.
       const verifyResult = await verifyOtpCode(email.trim(), otpCode);
       if (!verifyResult.success) {
-        setIsVerifying(false);
         const msg = verifyResult.error || "Invalid verification code.";
         setAuthError(msg);
         toast.error(msg);
@@ -630,7 +613,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         password,
         name.trim() || undefined,
       );
-      setIsVerifying(false);
 
       if (!signUpResult.success || !signUpResult.user) {
         const msg = signUpResult.error || "Account creation failed after verification.";
@@ -641,17 +623,29 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
       saveStoredUser(signUpResult.user);
       saveStoredProfile(signUpResult.user);
-      toast.success(`Welcome, ${signUpResult.user.name}`, {
-        description: "Email verified. Mission clearance granted.",
-        duration: 4000,
-      });
+      const welcomeResult = await dispatchWelcomeEmail(
+        signUpResult.user.email,
+        signUpResult.user.name,
+      );
+      if (welcomeResult.success) {
+        toast.success(`Welcome, ${signUpResult.user.name}`, {
+          description: "Email verified. Mission clearance granted.",
+          duration: 4000,
+        });
+      } else {
+        const msg =
+          welcomeResult.error || "Your account is ready, but the welcome email could not be sent.";
+        setAuthError(msg);
+        toast.warning(msg);
+      }
       onAuthComplete?.(signUpResult.user);
       onSuccess?.(signUpResult.user);
     } catch (err: unknown) {
-      setIsVerifying(false);
       const msg = err instanceof Error ? err.message : String(err);
       setAuthError(`Verification error: ${msg}`);
       toast.error(`Verification error: ${msg}`);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -805,9 +799,12 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 <div>
                   <input
                     type="text"
+                    required
+                    minLength={2}
+                    maxLength={80}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Profile Name (optional, e.g., Commander Naren)"
+                    placeholder="Profile Name (e.g., Commander Naren)"
                     className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
@@ -817,6 +814,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 <input
                   type="email"
                   required
+                  maxLength={254}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email address (e.g. name@gmail.com)"
@@ -829,6 +827,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
+                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={
@@ -875,9 +874,20 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
               <button
                 type="submit"
-                disabled={!isEmailValid || !password || password.length < 6 || isSubmitting}
+                disabled={
+                  !isEmailValid ||
+                  !password ||
+                  password.length < 6 ||
+                  password.length > 128 ||
+                  (authMode === "signup" && !isNameValid) ||
+                  isSubmitting
+                }
                 className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
-                  isEmailValid && password.length >= 6 && !isSubmitting
+                  isEmailValid &&
+                  password.length >= 6 &&
+                  password.length <= 128 &&
+                  (authMode === "signin" || isNameValid) &&
+                  !isSubmitting
                     ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
                     : "cursor-not-allowed bg-white/15 text-slate-400"
                 }`}

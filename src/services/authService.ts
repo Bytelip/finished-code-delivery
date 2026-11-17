@@ -1032,6 +1032,41 @@ export async function dispatchVerificationEmail(
   }
 }
 
+/** Sends a welcome email through the same server-side Resend Edge Function. */
+export async function dispatchWelcomeEmail(email: string, name?: string): Promise<AuthResult> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, error: "Please enter a valid email address." };
+  }
+
+  const url = getEdgeFunctionUrl("send-auth-email");
+  if (!url) {
+    return { success: false, error: "Email service is not configured. Cannot send welcome email." };
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: getEdgeFunctionHeaders(),
+      body: JSON.stringify({ email: cleanEmail, name, action: "welcome" }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      error?: string;
+    };
+    if (!res.ok || !data.success) {
+      const msg = data.error || `Welcome email delivery failed (${res.status}).`;
+      console.warn("[dispatchWelcomeEmail] Edge function error:", res.status, data);
+      return { success: false, error: msg };
+    }
+    return { success: true, isConfigured: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[dispatchWelcomeEmail] Network/edge error:", msg);
+    return { success: false, error: `Could not reach the email service. ${msg}` };
+  }
+}
+
 /**
  * Verifies a 6-digit code entered by the user against the hash stored by the
  * send-auth-email edge function, via the verify-auth-otp edge function.

@@ -186,6 +186,10 @@ describe("User Profile & Authentication System", () => {
       success: true,
       user: mockNewUser,
     });
+    const welcomeSpy = vi.spyOn(authService, "dispatchWelcomeEmail").mockResolvedValue({
+      success: true,
+      isConfigured: true,
+    });
 
     const handleSuccess = vi.fn();
     render(<CosmicAuthPage onSuccess={handleSuccess} />);
@@ -222,6 +226,7 @@ describe("User Profile & Authentication System", () => {
     await waitFor(() => {
       expect(verifySpy).toHaveBeenCalledWith("cadet@nasa.gov", "123456");
       expect(signUpSpy).toHaveBeenCalledWith("cadet@nasa.gov", "securePass456", "Cadet Rao");
+      expect(welcomeSpy).toHaveBeenCalledWith("cadet@nasa.gov", "Cadet Rao");
       expect(handleSuccess).toHaveBeenCalledWith(mockNewUser);
     });
   });
@@ -400,6 +405,22 @@ describe("User Profile & Authentication System", () => {
     });
   });
 
+  it("requires a valid profile name before enabling email signup", () => {
+    render(<CosmicAuthPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Create Account/i }));
+    const nameInput = screen.getByPlaceholderText(/Profile Name/i);
+    const emailInput = screen.getByPlaceholderText(/Enter your email address/i);
+    const passwordInput = screen.getByPlaceholderText(/Create password \(min 6 characters\)/i);
+    const submitBtn = screen.getByRole("button", { name: /Create Account & Enter Orbit/i });
+    expect(nameInput).toHaveProperty("required", true);
+    fireEvent.change(emailInput, { target: { value: "valid.name@example.com" } });
+    fireEvent.change(passwordInput, { target: { value: "validPassword123" } });
+    expect(submitBtn).toHaveProperty("disabled", true);
+    fireEvent.change(nameInput, { target: { value: "A" } });
+    expect(submitBtn).toHaveProperty("disabled", true);
+    fireEvent.change(nameInput, { target: { value: "Valid Name" } });
+    expect(submitBtn).toHaveProperty("disabled", false);
+  });
   it("submitting in Create Account tab dispatches a verification email and shows the OTP step", async () => {
     const dispatchSpy = vi.spyOn(authService, "dispatchVerificationEmail").mockResolvedValue({
       success: true,
@@ -414,8 +435,10 @@ describe("User Profile & Authentication System", () => {
     fireEvent.click(createAccountTab);
 
     // Enter details
+    const nameInput = screen.getByPlaceholderText(/Profile Name/i);
     const emailInput = screen.getByPlaceholderText(/Enter your email address/i);
     const passwordInput = screen.getByPlaceholderText(/Create password \(min 6 characters\)/i);
+    fireEvent.change(nameInput, { target: { value: "Fresh Cadet" } });
     fireEvent.change(emailInput, { target: { value: "fresh.cadet@agrospace.nasa.gov" } });
     fireEvent.change(passwordInput, { target: { value: "cadetPass123" } });
 
@@ -427,7 +450,7 @@ describe("User Profile & Authentication System", () => {
     await waitFor(() => {
       expect(dispatchSpy).toHaveBeenCalledWith(
         "fresh.cadet@agrospace.nasa.gov",
-        undefined,
+        "Fresh Cadet",
         "signup",
       );
       expect(screen.getByText(/Verify your email/i)).toBeDefined();

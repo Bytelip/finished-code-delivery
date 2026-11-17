@@ -31,6 +31,7 @@ import { SeverityChip } from "@/components/agro/hud";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
 import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiService";
 import { AgroDecisionCard } from "@/components/agro/AgroDecisionCard";
+import { PresenterBriefingCard } from "@/components/agro/PresenterBriefingCard";
 import { NasaMissionBriefModal } from "@/components/NasaMissionBriefModal";
 import { FarmerAdvisoryModal } from "@/components/HazardAlertCenter";
 import { GuidedTourOverlay, TOUR_STORAGE_KEY } from "@/components/tutorial/GuidedTourOverlay";
@@ -433,6 +434,17 @@ function AgroSpaceDashboard({
               onExportReport={() => setShowAdvisoryReportModal(true)}
             />
           </div>
+
+          {tab === "overview" && (
+            <div className="antigravity-float-1" data-tour="presenter-briefing">
+              <PresenterBriefingCard
+                fieldLabel={telemetry.meta.regionLabel}
+                plantHealth={telemetry.plantHealth.overall}
+                activeAlerts={activeHazards}
+                onOpenBriefing={() => setShowMissionBriefModal(true)}
+              />
+            </div>
+          )}
 
           {tab === "overview" && (
             <>
