@@ -262,6 +262,7 @@ export function CommandBar({
 
   // Debounced search query to Dual-Provider Geocoder (Open-Meteo + Nominatim)
   useEffect(() => {
+    const controller = new AbortController();
     const q = searchQuery.trim();
     if (q.length < 2) {
       setSearchResults([]);
@@ -272,14 +273,18 @@ export function CommandBar({
 
     setSearching(true);
     const timer = setTimeout(async () => {
-      const places = await searchDualProviderPlaces(q);
+      const places = await searchDualProviderPlaces(q, controller.signal);
+      if (controller.signal.aborted) return;
       setSearchResults(places);
       setSearching(false);
       setDropdownOpen(places.length > 0);
       setSelectedIndex(-1);
-    }, 300);
+    }, 400);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   // Select place from search suggestions

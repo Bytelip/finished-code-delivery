@@ -138,6 +138,10 @@ interface LeafletBundle {
     opacity?: number;
     zIndex?: number;
     attribution?: string;
+    eventHandlers?: {
+      loading?: () => void;
+      load?: () => void;
+    };
   }>;
   Marker: ComponentType<{
     position: [number, number];
@@ -395,6 +399,7 @@ export function GlobeViewport({
     null,
   );
   const [leafletModule, setLeafletModule] = useState<LeafletBundle | null>(null);
+  const [tilesLoading, setTilesLoading] = useState(false);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
 
   // HUD Card Minimization States (Adaptive default based on screen width)
@@ -425,7 +430,7 @@ export function GlobeViewport({
     initialBasemapStyle || "satellite",
   );
   const [basemapSubOption, setBasemapSubOption] = useState<SubOptionId>("satellite_live");
-  const [showLabels, setShowLabels] = useState(true);
+  const [showLabels, setShowLabels] = useState(false);
   const [enable3dTerrain, setEnable3dTerrain] = useState(true);
 
   // Center Layer Info Modal
@@ -440,11 +445,18 @@ export function GlobeViewport({
 
   useEffect(() => {
     let active = true;
-    fetchMeteorologicalForecast(lat, lon).then((data) => {
-      if (active) setWeatherForecast(data);
-    });
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetchMeteorologicalForecast(lat, lon, controller.signal)
+        .then((data) => {
+          if (active) setWeatherForecast(data);
+        })
+        .catch(() => undefined);
+    }, 350);
     return () => {
       active = false;
+      window.clearTimeout(timer);
+      controller.abort();
     };
   }, [lat, lon]);
 
@@ -1156,6 +1168,7 @@ export function GlobeViewport({
               markers={globeMarkers}
               onPick={onPick}
               onZoom={handleGlobeZoom}
+              onLoading={setTilesLoading}
               onReady={handleGlobeReady}
               onFailure={handleGlobeFailure}
             />
@@ -1210,6 +1223,7 @@ export function GlobeViewport({
                         : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               }
               maxZoom={18}
+              eventHandlers={{ loading: () => setTilesLoading(true), load: () => setTilesLoading(false) }}
               attribution={
                 basemapStyle === "dark"
                   ? "Tiles &copy; Esri &mdash; Esri Dark Canvas"
@@ -1266,6 +1280,7 @@ export function GlobeViewport({
               opacity={opacity / 100}
               zIndex={10}
               attribution="NASA GIBS WMTS"
+              eventHandlers={{ loading: () => setTilesLoading(true), load: () => setTilesLoading(false) }}
             />
 
             {/* Interactive & Draggable Farm Marker Pin */}
@@ -1430,6 +1445,13 @@ export function GlobeViewport({
           </LeafletComp.MapContainer>
         </div>
       ) : null}
+
+      {tilesLoading && (
+        <div className="pointer-events-none absolute left-1/2 top-16 z-40 -translate-x-1/2 rounded-full border border-cyan-400/30 bg-slate-950/85 px-3 py-1.5 text-[10px] font-mono text-cyan-200 shadow-lg backdrop-blur-md" role="status" aria-live="polite">
+          <span className="mr-2 inline-block size-1.5 animate-pulse rounded-full bg-cyan-300" />
+          Loading map tiles…
+        </div>
+      )}
 
       {/* ---------------- SSR & ENGINE LOADING FALLBACK GRID ---------------- */}
       {(!mounted ||

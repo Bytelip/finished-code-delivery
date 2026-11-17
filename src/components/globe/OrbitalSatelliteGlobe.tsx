@@ -59,6 +59,7 @@ export interface OrbitalSatelliteGlobeProps {
   markers: OrbitalGlobeMarker[];
   onPick: (lat: number, lon: number) => void;
   onZoom: (zoom: number) => void;
+  onLoading?: (loading: boolean) => void;
   onReady: (api: OrbitalGlobeApi | null) => void;
   onFailure?: () => void;
 }
@@ -97,18 +98,22 @@ function buildStyle(p: OrbitalSatelliteGlobeProps): StyleSpecification {
         tileSize: 256,
         maxzoom: p.overlayMaxZoom,
       },
-      labels: {
-        type: "raster",
-        tiles: [globeLabelsTileUrl(p.basemapStyle)],
-        tileSize: 256,
-        maxzoom: 19,
-      },
-      roads: {
-        type: "raster",
-        tiles: [globeTransportationTileUrl()],
-        tileSize: 256,
-        maxzoom: 19,
-      },
+      ...(p.showLabels
+        ? {
+            labels: {
+              type: "raster" as const,
+              tiles: [globeLabelsTileUrl(p.basemapStyle)],
+              tileSize: 256,
+              maxzoom: 19,
+            },
+            roads: {
+              type: "raster" as const,
+              tiles: [globeTransportationTileUrl()],
+              tileSize: 256,
+              maxzoom: 19,
+            },
+          }
+        : {}),
     },
     layers: [
       { id: "space", type: "background", paint: { "background-color": "#02040a" } },
@@ -119,20 +124,18 @@ function buildStyle(p: OrbitalSatelliteGlobeProps): StyleSpecification {
         source: "gibs",
         paint: { "raster-opacity": p.overlayOpacity, "raster-fade-duration": 200 },
       },
-      {
-        id: "roads",
-        type: "raster",
-        source: "roads",
-        minzoom: 11,
-        layout: { visibility: p.showLabels ? "visible" : "none" },
-        paint: { "raster-opacity": 0.85 },
-      },
-      {
-        id: "labels",
-        type: "raster",
-        source: "labels",
-        layout: { visibility: p.showLabels ? "visible" : "none" },
-      },
+      ...(p.showLabels
+        ? [
+            {
+              id: "roads",
+              type: "raster" as const,
+              source: "roads",
+              minzoom: 11,
+              paint: { "raster-opacity": 0.85 },
+            },
+            { id: "labels", type: "raster" as const, source: "labels" },
+          ]
+        : []),
     ],
   };
 }
@@ -188,6 +191,11 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
 
     let raf = 0;
     let lastSent = Number.NaN;
+    let lastZoomUpdateAt = 0;
+    const updateTileState = () => propsRef.current.onLoading?.(true);
+    const finishTileState = () => propsRef.current.onLoading?.(false);
+    map.on("dataloading", updateTileState);
+    map.on("idle", finishTileState);
     map.on("zoom", () => {
       tagProjection();
       if (raf) return;
@@ -195,8 +203,10 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
         raf = 0;
         if (mapRef.current !== map) return;
         const z = map.getZoom();
-        if (Number.isNaN(lastSent) || Math.abs(z - lastSent) >= 0.01) {
+        const now = performance.now();
+        if ((Number.isNaN(lastSent) || Math.abs(z - lastSent) >= 0.01) && now - lastZoomUpdateAt >= 100) {
           lastSent = z;
+          lastZoomUpdateAt = now;
           propsRef.current.onZoom(z);
         }
       });
@@ -241,6 +251,8 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
 
     return () => {
       ro?.disconnect();
+      map.off("dataloading", updateTileState);
+      map.off("idle", finishTileState);
       if (raf) cancelAnimationFrame(raf);
       for (const m of markersRef.current) m.remove();
       markersRef.current = [];
@@ -268,9 +280,7 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
       (map.getSource("basemap") as RasterTileSource | undefined)?.setTiles([
         globeBasemapTileUrl(props.basemapStyle),
       ]);
-      (map.getSource("labels") as RasterTileSource | undefined)?.setTiles([
-        globeLabelsTileUrl(props.basemapStyle),
-      ]);
+      (map.getSource("labels") as RasterTileSource | undefined)?.setTiles([globeLabelsTileUrl(props.basemapStyle)]);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
@@ -280,9 +290,21 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
-      const v = props.showLabels ? "visible" : "none";
-      if (map.getLayer("labels")) map.setLayoutProperty("labels", "visibility", v);
-      if (map.getLayer("roads")) map.setLayoutProperty("roads", "visibility", v);
+      if (props.showLabels) {
+        if (!map.getSource("labels")) {
+          map.addSource("labels", { type: "raster", tiles: [globeLabelsTileUrl(props.basemapStyle)], tileSize: 256, maxzoom: 19 });
+        }
+        if (!map.getSource("roads")) {
+          map.addSource("roads", { type: "raster", tiles: [globeTransportationTileUrl()], tileSize: 256, maxzoom: 19 });
+        }
+        if (!map.getLayer("roads")) map.addLayer({ id: "roads", type: "raster", source: "roads", minzoom: 11, paint: { "raster-opacity": 0.85 } }, "gibs");
+        if (!map.getLayer("labels")) map.addLayer({ id: "labels", type: "raster", source: "labels" });
+      } else {
+        if (map.getLayer("labels")) map.removeLayer("labels");
+        if (map.getLayer("roads")) map.removeLayer("roads");
+        if (map.getSource("labels")) map.removeSource("labels");
+        if (map.getSource("roads")) map.removeSource("roads");
+      }
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
@@ -308,7 +330,7 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
           source: "gibs",
           paint: { "raster-opacity": propsRef.current.overlayOpacity, "raster-fade-duration": 200 },
         },
-        "roads",
+        map.getLayer("roads") ? "roads" : undefined,
       );
     };
     if (map.isStyleLoaded()) apply();

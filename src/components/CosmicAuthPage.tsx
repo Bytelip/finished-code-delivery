@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   initiateOAuthLogin,
-  completeDirectOAuthLogin,
   signInWithEmailPassword,
   signUpWithEmailPassword,
   dispatchVerificationEmail,
@@ -186,7 +185,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
         .cosmic-parallax-container {
           position: relative;
           width: 100%;
-          min-height: 100vh;
+          min-height: 100dvh;
           background: radial-gradient(ellipse at bottom, #0d1d31 0%, #03060c 100%);
           overflow: hidden;
           display: flex;
@@ -295,86 +294,24 @@ export interface CosmicAuthPageProps {
   onAuthComplete?: (user: UserProfile) => void;
   onSuccess?: (user: UserProfile) => void;
   onClose?: () => void;
+  initialMode?: "signin" | "signup";
 }
-
-const OAUTH_ACCOUNTS: Record<
-  OAuthProvider,
-  Array<{ name: string; email: string; role: string; avatarInitial: string; avatarBg: string }>
-> = {
-  Google: [
-    {
-      name: "Naren Google",
-      email: "naren.google@gmail.com",
-      role: "Mission Commander",
-      avatarInitial: "N",
-      avatarBg: "from-blue-500 to-cyan-500",
-    },
-    {
-      name: "Commander Naren",
-      email: "commander.agrospace@gmail.com",
-      role: "Lead Agronomist",
-      avatarInitial: "C",
-      avatarBg: "from-amber-500 to-orange-500",
-    },
-    {
-      name: "NASA Space Apps Pilot",
-      email: "pilot.agrospace@gmail.com",
-      role: "Flight Officer",
-      avatarInitial: "P",
-      avatarBg: "from-emerald-500 to-teal-500",
-    },
-  ],
-  Microsoft: [
-    {
-      name: "Naren Microsoft",
-      email: "naren.microsoft@outlook.com",
-      role: "Director Naren",
-      avatarInitial: "N",
-      avatarBg: "from-blue-600 to-indigo-600",
-    },
-    {
-      name: "Mission Operations",
-      email: "operations@agrospace.onmicrosoft.com",
-      role: "Command Center",
-      avatarInitial: "M",
-      avatarBg: "from-cyan-600 to-blue-700",
-    },
-  ],
-  Apple: [
-    {
-      name: "Naren Apple",
-      email: "naren.apple@icloud.com",
-      role: "Commander Naren",
-      avatarInitial: "N",
-      avatarBg: "from-slate-600 to-zinc-700",
-    },
-    {
-      name: "AgroSpace Officer",
-      email: "officer.agrospace@icloud.com",
-      role: "Space Systems",
-      avatarInitial: "A",
-      avatarBg: "from-purple-600 to-pink-600",
-    },
-  ],
-};
 
 export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   onAuthComplete,
   onSuccess,
   onClose,
+  initialMode = "signin",
 }) => {
-  const [step, setStep] = useState<"entry" | "oauth_chooser" | "otp_verify">("entry");
-  const [selectedProvider, setSelectedProvider] = useState<OAuthProvider>("Google");
+  const [step, setStep] = useState<"entry" | "otp_verify">("entry");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
   const [authError, setAuthError] = useState<string>("");
-  const [customOAuthName, setCustomOAuthName] = useState<string>("");
-  const [customOAuthEmail, setCustomOAuthEmail] = useState<string>("");
   const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authMode, setAuthMode] = useState<"signin" | "signup">(initialMode);
   const [otpCode, setOtpCode] = useState<string>("");
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
@@ -387,8 +324,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setEmail("");
     setPassword("");
     setName("");
-    setCustomOAuthEmail("");
-    setCustomOAuthName("");
     setOtpCode("");
     setAuthError("");
   };
@@ -406,7 +341,15 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       if (user) {
         onAuthComplete?.(user);
         onSuccess?.(user);
+      } else if (typeof window !== "undefined") {
+        const callbackError = sessionStorage.getItem("agro_auth_callback_error");
+        if (callbackError) {
+          sessionStorage.removeItem("agro_auth_callback_error");
+          setAuthError(callbackError);
+        }
       }
+    }).catch((error: unknown) => {
+      setAuthError(error instanceof Error ? error.message : "Sign-in callback failed. Please try again.");
     });
   }, [onAuthComplete, onSuccess]);
 
@@ -424,7 +367,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   // Direct Social OAuth Login (Google, Microsoft, Apple)
   const handleSocialOAuth = async (provider: OAuthProvider) => {
     setAuthError("");
-    setSelectedProvider(provider);
     setLoadingOAuth(provider);
 
     try {
@@ -447,47 +389,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         }
       }
 
-      // Open interactive OAuth Account Chooser step
-      setStep("oauth_chooser");
-    } catch {
+      setAuthError(result.error || `${provider} sign-in could not be started. Check the provider configuration and try again.`);
+    } catch (error) {
       setLoadingOAuth(null);
-      setStep("oauth_chooser");
-    }
-  };
-
-  const handleSelectOAuthAccount = (
-    accountEmail: string,
-    accountName: string,
-    provider: OAuthProvider = selectedProvider,
-  ) => {
-    setAuthError("");
-    const user = completeDirectOAuthLogin(provider, accountEmail, accountName, authMode);
-    if (user) {
-      saveStoredUser(user);
-      saveStoredProfile(user);
-      onAuthComplete?.(user);
-      onSuccess?.(user);
-    } else {
-      setAuthError("Account not found. Please click 'Create Account' tab to register.");
-    }
-  };
-
-  const handleCustomOAuthAccountSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    if (!customOAuthEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customOAuthEmail.trim())) {
-      setAuthError("Please enter a valid email address.");
-      return;
-    }
-    const derivedName = customOAuthName.trim() || customOAuthEmail.split("@")[0];
-    const user = completeDirectOAuthLogin(selectedProvider, customOAuthEmail.trim(), derivedName, authMode);
-    if (user) {
-      saveStoredUser(user);
-      saveStoredProfile(user);
-      onAuthComplete?.(user);
-      onSuccess?.(user);
-    } else {
-      setAuthError("Account not found. Please click 'Create Account' tab to register.");
+      setAuthError(error instanceof Error ? error.message : `${provider} sign-in could not be started. Please try again.`);
     }
   };
 
@@ -608,11 +513,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       }
 
       // 2. Create the account now that the email is verified.
-      const signUpResult = await signUpWithEmailPassword(
-        email.trim(),
-        password,
-        name.trim() || undefined,
-      );
+      const signUpResult = verifyResult.user
+        ? { success: true, user: verifyResult.user }
+        : await signUpWithEmailPassword(email.trim(), password, name.trim() || undefined);
 
       if (!signUpResult.success || !signUpResult.user) {
         const msg = signUpResult.error || "Account creation failed after verification.";
@@ -651,7 +554,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative rounded-[28px] border border-white/15 bg-[#0B111E]/90 p-8 sm:p-9 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-white">
+      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-[28px] border border-white/15 bg-[#0B111E]/90 p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-white">
         {onClose && (
           <button
             type="button"
@@ -945,7 +848,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="• • • • • •"
-                className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none"
+                className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-2 sm:px-4 py-3 text-center text-xl sm:text-2xl font-mono tracking-[0.3em] sm:tracking-[0.5em] text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none"
                 autoFocus
               />
 
@@ -976,132 +879,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     ? "Sending..."
                     : "Resend code"}
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 3: INTERACTIVE OAUTH ACCOUNT CHOOSER (Google, Microsoft, Apple) */}
-        {step === "oauth_chooser" && (
-          <div className="animate-in fade-in zoom-in-95 duration-200">
-            {/* Back button */}
-            <button
-              type="button"
-              onClick={handleBackToEntry}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white mb-4 cursor-pointer transition-colors"
-            >
-              ← Back to sign-in options
-            </button>
-
-            {/* Provider Header */}
-            <div className="text-center mb-5">
-              <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-inner">
-                {selectedProvider === "Google" && (
-                  <svg className="h-6 w-6" viewBox="0 0 24 24">
-                    <path
-                      fill="#EA4335"
-                      d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5L1.6 17c1.9 3.9 5.8 7 10.4 7z"
-                    />
-                  </svg>
-                )}
-                {selectedProvider === "Microsoft" && (
-                  <svg className="h-6 w-6" viewBox="0 0 23 23">
-                    <path fill="#f35325" d="M1 1h10v10H1z" />
-                    <path fill="#81bc06" d="M12 1h10v10H12z" />
-                    <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                    <path fill="#ffba08" d="M12 12h10v10H12z" />
-                  </svg>
-                )}
-                {selectedProvider === "Apple" && (
-                  <svg className="h-6 w-6 fill-current text-white" viewBox="0 0 24 24">
-                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-                  </svg>
-                )}
-              </div>
-              <h2 className="text-xl font-semibold text-white">Choose an account</h2>
-              <p className="mt-1 text-xs text-slate-400">
-                to continue to AgroSpace Nexus via {selectedProvider}
-              </p>
-            </div>
-
-            {/* Custom account input form */}
-            <form onSubmit={handleCustomOAuthAccountSubmit} className="space-y-2.5 mb-4">
-              <input
-                type="text"
-                value={customOAuthName}
-                onChange={(e) => setCustomOAuthName(e.target.value)}
-                placeholder="Full Name (optional, e.g. Commander Naren)"
-                className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
-              />
-              <input
-                type="email"
-                required
-                value={customOAuthEmail}
-                onChange={(e) => setCustomOAuthEmail(e.target.value)}
-                placeholder={
-                  selectedProvider === "Google"
-                    ? "Enter your Gmail address (e.g. name@gmail.com)"
-                    : `Enter your ${selectedProvider} email address`
-                }
-                className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-mono"
-              />
-              <button
-                type="submit"
-                disabled={!customOAuthEmail.trim()}
-                className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.3)] transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
-              >
-                Continue to Orbit with {selectedProvider}
-              </button>
-            </form>
-
-            {/* Divider: Quick select demo profiles */}
-            <div className="relative my-3 text-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
-              </div>
-              <span className="relative bg-[#0B111E] px-3 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-                Or select demo {selectedProvider} account
-              </span>
-            </div>
-
-            {/* Quick-select account cards */}
-            <div className="space-y-2 mb-2">
-              {OAUTH_ACCOUNTS[selectedProvider].map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => handleSelectOAuthAccount(acc.email, acc.name, selectedProvider)}
-                  className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-cyan-400/40 transition-all cursor-pointer group text-left"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`h-9 w-9 rounded-full bg-gradient-to-br ${acc.avatarBg} flex items-center justify-center font-bold text-sm text-white shrink-0 shadow`}
-                    >
-                      {acc.avatarInitial}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-white group-hover:text-cyan-300 transition-colors truncate">
-                        {acc.name}
-                      </div>
-                      <div className="text-xs text-slate-400 font-mono truncate">{acc.email}</div>
-                    </div>
-                  </div>
-                  <span className="text-[9.5px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300 shrink-0 ml-2">
-                    {acc.role}
-                  </span>
-                </button>
-              ))}
             </div>
           </div>
         )}

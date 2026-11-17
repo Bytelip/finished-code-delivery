@@ -242,7 +242,9 @@ function AgroSpaceDashboard({
   // Dynamic reverse-geocoding, elevation, and Köppen climate zone calculation on lat/lon changes
   useEffect(() => {
     let active = true;
-    reverseGeocodeAndElevation(lat, lon).then((res) => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      reverseGeocodeAndElevation(lat, lon, controller.signal).then((res) => {
       if (!active) return;
       setLocationMeta((prev) => {
         // If reverseGeocodeAndElevation returned a raw "Field ..." fallback but we already have a friendly name, keep the friendly name
@@ -254,9 +256,12 @@ function AgroSpaceDashboard({
         }
         return res;
       });
-    });
+      }).catch(() => undefined);
+    }, 400);
     return () => {
       active = false;
+      window.clearTimeout(timer);
+      controller.abort();
     };
   }, [lat, lon]);
 
@@ -273,28 +278,32 @@ function AgroSpaceDashboard({
     let active = true;
     const controller = new AbortController();
     setIsLoadingLive(true);
+    setLiveTelemetry(null);
 
-    fetchLiveTelemetry(
-      { lat, lon, borewellDepth, season, scenario, irrigation },
-      { signal: controller.signal },
-    )
-      .then((res) => {
-        if (!active) return;
-        setLiveTelemetry(res.telemetry);
-        setLiveStatus(res.status);
-        setIsLoadingLive(false);
-      })
-      .catch(() => {
-        if (!active) return;
-        setLiveTelemetry(null);
-        setIsLoadingLive(false);
-      });
+    const timer = window.setTimeout(() => {
+      fetchLiveTelemetry(
+        { lat, lon, borewellDepth, season, scenario, irrigation },
+        { signal: controller.signal, activeLayer, activeView: tab, lazyLayerOnly: true },
+      )
+        .then((res) => {
+          if (!active) return;
+          setLiveTelemetry(res.telemetry);
+          setLiveStatus(res.status);
+          setIsLoadingLive(false);
+        })
+        .catch(() => {
+          if (!active) return;
+          setLiveTelemetry(null);
+          setIsLoadingLive(false);
+        });
+    }, 350);
 
     return () => {
       active = false;
+      window.clearTimeout(timer);
       controller.abort();
     };
-  }, [lat, lon, borewellDepth, season, scenario, irrigation]);
+  }, [lat, lon, borewellDepth, season, scenario, irrigation, activeLayer, tab]);
 
   const baseTelemetry = liveTelemetry ?? fallbackTelemetry;
 

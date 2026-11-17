@@ -9,6 +9,7 @@ import {
   MAP_LAYERS,
   type AgroTelemetry,
   type CropRecommendation,
+  type DashboardTab,
   type HazardAlert,
   type HazardSignals,
   type LayerReading,
@@ -26,6 +27,8 @@ import { generateTelemetry, normalizeInput, borewellYieldLph } from "@/services/
 
 /** Standard timeout for keyless browser requests */
 const FETCH_TIMEOUT_MS = 6000;
+const API_CACHE_TTL_MS = 60_000;
+const apiResponseCache = new Map<string, { expiresAt: number; body: string; status: number; statusText: string; headers: [string, string][] }>();
 
 export interface LiveApiStatus {
   isLive: boolean;
@@ -47,8 +50,16 @@ export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: numb
 }
 
 /** Helper to fetch with a strict timeout */
-async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS, signal?: AbortSignal): Promise<Response> {
+  const cached = apiResponseCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) {
+    return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers: cached.headers });
+  }
+  if (cached) apiResponseCache.delete(url);
   const controller = new AbortController();
+  const abortFromCaller = () => controller.abort(signal?.reason);
+  if (signal?.aborted) abortFromCaller();
+  else signal?.addEventListener("abort", abortFromCaller, { once: true });
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
@@ -58,9 +69,22 @@ async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Prom
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
-    return res;
+    const body = await res.clone().text();
+    apiResponseCache.set(url, {
+      expiresAt: Date.now() + API_CACHE_TTL_MS,
+      body,
+      status: res.status,
+      statusText: res.statusText,
+      headers: Array.from(res.headers.entries()),
+    });
+    if (apiResponseCache.size > 80) {
+      const oldestKey = apiResponseCache.keys().next().value;
+      if (oldestKey) apiResponseCache.delete(oldestKey);
+    }
+    return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", abortFromCaller);
   }
 }
 
@@ -87,6 +111,7 @@ export async function fetchNasaPowerDaily(
   lat: number,
   lon: number,
   endDate = new Date(),
+  signal?: AbortSignal,
 ): Promise<PowerDailyPoint[]> {
   const startDate = new Date(endDate.getTime() - 29 * 24 * 60 * 60 * 1000);
   const startYmd = toYmd(startDate);
@@ -94,7 +119,7 @@ export async function fetchNasaPowerDaily(
 
   const url = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M,T2M_MAX,T2M_MIN,T2MDEW,TS,RH2M,PRECTOTCORR,WS2M,WD2M,ALLSKY_SFC_SW_DWN,ALLSKY_SFC_PAR_TOT,ALLSKY_SFC_UVA,ALLSKY_SFC_UVB,EVPTRNS,GWETTOP,GWETROOT,GWETPROF&community=AG&longitude=${lon.toFixed(4)}&latitude=${lat.toFixed(4)}&start=${startYmd}&end=${endYmd}&format=JSON`;
 
-  const res = await fetchWithTimeout(url, 7000);
+  const res = await fetchWithTimeout(url, 7000, signal);
   const json = await res.json();
   const p = json?.properties?.parameter;
   if (!p) throw new Error("Invalid POWER API payload");
@@ -155,6 +180,7 @@ export async function fetchOrnlModisSubsets(
   lat: number,
   lon: number,
   date = new Date(),
+  signal?: AbortSignal,
 ): Promise<ModisSubsetResult> {
   const yyyy = date.getUTCFullYear();
   const doy = toDoy(date);
@@ -162,7 +188,7 @@ export async function fetchOrnlModisSubsets(
 
   const url = `https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&startDate=A${yyyy}${startDoy}&endDate=A${yyyy}${doy}&kmAboveBelow=0&kmLeftRight=0`;
 
-  const res = await fetchWithTimeout(url, 5000);
+  const res = await fetchWithTimeout(url, 5000, signal);
   const json = await res.json();
   const subsets = json?.subset;
   if (!Array.isArray(subsets)) return {};
@@ -195,7 +221,7 @@ export async function fetchOrnlModisSubsets(
 // -----------------------------------------------------------------------------------------
 // 3. NASA CMR Granule Search API
 // -----------------------------------------------------------------------------------------
-export async function fetchCmrGranules(lat: number, lon: number): Promise<NasaGranule[]> {
+export async function fetchCmrGranules(lat: number, lon: number, signal?: AbortSignal): Promise<NasaGranule[]> {
   const queryProduct = async (
     shortName: string,
     productLabel: string,
@@ -204,7 +230,7 @@ export async function fetchCmrGranules(lat: number, lon: number): Promise<NasaGr
   ): Promise<NasaGranule | null> => {
     try {
       const url = `https://cmr.earthdata.nasa.gov/search/granules.json?short_name=${shortName}&point=${lon.toFixed(3)},${lat.toFixed(3)}&sort_key=-start_date&page_size=1`;
-      const res = await fetchWithTimeout(url, 4000);
+      const res = await fetchWithTimeout(url, 4000, signal);
       const json = await res.json();
       const entry = json?.feed?.entry?.[0];
       if (!entry) return null;
@@ -250,9 +276,9 @@ export interface EonetHazardResult {
   dustHaze: Array<{ title: string; distKm: number; id: string }>;
 }
 
-export async function fetchEonetHazards(lat: number, lon: number): Promise<EonetHazardResult> {
+export async function fetchEonetHazards(lat: number, lon: number, signal?: AbortSignal): Promise<EonetHazardResult> {
   const url = `https://eonet.gsfc.nasa.gov/api/v3/events?status=open&categories=severeStorms,floods,drought,wildfires,dustHaze`;
-  const res = await fetchWithTimeout(url, 5000);
+  const res = await fetchWithTimeout(url, 5000, signal);
   const json = await res.json();
   const events = json?.events || [];
 
@@ -302,12 +328,13 @@ export interface SpaceWeatherResult {
   detail: string;
 }
 
-export async function fetchSpaceWeather(): Promise<SpaceWeatherResult> {
+export async function fetchSpaceWeather(signal?: AbortSignal): Promise<SpaceWeatherResult> {
   let kp = 2.0;
 
   const noaaRes = await fetchWithTimeout(
     "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",
     4000,
+    signal,
   );
   const noaaJson = await noaaRes.json();
   if (Array.isArray(noaaJson) && noaaJson.length > 1) {
@@ -354,9 +381,9 @@ export interface EarthquakeResult {
   rings: Array<{ lat: number; lon: number; mag: number; depth: number }>;
 }
 
-export async function fetchUsgsEarthquakes(lat: number, lon: number): Promise<EarthquakeResult> {
+export async function fetchUsgsEarthquakes(lat: number, lon: number, signal?: AbortSignal): Promise<EarthquakeResult> {
   const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&maxradiuskm=500&minmagnitude=2.5&orderby=time&limit=10`;
-  const res = await fetchWithTimeout(url, 4500);
+  const res = await fetchWithTimeout(url, 4500, signal);
   const json = await res.json();
   const features = json?.features || [];
 
@@ -415,11 +442,12 @@ export async function fetchUsnoEclipse(
   lat: number,
   lon: number,
   date = new Date(),
+  signal?: AbortSignal,
 ): Promise<EclipseResult> {
   const ymd = date.toISOString().slice(0, 10);
   const url = `https://aa.usno.navy.mil/api/eclipses/solar/date?date=${ymd}&coords=${lat.toFixed(4)},${lon.toFixed(4)}&height=500`;
 
-  const res = await fetchWithTimeout(url, 4000);
+  const res = await fetchWithTimeout(url, 4000, signal);
   const json = await res.json();
   const props = json?.properties;
   const isEcl = props?.description && !props.description.toLowerCase().includes("no eclipse");
@@ -445,9 +473,9 @@ export interface OpenMeteoSoilResult {
   et0: number;
 }
 
-export async function fetchOpenMeteoSoil(lat: number, lon: number): Promise<OpenMeteoSoilResult> {
+export async function fetchOpenMeteoSoil(lat: number, lon: number, signal?: AbortSignal): Promise<OpenMeteoSoilResult> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&hourly=soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_moisture_28_to_100cm,soil_temperature_0_to_7cm,vapour_pressure_deficit,et0_fao_evapotranspiration&timezone=auto`;
-  const res = await fetchWithTimeout(url, 4500);
+  const res = await fetchWithTimeout(url, 4500, signal);
   const json = await res.json();
   const h = json?.hourly;
   if (!h) throw new Error("Invalid Open-Meteo payload");
@@ -481,9 +509,9 @@ export interface SoilGridsResult {
   siltPct: number;
 }
 
-export async function fetchIsricSoilGrids(lat: number, lon: number): Promise<SoilGridsResult> {
+export async function fetchIsricSoilGrids(lat: number, lon: number, signal?: AbortSignal): Promise<SoilGridsResult> {
   const url = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&property=phh2o&property=nitrogen&property=soc&property=clay&property=sand&property=silt&property=cec&depth=0-5cm&depth=15-30cm&value=mean`;
-  const res = await fetchWithTimeout(url, 5000);
+  const res = await fetchWithTimeout(url, 5000, signal);
   const json = await res.json();
   const layers = json?.properties?.layers;
   if (!Array.isArray(layers)) throw new Error("Invalid SoilGrids response");
@@ -521,7 +549,7 @@ export async function fetchIsricSoilGrids(lat: number, lon: number): Promise<Soi
 
 export async function fetchLiveTelemetry(
   rawInput: TelemetryInput,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; activeLayer?: MapLayer; activeView?: DashboardTab; lazyLayerOnly?: boolean },
 ): Promise<{ telemetry: AgroTelemetry; status: LiveApiStatus }> {
   const input = normalizeInput(rawInput);
   // Always compute fallback baseline so any failed endpoint seamlessly uses deterministic numbers
@@ -529,6 +557,129 @@ export async function fetchLiveTelemetry(
 
   const activeFeeds: string[] = [];
   const failedFeeds: string[] = [];
+
+  // The map asks only for the selected point-sample layer. Raster overlays are
+  // fetched by the active map source, while other NASA feeds stay on fallback
+  // telemetry until their dedicated view is opened.
+  if (options?.lazyLayerOnly) {
+    const layer = options.activeLayer ?? "NDVI";
+    const [powerResult, modisResult] = await Promise.allSettled([
+      fetchNasaPowerDaily(input.lat, input.lon, new Date(), options.signal),
+      layer === "NDVI" || layer === "EVI"
+        ? fetchOrnlModisSubsets(input.lat, input.lon, new Date(), options.signal)
+        : Promise.resolve(null),
+    ]);
+    let telemetry: AgroTelemetry = fallback;
+    if (powerResult.status === "fulfilled" && powerResult.value.length === 30) {
+      telemetry = { ...telemetry, power: powerResult.value };
+      activeFeeds.push("NASA POWER AG");
+    } else if (powerResult.status === "rejected") {
+      if (options.signal?.aborted) throw powerResult.reason;
+      failedFeeds.push("NASA POWER AG");
+    }
+    if (modisResult.status === "fulfilled" && modisResult.value) {
+      const reading = layer === "NDVI" ? modisResult.value.ndvi : modisResult.value.evi;
+      if (reading != null) {
+        telemetry = {
+          ...telemetry,
+          layers: {
+            ...telemetry.layers,
+            [layer]: { ...telemetry.layers[layer], value: reading, intensity: Math.min(1, Math.max(0, reading)) },
+          },
+        };
+        activeFeeds.push("ORNL DAAC MODIS");
+      }
+    } else if (modisResult.status === "rejected") {
+      if (options.signal?.aborted) throw modisResult.reason;
+      failedFeeds.push("ORNL DAAC MODIS");
+    }
+
+    // Extra feeds are requested only when the related dashboard view is opened.
+    if (options.activeView === "groundwater") {
+      const soilResult = await fetchOpenMeteoSoil(input.lat, input.lon, options.signal).then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      );
+      if ("value" in soilResult) {
+        const s = soilResult.value;
+        telemetry = {
+          ...telemetry,
+          soil: telemetry.soil.map((point, index, points) => index === points.length - 1
+            ? { ...point, sm0_5: s.sm0_7, sm7_28: s.sm7_28, sm28_100: s.sm28_100 }
+            : point),
+        };
+        activeFeeds.push("Open-Meteo Soil");
+      } else if (!options.signal?.aborted) failedFeeds.push("Open-Meteo Soil");
+      else throw soilResult.error;
+    }
+
+    if (options.activeView === "granules") {
+      try {
+        const granules = await fetchCmrGranules(input.lat, input.lon, options.signal);
+        if (granules.length) {
+          telemetry = { ...telemetry, granules };
+          activeFeeds.push("NASA CMR");
+        }
+      } catch (error) {
+        if (options.signal?.aborted) throw error;
+        failedFeeds.push("NASA CMR");
+      }
+    }
+
+    if (options.activeView === "hazards" && input.scenario === "Nominal") {
+      const [eonetResult, quakeResult, spaceResult, eclipseResult] = await Promise.allSettled([
+        fetchEonetHazards(input.lat, input.lon, options.signal),
+        fetchUsgsEarthquakes(input.lat, input.lon, options.signal),
+        fetchSpaceWeather(options.signal),
+        fetchUsnoEclipse(input.lat, input.lon, new Date(), options.signal),
+      ]);
+      const signals: HazardSignals = { ...telemetry.hazardSignals, live: [] };
+      if (eonetResult.status === "fulfilled") {
+        const storm = eonetResult.value.cyclones[0];
+        signals.stormDistKm = storm?.distKm ?? null;
+        signals.stormName = storm?.title?.slice(0, 32) || "Storm system";
+        signals.live.push("cyclone");
+        signals.firmsHotspots50km = Math.max(signals.firmsHotspots50km, eonetResult.value.wildfires.filter((fire) => fire.distKm <= 50).length);
+        signals.live.push("fire-smoke");
+        activeFeeds.push("NASA EONET v3");
+      } else if (options.signal?.aborted) throw eonetResult.reason;
+      else failedFeeds.push("NASA EONET v3");
+      if (quakeResult.status === "fulfilled") {
+        signals.quakeMag = quakeResult.value.count ? quakeResult.value.maxMag : 0;
+        signals.quakeDepthKm = quakeResult.value.depthKm;
+        signals.quakeDistKm = quakeResult.value.count ? quakeResult.value.nearestDistKm : null;
+        signals.live.push("earthquake");
+        activeFeeds.push("USGS ComCat");
+      } else if (options.signal?.aborted) throw quakeResult.reason;
+      else failedFeeds.push("USGS ComCat");
+      if (spaceResult.status === "fulfilled") {
+        signals.kpIndex = spaceResult.value.kpIndex;
+        signals.geomagStorm = spaceResult.value.solarStormActive ? `Kp ${spaceResult.value.kpIndex}` : null;
+        if (spaceResult.value.flareClass) signals.flareClass = spaceResult.value.flareClass;
+        signals.live.push("solar-storm");
+        activeFeeds.push("NOAA/NASA SWPC");
+      } else if (options.signal?.aborted) throw spaceResult.reason;
+      else failedFeeds.push("NOAA/NASA SWPC");
+      if (eclipseResult.status === "fulfilled") {
+        signals.obscurationPct = eclipseResult.value.isEclipse ? eclipseResult.value.obscuration : 0;
+        signals.parDropPct = Math.round(signals.obscurationPct * 0.8);
+        signals.live.push("eclipse");
+        activeFeeds.push("USNO Eclipse");
+      } else if (options.signal?.aborted) throw eclipseResult.reason;
+      else failedFeeds.push("USNO Eclipse");
+      telemetry = { ...telemetry, hazardSignals: signals, hazards: buildHazardAlerts(signals) };
+    }
+
+    return {
+      telemetry,
+      status: {
+        isLive: activeFeeds.length > 0,
+        activeFeeds,
+        failedFeeds,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
 
   // Execute all 9 in parallel with Promise.allSettled
   const [
@@ -542,15 +693,15 @@ export async function fetchLiveTelemetry(
     openMeteoSettled,
     soilGridsSettled,
   ] = await Promise.allSettled([
-    fetchNasaPowerDaily(input.lat, input.lon),
-    fetchOrnlModisSubsets(input.lat, input.lon),
-    fetchCmrGranules(input.lat, input.lon),
-    fetchEonetHazards(input.lat, input.lon),
-    fetchSpaceWeather(),
-    fetchUsgsEarthquakes(input.lat, input.lon),
-    fetchUsnoEclipse(input.lat, input.lon),
-    fetchOpenMeteoSoil(input.lat, input.lon),
-    fetchIsricSoilGrids(input.lat, input.lon),
+    fetchNasaPowerDaily(input.lat, input.lon, new Date(), options?.signal),
+    fetchOrnlModisSubsets(input.lat, input.lon, new Date(), options?.signal),
+    fetchCmrGranules(input.lat, input.lon, options?.signal),
+    fetchEonetHazards(input.lat, input.lon, options?.signal),
+    fetchSpaceWeather(options?.signal),
+    fetchUsgsEarthquakes(input.lat, input.lon, options?.signal),
+    fetchUsnoEclipse(input.lat, input.lon, new Date(), options?.signal),
+    fetchOpenMeteoSoil(input.lat, input.lon, options?.signal),
+    fetchIsricSoilGrids(input.lat, input.lon, options?.signal),
   ]);
 
   // 1. POWER daily points

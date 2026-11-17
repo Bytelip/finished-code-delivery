@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { CosmicAuthPage } from "@/components/CosmicAuthPage";
 import { saveStoredProfile, type UserProfile } from "@/types/userProfile";
@@ -21,9 +21,11 @@ export const Route = createFileRoute("/auth")({
 
 function AuthRouteComponent() {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   // Detect incoming OAuth session or fragment tokens on page load
   useEffect(() => {
+    if (pathname === "/auth/callback") return;
     processIncomingAuthCallback().then((user) => {
       if (user) {
         saveStoredProfile(user);
@@ -32,8 +34,13 @@ function AuthRouteComponent() {
         });
         navigate({ to: "/" });
       }
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "Authentication callback failed.";
+      toast.error(message);
     });
-  }, [navigate]);
+  }, [navigate, pathname]);
+
+  if (pathname === "/auth/callback") return <Outlet />;
 
   const handleSuccess = (profile: UserProfile) => {
     saveStoredProfile(profile);

@@ -310,24 +310,44 @@ export async function resolvePreciseLocation(options?: {
  * 1. Primary: Open-Meteo Geocoding API (high rate-limit, no CORS issues, cities/towns/districts globally)
  * 2. Fallback: OpenStreetMap Nominatim (for Indian pincodes, taluks, and rural villages)
  */
-export async function searchDualProviderPlaces(query: string): Promise<PlaceSearchResult[]> {
+const placeSearchCache = new Map<string, { expiresAt: number; places: PlaceSearchResult[] }>();
+
+function cachePlaceResults(key: string, places: PlaceSearchResult[]) {
+  if (placeSearchCache.size >= 100) {
+    const oldestKey = placeSearchCache.keys().next().value;
+    if (oldestKey) placeSearchCache.delete(oldestKey);
+  }
+  placeSearchCache.set(key, { expiresAt: Date.now() + 5 * 60_000, places });
+}
+
+async function fetchLocationRequest(url: string, timeoutMs: number, signal?: AbortSignal, headers?: HeadersInit) {
+  const controller = new AbortController();
+  const relayAbort = () => controller.abort(signal?.reason);
+  if (signal?.aborted) relayAbort();
+  else signal?.addEventListener("abort", relayAbort, { once: true });
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal, ...(headers ? { headers } : {}) });
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", relayAbort);
+  }
+}
+
+export async function searchDualProviderPlaces(query: string, signal?: AbortSignal): Promise<PlaceSearchResult[]> {
   const q = query.trim();
   if (q.length < 2) return [];
+  const cacheKey = q.toLowerCase();
+  const cached = placeSearchCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.places;
 
   const isNumericOrPincode = /^\d+$/.test(q);
 
   // If not a pure numeric pincode, try Open-Meteo first
   if (!isNumericOrPincode) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
       const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`;
-
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: { Accept: "application/json" },
-      });
-      clearTimeout(timeoutId);
+      const res = await fetchLocationRequest(url, 4000, signal, { Accept: "application/json" });
 
       if (res.ok) {
         interface OpenMeteoItem {
@@ -343,7 +363,7 @@ export async function searchDualProviderPlaces(query: string): Promise<PlaceSear
 
         const data: { results?: OpenMeteoItem[] } = await res.json();
         if (Array.isArray(data?.results) && data.results.length > 0) {
-          return data.results.map((item) => {
+          const places = data.results.map((item) => {
             const subtitleParts = [item.admin2, item.admin1, item.country].filter(Boolean);
             return {
               id: `om-${item.id}`,
@@ -356,27 +376,23 @@ export async function searchDualProviderPlaces(query: string): Promise<PlaceSear
               source: "open-meteo" as const,
             };
           });
+          cachePlaceResults(cacheKey, places);
+          return places;
         }
       }
     } catch (e) {
+      if (signal?.aborted) return [];
       console.warn("Open-Meteo Geocoding search failed, falling back to Nominatim:", e);
     }
   }
 
   // Fallback to OpenStreetMap Nominatim (handles Indian pincodes, villages, and taluks)
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4500);
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&addressdetails=1`;
-
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
+    const res = await fetchLocationRequest(url, 4500, signal, {
         Accept: "application/json",
         "User-Agent": "AgroSpace-Nexus-Precision-Agriculture/2.0",
-      },
     });
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       interface RawNominatimItem {
@@ -398,7 +414,7 @@ export async function searchDualProviderPlaces(query: string): Promise<PlaceSear
 
       const data: RawNominatimItem[] = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        return data.map((item) => {
+        const places = data.map((item) => {
           const addr = item.address;
           const name =
             addr?.village || addr?.town || addr?.city || item.display_name.split(",")[0] || q;
@@ -418,9 +434,12 @@ export async function searchDualProviderPlaces(query: string): Promise<PlaceSear
             source: "nominatim" as const,
           };
         });
+        cachePlaceResults(cacheKey, places);
+        return places;
       }
     }
   } catch (e) {
+    if (signal?.aborted) return [];
     console.warn("Nominatim Geocoding fallback failed:", e);
   }
 
@@ -486,6 +505,7 @@ export function computeKoppenClimateZone(lat: number, lon: number): string {
 export async function reverseGeocodeAndElevation(
   lat: number,
   lon: number,
+  signal?: AbortSignal,
 ): Promise<ReverseGeocodeResult> {
   let label = "";
   let elevationM = 0;
@@ -493,18 +513,11 @@ export async function reverseGeocodeAndElevation(
 
   // 1. Reverse Geocode Place Name (Nominatim)
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12&addressdetails=1`;
-
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
+    const res = await fetchLocationRequest(url, 4000, signal, {
         Accept: "application/json",
         "User-Agent": "AgroSpace-Nexus-Precision-Agriculture/2.0",
-      },
     });
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       interface NominatimReverse {
@@ -545,21 +558,15 @@ export async function reverseGeocodeAndElevation(
       }
     }
   } catch (e) {
+    if (signal?.aborted) throw e;
     console.warn("Nominatim reverse geocode error:", e);
   }
 
   // Fallback to BigDataCloud reverse geocode if Nominatim failed
   if (!label) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
       const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
-
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: { Accept: "application/json" },
-      });
-      clearTimeout(timeoutId);
+      const res = await fetchLocationRequest(url, 4000, signal, { Accept: "application/json" });
 
       if (res.ok) {
         interface BigDataCloudReverse {
@@ -579,6 +586,7 @@ export async function reverseGeocodeAndElevation(
         }
       }
     } catch (e) {
+      if (signal?.aborted) throw e;
       console.warn("BigDataCloud reverse geocode error:", e);
     }
   }
@@ -592,15 +600,8 @@ export async function reverseGeocodeAndElevation(
 
   // 2. Fetch Live Elevation (Open-Meteo Elevation API)
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
     const url = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
-
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { Accept: "application/json" },
-    });
-    clearTimeout(timeoutId);
+    const res = await fetchLocationRequest(url, 4000, signal, { Accept: "application/json" });
 
     if (res.ok) {
       const data = await res.json();
@@ -609,6 +610,7 @@ export async function reverseGeocodeAndElevation(
       }
     }
   } catch (e) {
+    if (signal?.aborted) throw e;
     console.warn("Open-Meteo elevation error:", e);
   }
 

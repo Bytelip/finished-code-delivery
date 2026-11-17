@@ -520,6 +520,8 @@ export async function initiateOAuthLogin(
     (typeof window !== "undefined" && window.location?.origin) ||
     redirectToOrigin ||
     "";
+  // Keep the configured site origin as the redirect URL so existing Supabase
+  // redirect allow-lists remain valid; the root route also processes callbacks.
   const redirectUrl = dynamicOrigin;
 
   // 1. Primary: Supabase OAuth
@@ -535,7 +537,7 @@ export async function initiateOAuthLogin(
     const { error } = await supabase.auth.signInWithOAuth({
       provider: targetProvider,
       options: {
-        redirectTo: dynamicOrigin,
+        redirectTo: redirectUrl,
         ...(provider === "Microsoft" ? { scopes: "email openid profile" } : {}),
         queryParams: {
           prompt: "select_account",
@@ -996,6 +998,11 @@ export async function dispatchVerificationEmail(
 
   const url = getEdgeFunctionUrl("send-auth-email");
   if (!url) {
+    if (import.meta.env.DEV) {
+      const fallback = await sendEmailOtp(cleanEmail, "signup", "email", undefined, name);
+      if (fallback.success) return fallback;
+      return { success: false, error: `Resend test fallback failed: ${fallback.error || "Email could not be sent."}` };
+    }
     return {
       success: false,
       error: "Email service is not configured. Cannot send verification code.",
@@ -1018,6 +1025,11 @@ export async function dispatchVerificationEmail(
     if (!res.ok || !data.success) {
       const msg = data.error || `Email delivery failed (${res.status}).`;
       console.warn("[dispatchVerificationEmail] Edge function error:", res.status, data);
+      if (import.meta.env.DEV) {
+        const fallback = await sendEmailOtp(cleanEmail, "signup", "email", undefined, name);
+        if (fallback.success) return fallback;
+        return { success: false, error: `${msg} Development fallback: ${fallback.error || "Email could not be sent."}` };
+      }
       return { success: false, error: msg };
     }
 
@@ -1025,6 +1037,11 @@ export async function dispatchVerificationEmail(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn("[dispatchVerificationEmail] Network/edge error:", msg);
+    if (import.meta.env.DEV) {
+      const fallback = await sendEmailOtp(cleanEmail, "signup", "email", undefined, name);
+      if (fallback.success) return fallback;
+      return { success: false, error: `Could not reach Resend. Development fallback: ${fallback.error || msg}` };
+    }
     return {
       success: false,
       error: `Could not reach the email service. ${msg}`,
@@ -1089,6 +1106,7 @@ export async function verifyOtpCode(
 
   const url = getEdgeFunctionUrl("verify-auth-otp");
   if (!url) {
+    if (import.meta.env.DEV) return verifyEmailOtp(cleanEmail, cleanCode, undefined, "signup");
     return {
       success: false,
       error: "Email service is not configured. Cannot verify code.",
@@ -1110,6 +1128,7 @@ export async function verifyOtpCode(
 
     if (!res.ok || !data.success) {
       const msg = data.error || `Verification failed (${res.status}).`;
+      if (import.meta.env.DEV) return verifyEmailOtp(cleanEmail, cleanCode, undefined, "signup");
       return { success: false, error: msg };
     }
 
@@ -1117,6 +1136,7 @@ export async function verifyOtpCode(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn("[verifyOtpCode] Network/edge error:", msg);
+    if (import.meta.env.DEV) return verifyEmailOtp(cleanEmail, cleanCode, undefined, "signup");
     return {
       success: false,
       error: `Could not reach the email service. ${msg}`,
@@ -1528,14 +1548,10 @@ export async function verifyEmailOtp(
     return { success: true, user: existing };
   }
 
-  // Sign up mode: create and register profile in database
-  const profile = createInitialProfile(cleanEmail, provider, customName);
-  profile.verified = true;
-  profile.isVerified = true;
-  await saveUserToDatabase(profile);
-  saveStoredProfile(profile);
-
-  return { success: true, user: profile };
+  // The local test OTP proves only the address. Let the caller create the
+  // password-backed account after verification instead of registering a
+  // passwordless profile that would block the sign-up form on retry.
+  return { success: true };
 }
 
 // -------------------------------------------------------------
@@ -1547,11 +1563,37 @@ export async function verifyEmailOtp(
  * Automatically completes OAuth login and returns the authenticated UserProfile.
  * Only triggers when active OAuth callback indicators are present in the URL to prevent logout loops.
  */
-export async function processIncomingAuthCallback(): Promise<UserProfile | null> {
+let incomingAuthCallbackRequest: Promise<UserProfile | null> | null = null;
+
+export function processIncomingAuthCallback(): Promise<UserProfile | null> {
+  if (incomingAuthCallbackRequest) return incomingAuthCallbackRequest;
+  const request = processIncomingAuthCallbackOnce();
+  incomingAuthCallbackRequest = request;
+  void request.then(
+    () => {
+      if (incomingAuthCallbackRequest === request) incomingAuthCallbackRequest = null;
+    },
+    () => {
+      if (incomingAuthCallbackRequest === request) incomingAuthCallbackRequest = null;
+    },
+  );
+  return request;
+}
+
+async function processIncomingAuthCallbackOnce(): Promise<UserProfile | null> {
   if (typeof window === "undefined") return null;
 
   const hash = window.location.hash || "";
   const search = window.location.search || "";
+  const params = new URLSearchParams(search);
+  const callbackError = params.get("error_description") || params.get("error");
+  if (callbackError) {
+    try {
+      sessionStorage.setItem("agro_auth_callback_error", callbackError.slice(0, 240));
+    } catch {}
+    window.history.replaceState(null, "", window.location.pathname);
+    return null;
+  }
 
   // Strictly check for returning OAuth callback tokens/code in the URL
   const isOAuthCallback =
@@ -1568,6 +1610,13 @@ export async function processIncomingAuthCallback(): Promise<UserProfile | null>
   if (supabase) {
     try {
       const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        try {
+          sessionStorage.setItem("agro_auth_callback_error", error.message.slice(0, 240));
+        } catch {}
+        window.history.replaceState(null, "", window.location.pathname);
+        return null;
+      }
       if (!error && data.session?.user) {
         const u = data.session.user;
         const providerName = (u.app_metadata?.provider as string) || "Google";
