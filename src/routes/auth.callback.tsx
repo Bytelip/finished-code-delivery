@@ -48,7 +48,7 @@ function AuthCallbackRoute() {
             <button
               type="button"
               onClick={() => navigate({ to: "/login", replace: true })}
-              className="mt-5 min-h-11 rounded-lg bg-cyan-400 px-4 font-semibold text-muted-foreground"
+              className="mt-5 min-h-11 rounded-lg bg-cyan-400 px-4 font-semibold text-slate-950"
             >
               {<LocalizedText text={"Return to sign in"} />}
             </button>

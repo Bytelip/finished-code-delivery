@@ -8,5 +8,11 @@ export const Route = createFileRoute("/signup")({
 
 function SignupRoute() {
   const navigate = useNavigate();
-  return <CosmicAuthPage initialMode="signup" onClose={() => navigate({ to: "/" })} />;
+  return (
+    <CosmicAuthPage
+      initialMode="signup"
+      onClose={() => navigate({ to: "/" })}
+      onSuccess={() => navigate({ to: "/", replace: true })}
+    />
+  );
 }

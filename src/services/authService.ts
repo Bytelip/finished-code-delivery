@@ -321,6 +321,16 @@ export function getEnvVar(key: string): string | undefined {
   return undefined;
 }
 
+function getLocalAuthSetting(key: string): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const value = window.localStorage.getItem(key)?.trim();
+    return value || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // -------------------------------------------------------------
 // 1. SUPABASE CLIENT INITIALIZATION & HELPERS
 // -------------------------------------------------------------
@@ -332,25 +342,26 @@ export function setSupabaseClientOverride(client: SupabaseClient | null | undefi
 }
 
 export function getSupabaseUrl(): string | undefined {
-  if (typeof window !== "undefined") {
-    const local = localStorage.getItem("agrospace_supabase_url");
-    if (local && local.trim()) return local.trim();
-  }
+  const local = getLocalAuthSetting("agrospace_supabase_url");
+  if (local) return local;
   return (
-    (typeof import.meta !== "undefined" && (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_URL"]) ||
+    (typeof import.meta !== "undefined" &&
+      (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_URL"]) ||
     getEnvVar("VITE_SUPABASE_URL")
   );
 }
 
 export function getSupabaseAnonKey(): string | undefined {
-  if (typeof window !== "undefined") {
-    const local = localStorage.getItem("agrospace_supabase_anon_key");
-    if (local && local.trim()) return local.trim();
-  }
+  const local = getLocalAuthSetting("agrospace_supabase_anon_key");
+  if (local) return local;
   return (
     (typeof import.meta !== "undefined" &&
-      ((import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_ANON_KEY"] ||
-        (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_PUBLISHABLE_KEY"])) ||
+      ((import.meta as unknown as { env?: Record<string, string> }).env?.[
+        "VITE_SUPABASE_ANON_KEY"
+      ] ||
+        (import.meta as unknown as { env?: Record<string, string> }).env?.[
+          "VITE_SUPABASE_PUBLISHABLE_KEY"
+        ])) ||
     getEnvVar("VITE_SUPABASE_ANON_KEY") ||
     getEnvVar("VITE_SUPABASE_PUBLISHABLE_KEY")
   );
@@ -428,15 +439,15 @@ export interface AuthResult {
 }
 
 export function getGoogleClientId(): string | undefined {
-  if (typeof window !== "undefined") {
-    const local = localStorage.getItem("agrospace_google_client_id");
-    if (local && local.trim()) return local.trim();
-  }
+  const local = getLocalAuthSetting("agrospace_google_client_id");
+  if (local) return local;
   if (
     typeof import.meta !== "undefined" &&
     (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_GOOGLE_CLIENT_ID"]
   ) {
-    const envVal = (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_GOOGLE_CLIENT_ID"];
+    const envVal = (import.meta as unknown as { env?: Record<string, string> }).env?.[
+      "VITE_GOOGLE_CLIENT_ID"
+    ];
     if (typeof envVal === "string" && envVal.trim()) return envVal.trim();
   }
   return getEnvVar("VITE_GOOGLE_CLIENT_ID");
@@ -516,16 +527,21 @@ export async function initiateOAuthLogin(
   onSuccess?: (user: UserProfile) => void,
   onError?: (error: string) => void,
 ): Promise<AuthResult> {
-  const dynamicOrigin =
-    (typeof window !== "undefined" && window.location?.origin) ||
-    redirectToOrigin ||
-    "";
-  // Keep the configured site origin as the redirect URL so existing Supabase
-  // redirect allow-lists remain valid; the root route also processes callbacks.
-  const redirectUrl = dynamicOrigin;
+  const appOrigin =
+    (typeof window !== "undefined" && window.location?.origin) || redirectToOrigin || "";
+  let redirectUrl = "";
+  try {
+    redirectUrl = appOrigin ? new URL("/auth/callback", appOrigin).toString() : "";
+  } catch {
+    return { success: false, error: "A valid sign-in redirect URL could not be created." };
+  }
+  if (!redirectUrl) {
+    return { success: false, error: "Sign-in can only be started from the AgroSpace website." };
+  }
 
   // 1. Primary: Supabase OAuth
   const supabase = getSupabaseClient();
+  let supabaseProviderError: string | undefined;
   if (supabase) {
     const supabaseProviderMap: Record<OAuthProvider, "google" | "azure" | "apple"> = {
       Google: "google",
@@ -534,33 +550,37 @@ export async function initiateOAuthLogin(
     };
 
     const targetProvider = supabaseProviderMap[provider];
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: targetProvider,
-      options: {
-        redirectTo: redirectUrl,
-        ...(provider === "Microsoft" ? { scopes: "email openid profile" } : {}),
-        queryParams: {
-          prompt: "select_account",
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: targetProvider,
+        options: {
+          redirectTo: redirectUrl,
+          ...(provider === "Microsoft" ? { scopes: "email openid profile" } : {}),
+          queryParams: {
+            prompt: "select_account",
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      onError?.(error.message);
-      return { success: false, error: error.message };
+      if (!error) return { success: true, redirecting: true };
+      supabaseProviderError = error.message;
+    } catch (error: unknown) {
+      supabaseProviderError = error instanceof Error ? error.message : String(error);
     }
-
-    return { success: true, redirecting: true };
   }
 
   // 2. Google OAuth: Use official Google Identity Services (GIS) SDK popup flow
   if (provider === "Google") {
     const googleClientId = getGoogleClientId();
     if (!googleClientId) {
+      const error =
+        supabaseProviderError ||
+        "Google sign-in is unavailable on this site. Use email and password, or enable Google OAuth for the configured authentication provider.";
+      onError?.(error);
       return {
         success: false,
         isConfigured: false,
-        needsAccountPicker: true,
+        error,
       };
     }
 
@@ -600,8 +620,11 @@ export async function initiateOAuthLogin(
                   cleanEmail?.split("@")[0] ||
                   "Commander Naren";
 
-                if (!cleanEmail) {
-                  const err = "No verified email returned from Google.";
+                if (
+                  !cleanEmail ||
+                  (googleUser.email_verified !== true && googleUser.verified_email !== true)
+                ) {
+                  const err = "Google did not return a verified email address for this account.";
                   onError?.(err);
                   resolve({ success: false, error: err });
                   return;
@@ -652,60 +675,28 @@ export async function initiateOAuthLogin(
       });
     }
 
-    // Direct OAuth redirect fallback if GIS script is not directly available
-    const nonce = Math.random().toString(36).substring(2);
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-      googleClientId,
-    )}&redirect_uri=${encodeURIComponent(
-      redirectUrl,
-    )}&response_type=token%20id_token&scope=openid%20profile%20email&nonce=${nonce}&prompt=select_account`;
-    if (typeof window !== "undefined") {
-      window.location.assign(googleAuthUrl);
-    }
-    return { success: true, redirecting: true };
+    const error =
+      "Google Identity Services could not be loaded. Check your connection and try again.";
+    onError?.(error);
+    return { success: false, error };
   }
 
-  // 3. Microsoft Azure OAuth
-  const msClientId = getEnvVar("VITE_MICROSOFT_CLIENT_ID");
+  // 3. Microsoft OAuth is handled by Supabase so callback sessions are verified.
   if (provider === "Microsoft") {
-    if (!msClientId) {
-      return {
-        success: false,
-        isConfigured: false,
-        needsAccountPicker: true,
-      };
-    }
-    const nonce = Math.random().toString(36).substring(2);
-    const msAuthUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
-      msClientId,
-    )}&response_type=token%20id_token&redirect_uri=${encodeURIComponent(
-      redirectUrl,
-    )}&scope=openid%20profile%20email&response_mode=fragment&nonce=${nonce}&prompt=select_account`;
-    if (typeof window !== "undefined") {
-      window.location.assign(msAuthUrl);
-    }
-    return { success: true, redirecting: true };
+    const error =
+      supabaseProviderError ||
+      "Microsoft sign-in is unavailable here. Use email and password, or enable Microsoft in the configured authentication provider.";
+    onError?.(error);
+    return { success: false, isConfigured: false, error };
   }
 
-  // 4. Apple Sign-In OAuth
-  const appleClientId = getEnvVar("VITE_APPLE_CLIENT_ID");
+  // 4. Apple OAuth is handled by Supabase so callback sessions are verified.
   if (provider === "Apple") {
-    if (!appleClientId) {
-      return {
-        success: false,
-        isConfigured: false,
-        needsAccountPicker: true,
-      };
-    }
-    const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${encodeURIComponent(
-      appleClientId,
-    )}&redirect_uri=${encodeURIComponent(
-      redirectUrl,
-    )}&response_type=code%20id_token&scope=name%20email&response_mode=fragment`;
-    if (typeof window !== "undefined") {
-      window.location.assign(appleAuthUrl);
-    }
-    return { success: true, redirecting: true };
+    const error =
+      supabaseProviderError ||
+      "Apple sign-in is unavailable here. Use email and password, or enable Apple in the configured authentication provider.";
+    onError?.(error);
+    return { success: false, isConfigured: false, error };
   }
 
   return { success: false, error: `Unsupported provider: ${provider}` };
@@ -1001,7 +992,10 @@ export async function dispatchVerificationEmail(
     if (import.meta.env.DEV) {
       const fallback = await sendEmailOtp(cleanEmail, "signup", "email", undefined, name);
       if (fallback.success) return fallback;
-      return { success: false, error: `Resend test fallback failed: ${fallback.error || "Email could not be sent."}` };
+      return {
+        success: false,
+        error: `Resend test fallback failed: ${fallback.error || "Email could not be sent."}`,
+      };
     }
     return {
       success: false,
@@ -1028,7 +1022,10 @@ export async function dispatchVerificationEmail(
       if (import.meta.env.DEV) {
         const fallback = await sendEmailOtp(cleanEmail, "signup", "email", undefined, name);
         if (fallback.success) return fallback;
-        return { success: false, error: `${msg} Development fallback: ${fallback.error || "Email could not be sent."}` };
+        return {
+          success: false,
+          error: `${msg} Development fallback: ${fallback.error || "Email could not be sent."}`,
+        };
       }
       return { success: false, error: msg };
     }
@@ -1040,7 +1037,10 @@ export async function dispatchVerificationEmail(
     if (import.meta.env.DEV) {
       const fallback = await sendEmailOtp(cleanEmail, "signup", "email", undefined, name);
       if (fallback.success) return fallback;
-      return { success: false, error: `Could not reach Resend. Development fallback: ${fallback.error || msg}` };
+      return {
+        success: false,
+        error: `Could not reach Resend. Development fallback: ${fallback.error || msg}`,
+      };
     }
     return {
       success: false,
@@ -1090,10 +1090,7 @@ export async function dispatchWelcomeEmail(email: string, name?: string): Promis
  * Returns success without creating a session — the caller completes sign-up
  * or sign-in after a successful verification.
  */
-export async function verifyOtpCode(
-  email: string,
-  code: string,
-): Promise<AuthResult> {
+export async function verifyOtpCode(email: string, code: string): Promise<AuthResult> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanCode = code.trim().replace(/\D/g, "");
 
@@ -1656,46 +1653,15 @@ async function processIncomingAuthCallbackOnce(): Promise<UserProfile | null> {
     }
   }
 
-  // Check if hash has OAuth tokens from standard OAuth 2.0 redirect
-  if (hash && (hash.includes("access_token=") || hash.includes("id_token="))) {
-    try {
-      const params = new URLSearchParams(hash.replace(/^#/, ""));
-      const idToken = params.get("id_token");
-      if (idToken) {
-        // Decode JWT payload
-        const base64Url = idToken.split(".")[1];
-        if (base64Url) {
-          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-          const jsonPayload = decodeURIComponent(
-            atob(base64)
-              .split("")
-              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-              .join(""),
-          );
-          const payload = JSON.parse(jsonPayload);
-          const email = payload.email || "operator@agrospace.io";
-          const name = payload.name || payload.given_name || email.split("@")[0];
-
-          let provider: OAuthProvider = "Google";
-          if (payload.iss && payload.iss.includes("microsoft")) provider = "Microsoft";
-          if (payload.iss && payload.iss.includes("apple")) provider = "Apple";
-
-          const profile = createInitialProfile(email, provider, name);
-          profile.verified = true;
-          profile.isVerified = true;
-          saveStoredProfile(profile);
-
-          // Clean up hash from browser URL without reloading
-          window.history.replaceState(null, "", window.location.pathname + window.location.search);
-          return profile;
-        }
-      }
-    } catch (err) {
-      console.warn("Error parsing OAuth fragment callback:", err);
-    }
-  }
-
-  // No incoming OAuth callback tokens detected
+  // Never trust a decoded provider token from the URL as an authenticated session.
+  // Supabase must validate the callback and persist the resulting session first.
+  try {
+    sessionStorage.setItem(
+      "agro_auth_callback_error",
+      "The identity provider did not return a verified session. Please try again or use email sign-in.",
+    );
+  } catch {}
+  window.history.replaceState(null, "", window.location.origin + window.location.pathname);
   return null;
 }
 

@@ -317,7 +317,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
   const namePlaceholder = useLocalizedValue("Profile Name (e.g., Commander Naren)");
-  const emailPlaceholder = useLocalizedValue("Enter your email address (e.g. name@gmail.com)");
+  const emailPlaceholder = useLocalizedValue("Enter your email address");
   const passwordPlaceholder = useLocalizedValue(
     authMode === "signup" ? "Create password (min 6 characters)" : "Enter your password",
   );
@@ -623,7 +623,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 onClick={() => handleTabSwitch("signin")}
                 className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
                   authMode === "signin"
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-muted-foreground shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-semibold shadow-[0_0_15px_rgba(34,211,238,0.35)]"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -634,7 +634,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 onClick={() => handleTabSwitch("signup")}
                 className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
                   authMode === "signup"
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-muted-foreground shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-semibold shadow-[0_0_15px_rgba(34,211,238,0.35)]"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -842,7 +842,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   password.length <= 128 &&
                   (authMode === "signin" || isNameValid) &&
                   !isSubmitting
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-muted-foreground shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
                     : "cursor-not-allowed bg-white/15 text-muted-foreground"
                 }`}
               >
@@ -915,7 +915,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 disabled={otpCode.replace(/\D/g, "").length !== 6 || isVerifying}
                 className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
                   otpCode.replace(/\D/g, "").length === 6 && !isVerifying
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-muted-foreground shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
                     : "cursor-not-allowed bg-white/15 text-muted-foreground"
                 }`}
               >
@@ -1244,7 +1244,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 text-xs font-semibold text-muted-foreground shadow-[0_0_20px_rgba(34,211,238,0.35)] cursor-pointer"
+                  className="rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.35)] cursor-pointer"
                 >
                   {<LocalizedText text={"Save Account Changes"} />}
                 </button>
