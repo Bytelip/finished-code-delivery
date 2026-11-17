@@ -425,6 +425,10 @@ export interface AuthResult {
   previewUrl?: string;
   deliveryMethod?: string;
   needsSmtpSetup?: boolean;
+  /** Pending sign-up waiting on email verification (no account persisted yet). */
+  pending?: PendingSignup;
+  /** Delivery error for the welcome email; the account itself is still created. */
+  welcomeEmailError?: string;
 }
 
 export function getGoogleClientId(): string | undefined {
@@ -771,7 +775,7 @@ export function completeDirectOAuthLogin(
 }
 
 // -------------------------------------------------------------
-// 3. SECURE BACKEND-MANAGED OTP STATE (For EmailJS / Standalone Delivery)
+// 3. SECURE BACKEND-MANAGED OTP STATE (Server-side Resend delivery)
 // -------------------------------------------------------------
 interface OtpSessionRecord {
   email: string;
@@ -782,6 +786,27 @@ interface OtpSessionRecord {
 }
 
 let activeOtpRecord: OtpSessionRecord | null = null;
+
+/**
+ * A sign-up that passed form validation but has not been persisted yet.
+ * The account is only created once the emailed OTP is verified.
+ */
+export interface PendingSignup {
+  name: string;
+  email: string;
+  password: string;
+  createdAt: number;
+}
+
+let pendingSignupState: PendingSignup | null = null;
+
+export function getPendingSignup(): PendingSignup | null {
+  return pendingSignupState;
+}
+
+export function clearPendingSignup(): void {
+  pendingSignupState = null;
+}
 
 // SHA-256 helper for client/backend hash verification without plaintext exposure
 async function sha256(str: string): Promise<string> {
@@ -953,7 +978,7 @@ export async function signInWithEmailPassword(
 }
 
 // -------------------------------------------------------------
-// 4. EMAIL OTP FLOW (Legacy / Fallback Verification)
+// 4. EMAIL SIGN-UP FLOW (Resend verification + welcome emails)
 // -------------------------------------------------------------
 
 /**
@@ -1036,228 +1061,194 @@ export async function sendEmailOtp(
     attempts: 0,
   };
 
-  // 1. Primary Real Gmail Delivery: Vite Server Middleware / Serverless API (/api/send-otp)
+  // Dispatch through this app's own server endpoint. Resend is only ever called
+  // server-side (src/routes/api/send-otp.ts in dev, api/send-otp.js on Vercel), so
+  // the API key never reaches the browser and there is no CORS preflight to fail.
+  const displayName = customName?.trim() || cleanEmail.split("@")[0] || cleanEmail;
+
   try {
-    let savedSmtp: { gmailUser?: string; gmailAppPassword?: string } | null = null;
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem("agrospace_smtp_config");
-        if (raw) savedSmtp = JSON.parse(raw);
-      } catch {}
-    }
-
-    const payload: Record<string, string> = {
-      email: cleanEmail,
-      name: customName || cleanEmail.split("@")[0] || cleanEmail,
-      otp: secureOtp,
-    };
-    if (savedSmtp?.gmailUser) payload["gmailUser"] = savedSmtp.gmailUser;
-    if (savedSmtp?.gmailAppPassword) payload["gmailAppPassword"] = savedSmtp.gmailAppPassword;
-
-    const origin =
-      typeof window !== "undefined" && window.location?.origin
-        ? window.location.origin
-        : "http://localhost:8080";
-
-    const res = await fetch(`${origin}/api/send-otp`, {
+    const res = await fetch("/api/send-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        email: cleanEmail,
+        name: displayName,
+        otp: secureOtp,
+        purpose: "verification",
+      }),
     });
 
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && (data?.ok || data?.success)) {
-      console.info(
-        `[AgroSpace Nexus] Verification code successfully dispatched via ${data.deliveryMethod || "mail"} to:`,
-        cleanEmail,
-      );
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      success?: boolean;
+      error?: string;
+      deliveryMethod?: string;
+    };
 
-      // Log formatted email audit payload in DevTools Console (F12) as secure audit
-      if (typeof console !== "undefined") {
-        console.info(
-          `%c📬 [AgroSpace Security Dispatch] Verification code dispatched to ${cleanEmail}`,
-          "color: #22d3ee; font-weight: bold; background: #070b13; padding: 6px 12px; border-radius: 8px; font-size: 13px; border: 1px solid #06b6d4;",
-        );
-      }
-
-      return {
-        success: true,
-        isConfigured: true,
-        deliveryMethod: data.deliveryMethod || "gmail_smtp",
-        devCode: secureOtp,
-      };
-    } else if (res.status === 404 || res.status === 405) {
-      console.info(
-        "[AgroSpace Nexus] Static hosting detected (/api/send-otp not found). Falling through to client-side dispatch pipeline.",
-      );
-    } else if (data?.needsSmtpSetup) {
-      console.warn("[Vite Gmail SMTP Needs Setup]", data);
-      return {
-        success: false,
-        needsSmtpSetup: true,
-        error: data.error || "Gmail SMTP sender not configured.",
-      };
-    } else if (data?.error) {
-      console.warn("[Vite Gmail SMTP Error]", res.status, data);
-      return {
-        success: false,
-        error: data.error,
-      };
-    } else {
-      console.warn("[Vite Gmail SMTP Dispatch Notice]", res.status, data);
+    if (!res.ok || (!data.ok && !data.success)) {
+      const error = data.error || `Verification email delivery failed (HTTP ${res.status}).`;
+      console.error("[AgroSpace OTP] Verification email delivery failed:", error);
+      activeOtpRecord = null;
+      return { success: false, error };
     }
-  } catch (err) {
-    console.warn("[Vite Gmail SMTP Fetch Notice]", err);
-  }
 
-  // 2. Primary Provider: SendGrid Integration
-  const sendgridApiKey = getEnvVar("VITE_SENDGRID_API_KEY");
-  const sendgridFromEmail = getEnvVar("VITE_SENDGRID_FROM_EMAIL") || "no-reply@agrospace.nasa.gov";
-
-  if (sendgridApiKey && !sendgridApiKey.includes("your_sendgrid_api_key")) {
-    try {
-      const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sendgridApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: cleanEmail }] }],
-          from: { email: sendgridFromEmail, name: "AgroSpace Nexus Mission Control" },
-          subject: `AgroSpace Verification Code: ${secureOtp}`,
-          content: [
-            {
-              type: "text/html",
-              value: `<div style="font-family:sans-serif;background:#0B111E;color:#FFF;padding:24px;border-radius:12px;"><h2 style="color:#22D3EE;">AgroSpace Nexus</h2><p>Your 6-digit verification code is:</p><h1 style="font-size:32px;letter-spacing:4px;color:#38BDF8;font-family:monospace;">${secureOtp}</h1><p style="color:#94A3B8;font-size:12px;">Valid for 5 minutes.</p></div>`,
-            },
-          ],
-        }),
-      });
-
-      if (res.ok) {
-        return { success: true, isConfigured: true, devCode: secureOtp };
-      }
-      const text = await res.text();
-      console.warn("[SendGrid Dispatch Warning]", res.status, text);
-    } catch (err) {
-      console.warn("[SendGrid Dispatch Exception]", err);
-    }
-  }
-
-  // 3. Fallback Delivery Channel: Twilio SMS (if channel is sms and phone number provided)
-  const twilioSid = getEnvVar("VITE_TWILIO_ACCOUNT_SID");
-  const twilioAuthToken = getEnvVar("VITE_TWILIO_AUTH_TOKEN");
-  const twilioFromPhone = getEnvVar("VITE_TWILIO_PHONE_NUMBER");
-
-  if (
-    deliveryChannel === "sms" &&
-    phoneNumber &&
-    twilioSid &&
-    !twilioSid.includes("your_twilio") &&
-    twilioAuthToken &&
-    !twilioAuthToken.includes("your_twilio") &&
-    twilioFromPhone
-  ) {
-    try {
-      const bodyParams = new URLSearchParams({
-        To: phoneNumber,
-        From: twilioFromPhone,
-        Body: `[AgroSpace Nexus] Verification code: ${secureOtp}. Valid for 5 minutes.`,
-      });
-
-      const res = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${btoa(`${twilioSid}:${twilioAuthToken}`)}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: bodyParams.toString(),
-        },
-      );
-
-      if (res.ok) {
-        return { success: true, isConfigured: true, devCode: secureOtp };
-      }
-      const text = await res.text();
-      console.warn("[Twilio SMS Dispatch Warning]", res.status, text);
-    } catch (err) {
-      console.warn("[Twilio SMS Dispatch Exception]", err);
-    }
-  }
-
-  // 4. Secondary Provider: Resend Integration
-  const resendApiKey = getEnvVar("VITE_RESEND_API_KEY");
-  if (resendApiKey && !resendApiKey.includes("your_resend_api_key")) {
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "AgroSpace Nexus <onboarding@resend.dev>",
-          to: cleanEmail,
-          subject: "AgroSpace Nexus — Verification Code",
-          html: `<div style="font-family: sans-serif; background: #0B111E; color: #FFF; padding: 24px; border-radius: 12px;"><h2 style="color: #22D3EE;">AgroSpace Nexus</h2><p>Your 6-digit verification code is:</p><h1 style="font-size: 32px; letter-spacing: 4px; color: #38BDF8; font-family: monospace;">${secureOtp}</h1><p style="color: #94A3B8; font-size: 12px;">Valid for 5 minutes.</p></div>`,
-        }),
-      });
-
-      if (res.ok) {
-        return { success: true, isConfigured: true, devCode: secureOtp };
-      }
-      const text = await res.text();
-      console.warn("[Resend Dispatch Warning]", res.status, text);
-    } catch (err: unknown) {
-      console.warn("[Resend Dispatch Exception]", err);
-    }
-  }
-
-  // 5. Client EmailJS Service
-  const serviceId = getEnvVar("VITE_EMAILJS_SERVICE_ID");
-  const templateId = getEnvVar("VITE_EMAILJS_TEMPLATE_ID");
-  const publicKey = getEnvVar("VITE_EMAILJS_PUBLIC_KEY");
-
-  if (serviceId && templateId && publicKey) {
-    try {
-      const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          service_id: serviceId,
-          template_id: templateId,
-          user_id: publicKey,
-          template_params: {
-            to_email: cleanEmail,
-            verification_code: secureOtp,
-            app_name: "AgroSpace Nexus Mission Control",
-          },
-        }),
-      });
-
-      if (res.ok) {
-        return { success: true, isConfigured: true, devCode: secureOtp };
-      }
-    } catch (err: unknown) {
-      console.warn("[EmailJS Dispatch Exception]", err);
-    }
-  }
-
-  // 6. Standalone / unconfigured mode: logged to console and returned for developer/operator testing
-  if (typeof console !== "undefined") {
     console.info(
-      `%c[AgroSpace Mail Dispatch] 6-digit verification code sent to ${cleanEmail}: ${secureOtp}`,
-      "color: #22d3ee; font-weight: bold; font-size: 13px; background: #0b111e; padding: 4px 8px; border-radius: 6px;",
+      `[AgroSpace Nexus] Verification code dispatched via ${data.deliveryMethod || "resend"} to ${cleanEmail}`,
     );
+
+    return {
+      success: true,
+      isConfigured: true,
+      deliveryMethod: data.deliveryMethod || "resend",
+    };
+  } catch (err: unknown) {
+    // Network failures, offline states and CORS-style rejections land here.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[AgroSpace OTP] Network/CORS error calling /api/send-otp:", message);
+    activeOtpRecord = null;
+    return { success: false, error: `Could not reach the verification email service: ${message}` };
+  }
+}
+
+/**
+ * Validates the sign-up form and holds the details as pending user state.
+ * Nothing is written to the account database until the emailed OTP is verified.
+ */
+export async function createPendingSignup(input: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<AuthResult> {
+  const name = input.name.trim();
+  const cleanEmail = input.email.trim().toLowerCase();
+
+  if (name.length < 2) {
+    return { success: false, error: "Please enter your full name." };
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, error: "Please enter a valid email address." };
+  }
+
+  if (!input.password || input.password.length < 6) {
+    return { success: false, error: "Password must be at least 6 characters long." };
+  }
+
+  if (await checkUserExistsInDatabase(cleanEmail)) {
+    return {
+      success: false,
+      error: "An account with this email already exists. Please sign in instead.",
+    };
+  }
+
+  pendingSignupState = { name, email: cleanEmail, password: input.password, createdAt: Date.now() };
+  return { success: true, pending: pendingSignupState };
+}
+
+async function sendWelcomeEmail(
+  email: string,
+  name: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch("/api/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, name, purpose: "welcome" }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      success?: boolean;
+      error?: string;
+    };
+
+    if (!res.ok || (!data.ok && !data.success)) {
+      return {
+        success: false,
+        error: data.error || `Welcome email delivery failed (HTTP ${res.status}).`,
+      };
+    }
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[AgroSpace Signup] Network/CORS error sending welcome email:", message);
+    return { success: false, error: `Could not reach the email service: ${message}` };
+  }
+}
+
+/**
+ * Verifies the emailed 6-digit code against the pending sign-up, then creates the
+ * account and sends the welcome email. The code is single-use with a 5-minute TTL.
+ */
+export async function verifySignupOtp(email: string, enteredOtp: string): Promise<AuthResult> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanOtp = enteredOtp.trim().replace(/\D/g, "");
+
+  if (cleanOtp.length !== 6) {
+    return { success: false, error: "Please enter all 6 digits of the verification code." };
+  }
+
+  const pending = pendingSignupState;
+  if (!pending || pending.email !== cleanEmail) {
+    return {
+      success: false,
+      error: "No pending sign-up found for this email. Please start again.",
+    };
+  }
+
+  if (!activeOtpRecord || activeOtpRecord.email !== cleanEmail) {
+    return {
+      success: false,
+      error: "No active verification code found. Please request a new code.",
+    };
+  }
+
+  if (Date.now() > activeOtpRecord.expiresAt) {
+    activeOtpRecord = null;
+    return {
+      success: false,
+      error: "Verification code has expired (5-minute limit). Please request a new code.",
+    };
+  }
+
+  if (activeOtpRecord.attempts >= 5) {
+    activeOtpRecord = null;
+    return {
+      success: false,
+      error: "Maximum verification attempts exceeded. Please request a new verification code.",
+    };
+  }
+
+  const computedHash = await sha256(`${cleanEmail}:${cleanOtp}:${activeOtpRecord.salt}`);
+  if (computedHash !== activeOtpRecord.hash) {
+    activeOtpRecord.attempts += 1;
+    const remaining = 5 - activeOtpRecord.attempts;
+    return {
+      success: false,
+      error: `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,
+    };
+  }
+
+  // Valid code: invalidate it immediately to prevent reuse.
+  activeOtpRecord = null;
+
+  const account = await signUpWithEmailPassword(cleanEmail, pending.password, pending.name);
+  if (!account.success || !account.user) {
+    const error = account.error || "Account creation failed. Please try again.";
+    console.error("[AgroSpace Signup] Account creation failed:", error);
+    return { success: false, error };
+  }
+
+  pendingSignupState = null;
+
+  const welcome = await sendWelcomeEmail(cleanEmail, pending.name);
+  if (!welcome.success) {
+    console.warn("[AgroSpace Signup] Welcome email was not delivered:", welcome.error);
   }
 
   return {
     success: true,
-    isConfigured: false,
-    devCode: secureOtp,
+    user: account.user,
+    ...(welcome.success ? {} : { welcomeEmailError: welcome.error }),
   };
 }
 

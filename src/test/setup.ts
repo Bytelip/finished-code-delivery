@@ -30,6 +30,11 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
+// input-otp probes document.elementFromPoint when a slot mounts; jsdom has no such API.
+if (typeof document !== "undefined" && typeof document.elementFromPoint !== "function") {
+  document.elementFromPoint = () => null;
+}
+
 // Mock HTMLCanvasElement.prototype.getContext for jsdom
 if (typeof HTMLCanvasElement !== "undefined" && !HTMLCanvasElement.prototype.getContext) {
   HTMLCanvasElement.prototype.getContext = (() =>

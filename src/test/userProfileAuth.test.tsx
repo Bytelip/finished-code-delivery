@@ -173,11 +173,20 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText(/⚙️ SMTP/i)).toBeNull();
   });
 
-  it("registers a new user in Create Account mode via Email and Password and signs in immediately", async () => {
-    const mockNewUser = createInitialProfile("cadet@nasa.gov", "Email", "Cadet Rao");
-    const signUpSpy = vi.spyOn(authService, "signUpWithEmailPassword").mockResolvedValue({
+  it("registers a new user in Create Account mode by holding a pending sign-up and moving to OTP verification", async () => {
+    const createPendingSpy = vi.spyOn(authService, "createPendingSignup").mockResolvedValue({
       success: true,
-      user: mockNewUser,
+      pending: {
+        name: "Cadet Rao",
+        email: "cadet@nasa.gov",
+        password: "securePass456",
+        createdAt: Date.now(),
+      },
+    });
+    const sendOtpSpy = vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
+      success: true,
+      isConfigured: true,
+      deliveryMethod: "resend",
     });
 
     const handleSuccess = vi.fn();
@@ -200,7 +209,113 @@ describe("User Profile & Authentication System", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(signUpSpy).toHaveBeenCalledWith("cadet@nasa.gov", "securePass456", "Cadet Rao");
+      expect(createPendingSpy).toHaveBeenCalledWith({
+        name: "Cadet Rao",
+        email: "cadet@nasa.gov",
+        password: "securePass456",
+      });
+      expect(sendOtpSpy).toHaveBeenCalledWith(
+        "cadet@nasa.gov",
+        "signup",
+        "email",
+        undefined,
+        "Cadet Rao",
+      );
+      expect(screen.getByText(/Verify your email/i)).toBeDefined();
+    });
+
+    // The account is only signed in after the emailed code is verified
+    expect(handleSuccess).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the exact email delivery error and stays on the sign-up form", async () => {
+    vi.spyOn(authService, "createPendingSignup").mockResolvedValue({
+      success: true,
+      pending: {
+        name: "Cadet Rao",
+        email: "cadet@nasa.gov",
+        password: "securePass456",
+        createdAt: Date.now(),
+      },
+    });
+    vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
+      success: false,
+      error: "Resend API error (403): The gmail.com domain is not verified.",
+    });
+
+    const handleSuccess = vi.fn();
+    render(<CosmicAuthPage onSuccess={handleSuccess} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Create Account/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Profile Name/i), {
+      target: { value: "Cadet Rao" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/Enter your email address/i), {
+      target: { value: "cadet@nasa.gov" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/Create password \(min 6 characters\)/i), {
+      target: { value: "securePass456" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Create Account & Enter Orbit/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Resend API error \(403\): The gmail\.com domain is not verified\./i),
+      ).toBeDefined();
+    });
+
+    expect(screen.queryByText(/Verify your email/i)).toBeNull();
+    expect(handleSuccess).not.toHaveBeenCalled();
+  });
+
+  it("verifies the emailed 6-digit code and completes the sign-up", async () => {
+    const mockNewUser = createInitialProfile("cadet@nasa.gov", "Email", "Cadet Rao");
+    vi.spyOn(authService, "createPendingSignup").mockResolvedValue({
+      success: true,
+      pending: {
+        name: "Cadet Rao",
+        email: "cadet@nasa.gov",
+        password: "securePass456",
+        createdAt: Date.now(),
+      },
+    });
+    vi.spyOn(authService, "sendEmailOtp").mockResolvedValue({
+      success: true,
+      isConfigured: true,
+      deliveryMethod: "resend",
+    });
+    const verifySpy = vi.spyOn(authService, "verifySignupOtp").mockResolvedValue({
+      success: true,
+      user: mockNewUser,
+    });
+
+    const handleSuccess = vi.fn();
+    render(<CosmicAuthPage onSuccess={handleSuccess} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Create Account/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Profile Name/i), {
+      target: { value: "Cadet Rao" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/Enter your email address/i), {
+      target: { value: "cadet@nasa.gov" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/Create password \(min 6 characters\)/i), {
+      target: { value: "securePass456" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create Account & Enter Orbit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Verify your email/i)).toBeDefined();
+    });
+
+    fireEvent.change(screen.getByLabelText(/6-digit verification code/i), {
+      target: { value: "123456" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Verify Email & Enter Orbit/i }));
+
+    await waitFor(() => {
+      expect(verifySpy).toHaveBeenCalledWith("cadet@nasa.gov", "123456");
       expect(handleSuccess).toHaveBeenCalledWith(mockNewUser);
     });
   });
@@ -379,40 +494,25 @@ describe("User Profile & Authentication System", () => {
     });
   });
 
-  it("submitting in Create Account tab executes registration flow without requiring verification emails", async () => {
-    const mockUser = createInitialProfile("fresh.cadet@agrospace.nasa.gov", "Email", "Fresh Cadet");
-    const signUpSpy = vi.spyOn(authService, "signUpWithEmailPassword").mockResolvedValue({
-      success: true,
-      user: mockUser,
+  it("requires a profile name before requesting a verification code", async () => {
+    const createPendingSpy = vi.spyOn(authService, "createPendingSignup");
+
+    render(<CosmicAuthPage />);
+
+    // Switch to Create Account tab and submit without a name
+    fireEvent.click(screen.getByRole("button", { name: /Create Account/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Enter your email address/i), {
+      target: { value: "fresh.cadet@agrospace.nasa.gov" },
     });
+    fireEvent.change(screen.getByPlaceholderText(/Create password \(min 6 characters\)/i), {
+      target: { value: "cadetPass123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create Account & Enter Orbit/i }));
 
-    const handleSuccess = vi.fn();
-    render(<CosmicAuthPage onSuccess={handleSuccess} />);
-
-    // Switch to Create Account tab
-    const createAccountTab = screen.getByRole("button", { name: /Create Account/i });
-    fireEvent.click(createAccountTab);
-
-    // Enter details
-    const emailInput = screen.getByPlaceholderText(/Enter your email address/i);
-    const passwordInput = screen.getByPlaceholderText(/Create password \(min 6 characters\)/i);
-    fireEvent.change(emailInput, { target: { value: "fresh.cadet@agrospace.nasa.gov" } });
-    fireEvent.change(passwordInput, { target: { value: "cadetPass123" } });
-
-    // Click submit
-    const submitBtn = screen.getByRole("button", { name: /Create Account & Enter Orbit/i });
-    fireEvent.click(submitBtn);
-
-    // In signup mode, user is authenticated immediately without OTP screen
     await waitFor(() => {
-      expect(signUpSpy).toHaveBeenCalledWith(
-        "fresh.cadet@agrospace.nasa.gov",
-        "cadetPass123",
-        undefined,
-      );
-      expect(handleSuccess).toHaveBeenCalledWith(mockUser);
+      expect(screen.getByText(/Please enter your full name\./i)).toBeDefined();
     });
-    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+    expect(createPendingSpy).not.toHaveBeenCalled();
   });
 
   it("registers new account in signup mode and allows subsequent signin", async () => {

@@ -3,12 +3,17 @@ import {
   initiateOAuthLogin,
   completeDirectOAuthLogin,
   signInWithEmailPassword,
-  signUpWithEmailPassword,
+  createPendingSignup,
+  sendEmailOtp,
+  verifySignupOtp,
+  clearPendingSignup,
   processIncomingAuthCallback,
   getUserFromDatabase,
   saveUserToDatabase,
   type OAuthProvider,
 } from "@/services/authService";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { toast } from "sonner";
 import {
   createInitialProfile,
   saveStoredProfile,
@@ -359,7 +364,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   onSuccess,
   onClose,
 }) => {
-  const [step, setStep] = useState<"entry" | "oauth_chooser">("entry");
+  const [step, setStep] = useState<"entry" | "oauth_chooser" | "otp">("entry");
   const [selectedProvider, setSelectedProvider] = useState<OAuthProvider>("Google");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -371,8 +376,27 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  // Sign-up state that is waiting on email verification.
+  const [pendingSignup, setPendingSignup] = useState<{ name: string; email: string } | null>(null);
+  const [otpCode, setOtpCode] = useState<string>("");
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [isResending, setIsResending] = useState<boolean>(false);
+  const [resendIn, setResendIn] = useState<number>(0);
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = setTimeout(() => setResendIn((seconds) => seconds - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+
+  const resetOtpState = () => {
+    setOtpCode("");
+    setPendingSignup(null);
+    setResendIn(0);
+    clearPendingSignup();
+  };
 
   const handleBackToEntry = () => {
     setStep("entry");
@@ -382,6 +406,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setCustomOAuthEmail("");
     setCustomOAuthName("");
     setAuthError("");
+    resetOtpState();
   };
 
   // Listen for OAuth session on mount or return
@@ -399,6 +424,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setAuthError("");
     setLoadingOAuth(null);
     setIsSubmitting(false);
+    setStep("entry");
+    resetOtpState();
   };
 
   useEffect(() => {
@@ -479,16 +506,61 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     e.preventDefault();
     setAuthError("");
 
+    if (authMode === "signin") {
+      if (!isEmailValid) {
+        setAuthError("Please enter a valid email address.");
+        return;
+      }
+      if (!password) {
+        setAuthError("Please enter your password.");
+        return;
+      }
+      if (password.length < 6) {
+        setAuthError("Password must be at least 6 characters long.");
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const result = await signInWithEmailPassword(email.trim(), password);
+
+        if (!result.success || !result.user) {
+          const message = result.error || "Authentication failed. Please verify credentials.";
+          setAuthError(message);
+          toast.error("Sign-in failed", { description: message });
+          return;
+        }
+
+        toast.success(`Welcome back, ${result.user.fullName || result.user.name}`);
+        saveStoredUser(result.user);
+        saveStoredProfile(result.user);
+        onAuthComplete?.(result.user);
+        onSuccess?.(result.user);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[AgroSpace Auth] Sign-in error:", message);
+        setAuthError(`Authentication error: ${message}`);
+        toast.error("Sign-in failed", { description: message });
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Create Account: validate, hold the pending user, then email the OTP.
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2) {
+      setAuthError("Please enter your full name.");
+      return;
+    }
     if (!isEmailValid) {
       setAuthError("Please enter a valid email address.");
       return;
     }
-
     if (!password) {
-      setAuthError("Please enter your password.");
+      setAuthError("Please choose a password.");
       return;
     }
-
     if (password.length < 6) {
       setAuthError("Password must be at least 6 characters long.");
       return;
@@ -496,16 +568,83 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
     setIsSubmitting(true);
     try {
-      const result =
-        authMode === "signin"
-          ? await signInWithEmailPassword(email.trim(), password)
-          : await signUpWithEmailPassword(email.trim(), password, name.trim() || undefined);
+      const pending = await createPendingSignup({
+        name: trimmedName,
+        email: email.trim(),
+        password,
+      });
 
+      if (!pending.success || !pending.pending) {
+        const message = pending.error || "We could not start your sign-up. Please try again.";
+        setAuthError(message);
+        toast.error("Sign-up failed", { description: message });
+        return;
+      }
+
+      setPendingSignup({ name: pending.pending.name, email: pending.pending.email });
+
+      const delivery = await sendEmailOtp(
+        pending.pending.email,
+        "signup",
+        "email",
+        undefined,
+        pending.pending.name,
+      );
+
+      if (!delivery.success) {
+        const message =
+          delivery.error || "We could not send the verification email. Please try again.";
+        console.error("[AgroSpace Signup] Verification email not dispatched:", message);
+        setAuthError(message);
+        toast.error("Verification email failed", { description: message });
+        return;
+      }
+
+      setOtpCode("");
+      setResendIn(45);
+      setStep("otp");
+      toast.success("Verification code sent", {
+        description: `Check ${pending.pending.email} for your 6-digit code.`,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[AgroSpace Signup] Unexpected sign-up error:", message);
+      setAuthError(`Sign-up error: ${message}`);
+      toast.error("Sign-up failed", { description: message });
+    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!pendingSignup) {
+      setAuthError("Your sign-up session expired. Please start again.");
+      return;
+    }
+    if (otpCode.trim().length !== 6) {
+      setAuthError("Please enter all 6 digits of the verification code.");
+      return;
+    }
+
+    setAuthError("");
+    setIsVerifying(true);
+    try {
+      const result = await verifySignupOtp(pendingSignup.email, otpCode);
 
       if (!result.success || !result.user) {
-        setAuthError(result.error || "Authentication failed. Please verify credentials.");
+        const message = result.error || "Verification failed. Please request a new code.";
+        setAuthError(message);
+        toast.error("Verification failed", { description: message });
         return;
+      }
+
+      toast.success(`Welcome aboard, ${result.user.fullName || result.user.name}`, {
+        description: "Your email is verified and your mission account is active.",
+      });
+      if (result.welcomeEmailError) {
+        toast.warning("Welcome email not delivered", { description: result.welcomeEmailError });
       }
 
       saveStoredUser(result.user);
@@ -513,9 +652,48 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       onAuthComplete?.(result.user);
       onSuccess?.(result.user);
     } catch (err: unknown) {
-      setIsSubmitting(false);
-      const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(`Authentication error: ${msg}`);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[AgroSpace Signup] Verification error:", message);
+      setAuthError(`Verification error: ${message}`);
+      toast.error("Verification failed", { description: message });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!pendingSignup || resendIn > 0 || isResending) return;
+
+    setAuthError("");
+    setIsResending(true);
+    try {
+      const delivery = await sendEmailOtp(
+        pendingSignup.email,
+        "signup",
+        "email",
+        undefined,
+        pendingSignup.name,
+      );
+
+      if (!delivery.success) {
+        const message = delivery.error || "We could not resend the verification email.";
+        setAuthError(message);
+        toast.error("Resend failed", { description: message });
+        return;
+      }
+
+      setOtpCode("");
+      setResendIn(45);
+      toast.success("New verification code sent", {
+        description: `Check ${pendingSignup.email} for the new code.`,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[AgroSpace Signup] Resend error:", message);
+      setAuthError(`Resend error: ${message}`);
+      toast.error("Resend failed", { description: message });
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -588,7 +766,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               <p className="mt-1 text-sm text-slate-400">
                 {authMode === "signin"
                   ? "Select an account or enter credentials for clearance verification"
-                  : "Register a new operator profile for mission clearance"}
+                  : "Register a new operator profile — we'll email a 6-digit code to verify it"}
               </p>
             </div>
 
@@ -671,7 +849,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Profile Name (optional, e.g., Commander Naren)"
+                    placeholder="Profile Name (e.g., Commander Naren)"
                     className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
@@ -747,7 +925,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 }`}
               >
                 {isSubmitting
-                  ? "Authenticating..."
+                  ? authMode === "signin"
+                    ? "Signing in..."
+                    : "Sending verification code..."
                   : authMode === "signin"
                     ? "Sign In to Orbit"
                     : "Create Account & Enter Orbit"}
@@ -879,6 +1059,83 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* STEP 3: EMAIL OTP VERIFICATION FOR NEW ACCOUNTS */}
+        {step === "otp" && pendingSignup && (
+          <div className="animate-in fade-in zoom-in-95 duration-200">
+            <button
+              type="button"
+              onClick={handleBackToEntry}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white mb-4 cursor-pointer transition-colors"
+            >
+              ← Back to sign-up
+            </button>
+
+            <div className="text-center mb-5">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 text-xl shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+                ✉️
+              </div>
+              <h2 className="text-xl font-semibold text-white">Verify your email</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                We emailed a 6-digit verification code to
+              </p>
+              <p className="mt-0.5 break-all font-mono text-sm font-medium text-cyan-300">
+                {pendingSignup.email}
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={setOtpCode}
+                  inputMode="numeric"
+                  aria-label="6-digit verification code"
+                  autoFocus
+                >
+                  <InputOTPGroup className="gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                      <InputOTPSlot
+                        key={index}
+                        index={index}
+                        className="h-12 w-11 rounded-xl border border-white/15 bg-white/[0.06] font-mono text-lg text-white"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              <button
+                type="submit"
+                disabled={otpCode.length !== 6 || isVerifying}
+                className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
+                  otpCode.length === 6 && !isVerifying
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+                    : "cursor-not-allowed bg-white/15 text-slate-400"
+                }`}
+              >
+                {isVerifying ? "Verifying code..." : "Verify Email & Enter Orbit"}
+              </button>
+
+              <div className="flex items-center justify-center gap-1 text-xs text-slate-400">
+                <span>Didn't get the code?</span>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendIn > 0 || isResending}
+                  className="font-semibold text-cyan-300 transition hover:text-cyan-200 disabled:cursor-not-allowed disabled:text-slate-500 cursor-pointer"
+                >
+                  {isResending
+                    ? "Sending..."
+                    : resendIn > 0
+                      ? `Resend in ${resendIn}s`
+                      : "Resend code"}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
