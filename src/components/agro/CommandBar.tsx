@@ -416,24 +416,24 @@ export function CommandBar({
       )}
 
       {/* ---------------- 1. SINGLE UNIFIED GLASS NAVBAR (h-13) ---------------- */}
-      <div className="w-full max-w-full h-13 px-4 flex items-center justify-between gap-3 border-b border-white/[0.08] bg-[#050912]/90 backdrop-blur-2xl relative z-40">
+      <div className="relative z-40 flex w-full max-w-full flex-wrap items-center gap-x-2 gap-y-2 border-b border-white/[0.08] bg-[#050912]/90 px-2.5 py-2 backdrop-blur-2xl sm:px-4 lg:h-13 lg:flex-nowrap lg:gap-3 lg:py-0">
         {/* Left: Crisp Brand Emblem + AgroSpace Nexus title + Live Coordinate Pill */}
-        <div className="flex items-center gap-2.5 shrink-0 whitespace-nowrap">
+        <div className="order-1 flex min-w-0 items-center gap-2 sm:gap-2.5">
           {/* Brand Emblem */}
           <div className="grid size-7.5 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.35)] shrink-0">
             <Satellite className="size-4 animate-pulse text-cyan-300" />
           </div>
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
-            <span className="font-mono font-bold text-sm tracking-wider text-white">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-mono font-bold text-xs tracking-wider text-white sm:text-sm">
               AgroSpace Nexus
             </span>
-            <span className="text-[9.5px] text-cyan-300 font-semibold px-1.5 py-0.2 rounded-full bg-cyan-500/15 border border-cyan-400/30">
+            <span className="hidden shrink-0 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-1.5 py-0.2 text-[9.5px] font-semibold text-cyan-300 sm:inline-block">
               v2.4
             </span>
           </div>
 
           {/* Live Coordinate Pill */}
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-mono text-muted-foreground shrink-0 whitespace-nowrap">
+          <div className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-mono text-muted-foreground shrink-0 whitespace-nowrap">
             <MapPin className="size-3 text-cyan-400 shrink-0 drop-shadow-[0_0_6px_#00f0ff]" />
             <span className="text-white font-medium">
               📍 {locationLabel ? `${locationLabel} • ` : ""}{lat.toFixed(2)}°N, {lon.toFixed(2)}°E
@@ -441,14 +441,17 @@ export function CommandBar({
           </div>
         </div>
 
-        {/* Center: Sleek single-line Command Pill */}
-        <div data-tour="search-field-params" className="flex items-center justify-center shrink-0">
+        {/* Center: Search command pill — full-width row on phones, centered on desktop */}
+        <div
+          data-tour="search-field-params"
+          className="order-3 flex w-full min-w-0 items-center justify-center gap-1.5 lg:order-2 lg:w-auto lg:flex-1"
+        >
           <button
             type="button"
             data-params-trigger="true"
             onClick={() => setIsParamsDrawerOpen((prev) => !prev)}
             className={cn(
-              "whitespace-nowrap inline-flex items-center gap-2 h-8.5 px-3.5 py-1 rounded-full border text-xs font-mono font-semibold transition-all cursor-pointer shadow-inner shrink-0",
+              "inline-flex min-w-0 flex-1 items-center justify-center gap-2 h-8.5 px-3 py-1 rounded-full border text-xs font-mono font-semibold transition-all cursor-pointer shadow-inner sm:flex-none sm:px-3.5",
               isParamsDrawerOpen
                 ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-200 shadow-[0_0_18px_rgba(6,182,212,0.35)]"
                 : "bg-white/[0.04] hover:bg-white/[0.08] border-white/15 text-cyan-300/90 hover:border-cyan-500/40"
@@ -471,12 +474,20 @@ export function CommandBar({
               <ChevronDown className="size-3 text-cyan-400/70 shrink-0" />
             )}
           </button>
+
+          {/* Phones/tablets: language + theme live beside the search pill */}
+          <div className="shrink-0 lg:hidden">
+            <LanguageSelector />
+          </div>
+          <div className="shrink-0 lg:hidden">
+            <ThemeSwitcher />
+          </div>
         </div>
 
         {/* Right: Compact icon-first action pills */}
         <div
           data-tour="top-right-controls"
-          className="flex items-center gap-2 shrink-0 whitespace-nowrap"
+          className="order-2 ml-auto flex shrink-0 items-center gap-1 sm:gap-2 lg:order-3"
         >
           {plantHealthOverall !== undefined && (
             <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0 whitespace-nowrap">
@@ -488,12 +499,12 @@ export function CommandBar({
           )}
 
           {/* 🌐 Prominent Language Selector Dropdown */}
-          <div className="shrink-0 whitespace-nowrap">
+          <div className="hidden shrink-0 whitespace-nowrap lg:block">
             <LanguageSelector />
           </div>
 
           {/* Theme Switcher */}
-          <div className="shrink-0 whitespace-nowrap">
+          <div className="hidden shrink-0 whitespace-nowrap lg:block">
             <ThemeSwitcher />
           </div>
 
@@ -549,7 +560,7 @@ export function CommandBar({
       <div
         ref={paramsDrawerRef}
         className={cn(
-          "transition-all duration-300 z-50 absolute top-14 left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-2xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
+          "transition-all duration-300 z-50 absolute left-1/2 top-full mt-1 w-[94%] max-w-4xl -translate-x-1/2 rounded-2xl bg-[#070D19]/95 p-3 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] sm:p-4",
           isParamsDrawerOpen
             ? "opacity-100 scale-100 pointer-events-auto visible"
             : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0"

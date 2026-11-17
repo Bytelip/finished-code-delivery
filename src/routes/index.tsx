@@ -358,7 +358,7 @@ function AgroSpaceDashboard({
   const tabLabel = TABS.find((t) => t.id === tab)?.label;
 
   return (
-    <div className="flex min-h-screen relative">
+    <div className="relative flex min-h-screen w-full max-w-full overflow-x-hidden">
       {/* GitHub + Linear + DeepMind GPU-Accelerated Cosmic Background */}
       <VibeCosmicBackground />
 
@@ -378,7 +378,7 @@ function AgroSpaceDashboard({
         onOpenSettings={() => setShowSettingsModal(true)}
       />
 
-      <main className="min-w-0 flex-1 overflow-x-hidden">
+      <main className="min-w-0 w-full max-w-full flex-1 overflow-x-hidden">
         <CommandBar
           lat={lat}
           lon={lon}
@@ -415,7 +415,7 @@ function AgroSpaceDashboard({
           onOpenTour={() => setShowTour(true)}
         />
 
-        <div className="space-y-2.5 p-2 sm:p-3 lg:p-4 pl-18 sm:pl-20">
+        <div className="mx-auto w-full max-w-[1600px] space-y-2.5 overflow-x-hidden py-2 pl-18 pr-2 sm:py-3 sm:pl-20 sm:pr-3 lg:py-4 lg:pl-20 lg:pr-4">
           <GlobeContainer
             telemetry={telemetry}
             activeLayer={activeLayer}
@@ -436,7 +436,7 @@ function AgroSpaceDashboard({
 
           {tab === "overview" && (
             <>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="antigravity-float-2">
                   <SpotlightCard className="p-0 border-white/10 bg-transparent">
                     <PowerChart data={telemetry.power} />
@@ -461,7 +461,7 @@ function AgroSpaceDashboard({
                   </SpotlightCard>
                 </div>
               </div>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="antigravity-float-3">
                   <SpotlightCard className="p-0 border-white/10 bg-transparent">
                     <HazardMatrixSlot
@@ -492,10 +492,10 @@ function AgroSpaceDashboard({
           )}
 
           {tab === "plant-health" && (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <PlantHealthRadar health={telemetry.plantHealth} tall />
               <PlantPillarList health={telemetry.plantHealth} />
-              <div className="lg:col-span-2">
+              <div className="md:col-span-2">
                 <PowerChart data={telemetry.power} />
               </div>
             </div>
@@ -503,10 +503,10 @@ function AgroSpaceDashboard({
 
           {tab === "groundwater" && (
             <div className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
                 <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
-                <div className="lg:col-span-2">
+                <div className="md:col-span-2">
                   <CropEngineSlot crop={telemetry.crop} />
                 </div>
               </div>
@@ -541,7 +541,7 @@ function AgroSpaceDashboard({
           {/* Observatory Mission Footer (Google Stitch) */}
           <footer className="w-full rounded-2xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-[10.5px]">
             <div>AGROSPACE NEXUS • NASA EARTH OBSERVATION MISSION SYSTEM • EO-OPS-CORE-V4.9</div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
               <button
                 type="button"
                 onClick={() => setTab("overview")}

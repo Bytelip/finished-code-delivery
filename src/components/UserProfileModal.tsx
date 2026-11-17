@@ -141,14 +141,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#070c18]/95 text-white shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(6,182,212,0.2)] backdrop-blur-2xl">
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-black/80 p-2 backdrop-blur-md animate-in fade-in duration-200 sm:items-center sm:p-4">
+      <div className="relative my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#070c18]/95 text-white shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(6,182,212,0.2)] backdrop-blur-2xl sm:max-h-[92dvh]">
         {/* Glowing Top Frame Accent */}
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-blue-500" />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4.5">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3.5 sm:px-6 sm:py-4.5">
+          <div className="flex min-w-0 items-center gap-3">
             <div
               className="flex size-11 items-center justify-center rounded-xl font-mono text-lg font-black text-slate-950 shadow-md"
               style={{
@@ -158,17 +158,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             >
               {fullName.charAt(0).toUpperCase()}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold tracking-tight text-white">{fullName}</h2>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h2 className="truncate text-base font-bold tracking-tight text-white sm:text-lg">
+                  {fullName}
+                </h2>
                 <span className="rounded bg-emerald-500/15 border border-emerald-500/40 px-2 py-0.5 font-mono text-[9px] font-bold text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
                   {role}
                 </span>
-                <span className="flex items-center gap-1 rounded bg-cyan-500/15 border border-cyan-500/40 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan-300">
+                <span className="hidden items-center gap-1 rounded bg-cyan-500/15 border border-cyan-500/40 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan-300 sm:flex">
                   <ShieldCheck className="size-3 text-cyan-400" /> GMAIL VERIFIED
                 </span>
               </div>
-              <p className="font-mono text-xs text-slate-400 mt-0.5">{profile.email}</p>
+              <p className="mt-0.5 truncate font-mono text-xs text-slate-400">{profile.email}</p>
             </div>
           </div>
 
@@ -238,8 +240,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         </div>
 
         {/* Modal Form Body */}
-        <form onSubmit={handleSaveProfile}>
-          <div className="max-h-[60vh] overflow-y-auto p-6 space-y-5">
+        <form onSubmit={handleSaveProfile} className="flex min-h-0 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:max-h-[60vh] sm:p-6">
             {/* ---------------- TAB 1: PROFILE IDENTITY ---------------- */}
             {activeTab === "profile" && (
               <div className="space-y-4">
@@ -601,13 +603,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
 
           {/* Modal Footer Actions */}
-          <div className="flex items-center justify-between border-t border-white/10 px-6 py-4 bg-black/40">
-            <div className="font-mono text-[11px] text-slate-400 flex items-center gap-1.5">
+          <div className="flex flex-col gap-3 border-t border-white/10 bg-black/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+            <div className="hidden items-center gap-1.5 font-mono text-[11px] text-slate-400 sm:flex">
               <Sparkles className="size-3 text-cyan-400" />
               <span>Real-time local state synchronization active</span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={onClose}

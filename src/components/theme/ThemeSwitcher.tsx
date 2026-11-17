@@ -341,7 +341,7 @@ export function ThemeSwitcher({ className, variant = "navbar" }: ThemeSwitcherPr
             type="button"
             size="sm"
             className={cn(
-              "h-7 px-2.5 text-[11px] font-mono font-bold tracking-wider rounded-full border transition-all duration-300 flex items-center gap-1.5 cursor-pointer select-none",
+              "h-7 px-2 text-[11px] font-mono font-bold tracking-wider rounded-full border transition-all duration-300 flex items-center gap-1.5 cursor-pointer select-none sm:px-2.5",
               "bg-card/80 hover:bg-card text-foreground border-border/80 shadow-[0_0_12px_rgba(0,0,0,0.3)] hover:border-primary/60",
               className,
             )}

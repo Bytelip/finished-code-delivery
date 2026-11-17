@@ -37,7 +37,7 @@ export function LanguageSelector({ className }: { className?: string }) {
         aria-label="Select Language"
       >
         <Globe className="size-3.5 text-cyan-400 shrink-0 animate-pulse" />
-        <span className="font-semibold">{currentLang.nativeName}</span>
+        <span className="hidden font-semibold sm:inline">{currentLang.nativeName}</span>
         <ChevronDown className={cn("size-3 text-cyan-400/70 transition-transform duration-200", open && "rotate-180")} />
       </button>
 

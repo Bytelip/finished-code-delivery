@@ -30,7 +30,7 @@ export function NasaMissionBriefModal({ isOpen, onClose, onStartTour }: NasaMiss
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200 sm:p-4">
       <div
         className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl border border-cyan-500/40 bg-[#060D1A]/95 text-foreground shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -39,21 +39,21 @@ export function NasaMissionBriefModal({ isOpen, onClose, onStartTour }: NasaMiss
         <div className="h-1 w-full bg-gradient-to-r from-cyan-400 via-emerald-400 to-indigo-500" />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.35)]">
+        <div className="flex items-center justify-between gap-2 border-b border-border/50 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-cyan-400/40 bg-cyan-500/15 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.35)]">
               <Rocket className="size-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold text-cyan-400 tracking-widest uppercase">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-cyan-400 sm:text-xs">
                   NASA Space Apps Challenge Flagship
                 </span>
-                <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 font-mono text-[9px] font-bold text-amber-300">
+                <span className="hidden items-center gap-1 rounded border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 font-mono text-[9px] font-bold text-amber-300 sm:inline-flex">
                   <Award className="size-2.5" /> GLOBAL COMPETITION GRADE
                 </span>
               </div>
-              <h2 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+              <h2 className="flex items-center gap-2 text-base font-black tracking-tight text-white sm:text-xl">
                 AgroSpace Nexus: Mission Architecture Brief
               </h2>
             </div>
@@ -110,7 +110,7 @@ export function NasaMissionBriefModal({ isOpen, onClose, onStartTour }: NasaMiss
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm">
+        <div className="flex-1 space-y-5 overflow-y-auto p-4 text-sm sm:space-y-6 sm:p-6">
           {activeTab === "satellites" && (
             <div className="space-y-4">
               <p className="text-muted-foreground leading-relaxed text-xs">

@@ -86,7 +86,7 @@ export function DashboardSidebar({
         damping: 30,
       }}
       className={cn(
-        "fixed left-3 top-16 bottom-4 z-30 flex shrink-0 flex-col rounded-2xl",
+        "fixed left-2 top-26 bottom-3 z-30 flex shrink-0 flex-col rounded-2xl sm:left-3 sm:top-26 lg:top-16 lg:bottom-4",
         "bg-[#070D19]/88 backdrop-blur-2xl border border-white/10",
         "shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)]",
         "overflow-hidden select-none",

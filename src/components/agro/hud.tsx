@@ -18,7 +18,7 @@ export function HudCard({
   className?: string;
 }) {
   return (
-    <div className={cn("hud-card p-4.5 transition-all duration-200", className)}>
+    <div className={cn("hud-card p-3.5 transition-all duration-200 sm:p-4.5 lg:p-5", className)}>
       <header className="mb-3.5 flex items-start justify-between gap-3 border-b border-border/40 pb-2.5">
         <div className="flex min-w-0 items-start gap-2.5">
           {icon && (
@@ -27,7 +27,7 @@ export function HudCard({
             </div>
           )}
           <div className="min-w-0">
-            <h3 className="truncate font-sans text-sm font-semibold tracking-tight text-foreground/95">
+            <h3 className="truncate font-sans text-sm font-semibold tracking-tight text-foreground/95 sm:text-base">
               {title}
             </h3>
             {subtitle && (
@@ -117,7 +117,7 @@ export function Readout({
   return (
     <div className="min-w-0 rounded border border-border/30 bg-background/30 p-2 backdrop-blur-sm">
       <div className="hud-label truncate text-[9px] text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 truncate font-mono text-lg font-semibold tabular-nums", tone)}>
+      <div className={cn("mt-1 truncate font-mono text-base font-semibold tabular-nums sm:text-lg", tone)}>
         {value}
         {unit && <span className="ml-1 text-xs font-normal text-muted-foreground/80">{unit}</span>}
       </div>

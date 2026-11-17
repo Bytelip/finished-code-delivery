@@ -366,6 +366,14 @@ html[data-theme="emerald-terra"] {
     color-scheme: dark;
   }
 
+  /* Guard every breakpoint against elements wider than the viewport. `clip` (unlike
+     `hidden`) does not turn the body into a scroll container, so sticky headers keep working. */
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   html.light {
     color-scheme: light;
   }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   initiateOAuthLogin,
   completeDirectOAuthLogin,
@@ -521,7 +522,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative rounded-[28px] border border-white/15 bg-[#0B111E]/90 p-8 sm:p-9 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-white">
+      <div className="relative rounded-2xl border border-white/15 bg-[#0B111E]/90 p-5 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-white sm:rounded-[28px] sm:p-8 lg:p-9">
         {onClose && (
           <button
             type="button"
@@ -582,7 +583,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             </div>
 
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
+              <h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">
                 {authMode === "signin" ? "Sign in to AgroSpace" : "Create Mission Account"}
               </h1>
               <p className="mt-1 text-sm text-slate-400">
@@ -683,7 +684,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email address (e.g. name@gmail.com)"
+                  placeholder="Enter your email address"
                   className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
@@ -827,7 +828,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 onChange={(e) => setCustomOAuthEmail(e.target.value)}
                 placeholder={
                   selectedProvider === "Google"
-                    ? "Enter your Gmail address (e.g. name@gmail.com)"
+                    ? "Enter your Gmail address"
                     : `Enter your ${selectedProvider} email address`
                 }
                 className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-mono"
@@ -1018,21 +1019,25 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
         </div>
       )}
 
-      {/* Full Account & Profile Settings Modal */}
-      {settingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl border border-cyan-500/30 bg-[#0B111E] p-6 sm:p-8 text-white shadow-[0_0_60px_rgba(6,182,212,0.2)]">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+      {/* Full Account & Profile Settings Modal — portaled to <body>, because the header's
+          backdrop-filter would otherwise become its containing block and clip it on phones. */}
+      {settingsOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[10001] flex items-start justify-center overflow-y-auto bg-black/75 p-3 backdrop-blur-md sm:items-center sm:p-4">
+          <div className="my-auto w-full max-w-lg rounded-2xl border border-cyan-500/30 bg-[#0B111E] p-4 text-white shadow-[0_0_60px_rgba(6,182,212,0.2)] sm:rounded-3xl sm:p-8">
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
               <div>
-                <h3 className="text-lg font-semibold text-white">Operator Account & Settings</h3>
-                <p className="text-xs text-slate-400">
+                <h3 className="text-base font-semibold text-white sm:text-lg">Operator Account & Settings</h3>
+                <p className="mt-0.5 text-xs text-slate-400">
                   Manage your profile name, verified Gmail, and default NASA telemetry settings
                 </p>
               </div>
               <button
                 type="button"
+                aria-label="Close Settings"
                 onClick={() => setSettingsOpen(false)}
-                className="rounded-full p-1.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+                className="shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
               >
                 ✕
               </button>
@@ -1094,7 +1099,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block font-mono uppercase text-slate-400 mb-1">
                     Default Globe Mode
@@ -1167,8 +1172,9 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
               </div>
             </form>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

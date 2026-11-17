@@ -506,7 +506,7 @@ export function GuidedTourOverlay({
       <AnimatePresence mode="wait">
         <motion.div
           key={`tour-card-${currentStep.id}`}
-          className="fixed z-[10000] w-[390px] max-w-[calc(100vw-2rem)] rounded-2xl bg-[#070D19]/96 backdrop-blur-2xl border border-white/15 shadow-[0_24px_60px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.22)] p-5 text-white pointer-events-auto"
+          className="pointer-events-auto fixed z-[10000] w-[390px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/15 bg-[#070D19]/96 p-4 text-white shadow-[0_24px_60px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-2xl sm:max-w-[calc(100vw-2rem)] sm:p-5"
           initial={{ opacity: 0, scale: 0.94, y: cardTop + 12, x: cardLeft }}
           animate={{
             opacity: 1,

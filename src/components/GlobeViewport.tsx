@@ -1086,7 +1086,7 @@ export function GlobeViewport({
       data-lon={lon}
       data-layer={activeLayer}
       onPointerDown={() => onInteraction?.()}
-      className="relative mx-auto w-full max-w-[1920px] h-[calc(100dvh-4.25rem)] min-h-[500px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
+      className="relative mx-auto mb-4 h-[calc(100dvh-9rem)] min-h-[360px] w-full max-w-[1920px] max-h-[780px] select-none overflow-hidden rounded-2xl border border-white/[0.08] bg-[#03060d] shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] sm:min-h-[460px] lg:h-[calc(100dvh-4.25rem)]"
     >
       {/* Ambient Radiant Orbital Glows (Google Stitch) */}
       <div
@@ -1449,19 +1449,19 @@ export function GlobeViewport({
       />
 
       {/* ---------------- TOP UNIFIED HUD CONTROL HEADER ROW (ZERO COLLISION FLEXBOX) ---------------- */}
-      <div className="absolute top-3 inset-x-3 flex items-start justify-between pointer-events-none z-20 gap-2">
+      <div className="pointer-events-none absolute inset-x-2 top-2 z-20 flex items-start justify-between gap-1.5 sm:inset-x-3 sm:top-3 sm:gap-2">
         {/* Left: TARGET RETICLE LOCK CARD */}
         <div
           data-hud-overlay="reticle"
           data-tour="reticle-lock"
           className={cn(
             "hud-card pointer-events-auto min-w-0 max-w-[calc(100vw-1.5rem)] backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl transition-all",
-            isReticleMinimized ? "w-40 p-2 sm:w-52" : "w-52 p-3 sm:w-64"
+            isReticleMinimized ? "w-36 p-2 sm:w-52" : "w-44 p-2.5 sm:w-64"
           )}
         >
           <div className="flex items-center gap-2 border-b border-cyan/20 pb-1.5">
             <Radar className="size-3.5 text-cyan animate-spin shrink-0" style={{ animationDuration: "8s" }} />
-            <span className="hud-label font-bold text-cyan/90 text-[10px] truncate">
+            <span className="hud-label truncate text-[9px] font-bold text-cyan/90 sm:text-[10px]">
               {t("target_reticle_lock", "Target Reticle Lock")}
             </span>
             <span className="ml-auto size-2 rounded-full bg-emerald shadow-[0_0_8px_#00ff9d] animate-pulse shrink-0" />
@@ -1594,7 +1594,7 @@ export function GlobeViewport({
         {/* Center: STAGE 1 ORBITAL VIEW PILL */}
         <div
           data-hud-overlay="zoom-stage-pill"
-          className="pointer-events-auto hidden md:flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none whitespace-nowrap transition-all duration-300 shrink-0"
+          className="pointer-events-auto hidden shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 font-mono text-xs shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] backdrop-blur-xl select-none transition-all duration-300 xl:flex"
         >
           <span
             className="size-2 rounded-full animate-pulse shrink-0"
@@ -1681,7 +1681,7 @@ export function GlobeViewport({
       {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}
       <div
         data-hud-overlay="zoom-controls"
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none max-h-[calc(100%-9.5rem)] overflow-y-auto no-scrollbar py-2 pointer-events-auto"
+        className="pointer-events-auto absolute right-2 top-1/2 z-30 flex max-h-[calc(100%-9.5rem)] -translate-y-1/2 flex-col items-center gap-1 overflow-y-auto rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 py-2 shadow-2xl backdrop-blur-md no-scrollbar select-none sm:right-3"
       >
         {/* Live Altitude / Zoom Readout Badge directly above the + button */}
         <div
@@ -1937,7 +1937,7 @@ export function GlobeViewport({
                     ? weatherForecast?.current?.pressure
                     : weatherForecast?.current?.precipitation
           }
-          className="absolute left-3 bottom-14 sm:bottom-3 sm:left-[116px] z-20"
+          className="absolute left-3 bottom-[16.5rem] z-20 sm:bottom-3 sm:left-[116px]"
         />
       )}
 
@@ -1945,7 +1945,7 @@ export function GlobeViewport({
       <div
         data-hud-overlay="layer-switcher"
         data-tour="nasa-telemetry-dock"
-        className="absolute bottom-14 inset-x-3 sm:inset-x-auto sm:bottom-3 sm:left-1/2 sm:-translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-full sm:max-w-[calc(100%-240px)] w-auto pointer-events-none select-none py-1 px-3"
+        className="pointer-events-none absolute inset-x-2 bottom-14 z-20 flex w-auto max-w-full select-none flex-col items-center gap-1.5 px-0 py-1 sm:inset-x-auto sm:bottom-3 sm:left-1/2 sm:max-w-[calc(100%-240px)] sm:-translate-x-1/2 sm:px-3"
       >
         {/* Minimized Compact Floating Capsule Pill */}
         {isDockMinimized && (
@@ -1971,26 +1971,26 @@ export function GlobeViewport({
 
         <div
           className={cn(
-            "pointer-events-auto transition-all duration-300 flex flex-col items-center gap-1.5",
+            "pointer-events-auto flex w-full min-w-0 flex-col items-center gap-1.5 transition-all duration-300",
             isDockMinimized
               ? "max-h-0 opacity-0 pointer-events-none overflow-hidden scale-95"
               : "max-h-[220px] opacity-100 scale-100",
           )}
         >
           {/* Tier 1: Upper Slim Row (Clean Essential Telemetry Bar, max height 38px) */}
-          <div className="h-[38px] max-h-[38px] max-w-full overflow-hidden py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex h-[38px] max-h-[38px] w-full max-w-full items-center justify-center gap-2 overflow-hidden rounded-full border border-cyan-500/40 bg-[#0D1322]/95 px-2.5 py-1.5 font-mono text-xs shadow-2xl backdrop-blur-xl sm:justify-between sm:gap-3 sm:px-4">
             {/* Left Side: Sensor title + Color scale ramp + FIELD readout + GLOW opacity slider */}
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
               {/* Sensor Title */}
               <div className="flex items-center gap-1.5 font-bold text-cyan">
                 <Radio className="size-3 text-emerald animate-pulse shrink-0" />
-                <span className="truncate max-w-28 sm:max-w-40">
+                <span className="max-w-20 truncate sm:max-w-40">
                   {activeSatelliteConfig.sensorName}
                 </span>
               </div>
 
               {/* Color Scale Ramp */}
-              <div className="hidden md:flex items-center gap-1 shrink-0">
+              <div className="hidden shrink-0 items-center gap-1 lg:flex">
                 <span className="text-[9px] text-muted-foreground font-mono">
                   {activeSatelliteConfig.colorRamp.minLabel}
                 </span>
@@ -2009,7 +2009,7 @@ export function GlobeViewport({
               </span>
 
               {/* GLOW Opacity Slider */}
-              <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+              <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
                 <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
                 <Slider
                   aria-label="Layer opacity"
@@ -2045,7 +2045,7 @@ export function GlobeViewport({
           <div
             role="radiogroup"
             aria-label="Map layer"
-            className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-full"
+            className="flex w-full max-w-full flex-row items-center gap-1 overflow-x-auto whitespace-nowrap rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 shadow-[0_0_30px_rgba(6,182,212,0.15)] backdrop-blur-xl no-scrollbar"
           >
             <AnimatedBackground
               defaultValue={activeLayer}
