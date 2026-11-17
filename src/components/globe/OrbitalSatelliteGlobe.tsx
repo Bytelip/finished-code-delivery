@@ -8,6 +8,7 @@
 import { memo, useEffect, useRef } from "react";
 import maplibregl, {
   type Map as MaplibreMap,
+  type ProjectionSpecification,
   type RasterTileSource,
   type StyleSpecification,
 } from "maplibre-gl";
@@ -26,8 +27,8 @@ import {
   clampGlobeZoom,
   easeInOutCubic,
   flyToZoomFor,
-  projectionForZoom,
-  type GlobeProjectionId,
+  globeProjectionExpression,
+  projectionModeForZoom,
 } from "@/lib/orbitalZoom";
 
 export interface OrbitalGlobeApi {
@@ -77,7 +78,8 @@ function cinematicFlight(lat: number, lon: number, zoom: number) {
 function buildStyle(p: OrbitalSatelliteGlobeProps): StyleSpecification {
   return {
     version: 8,
-    projection: { type: "globe" },
+    // Sphere in orbit, morphing into a flat mercator field map at 1 km altitude (and back).
+    projection: { type: globeProjectionExpression() as unknown as NonNullable<ProjectionSpecification["type"]> },
     sky: {
       "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 1, 8, 0],
     },
@@ -177,19 +179,17 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
       if (!/tile|Failed to fetch|AJAXError|404/i.test(msg)) console.warn("Globe:", msg);
     });
 
-    let projection: GlobeProjectionId = "globe";
-    const syncProjection = () => {
-      const next = projectionForZoom(map.getZoom(), projection);
-      if (next === projection) return;
-      projection = next;
-      map.setProjection({ type: next });
+    // The projection itself morphs via the zoom expression; this only tags the DOM
+    // so styles (starfield fade) and tests can read the current tier.
+    const tagProjection = () => {
+      el.dataset["projection"] = projectionModeForZoom(map.getZoom());
     };
-    map.on("style.load", syncProjection);
+    tagProjection();
 
     let raf = 0;
     let lastSent = Number.NaN;
     map.on("zoom", () => {
-      syncProjection();
+      tagProjection();
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;

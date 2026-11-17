@@ -67,9 +67,11 @@ import {
   GLOBE_FLY_TO_MIN_ZOOM,
   GLOBE_MAX_ZOOM,
   GLOBE_MIN_ZOOM,
-  altitudeKmForZoom,
   clampGlobeZoom,
+  flatnessForZoom,
+  formatAltitude,
   orbitalStageForZoom,
+  projectionModeForZoom,
 } from "@/lib/orbitalZoom";
 import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
 
@@ -915,10 +917,23 @@ export function GlobeViewport({
     [onLayer],
   );
 
+  // Globe → flat-map morph at 1 km altitude (reverses on zoom-out).
+  const projectionMode = projectionModeForZoom(globeZoom);
+  const globeFlatness = flatnessForZoom(globeZoom);
+  const projectionTag =
+    projectionMode === "flat" ? "2D FLAT MAP" : projectionMode === "morph" ? "MORPHING" : "3D GLOBE";
+
   // 4-Stage Zoom HUD Status Information
   const zoomStageInfo = useMemo(() => {
     if (viewMode === "3d") {
       const s = orbitalStageForZoom(globeZoom);
+      const mode = projectionModeForZoom(globeZoom);
+      const label =
+        mode === "flat"
+          ? "FIELD LEVEL • 2D FLAT MAP"
+          : mode === "morph"
+            ? "DISTRICT / FIELD • FLATTENING TO 2D"
+            : s.label;
       const tone =
         s.id === "orbital"
           ? { color: "#38BDF8", badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40" }
@@ -932,8 +947,8 @@ export function GlobeViewport({
                 };
       return {
         stage: s.stage,
-        label: s.label,
-        detail: `ALT: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`,
+        label,
+        detail: `ALT: ${formatAltitude(globeZoom)}`,
         ...tone,
       };
     }
@@ -1119,8 +1134,12 @@ export function GlobeViewport({
           onFailure={() => setViewMode("2d")}
         >
           <div className="absolute inset-0">
-            {/* Deep-space starfield behind the transparent globe canvas */}
-            <div className="cosmic-starfield-canvas">
+            {/* Deep-space starfield behind the transparent globe canvas; fades out as the
+                sphere flattens into the 2D field map and returns on zoom-out. */}
+            <div
+              className="cosmic-starfield-canvas transition-opacity duration-500"
+              style={{ opacity: 1 - globeFlatness }}
+            >
               <div className="cosmic-stars-1" />
               <div className="cosmic-stars-2" />
               <div className="cosmic-stars-3" />
@@ -1595,6 +1614,21 @@ export function GlobeViewport({
           <span className="text-[10px] text-muted-foreground tabular-nums">
             ({zoomStageInfo.detail})
           </span>
+          {viewMode === "3d" && (
+            <span
+              data-projection-mode={projectionMode}
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[9px] font-bold border tracking-wider transition-colors duration-300",
+                projectionMode === "flat"
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+                  : projectionMode === "morph"
+                    ? "bg-amber-500/20 text-amber-300 border-amber-400/40"
+                    : "bg-sky-500/20 text-sky-300 border-sky-400/40",
+              )}
+            >
+              {projectionTag}
+            </span>
+          )}
         </div>
 
         {/* Right: 3D ORBITAL | 2D FIELD GIS TOGGLE */}
@@ -1654,13 +1688,25 @@ export function GlobeViewport({
           className="rounded border border-cyan-500/40 bg-black/80 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-cyan-300 tabular-nums text-center whitespace-nowrap shadow-[0_0_8px_rgba(6,182,212,0.3)] mb-0.5"
           title={
             viewMode === "3d"
-              ? `Orbital Altitude: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`
+              ? `Altitude: ${formatAltitude(globeZoom)} • ${projectionTag}`
               : `Field Resolution: Zoom ${gisZoom}x`
           }
         >
-          {viewMode === "3d"
-            ? `ALT: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`
-            : `Zoom: ${gisZoom}x`}
+          {viewMode === "3d" ? `ALT: ${formatAltitude(globeZoom)}` : `Zoom: ${gisZoom}x`}
+          {viewMode === "3d" && (
+            <div
+              className={cn(
+                "text-[7.5px] tracking-wider",
+                projectionMode === "flat"
+                  ? "text-emerald-300"
+                  : projectionMode === "morph"
+                    ? "text-amber-300"
+                    : "text-sky-300",
+              )}
+            >
+              {projectionMode === "flat" ? "2D FLAT" : projectionMode === "morph" ? "MORPH" : "3D GLOBE"}
+            </div>
+          )}
         </div>
 
         {/* Zoom In Button */}
@@ -1708,7 +1754,7 @@ export function GlobeViewport({
           className="rounded border border-cyan-500/30 bg-black/60 px-1 py-0.5 font-mono text-[8px] text-cyan tabular-nums text-center w-full"
           title={
             viewMode === "3d"
-              ? `Orbital Altitude: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`
+              ? `Altitude: ${formatAltitude(globeZoom)}`
               : `Field Resolution: Zoom ${gisZoom}`
           }
         >

@@ -5,7 +5,10 @@ import {
   easeInOutCubic,
   flyToZoomFor,
   orbitalStageForZoom,
-  projectionForZoom,
+  GLOBE_FLAT_ZOOM,
+  flatnessForZoom,
+  formatAltitude,
+  projectionModeForZoom,
 } from "@/lib/orbitalZoom";
 
 describe("orbital globe zoom rules", () => {
@@ -35,11 +38,27 @@ describe("orbital globe zoom rules", () => {
     expect(flyToZoomFor(14.5)).toBe(14.5);
   });
 
-  it("switches to flat mercator past zoom 12 and back to globe below zoom 10", () => {
-    expect(projectionForZoom(11, "globe")).toBe("globe");
-    expect(projectionForZoom(12.5, "globe")).toBe("mercator");
-    expect(projectionForZoom(11, "mercator")).toBe("mercator");
-    expect(projectionForZoom(9.9, "mercator")).toBe("globe");
+  it("is fully flat 2D at 1 km altitude and spherical 3D above ~1.5 km", () => {
+    expect(35000 / Math.pow(2, GLOBE_FLAT_ZOOM)).toBeCloseTo(1);
+    expect(projectionModeForZoom(GLOBE_FLAT_ZOOM)).toBe("flat");
+    expect(projectionModeForZoom(17)).toBe("flat");
+    expect(projectionModeForZoom(14.8)).toBe("morph");
+    expect(projectionModeForZoom(14)).toBe("globe");
+    expect(projectionModeForZoom(8)).toBe("globe");
+    expect(flatnessForZoom(10)).toBe(0);
+    expect(flatnessForZoom(GLOBE_FLAT_ZOOM)).toBe(1);
+  });
+
+  it("zooming back out past 1 km returns to the 3D globe", () => {
+    expect(projectionModeForZoom(16)).toBe("flat");
+    expect(projectionModeForZoom(GLOBE_FLAT_ZOOM - 0.01)).toBe("morph");
+    expect(projectionModeForZoom(12)).toBe("globe");
+  });
+
+  it("altitude text switches to metres below 10 km", () => {
+    expect(formatAltitude(2)).toBe("8,750 km");
+    expect(formatAltitude(13)).toBe("4.3 km");
+    expect(formatAltitude(17)).toBe("267 m");
   });
 
   it("eases the fly-to curve from 0 to 1 and is symmetric about the midpoint", () => {

@@ -12,18 +12,46 @@ export const GLOBE_FLY_TO_MIN_ZOOM = 11;
 export const GLOBE_ZOOM_DURATION_MS = 300;
 /** Cinematic fly-to length in milliseconds for location picks. */
 export const GLOBE_FLY_DURATION_MS = 2200;
-/** Zooming in past this level morphs the sphere into a flat mercator map. */
-export const GLOBE_FLAT_ZOOM = 12;
-/** Zooming back out above this level restores the spherical globe (hysteresis). */
-export const GLOBE_SPHERE_ZOOM = 10;
+/** Camera altitude (km) at which the sphere has fully flattened into a 2D field map. */
+export const GLOBE_FLAT_ALTITUDE_KM = 1;
+/** Zoom where the exact altitude 35000 / 2^zoom equals GLOBE_FLAT_ALTITUDE_KM (≈ 15.1). */
+export const GLOBE_FLAT_ZOOM = Math.log2(35000 / GLOBE_FLAT_ALTITUDE_KM);
+/** The morph from sphere to flat map starts this many zoom levels above the 1 km line (~1.5 km). */
+export const GLOBE_MORPH_SPAN = 0.6;
+export const GLOBE_MORPH_START_ZOOM = GLOBE_FLAT_ZOOM - GLOBE_MORPH_SPAN;
 
-export type GlobeProjectionId = "globe" | "mercator";
+/** globe = 3D sphere, morph = blending between the two, flat = 2D mercator field map. */
+export type GlobeProjectionMode = "globe" | "morph" | "flat";
 
-/** Keeps the current projection between thresholds so the view does not flicker. */
-export function projectionForZoom(zoom: number, current: GlobeProjectionId): GlobeProjectionId {
-  if (current === "globe" && zoom > GLOBE_FLAT_ZOOM) return "mercator";
-  if (current === "mercator" && zoom < GLOBE_SPHERE_ZOOM) return "globe";
-  return current;
+/** Projection mode for a zoom level; zooming back out reverses it at the same lines. */
+export function projectionModeForZoom(zoom: number): GlobeProjectionMode {
+  if (zoom >= GLOBE_FLAT_ZOOM) return "flat";
+  if (zoom > GLOBE_MORPH_START_ZOOM) return "morph";
+  return "globe";
+}
+
+/** 0 = fully spherical, 1 = fully flat. */
+export function flatnessForZoom(zoom: number): number {
+  if (zoom >= GLOBE_FLAT_ZOOM) return 1;
+  const t = (zoom - GLOBE_MORPH_START_ZOOM) / GLOBE_MORPH_SPAN;
+  return Math.min(1, Math.max(0, t));
+}
+
+/**
+ * MapLibre projection that morphs continuously with zoom: spherical globe above
+ * ~1.5 km, flat mercator at ≤ 1 km. Being a zoom expression, MapLibre blends every
+ * frame, so there is no snap, reload, or flicker in either direction.
+ */
+export function globeProjectionExpression() {
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    GLOBE_MORPH_START_ZOOM,
+    "vertical-perspective",
+    GLOBE_FLAT_ZOOM,
+    "mercator",
+  ] as const;
 }
 
 /** Ease-in-out cubic: starts gently, cruises, and decelerates onto the target. */
@@ -39,6 +67,14 @@ export function clampGlobeZoom(zoom: number): number {
 /** Approximate camera altitude in km for a web-mercator zoom level. */
 export function altitudeKmForZoom(zoom: number): number {
   return Math.round(35000 / Math.pow(2, zoom));
+}
+
+/** HUD altitude text: whole km from orbit, metres once below 10 km so field level never reads "0 km". */
+export function formatAltitude(zoom: number): string {
+  const km = 35000 / Math.pow(2, zoom);
+  if (km >= 10) return `${altitudeKmForZoom(zoom).toLocaleString("en-US")} km`;
+  if (km >= 1) return `${km.toFixed(1)} km`;
+  return `${Math.round(km * 1000).toLocaleString("en-US")} m`;
 }
 
 export type OrbitalStageId = "orbital" | "continental" | "regional" | "field";
