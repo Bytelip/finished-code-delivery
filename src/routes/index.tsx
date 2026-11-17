@@ -76,7 +76,11 @@ export const Route = createFileRoute("/")({
 });
 
 function AgroSpaceAppRoot() {
-  const [liveFlyTarget, setLiveFlyTarget] = useState<{ lat: number; lon: number; label: string } | null>(null);
+  const [liveFlyTarget, setLiveFlyTarget] = useState<{
+    lat: number;
+    lon: number;
+    label: string;
+  } | null>(null);
 
   return (
     <AuthGate
@@ -149,7 +153,7 @@ function AgroSpaceDashboard({
   } | null>(null);
 
   const [operator, setOperator] = useState<UserProfile | null>(
-    () => user || getStoredUser() || loadStoredProfile()
+    () => user || getStoredUser() || loadStoredProfile(),
   );
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -244,19 +248,21 @@ function AgroSpaceDashboard({
     let active = true;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      reverseGeocodeAndElevation(lat, lon, controller.signal).then((res) => {
-      if (!active) return;
-      setLocationMeta((prev) => {
-        // If reverseGeocodeAndElevation returned a raw "Field ..." fallback but we already have a friendly name, keep the friendly name
-        if (prev?.label && !prev.label.startsWith("Field ") && res.label.startsWith("Field ")) {
-          return {
-            ...res,
-            label: prev.label,
-          };
-        }
-        return res;
-      });
-      }).catch(() => undefined);
+      reverseGeocodeAndElevation(lat, lon, controller.signal)
+        .then((res) => {
+          if (!active) return;
+          setLocationMeta((prev) => {
+            // If reverseGeocodeAndElevation returned a raw "Field ..." fallback but we already have a friendly name, keep the friendly name
+            if (prev?.label && !prev.label.startsWith("Field ") && res.label.startsWith("Field ")) {
+              return {
+                ...res,
+                label: prev.label,
+              };
+            }
+            return res;
+          });
+        })
+        .catch(() => undefined);
     }, 400);
     return () => {
       active = false;
@@ -389,6 +395,7 @@ function AgroSpaceDashboard({
       />
 
       <main className="min-w-0 w-full flex-1 overflow-x-hidden pb-20 sm:pb-0">
+        <h1 className="sr-only">AgroSpace Nexus — Precision Agriculture &amp; Multi-Hazard HUD</h1>
         <CommandBar
           lat={lat}
           lon={lon}
@@ -533,43 +540,45 @@ function AgroSpaceDashboard({
           {tab === "granules" && <GranuleInspector telemetry={telemetry} />}
 
           {/* Live Telemetry Bottom Mission Tape (Google Stitch) */}
-          <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-[11px] mt-6 shadow-xl">
+          <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-xs mt-6 shadow-xl">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-cyan-400 font-bold uppercase tracking-wider">TELEMETRY STREAM:</span>
-              <span className="text-foreground/90">SENTINEL-1 C-SAR PASS: 41.2° INCLINATION</span>
-              <span className="hidden md:inline text-white/30">•</span>
-              <span className="hidden md:inline text-foreground/80">
+              <span className="text-cyan-300 font-bold uppercase tracking-wider">
+                TELEMETRY STREAM:
+              </span>
+              <span className="text-foreground">SENTINEL-1 C-SAR PASS: 41.2° INCLINATION</span>
+              <span className="hidden md:inline text-foreground">•</span>
+              <span className="hidden md:inline text-foreground">
                 LANDSAT-9 OLI-2 / TIRS-2 THERMAL CALIBRATION: NOMINAL [0.03K DELTA]
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-              <span className="text-white font-semibold">NASA-LANCE AG-INTEL READY</span>
+              <span className="text-foreground font-semibold">NASA-LANCE AG-INTEL READY</span>
             </div>
           </div>
 
           {/* Observatory Mission Footer (Google Stitch) */}
-          <footer className="w-full rounded-2xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-[10.5px]">
+          <footer className="w-full rounded-xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-xs">
             <div>AGROSPACE NEXUS • NASA EARTH OBSERVATION MISSION SYSTEM • EO-OPS-CORE-V4.9</div>
             <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => setTab("overview")}
-                className="hover:text-cyan-400 transition-colors cursor-pointer"
+                className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
                 GLOBAL OBSERVATORY
               </button>
               <button
                 type="button"
                 onClick={() => setTab("crop-atlas")}
-                className="hover:text-cyan-400 transition-colors cursor-pointer"
+                className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
                 CROP SHIFT
               </button>
               <button
                 type="button"
                 onClick={() => setShowMissionBriefModal(true)}
-                className="hover:text-cyan-400 transition-colors cursor-pointer"
+                className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
                 MISSION BRIEF
               </button>

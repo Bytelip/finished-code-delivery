@@ -275,7 +275,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
 
       {head && (
         <div className="relative z-10 mb-4 text-center pointer-events-none">
-          <div className="text-[11px] font-mono uppercase tracking-[0.35em] text-cyan-300/80">
+          <div className="text-xs font-mono uppercase tracking-[0.35em] text-cyan-300">
             {textParts.join(" • ")}
           </div>
         </div>
@@ -337,20 +337,24 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   // Listen for OAuth session on mount or return
   useEffect(() => {
-    processIncomingAuthCallback().then((user) => {
-      if (user) {
-        onAuthComplete?.(user);
-        onSuccess?.(user);
-      } else if (typeof window !== "undefined") {
-        const callbackError = sessionStorage.getItem("agro_auth_callback_error");
-        if (callbackError) {
-          sessionStorage.removeItem("agro_auth_callback_error");
-          setAuthError(callbackError);
+    processIncomingAuthCallback()
+      .then((user) => {
+        if (user) {
+          onAuthComplete?.(user);
+          onSuccess?.(user);
+        } else if (typeof window !== "undefined") {
+          const callbackError = sessionStorage.getItem("agro_auth_callback_error");
+          if (callbackError) {
+            sessionStorage.removeItem("agro_auth_callback_error");
+            setAuthError(callbackError);
+          }
         }
-      }
-    }).catch((error: unknown) => {
-      setAuthError(error instanceof Error ? error.message : "Sign-in callback failed. Please try again.");
-    });
+      })
+      .catch((error: unknown) => {
+        setAuthError(
+          error instanceof Error ? error.message : "Sign-in callback failed. Please try again.",
+        );
+      });
   }, [onAuthComplete, onSuccess]);
 
   const handleTabSwitch = (newMode: "signin" | "signup") => {
@@ -389,10 +393,17 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         }
       }
 
-      setAuthError(result.error || `${provider} sign-in could not be started. Check the provider configuration and try again.`);
+      setAuthError(
+        result.error ||
+          `${provider} sign-in could not be started. Check the provider configuration and try again.`,
+      );
     } catch (error) {
       setLoadingOAuth(null);
-      setAuthError(error instanceof Error ? error.message : `${provider} sign-in could not be started. Please try again.`);
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : `${provider} sign-in could not be started. Please try again.`,
+      );
     }
   };
 
@@ -554,19 +565,19 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-[28px] border border-white/15 bg-[#0B111E]/90 p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-white">
+      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-[#0B111E]/90 p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-foreground">
         {onClose && (
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white cursor-pointer"
+            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-foreground cursor-pointer"
           >
             ✕
           </button>
         )}
 
         {/* Top Emblem */}
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
           <svg
             className="h-7 w-7 text-cyan-300"
             viewBox="0 0 24 24"
@@ -581,7 +592,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
         {/* Operational error banner if any (never env-var setup notice) */}
         {authError && (
-          <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+          <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
             <p>{authError}</p>
           </div>
         )}
@@ -595,8 +606,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 onClick={() => handleTabSwitch("signin")}
                 className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
                   authMode === "signin"
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-muted-foreground shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Sign In
@@ -606,8 +617,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 onClick={() => handleTabSwitch("signup")}
                 className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
                   authMode === "signup"
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-muted-foreground shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Create Account
@@ -615,10 +626,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             </div>
 
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 {authMode === "signin" ? "Sign in to AgroSpace" : "Create Mission Account"}
               </h1>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {authMode === "signin"
                   ? "Select an account or enter credentials for clearance verification"
                   : "Register a new operator profile for mission clearance"}
@@ -631,7 +642,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 type="button"
                 disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("Google")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
+                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm font-medium text-foreground transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
               >
                 <svg className="absolute left-4 h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -652,7 +663,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   />
                 </svg>
                 <span>
-                  {loadingOAuth === "Google" ? "Opening Account Chooser..." : "Continue with Google"}
+                  {loadingOAuth === "Google"
+                    ? "Opening Account Chooser..."
+                    : "Continue with Google"}
                 </span>
               </button>
 
@@ -660,7 +673,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 type="button"
                 disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("Microsoft")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
+                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm font-medium text-foreground transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
               >
                 <svg className="absolute left-4 h-4 w-4" viewBox="0 0 23 23">
                   <path fill="#f35325" d="M1 1h10v10H1z" />
@@ -679,7 +692,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 type="button"
                 disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("Apple")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
+                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm font-medium text-foreground transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
               >
                 <svg className="absolute left-4 h-4 w-4 fill-current" viewBox="0 0 24 24">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -692,7 +705,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
             <div className="my-5 flex items-center gap-4">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-medium text-slate-400">Or</span>
+              <span className="text-xs font-medium text-muted-foreground">Or</span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
@@ -708,7 +721,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Profile Name (e.g., Commander Naren)"
-                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
+                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
               )}
@@ -721,7 +734,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email address (e.g. name@gmail.com)"
-                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
+                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
 
@@ -738,13 +751,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                       ? "Create password (min 6 characters)"
                       : "Enter your password"
                   }
-                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 pr-11 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-sans"
+                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 pr-11 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-sans"
                 />
                 <button
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 p-1 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                  className="absolute right-3 p-1 text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -791,8 +804,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   password.length <= 128 &&
                   (authMode === "signin" || isNameValid) &&
                   !isSubmitting
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
-                    : "cursor-not-allowed bg-white/15 text-slate-400"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-muted-foreground shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+                    : "cursor-not-allowed bg-white/15 text-muted-foreground"
                 }`}
               >
                 {isSubmitting
@@ -811,13 +824,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             <button
               type="button"
               onClick={handleBackToEntry}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white mb-4 cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-4 cursor-pointer transition-colors"
             >
               ← Back to sign-up
             </button>
 
             <div className="text-center mb-5">
-              <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
+              <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
                 <svg
                   className="h-6 w-6 text-cyan-300"
                   viewBox="0 0 24 24"
@@ -832,8 +845,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-white">Verify your email</h2>
-              <p className="mt-1 text-xs text-slate-400">
+              <h2 className="text-xl font-semibold text-foreground">Verify your email</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Enter the 6-digit code we sent to{" "}
                 <span className="font-mono text-cyan-300">{email.trim()}</span>
               </p>
@@ -848,7 +861,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="• • • • • •"
-                className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-2 sm:px-4 py-3 text-center text-xl sm:text-2xl font-mono tracking-[0.3em] sm:tracking-[0.5em] text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none"
+                className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-2 sm:px-4 py-3 text-center text-xl sm:text-2xl font-mono tracking-[0.3em] sm:tracking-[0.5em] text-foreground placeholder-slate-600 focus:border-cyan-400 focus:outline-none"
                 autoFocus
               />
 
@@ -857,8 +870,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 disabled={otpCode.replace(/\D/g, "").length !== 6 || isVerifying}
                 className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
                   otpCode.replace(/\D/g, "").length === 6 && !isVerifying
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
-                    : "cursor-not-allowed bg-white/15 text-slate-400"
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-muted-foreground shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+                    : "cursor-not-allowed bg-white/15 text-muted-foreground"
                 }`}
               >
                 {isVerifying ? "Verifying..." : "Verify & Enter Orbit"}
@@ -866,12 +879,12 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             </form>
 
             <div className="mt-4 flex items-center justify-between text-xs">
-              <span className="text-slate-500">Code valid for 5 minutes</span>
+              <span className="text-muted-foreground">Code valid for 5 minutes</span>
               <button
                 type="button"
                 onClick={handleResendOtp}
                 disabled={resendCooldown > 0 || isSubmitting}
-                className="font-medium text-cyan-300 transition hover:text-cyan-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="font-medium text-cyan-300 transition hover:text-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 {resendCooldown > 0
                   ? `Resend in ${resendCooldown}s`
@@ -883,7 +896,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           </div>
         )}
 
-        <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-400">
+        <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
           By continuing, you agree to our <span className="underline">Terms of Service</span> and{" "}
           <span className="underline">Privacy Policy</span>.
         </p>
@@ -940,7 +953,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
         className="flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-slate-950/80 h-8 px-2 text-left backdrop-blur-xl transition hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] cursor-pointer shrink-0"
       >
         <div
-          className="relative flex h-6 w-6 items-center justify-center rounded-full font-mono text-[10px] font-bold text-slate-950 shadow-inner shrink-0"
+          className="relative flex h-6 w-6 items-center justify-center rounded-full font-mono text-xs font-bold text-muted-foreground shadow-inner shrink-0"
           style={{ backgroundColor: user.avatarColor || "#06B6D4" }}
         >
           {initials}
@@ -948,8 +961,8 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
         </div>
         <div className="hidden 2xl:block max-w-[100px] truncate">
           <div className="flex items-center gap-1">
-            <span className="text-xs font-semibold text-white truncate">{user.name}</span>
-            <span className="rounded bg-cyan-500/20 px-1 py-0.2 text-[8px] font-mono uppercase text-cyan-300 shrink-0">
+            <span className="text-xs font-semibold text-foreground truncate">{user.name}</span>
+            <span className="rounded-md bg-cyan-500/20 px-1 py-0.2 text-xs font-mono uppercase text-cyan-300 shrink-0">
               {user.provider}
             </span>
           </div>
@@ -958,16 +971,16 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
 
       {/* Quick Account Dropdown Menu */}
       {menuOpen && (
-        <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-cyan-500/25 bg-slate-950/95 p-4 text-slate-100 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)]">
+        <div className="absolute right-0 mt-2 w-72 rounded-xl border border-cyan-500/25 bg-slate-950/95 p-4 text-foreground backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)]">
           <div className="border-b border-white/10 pb-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">{user.name}</p>
-              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
+              <p className="text-sm font-semibold text-foreground">{user.name}</p>
+              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-mono text-emerald-400">
                 ✓ VERIFIED
               </span>
             </div>
-            <p className="mt-0.5 text-xs font-mono text-slate-400 truncate">{user.email}</p>
-            <p className="mt-1 text-[11px] text-cyan-400">{user.role}</p>
+            <p className="mt-0.5 text-xs font-mono text-muted-foreground truncate">{user.email}</p>
+            <p className="mt-1 text-xs text-cyan-300">{user.role}</p>
           </div>
 
           <div className="py-2 space-y-1 text-xs">
@@ -977,10 +990,10 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                 setMenuOpen(false);
                 setSettingsOpen(true);
               }}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-slate-200 hover:bg-white/10 cursor-pointer"
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-foreground hover:bg-white/10 cursor-pointer"
             >
               <span>⚙️ Account & Profile Settings</span>
-              <span className="text-slate-400">→</span>
+              <span className="text-muted-foreground">→</span>
             </button>
             <div
               onClick={() => {
@@ -989,16 +1002,16 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                   setMenuOpen(false);
                 }
               }}
-              className="rounded-xl bg-slate-900/80 px-3 py-2 text-[11px] text-slate-400 cursor-pointer hover:bg-slate-900"
+              className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-muted-foreground cursor-pointer hover:bg-slate-900"
             >
-              <div className="font-mono uppercase text-[10px] text-slate-500 flex items-center justify-between">
+              <div className="font-mono uppercase text-xs text-muted-foreground flex items-center justify-between">
                 <span>Home Base</span>
-                <span className="text-[9px] text-cyan-400">Lock</span>
+                <span className="text-xs text-cyan-300">Lock</span>
               </div>
-              <div className="text-slate-200 truncate">{user.homeLocation}</div>
+              <div className="text-foreground truncate">{user.homeLocation}</div>
             </div>
-            <div className="flex items-center justify-between rounded-xl bg-slate-900/80 px-3 py-2 text-[11px]">
-              <span className="text-slate-400">Default View / Layer</span>
+            <div className="flex items-center justify-between rounded-xl bg-slate-900/80 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">Default View / Layer</span>
               <span className="font-mono text-cyan-300">
                 {user.defaultView} • {user.defaultLayer}
               </span>
@@ -1012,7 +1025,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
               saveStoredUser(null);
               onLogout();
             }}
-            className="mt-2 w-full rounded-xl border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 cursor-pointer"
+            className="mt-2 w-full rounded-xl border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/20 cursor-pointer"
           >
             Sign Out of Mission Control
           </button>
@@ -1022,18 +1035,20 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
       {/* Full Account & Profile Settings Modal */}
       {settingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl border border-cyan-500/30 bg-[#0B111E] p-6 sm:p-8 text-white shadow-[0_0_60px_rgba(6,182,212,0.2)]">
+          <div className="w-full max-w-lg rounded-xl border border-cyan-500/30 bg-[#0B111E] p-6 sm:p-8 text-foreground shadow-[0_0_60px_rgba(6,182,212,0.2)]">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
-                <h3 className="text-lg font-semibold text-white">Operator Account & Settings</h3>
-                <p className="text-xs text-slate-400">
+                <h3 className="text-lg font-semibold text-foreground">
+                  Operator Account & Settings
+                </h3>
+                <p className="text-xs text-muted-foreground">
                   Manage your profile name, verified Gmail, and default NASA telemetry settings
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(false)}
-                className="rounded-full p-1.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+                className="rounded-full p-1.5 text-muted-foreground hover:bg-white/10 hover:text-foreground cursor-pointer"
               >
                 ✕
               </button>
@@ -1042,7 +1057,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
             <form onSubmit={handleSaveSettings} className="mt-5 space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-mono uppercase text-slate-400 mb-1">
+                  <label className="block font-mono uppercase text-muted-foreground mb-1">
                     Profile Name
                   </label>
                   <input
@@ -1050,24 +1065,24 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                     required
                     value={formState.name}
                     onChange={(e) => setFormState({ ...formState, name: e.target.value })}
-                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block font-mono uppercase text-slate-400 mb-1">
+                  <label className="block font-mono uppercase text-muted-foreground mb-1">
                     Mission Role / Title
                   </label>
                   <input
                     type="text"
                     value={formState.role}
                     onChange={(e) => setFormState({ ...formState, role: e.target.value })}
-                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-mono uppercase text-slate-400 mb-1">
+                <label className="block font-mono uppercase text-muted-foreground mb-1">
                   Verified Gmail / Account Email ({formState.provider})
                 </label>
                 <div className="flex items-center gap-2">
@@ -1075,29 +1090,29 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                     type="email"
                     disabled
                     value={formState.email}
-                    className="w-full rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-slate-400"
+                    className="w-full rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-muted-foreground"
                   />
-                  <span className="shrink-0 rounded-xl bg-emerald-500/20 px-3 py-2 font-mono text-[11px] text-emerald-300">
+                  <span className="shrink-0 rounded-xl bg-emerald-500/20 px-3 py-2 font-mono text-xs text-emerald-400">
                     ✓ Verified
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block font-mono uppercase text-slate-400 mb-1">
+                <label className="block font-mono uppercase text-muted-foreground mb-1">
                   Default Home Base Coordinates
                 </label>
                 <input
                   type="text"
                   value={formState.homeLocation}
                   onChange={(e) => setFormState({ ...formState, homeLocation: e.target.value })}
-                  className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                  className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-mono uppercase text-slate-400 mb-1">
+                  <label className="block font-mono uppercase text-muted-foreground mb-1">
                     Default Globe Mode
                   </label>
                   <select
@@ -1108,7 +1123,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                         defaultView: e.target.value as "3D" | "2D",
                       })
                     }
-                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground"
                   >
                     <option value="3D">3D Orbital Globe</option>
                     <option value="2D">2D Satellite Map</option>
@@ -1116,13 +1131,13 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                 </div>
 
                 <div>
-                  <label className="block font-mono uppercase text-slate-400 mb-1">
+                  <label className="block font-mono uppercase text-muted-foreground mb-1">
                     Default NASA Layer
                   </label>
                   <select
                     value={formState.defaultLayer}
                     onChange={(e) => setFormState({ ...formState, defaultLayer: e.target.value })}
-                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground"
                   >
                     <option value="NDVI">NDVI Vegetation</option>
                     <option value="EVI">EVI Canopy</option>
@@ -1138,8 +1153,8 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
 
               <div className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/60 p-3">
                 <div>
-                  <div className="font-semibold text-white">Gmail Hazard & Drought Alerts</div>
-                  <div className="text-[11px] text-slate-400">
+                  <div className="font-semibold text-foreground">Gmail Hazard & Drought Alerts</div>
+                  <div className="text-xs text-muted-foreground">
                     Send alerts to {formState.email} when Cyclone or Drought thresholds trigger
                   </div>
                 </div>
@@ -1155,13 +1170,13 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                 <button
                   type="button"
                   onClick={() => setSettingsOpen(false)}
-                  className="rounded-xl border border-white/15 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 cursor-pointer"
+                  className="rounded-xl border border-white/15 px-4 py-2 text-xs font-semibold text-foreground hover:bg-white/10 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.35)] cursor-pointer"
+                  className="rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 text-xs font-semibold text-muted-foreground shadow-[0_0_20px_rgba(34,211,238,0.35)] cursor-pointer"
                 >
                   Save Account Changes
                 </button>

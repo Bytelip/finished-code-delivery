@@ -86,12 +86,12 @@ export function TimePlayerPill({
       )}
     >
       {/* Center Player Pill */}
-      <div className="flex items-center gap-1.5 rounded-full bg-[#181C24]/90 backdrop-blur-xl border border-white/12 shadow-[0_4px_24px_rgba(0,0,0,0.6)] px-2 py-1 text-white text-xs font-mono">
+      <div className="flex items-center gap-1.5 rounded-full bg-[#181C24]/90 backdrop-blur-xl border border-white/12 shadow-[0_4px_24px_rgba(0,0,0,0.6)] px-2 py-1 text-foreground text-xs font-mono">
         {/* Play / Pause Button */}
         <button
           type="button"
           onClick={onTogglePlay}
-          className="size-7 rounded-full bg-[#1D74F5] hover:bg-[#3B82F6] active:bg-[#1E40AF] text-white flex items-center justify-center transition-all shadow-md cursor-pointer shrink-0"
+          className="size-7 rounded-full bg-[#1D74F5] hover:bg-[#3B82F6] active:bg-[#1E40AF] text-foreground flex items-center justify-center transition-all shadow-md cursor-pointer shrink-0"
           title={isPlaying ? "Pause Timeline Animation" : "Play Timeline Animation"}
         >
           {isPlaying ? (
@@ -105,7 +105,7 @@ export function TimePlayerPill({
         <button
           type="button"
           onClick={handlePrev}
-          className="p-1 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+          className="p-1 rounded-full hover:bg-white/10 text-foreground hover:text-foreground transition-colors"
           title="Step Backward"
         >
           <SkipBack className="size-3.5" />
@@ -113,7 +113,7 @@ export function TimePlayerPill({
 
         {/* Current Timestamp Display */}
         <div className="px-2 py-0.5 min-w-36 text-center">
-          <span className="font-semibold text-slate-100 text-[11px] tracking-wide block truncate">
+          <span className="font-semibold text-foreground text-xs tracking-wide block truncate">
             {currentStep.timestamp}
           </span>
         </div>
@@ -122,7 +122,7 @@ export function TimePlayerPill({
         <button
           type="button"
           onClick={handleNext}
-          className="p-1 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+          className="p-1 rounded-full hover:bg-white/10 text-foreground hover:text-foreground transition-colors"
           title="Step Forward"
         >
           <SkipForward className="size-3.5" />
@@ -133,10 +133,10 @@ export function TimePlayerPill({
           type="button"
           onClick={handleJumpLive}
           className={cn(
-            "flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all duration-150 cursor-pointer",
+            "flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-150 cursor-pointer",
             isLive
-              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-              : "bg-white/5 text-slate-400 border border-white/10 hover:text-white hover:bg-white/10",
+              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-400/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+              : "bg-white/5 text-muted-foreground border border-white/10 hover:text-foreground hover:bg-white/10",
           )}
           title="Jump to Real-Time Live Feed"
         >
@@ -151,8 +151,8 @@ export function TimePlayerPill({
       </div>
 
       {/* Model Source Badge Pill */}
-      <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-[#181C24]/80 backdrop-blur-md border border-white/10 px-3 py-1 text-[10px] font-mono text-slate-300 shadow-lg">
-        <Layers className="size-3 text-cyan-400" />
+      <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-[#181C24]/80 backdrop-blur-md border border-white/10 px-3 py-1 text-xs font-mono text-foreground shadow-lg">
+        <Layers className="size-3 text-cyan-300" />
         <span>NASA GIBS • ICON 13 km • GFS 22 km</span>
       </div>
     </div>

@@ -127,9 +127,7 @@ export function GuidedTourOverlay({
           document.querySelectorAll('[data-tour="nasa-telemetry-dock"] button[role="radio"]'),
         );
         if (buttons.length > 0) {
-          const currentIndex = buttons.findIndex(
-            (b) => b.getAttribute("aria-checked") === "true",
-          );
+          const currentIndex = buttons.findIndex((b) => b.getAttribute("aria-checked") === "true");
           const nextIndex = (currentIndex + 1) % buttons.length;
           const nextBtn = buttons[nextIndex];
           if (nextBtn instanceof HTMLButtonElement) nextBtn.click();
@@ -474,7 +472,7 @@ export function GuidedTourOverlay({
       {cutoutRect && (
         <motion.div
           key={`spotlight-border-${currentStep.id}`}
-          className="fixed pointer-events-none rounded-2xl border-2 border-cyan-400"
+          className="fixed pointer-events-none rounded-xl border-2 border-cyan-400"
           style={{ zIndex: 9995 }}
           initial={false}
           animate={{
@@ -487,7 +485,7 @@ export function GuidedTourOverlay({
         >
           {/* Radiant visionOS outer and inner glows */}
           <div
-            className="absolute inset-0 rounded-2xl pointer-events-none"
+            className="absolute inset-0 rounded-xl pointer-events-none"
             style={{
               boxShadow:
                 "0 0 0 1px rgba(6, 182, 212, 0.6), 0 0 35px rgba(6, 182, 212, 0.45), inset 0 0 18px rgba(6, 182, 212, 0.25)",
@@ -506,7 +504,7 @@ export function GuidedTourOverlay({
       <AnimatePresence mode="wait">
         <motion.div
           key={`tour-card-${currentStep.id}`}
-          className="fixed z-[10000] w-[390px] max-w-[calc(100vw-2rem)] rounded-2xl bg-[#070D19]/96 backdrop-blur-2xl border border-white/15 shadow-[0_24px_60px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.22)] p-5 text-white pointer-events-auto"
+          className="fixed z-[10000] w-[390px] max-w-[calc(100vw-2rem)] rounded-xl bg-[#070D19]/96 backdrop-blur-2xl border border-white/15 shadow-[0_24px_60px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.22)] p-5 text-foreground pointer-events-auto"
           initial={{ opacity: 0, scale: 0.94, y: cardTop + 12, x: cardLeft }}
           animate={{
             opacity: 1,
@@ -539,7 +537,7 @@ export function GuidedTourOverlay({
           <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-3">
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]" />
-              <span className="font-mono text-[10px] font-bold text-cyan-300 tracking-widest uppercase">
+              <span className="font-mono text-xs font-bold text-cyan-300 tracking-widest uppercase">
                 STEP {currentStepIndex + 1} OF {steps.length} • {currentStep.category}
               </span>
             </div>
@@ -568,7 +566,7 @@ export function GuidedTourOverlay({
             <button
               type="button"
               onClick={handleClose}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer ml-1"
+              className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer ml-1"
               title="Exit Tour (Esc)"
             >
               <X className="size-4" />
@@ -577,10 +575,10 @@ export function GuidedTourOverlay({
 
           {/* Title & Body Description */}
           <div className="py-3">
-            <h3 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+            <h3 className="text-base sm:text-lg font-black text-foreground tracking-tight flex items-center gap-2">
               {currentStep.title}
             </h3>
-            <p className="text-xs sm:text-[13px] text-slate-300/90 leading-relaxed mt-2 font-normal">
+            <p className="text-xs sm:text-sm text-foreground leading-relaxed mt-2 font-normal">
               {currentStep.description}
             </p>
           </div>
@@ -593,10 +591,10 @@ export function GuidedTourOverlay({
               className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-mono font-bold transition-all cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.15)] group"
             >
               <div className="flex items-center gap-2 truncate">
-                <Sparkles className="size-3.5 text-cyan-400 shrink-0 animate-spin-slow" />
+                <Sparkles className="size-3.5 text-cyan-300 shrink-0 animate-spin-slow" />
                 <span className="truncate">{currentStep.actionLabel}</span>
               </div>
-              <span className="text-[10px] text-cyan-200/80 group-hover:translate-x-0.5 transition-transform shrink-0 font-semibold">
+              <span className="text-xs text-cyan-300 group-hover:translate-x-0.5 transition-transform shrink-0 font-semibold">
                 TRY LIVE ↗
               </span>
             </button>
@@ -607,7 +605,7 @@ export function GuidedTourOverlay({
             <button
               type="button"
               onClick={handleClose}
-              className="text-xs font-mono text-slate-400 hover:text-white cursor-pointer px-1 py-1 transition-colors"
+              className="text-xs font-mono text-muted-foreground hover:text-foreground cursor-pointer px-1 py-1 transition-colors"
             >
               {t("tour_skip", "Skip Tour")}
             </button>
@@ -617,9 +615,9 @@ export function GuidedTourOverlay({
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
+                  variant="secondary"
                   onClick={handleBack}
-                  className="h-8 px-3 text-xs font-mono font-semibold text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer"
+                  className="h-8 px-3 text-xs font-mono font-semibold text-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
                 >
                   <ChevronLeft className="size-3.5 mr-1" />
                   {t("tour_back", "Back")}
@@ -631,7 +629,7 @@ export function GuidedTourOverlay({
                   type="button"
                   size="sm"
                   onClick={handleNext}
-                  className="h-8 px-4 text-xs font-mono font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-[0_0_16px_rgba(6,182,212,0.4)] cursor-pointer"
+                  className="h-8 px-4 text-xs font-mono font-bold bg-cyan-500 hover:bg-cyan-400 text-muted-foreground shadow-[0_0_16px_rgba(6,182,212,0.4)] cursor-pointer"
                 >
                   {t("tour_next", "Next")}
                   <ChevronRight className="size-3.5 ml-1" />
@@ -641,7 +639,7 @@ export function GuidedTourOverlay({
                   type="button"
                   size="sm"
                   onClick={handleClose}
-                  className="h-8 px-4 text-xs font-mono font-black bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.5)] cursor-pointer"
+                  className="h-8 px-4 text-xs font-mono font-black bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-muted-foreground shadow-[0_0_20px_rgba(6,182,212,0.5)] cursor-pointer"
                 >
                   🚀 {t("tour_launch", "Launch Observatory")}
                 </Button>
@@ -650,7 +648,7 @@ export function GuidedTourOverlay({
           </div>
 
           {/* Mini Keyboard Hint */}
-          <div className="mt-2 text-center text-[9.5px] font-mono text-white/40">
+          <div className="mt-2 text-center text-xs font-mono text-foreground">
             ← Prev • → Next • Esc Exit
           </div>
         </motion.div>

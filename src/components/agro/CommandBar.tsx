@@ -77,8 +77,8 @@ function CoordInput({
     setDraft(String(c));
   };
   return (
-    <label className="flex items-center gap-1.5 rounded border border-border/40 bg-card/60 px-2 py-1 shadow-inner focus-within:border-cyan/70 focus-within:shadow-[0_0_10px_rgba(0,240,255,0.25)] transition-all">
-      <span className="hud-label text-[10px] text-cyan/80 font-bold">{label}</span>
+    <label className="flex items-center gap-1.5 rounded-md border border-border/40 bg-card/60 px-2 py-1 shadow-inner focus-within:border-cyan/70 focus-within:shadow-[0_0_10px_rgba(0,240,255,0.25)] transition-all">
+      <span className="hud-label text-xs text-cyan-300 font-bold">{label}</span>
       <Input
         inputMode="decimal"
         aria-label={label === "Lat" ? "Latitude" : "Longitude"}
@@ -104,11 +104,11 @@ function Field({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded border border-border/30 bg-card/40 px-2.5 py-1.5 backdrop-blur-sm min-w-0",
+        "flex items-center gap-2 rounded-md border border-border/30 bg-card/40 px-2.5 py-1.5 backdrop-blur-sm min-w-0",
         className,
       )}
     >
-      <span className="hud-label text-[10px] text-muted-foreground font-semibold shrink-0">
+      <span className="hud-label text-xs text-muted-foreground font-semibold shrink-0">
         {label}
       </span>
       {children}
@@ -391,7 +391,7 @@ export function CommandBar({
     <div className="sticky top-0 z-[100] border-b border-border/80 bg-background/85 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
       {/* ---------------- INSECURE LAN HOST BANNER ---------------- */}
       {showInsecureBanner && !bannerDismissed && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 font-mono text-xs text-amber-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 font-mono text-xs text-amber-400">
           <div className="flex items-center gap-2">
             <AlertTriangle className="size-4 shrink-0 text-amber-400" />
             <span>
@@ -400,7 +400,7 @@ export function CommandBar({
             </span>
             <a
               href={`https://${host}`}
-              className="ml-1 inline-flex items-center gap-1 font-semibold text-cyan hover:underline"
+              className="ml-1 inline-flex items-center gap-1 font-semibold text-cyan-300 hover:underline"
             >
               Switch to HTTPS <ExternalLink className="size-3" />
             </a>
@@ -423,31 +423,35 @@ export function CommandBar({
       {/* ---------------- 1. SINGLE UNIFIED GLASS NAVBAR (h-13) ---------------- */}
       <div className="w-full max-w-full min-h-13 px-2 sm:px-4 py-1 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3 border-b border-white/[0.08] bg-[#050912]/90 backdrop-blur-2xl relative z-40">
         {/* Left: Crisp Brand Emblem + AgroSpace Nexus title + Live Coordinate Pill */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 min-w-0 whitespace-nowrap">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 min-w-0 whitespace-nowrap">
           {/* Brand Emblem */}
           <div className="grid size-7.5 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.35)] shrink-0">
             <Satellite className="size-4 animate-pulse text-cyan-300" />
           </div>
           <div className="flex items-center gap-1.5 whitespace-nowrap">
-            <span className="hidden sm:inline font-mono font-bold text-xs sm:text-sm tracking-wider text-white">
+            <span className="hidden sm:inline font-mono font-bold text-xs sm:text-sm tracking-wider text-foreground">
               AgroSpace Nexus
             </span>
-            <span className="text-[9.5px] text-cyan-300 font-semibold px-1.5 py-0.2 rounded-full bg-cyan-500/15 border border-cyan-400/30">
+            <span className="text-xs text-cyan-300 font-semibold px-1.5 py-0.2 rounded-full bg-cyan-500/15 border border-cyan-400/30">
               v2.4
             </span>
           </div>
 
           {/* Live Coordinate Pill */}
           <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-mono text-muted-foreground shrink-0 whitespace-nowrap">
-            <MapPin className="size-3 text-cyan-400 shrink-0 drop-shadow-[0_0_6px_#00f0ff]" />
-            <span className="text-white font-medium">
-              📍 {locationLabel ? `${locationLabel} • ` : ""}{lat.toFixed(2)}°N, {lon.toFixed(2)}°E
+            <MapPin className="size-3 text-cyan-300 shrink-0 drop-shadow-[0_0_6px_#00f0ff]" />
+            <span className="text-foreground font-medium">
+              📍 {locationLabel ? `${locationLabel} • ` : ""}
+              {lat.toFixed(2)}°N, {lon.toFixed(2)}°E
             </span>
           </div>
         </div>
 
         {/* Center: Sleek single-line Command Pill */}
-        <div data-tour="search-field-params" className="flex items-center justify-center shrink-0 order-3 sm:order-none w-full sm:w-auto">
+        <div
+          data-tour="search-field-params"
+          className="flex items-center justify-center shrink-0 order-3 sm:order-none w-full sm:w-auto"
+        >
           <button
             type="button"
             data-params-trigger="true"
@@ -455,25 +459,25 @@ export function CommandBar({
             className={cn(
               "whitespace-nowrap inline-flex items-center gap-2 h-8.5 px-3.5 py-1 rounded-full border text-xs font-mono font-semibold transition-all cursor-pointer shadow-inner shrink-0",
               isParamsDrawerOpen
-                ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-200 shadow-[0_0_18px_rgba(6,182,212,0.35)]"
-                : "bg-white/[0.04] hover:bg-white/[0.08] border-white/15 text-cyan-300/90 hover:border-cyan-500/40"
+                ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-300 shadow-[0_0_18px_rgba(6,182,212,0.35)]"
+                : "bg-white/[0.04] hover:bg-white/[0.08] border-white/15 text-cyan-300 hover:border-cyan-500/40",
             )}
             title="Search Location or Field Params (⌘K)"
           >
-            <Search className="size-3.5 text-cyan-400 shrink-0 drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+            <Search className="size-3.5 text-cyan-300 shrink-0 drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
             <span className="font-semibold whitespace-nowrap hidden sm:inline">
               🔍 {t("search_params", "Search Location or Field Params")}
             </span>
             <span className="font-semibold whitespace-nowrap sm:hidden">
               🔍 {t("search", "Search")}
             </span>
-            <kbd className="hidden md:inline-block px-1.5 py-0.2 rounded bg-black/40 border border-white/10 text-[9px] text-white/50 font-sans">
+            <kbd className="hidden md:inline-block px-1.5 py-0.2 rounded-md bg-black/40 border border-white/10 text-xs text-foreground font-sans">
               ⌘K
             </kbd>
             {isParamsDrawerOpen ? (
-              <ChevronUp className="size-3 text-cyan-400 shrink-0" />
+              <ChevronUp className="size-3 text-cyan-300 shrink-0" />
             ) : (
-              <ChevronDown className="size-3 text-cyan-400/70 shrink-0" />
+              <ChevronDown className="size-3 text-cyan-300 shrink-0" />
             )}
           </button>
         </div>
@@ -481,10 +485,10 @@ export function CommandBar({
         {/* Right: Compact icon-first action pills */}
         <div
           data-tour="top-right-controls"
-          className="flex items-center gap-1 sm:gap-2 shrink-0 max-w-full whitespace-nowrap"
+          className="flex max-w-full flex-wrap items-center justify-end gap-2.5 px-2 pt-3 sm:px-4 whitespace-nowrap shrink-0"
         >
           {plantHealthOverall !== undefined && (
-            <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0 whitespace-nowrap">
+            <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0 whitespace-nowrap">
               <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>
                 {t("health", "Health")}: {Math.round(plantHealthOverall)}/100
@@ -510,7 +514,7 @@ export function CommandBar({
             className="h-8 px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
             title="Open NASA Space Apps Mission Brief"
           >
-            <Rocket className="size-3.5 text-cyan-400 animate-pulse shrink-0" />
+            <Rocket className="size-3.5 text-cyan-300 animate-pulse shrink-0" />
             <span className="hidden sm:inline">🚀 {t("brief", "Brief")}</span>
           </Button>
 
@@ -523,7 +527,7 @@ export function CommandBar({
               className="h-8 px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
               title="Start Interactive Guided Tour"
             >
-              <GraduationCap className="size-3.5 text-cyan-400 animate-pulse shrink-0" />
+              <GraduationCap className="size-3.5 text-cyan-300 animate-pulse shrink-0" />
               <span className="hidden sm:inline">🎓 {t("tour", "Tour")}</span>
             </Button>
           )}
@@ -554,15 +558,15 @@ export function CommandBar({
       <div
         ref={paramsDrawerRef}
         className={cn(
-          "transition-all duration-300 z-50 absolute top-14 left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-2xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
+          "transition-all duration-300 z-50 absolute top-14 left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
           isParamsDrawerOpen
             ? "opacity-100 scale-100 pointer-events-auto visible"
-            : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0"
+            : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0",
         )}
       >
         <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal className="size-4 text-cyan-400" />
+            <SlidersHorizontal className="size-4 text-cyan-300" />
             <span className="font-mono text-xs font-bold text-cyan-300 tracking-wider uppercase">
               Field Target & Simulation Parameters
             </span>
@@ -570,7 +574,7 @@ export function CommandBar({
           <button
             type="button"
             onClick={() => setIsParamsDrawerOpen(false)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white font-mono text-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20 text-foreground font-mono text-xs transition-colors cursor-pointer"
             title="Close Parameters Drawer"
           >
             <X className="size-3.5" /> {t("done", "Done")}
@@ -599,12 +603,12 @@ export function CommandBar({
             {accuracyBadge !== null && (
               <span
                 className={cn(
-                  "inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider shrink-0",
+                  "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-xs font-semibold tracking-wider shrink-0",
                   accuracyBadge.type === "pinned"
-                    ? "border-emerald-500/60 bg-emerald-500/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)]"
+                    ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-400 shadow-[0_0_10px_rgba(0,255,157,0.3)]"
                     : accuracyBadge.type === "high"
-                      ? "border-cyan-500/50 bg-cyan-500/15 text-cyan shadow-[0_0_10px_rgba(0,240,255,0.25)]"
-                      : "border-amber-500/50 bg-amber-500/15 text-amber shadow-[0_0_10px_rgba(255,183,0,0.25)]"
+                      ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_10px_rgba(0,240,255,0.25)]"
+                      : "border-amber-500/50 bg-amber-500/15 text-amber-400 shadow-[0_0_10px_rgba(255,183,0,0.25)]",
                 )}
                 title={
                   accuracyBadge.type === "pinned"
@@ -613,7 +617,7 @@ export function CommandBar({
                 }
               >
                 {accuracyBadge.type === "pinned" ? (
-                  <Check className="size-3 text-emerald" />
+                  <Check className="size-3 text-emerald-400" />
                 ) : (
                   <Navigation className="size-2.5" />
                 )}
@@ -623,7 +627,7 @@ export function CommandBar({
 
             {/* High-Precision GPS Trigger Button */}
             <Button
-              variant="hud"
+              variant="secondary"
               size="sm"
               onClick={locate}
               disabled={locating}
@@ -632,9 +636,9 @@ export function CommandBar({
               title="Acquire multi-sample high-precision GPS lock"
             >
               {locating ? (
-                <Loader2 className="size-3 animate-spin mr-1 text-cyan" />
+                <Loader2 className="size-3 animate-spin mr-1 text-cyan-300" />
               ) : (
-                <Crosshair className="size-3 mr-1 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
+                <Crosshair className="size-3 mr-1 text-cyan-300 drop-shadow-[0_0_6px_#00f0ff]" />
               )}
               GPS
             </Button>
@@ -644,9 +648,9 @@ export function CommandBar({
               <div className="relative flex items-center">
                 <span className="pointer-events-none absolute left-2 text-muted-foreground">
                   {searching ? (
-                    <Loader2 className="size-3.5 animate-spin text-cyan" />
+                    <Loader2 className="size-3.5 animate-spin text-cyan-300" />
                   ) : (
-                    <Search className="size-3.5 text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+                    <Search className="size-3.5 text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
                   )}
                 </span>
                 <Input
@@ -662,7 +666,7 @@ export function CommandBar({
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder="Search village, town, pincode..."
-                  className="h-7.5 w-full pl-7 pr-6 font-mono text-xs bg-card/90 text-foreground placeholder:text-muted-foreground/50 border-cyan/40 focus:border-cyan focus:ring-1 focus:ring-cyan shadow-[0_0_12px_rgba(0,240,255,0.15)] truncate"
+                  className="h-7.5 w-full pl-7 pr-6 font-mono text-xs bg-card/90 text-foreground placeholder:text-muted-foreground border-cyan/40 focus:border-cyan focus:ring-1 focus:ring-cyan shadow-[0_0_12px_rgba(0,240,255,0.15)] truncate"
                 />
                 {searchQuery && (
                   <button
@@ -672,7 +676,7 @@ export function CommandBar({
                       setSearchResults([]);
                       setDropdownOpen(false);
                     }}
-                    className="absolute right-2 text-muted-foreground hover:text-cyan"
+                    className="absolute right-2 text-muted-foreground hover:text-cyan-300"
                     title="Clear search"
                   >
                     <X className="size-3.5" />
@@ -683,11 +687,11 @@ export function CommandBar({
               {/* High-z-index Dark Aerospace HUD Dropdown Suggestions */}
               {dropdownOpen && searchResults.length > 0 && (
                 <div className="absolute left-0 top-full z-[1000] mt-1.5 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan/50 bg-[#060a14]/95 p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-                  <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider border-b border-border/40">
-                    <span className="flex items-center gap-1.5 text-cyan font-semibold">
-                      <Globe2 className="size-3 text-cyan" /> Dual Geocoder Target Locks
+                  <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-xs text-muted-foreground uppercase tracking-wider border-b border-border/40">
+                    <span className="flex items-center gap-1.5 text-cyan-300 font-semibold">
+                      <Globe2 className="size-3 text-cyan-300" /> Dual Geocoder Target Locks
                     </span>
-                    <span className="text-[9px] text-muted-foreground/70">Enter to lock</span>
+                    <span className="text-xs text-muted-foreground">Enter to lock</span>
                   </div>
                   <ul className="divide-y divide-border/25 mt-1">
                     {searchResults.map((place, idx) => {
@@ -704,21 +708,21 @@ export function CommandBar({
                           className={cn(
                             "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-all",
                             isHighlighted
-                              ? "bg-cyan/20 text-cyan border border-cyan/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]"
-                              : "hover:bg-card/70 border border-transparent"
+                              ? "bg-cyan/20 text-cyan-300 border border-cyan/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]"
+                              : "hover:bg-card/70 border border-transparent",
                           )}
                         >
-                          <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />
+                          <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan-300 drop-shadow-[0_0_6px_#00f0ff]" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-1">
                               <span className="font-semibold text-foreground truncate">
                                 {place.name}
                               </span>
-                              <span className="shrink-0 font-mono text-[10px] text-cyan font-bold">
+                              <span className="shrink-0 font-mono text-xs text-cyan-300 font-bold">
                                 [{place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°]
                               </span>
                             </div>
-                            <div className="font-mono text-[10px] text-muted-foreground truncate">
+                            <div className="font-mono text-xs text-muted-foreground truncate">
                               {place.subtitle}
                             </div>
                           </div>
@@ -744,7 +748,7 @@ export function CommandBar({
                 value={[borewellDepth]}
                 onValueChange={([v]) => v !== undefined && onDepth(v)}
               />
-              <span className="w-10 text-right font-mono text-xs font-bold tabular-nums text-cyan drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
+              <span className="w-10 text-right font-mono text-xs font-bold tabular-nums text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
                 {borewellDepth}m
               </span>
             </Field>
@@ -771,7 +775,7 @@ export function CommandBar({
             {/* Season Radios */}
             <Field label="Season" className="shrink-0 whitespace-nowrap">
               <div
-                className="flex rounded border border-border/50 bg-background/80 p-0.5"
+                className="flex rounded-md border border-border/50 bg-background/80 p-0.5"
                 role="radiogroup"
                 aria-label="Season"
               >
@@ -783,10 +787,10 @@ export function CommandBar({
                     aria-checked={season === s}
                     onClick={() => onSeason(s)}
                     className={cn(
-                      "rounded px-2 py-0.5 text-[10.5px] transition-all font-mono font-semibold cursor-pointer",
+                      "rounded-md px-2 py-0.5 text-xs transition-all font-mono font-semibold cursor-pointer",
                       season === s
-                        ? "bg-emerald/20 text-emerald shadow-[0_0_10px_rgba(0,255,157,0.3)] border border-emerald/50"
-                        : "text-muted-foreground hover:text-foreground border border-transparent"
+                        ? "bg-emerald/20 text-emerald-400 shadow-[0_0_10px_rgba(0,255,157,0.3)] border border-emerald/50"
+                        : "text-muted-foreground hover:text-foreground border border-transparent",
                     )}
                   >
                     {s}
@@ -803,8 +807,8 @@ export function CommandBar({
                   className={cn(
                     "h-7 w-28 bg-background/80 text-xs font-mono font-semibold truncate shrink-0",
                     alert
-                      ? "border-crimson/70 text-crimson shadow-[0_0_12px_rgba(255,46,86,0.35)]"
-                      : "border-border/60"
+                      ? "border-crimson/70 text-rose-400 shadow-[0_0_12px_rgba(255,46,86,0.35)]"
+                      : "border-border/60",
                   )}
                 >
                   <SelectValue />

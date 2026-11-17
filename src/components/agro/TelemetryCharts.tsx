@@ -21,7 +21,7 @@ import { CloudSun, Droplets, Leaf, Sprout } from "lucide-react";
 import { HudCard } from "@/components/agro/hud";
 import type { AgroTelemetry } from "@/types/agroSpace";
 
-const tick = { fill: "oklch(0.68 0.035 235)", fontSize: 10, fontFamily: "var(--font-mono)" };
+const tick = { fill: "oklch(0.68 0.035 235)", fontSize: 12, fontFamily: "var(--font-mono)" };
 const tooltipProps = {
   contentStyle: {
     background: "oklch(0.12 0.025 260 / 0.95)",
@@ -30,7 +30,7 @@ const tooltipProps = {
     boxShadow: "0 0 20px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 240, 255, 0.2)",
     backdropFilter: "blur(12px)",
     fontFamily: "var(--font-mono)",
-    fontSize: 11,
+    fontSize: 12,
     color: "oklch(0.96 0.012 210)",
     padding: "8px 12px",
   },
@@ -38,7 +38,7 @@ const tooltipProps = {
   cursor: { stroke: "var(--cyan)", strokeOpacity: 0.4, fill: "var(--cyan)", fillOpacity: 0.08 },
 };
 const legendProps = {
-  wrapperStyle: { fontSize: 10, fontFamily: "var(--font-mono)", paddingTop: 8 },
+  wrapperStyle: { fontSize: 12, fontFamily: "var(--font-mono)", paddingTop: 8 },
   iconSize: 8,
 };
 const grid = (
@@ -112,9 +112,9 @@ export function SoilMoistureChart({ data, depth }: { data: AgroTelemetry["soil"]
       icon={<Droplets />}
       className="border-cyan/35 shadow-[0_0_25px_rgba(0,0,0,0.5)]"
       right={
-        <div className="rounded border border-cyan/30 bg-cyan/10 px-2 py-1 text-right font-mono text-[10px] leading-tight shadow-[0_0_8px_rgba(0,240,255,0.2)]">
-          <div className="font-bold text-cyan">BOREWELL {depth} m</div>
-          <div className="text-muted-foreground/80">aquifer reach {access}%</div>
+        <div className="rounded-md border border-cyan/30 bg-cyan/10 px-2 py-1 text-right font-mono text-xs leading-tight shadow-[0_0_8px_rgba(0,240,255,0.2)]">
+          <div className="font-bold text-cyan-300">BOREWELL {depth} m</div>
+          <div className="text-muted-foreground">aquifer reach {access}%</div>
         </div>
       }
     >
@@ -196,9 +196,9 @@ export function PlantHealthRadar({
       icon={<Leaf />}
       className="border-cyan/35 shadow-[0_0_25px_rgba(0,0,0,0.5)]"
       right={
-        <div className="font-mono text-3xl font-extrabold tabular-nums text-emerald drop-shadow-[0_0_8px_#00ff9d]">
+        <div className="font-mono text-3xl font-extrabold tabular-nums text-emerald-400 drop-shadow-[0_0_8px_#00ff9d]">
           {health.overall}
-          <span className="text-xs font-normal text-muted-foreground/80">/100</span>
+          <span className="text-xs font-normal text-muted-foreground">/100</span>
         </div>
       }
     >
@@ -208,7 +208,7 @@ export function PlantHealthRadar({
             <PolarGrid stroke="oklch(0.79 0.17 210 / 0.18)" />
             <PolarAngleAxis
               dataKey="label"
-              tick={{ ...tick, fill: "oklch(0.92 0.015 220)", fontSize: 11 }}
+              tick={{ ...tick, fill: "oklch(0.92 0.015 220)", fontSize: 12 }}
             />
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
             <Tooltip {...tooltipProps} />

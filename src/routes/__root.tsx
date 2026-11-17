@@ -95,7 +95,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:site_name", content: "AgroSpace Nexus" },
       { property: "og:image", content: `${import.meta.env.BASE_URL}satellite.svg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "AgroSpace Nexus — NASA Orbital Agricultural Intelligence" },
+      {
+        name: "twitter:title",
+        content: "AgroSpace Nexus — NASA Orbital Agricultural Intelligence",
+      },
       {
         name: "twitter:description",
         content:
@@ -113,7 +116,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap",
       },
       {
         rel: "stylesheet",
@@ -163,7 +166,10 @@ function RootComponent() {
       window.location.reload();
     };
     window.addEventListener("vite:preloadError", onPreloadError);
-    const clearFlag = window.setTimeout(() => sessionStorage.removeItem("agrospace:chunk-reload"), 10000);
+    const clearFlag = window.setTimeout(
+      () => sessionStorage.removeItem("agrospace:chunk-reload"),
+      10000,
+    );
     return () => {
       window.removeEventListener("vite:preloadError", onPreloadError);
       window.clearTimeout(clearFlag);
@@ -172,7 +178,11 @@ function RootComponent() {
 
   // Register PWA Service Worker in production
   useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator && !window.location.hostname.includes("localhost")) {
+    if (
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator &&
+      !window.location.hostname.includes("localhost")
+    ) {
       navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
         // Silently ignore registration error on unsupported hosts
       });

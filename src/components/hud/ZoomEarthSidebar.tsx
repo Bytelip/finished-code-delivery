@@ -56,7 +56,7 @@ export function ZoomEarthSidebar({
     return (
       <div
         className={cn(
-          "absolute left-3 top-16 md:top-14 z-40 flex items-center gap-1.5 rounded-full bg-[#181C24]/90 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-white shadow-2xl transition-all duration-200 cursor-pointer hover:bg-[#181C24]",
+          "absolute left-3 top-16 md:top-14 z-40 flex items-center gap-1.5 rounded-full bg-[#181C24]/90 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-foreground shadow-2xl transition-all duration-200 cursor-pointer hover:bg-[#181C24]",
           className,
         )}
         onClick={() => setIsCollapsed(false)}
@@ -70,12 +70,12 @@ export function ZoomEarthSidebar({
             e.stopPropagation();
             onOpenInfoModal(activeLayer);
           }}
-          className="p-0.5 rounded-full hover:bg-white/20 text-slate-300 hover:text-white"
+          className="p-0.5 rounded-full hover:bg-white/20 text-foreground hover:text-foreground"
           title="Layer Information"
         >
-          <Info className="size-3 text-cyan-400" />
+          <Info className="size-3 text-cyan-300" />
         </button>
-        <ChevronDown className="size-3.5 text-slate-400" />
+        <ChevronDown className="size-3.5 text-muted-foreground" />
       </div>
     );
   }
@@ -84,28 +84,28 @@ export function ZoomEarthSidebar({
     <div
       data-hud-overlay="zoom-earth-sidebar"
       className={cn(
-        "absolute left-3 top-16 md:top-14 z-40 w-56 rounded-2xl bg-[#181C24]/92 backdrop-blur-2xl border border-white/12 shadow-[0_8px_32px_rgba(0,0,0,0.65)] p-2.5 text-white select-none transition-all duration-300 max-h-[82vh] overflow-y-auto scrollbar-thin scrollbar-thumb-white/20",
+        "absolute left-3 top-16 md:top-14 z-40 w-56 rounded-xl bg-[#181C24]/92 backdrop-blur-2xl border border-white/12 shadow-[0_8px_32px_rgba(0,0,0,0.65)] p-2.5 text-foreground select-none transition-all duration-300 max-h-[82vh] overflow-y-auto scrollbar-thin scrollbar-thumb-white/20",
         className,
       )}
     >
       {/* Dashbar Header */}
-      <div className="flex items-center justify-between px-1.5 pb-2 border-b border-white/10 text-xs font-mono font-bold tracking-wider text-slate-300">
-        <span className="flex items-center gap-1.5 uppercase text-[11px] text-cyan-400">
-          <Sparkles className="size-3 text-cyan-400" /> MAP LAYERS
+      <div className="flex items-center justify-between px-1.5 pb-2 border-b border-white/10 text-xs font-mono font-bold tracking-wider text-foreground">
+        <span className="flex items-center gap-1.5 uppercase text-xs text-cyan-300">
+          <Sparkles className="size-3 text-cyan-300" /> MAP LAYERS
         </span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => onOpenInfoModal(activeLayer)}
-            className="p-1 rounded-lg hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/15 text-foreground hover:text-foreground transition-colors"
             title="Layer Scientific Description"
           >
-            <Info className="size-3.5 text-cyan-400" />
+            <Info className="size-3.5 text-cyan-300" />
           </button>
           <button
             type="button"
             onClick={() => setIsCollapsed(true)}
-            className="p-1 rounded-lg hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/15 text-foreground hover:text-foreground transition-colors"
             title="Collapse Dashbar"
           >
             <ChevronUp className="size-3.5" />
@@ -115,7 +115,7 @@ export function ZoomEarthSidebar({
 
       {/* SECTION 1: LIVE MAPS */}
       <div className="mt-2">
-        <div className="px-1.5 text-[9px] font-mono uppercase tracking-widest text-slate-400 mb-1">
+        <div className="px-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
           Live Maps
         </div>
         <div className="space-y-1">
@@ -126,16 +126,14 @@ export function ZoomEarthSidebar({
             className={cn(
               "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
               activeLayer === "satellite"
-                ? "bg-white/15 border border-white/30 text-white font-semibold shadow-inner"
-                : "text-slate-300 hover:bg-white/5 hover:text-white",
+                ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
+                : "text-foreground hover:bg-white/5 hover:text-foreground",
             )}
           >
             <span className="flex items-center gap-2">
-              <Satellite className="size-3.5 text-cyan-400" /> Satellite
+              <Satellite className="size-3.5 text-cyan-300" /> Satellite
             </span>
-            {activeLayer === "satellite" && (
-              <span className="text-[10px] text-cyan-400">● LIVE</span>
-            )}
+            {activeLayer === "satellite" && <span className="text-xs text-cyan-300">● LIVE</span>}
           </button>
 
           {/* Radar */}
@@ -145,23 +143,21 @@ export function ZoomEarthSidebar({
             className={cn(
               "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
               activeLayer === "radar"
-                ? "bg-white/15 border border-white/30 text-white font-semibold shadow-inner"
-                : "text-slate-300 hover:bg-white/5 hover:text-white",
+                ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
+                : "text-foreground hover:bg-white/5 hover:text-foreground",
             )}
           >
             <span className="flex items-center gap-2">
               <Radio className="size-3.5 text-emerald-400" /> Radar
             </span>
-            {activeLayer === "radar" && (
-              <span className="text-[10px] text-emerald-400">● LIVE</span>
-            )}
+            {activeLayer === "radar" && <span className="text-xs text-emerald-400">● LIVE</span>}
           </button>
         </div>
       </div>
 
       {/* SECTION 2: FORECAST & ATMOSPHERIC MAPS */}
       <div className="mt-3">
-        <div className="px-1.5 text-[9px] font-mono uppercase tracking-widest text-slate-400 mb-1">
+        <div className="px-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
           Forecast & Atmospheric
         </div>
         <div className="space-y-1">
@@ -172,12 +168,12 @@ export function ZoomEarthSidebar({
             className={cn(
               "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
               activeLayer === "precipitation"
-                ? "bg-white/15 border border-white/30 text-white font-semibold shadow-inner"
-                : "text-slate-300 hover:bg-white/5 hover:text-white",
+                ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
+                : "text-foreground hover:bg-white/5 hover:text-foreground",
             )}
           >
             <span className="flex items-center gap-2">
-              <CloudRain className="size-3.5 text-sky-400" /> Precipitation
+              <CloudRain className="size-3.5 text-cyan-300" /> Precipitation
             </span>
           </button>
 
@@ -189,14 +185,14 @@ export function ZoomEarthSidebar({
               className={cn(
                 "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
                 activeLayer === "wind"
-                  ? "bg-white/15 border border-white/30 text-white font-semibold shadow-inner"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white",
+                  ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
+                  : "text-foreground hover:bg-white/5 hover:text-foreground",
               )}
             >
               <span className="flex items-center gap-2">
-                <Wind className="size-3.5 text-teal-400" /> Wind
+                <Wind className="size-3.5 text-emerald-400" /> Wind
               </span>
-              <span className="text-[10px] opacity-60 font-mono">Streamlines</span>
+              <span className="text-xs opacity-60 font-mono">Streamlines</span>
             </button>
             {activeLayer === "wind" && (
               <div className="pl-6 pr-2 py-1 space-y-0.5 bg-black/25 border-l-2 border-teal-400 my-1 ml-3 rounded-r-lg animate-in fade-in duration-200">
@@ -204,27 +200,27 @@ export function ZoomEarthSidebar({
                   type="button"
                   onClick={() => onSubLayerChange("wind_speed")}
                   className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded text-[11px] font-sans transition-colors",
+                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
                     activeSubLayer === "wind_speed"
-                      ? "text-teal-300 font-semibold"
-                      : "text-slate-400 hover:text-slate-200",
+                      ? "text-emerald-400 font-semibold"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span>Wind Speed</span>
-                  {activeSubLayer === "wind_speed" && <Check className="size-3 text-teal-400" />}
+                  {activeSubLayer === "wind_speed" && <Check className="size-3 text-emerald-400" />}
                 </button>
                 <button
                   type="button"
                   onClick={() => onSubLayerChange("wind_gusts")}
                   className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded text-[11px] font-sans transition-colors",
+                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
                     activeSubLayer === "wind_gusts"
-                      ? "text-teal-300 font-semibold"
-                      : "text-slate-400 hover:text-slate-200",
+                      ? "text-emerald-400 font-semibold"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span>Wind Gusts</span>
-                  {activeSubLayer === "wind_gusts" && <Check className="size-3 text-teal-400" />}
+                  {activeSubLayer === "wind_gusts" && <Check className="size-3 text-emerald-400" />}
                 </button>
               </div>
             )}
@@ -238,14 +234,14 @@ export function ZoomEarthSidebar({
               className={cn(
                 "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
                 activeLayer === "temperature"
-                  ? "bg-white/15 border border-white/30 text-white font-semibold shadow-inner"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white",
+                  ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
+                  : "text-foreground hover:bg-white/5 hover:text-foreground",
               )}
             >
               <span className="flex items-center gap-2">
                 <Thermometer className="size-3.5 text-amber-400" /> Temperature
               </span>
-              <span className="text-[10px] opacity-60 font-mono">°C</span>
+              <span className="text-xs opacity-60 font-mono">°C</span>
             </button>
             {activeLayer === "temperature" && (
               <div className="pl-6 pr-2 py-1 space-y-0.5 bg-black/25 border-l-2 border-amber-400 my-1 ml-3 rounded-r-lg animate-in fade-in duration-200">
@@ -253,10 +249,10 @@ export function ZoomEarthSidebar({
                   type="button"
                   onClick={() => onSubLayerChange("temp_actual")}
                   className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded text-[11px] font-sans transition-colors",
+                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
                     activeSubLayer === "temp_actual"
-                      ? "text-amber-300 font-semibold"
-                      : "text-slate-400 hover:text-slate-200",
+                      ? "text-amber-400 font-semibold"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span>Actual</span>
@@ -266,10 +262,10 @@ export function ZoomEarthSidebar({
                   type="button"
                   onClick={() => onSubLayerChange("temp_feels")}
                   className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded text-[11px] font-sans transition-colors",
+                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
                     activeSubLayer === "temp_feels"
-                      ? "text-amber-300 font-semibold"
-                      : "text-slate-400 hover:text-slate-200",
+                      ? "text-amber-400 font-semibold"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span>Feels Like</span>
@@ -287,14 +283,14 @@ export function ZoomEarthSidebar({
               className={cn(
                 "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
                 activeLayer === "humidity"
-                  ? "bg-white/15 border border-white/30 text-white font-semibold shadow-inner"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white",
+                  ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
+                  : "text-foreground hover:bg-white/5 hover:text-foreground",
               )}
             >
               <span className="flex items-center gap-2">
-                <Droplets className="size-3.5 text-blue-400" /> Humidity
+                <Droplets className="size-3.5 text-cyan-300" /> Humidity
               </span>
-              <span className="text-[10px] opacity-60 font-mono">%</span>
+              <span className="text-xs opacity-60 font-mono">%</span>
             </button>
             {activeLayer === "humidity" && (
               <div className="pl-6 pr-2 py-1 space-y-0.5 bg-black/25 border-l-2 border-blue-400 my-1 ml-3 rounded-r-lg animate-in fade-in duration-200">
@@ -302,40 +298,40 @@ export function ZoomEarthSidebar({
                   type="button"
                   onClick={() => onSubLayerChange("hum_relative")}
                   className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded text-[11px] font-sans transition-colors",
+                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
                     activeSubLayer === "hum_relative"
-                      ? "text-blue-300 font-semibold"
-                      : "text-slate-400 hover:text-slate-200",
+                      ? "text-cyan-300 font-semibold"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span>Relative</span>
-                  {activeSubLayer === "hum_relative" && <Check className="size-3 text-blue-400" />}
+                  {activeSubLayer === "hum_relative" && <Check className="size-3 text-cyan-300" />}
                 </button>
                 <button
                   type="button"
                   onClick={() => onSubLayerChange("hum_dewpoint")}
                   className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded text-[11px] font-sans transition-colors",
+                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
                     activeSubLayer === "hum_dewpoint"
-                      ? "text-blue-300 font-semibold"
-                      : "text-slate-400 hover:text-slate-200",
+                      ? "text-cyan-300 font-semibold"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span>Dew Point</span>
-                  {activeSubLayer === "hum_dewpoint" && <Check className="size-3 text-blue-400" />}
+                  {activeSubLayer === "hum_dewpoint" && <Check className="size-3 text-cyan-300" />}
                 </button>
                 <button
                   type="button"
                   onClick={() => onSubLayerChange("hum_wetbulb")}
                   className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded text-[11px] font-sans transition-colors",
+                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
                     activeSubLayer === "hum_wetbulb"
-                      ? "text-blue-300 font-semibold"
-                      : "text-slate-400 hover:text-slate-200",
+                      ? "text-cyan-300 font-semibold"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span>Wet-Bulb</span>
-                  {activeSubLayer === "hum_wetbulb" && <Check className="size-3 text-blue-400" />}
+                  {activeSubLayer === "hum_wetbulb" && <Check className="size-3 text-cyan-300" />}
                 </button>
               </div>
             )}
@@ -348,14 +344,14 @@ export function ZoomEarthSidebar({
             className={cn(
               "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
               activeLayer === "pressure"
-                ? "bg-white/15 border border-white/30 text-white font-semibold shadow-inner"
-                : "text-slate-300 hover:bg-white/5 hover:text-white",
+                ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
+                : "text-foreground hover:bg-white/5 hover:text-foreground",
             )}
           >
             <span className="flex items-center gap-2">
-              <Gauge className="size-3.5 text-purple-400" /> Pressure
+              <Gauge className="size-3.5 text-cyan-300" /> Pressure
             </span>
-            <span className="text-[10px] opacity-60 font-mono">MSLP</span>
+            <span className="text-xs opacity-60 font-mono">MSLP</span>
           </button>
         </div>
       </div>
@@ -365,7 +361,7 @@ export function ZoomEarthSidebar({
         <button
           type="button"
           onClick={() => setIsNasaSectionOpen(!isNasaSectionOpen)}
-          className="w-full flex items-center justify-between px-1.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-300 hover:text-white rounded-lg hover:bg-white/5"
+          className="w-full flex items-center justify-between px-1.5 py-1 text-xs font-mono uppercase tracking-wider text-foreground hover:text-foreground rounded-lg hover:bg-white/5"
         >
           <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
             <Sprout className="size-3" /> NASA AGRO ({MAP_LAYERS.length})
@@ -388,10 +384,10 @@ export function ZoomEarthSidebar({
                   type="button"
                   onClick={() => handleSelectParent(layer)}
                   className={cn(
-                    "w-full flex items-center justify-between px-2 py-1 rounded-lg text-[11px] font-sans transition-colors",
+                    "w-full flex items-center justify-between px-2 py-1 rounded-lg text-xs font-sans transition-colors",
                     isSelected
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-semibold"
-                      : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-400/40 font-semibold"
+                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
                   )}
                 >
                   <span className="flex items-center gap-1.5 truncate">

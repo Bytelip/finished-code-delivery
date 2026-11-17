@@ -298,16 +298,16 @@ export function MapLayerSwitcher({
           "group flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-mono font-semibold transition-all duration-300 shadow-2xl backdrop-blur-xl cursor-pointer",
           isOpen
             ? "border-cyan-400 bg-[#090D18]/95 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.35)]"
-            : "border-cyan-500/40 bg-[#080D1A]/90 text-slate-300 hover:border-cyan-400 hover:text-cyan-200 hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]",
+            : "border-cyan-500/40 bg-[#080D1A]/90 text-foreground hover:border-cyan-400 hover:text-cyan-300 hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]",
         )}
         title="Change Basemap & Terrain Layers"
       >
-        <div className="relative flex size-6 shrink-0 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 group-hover:scale-105 transition-transform">
+        <div className="relative flex size-6 shrink-0 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 group-hover:scale-105 transition-transform">
           <Layers className="size-3.5" />
           <span className="absolute -top-1 -right-1 size-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
         </div>
         <div className="flex flex-col text-left">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-cyan-400 transition-colors">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-cyan-300 transition-colors">
             Basemap
           </span>
           <span className="text-xs font-bold text-foreground truncate max-w-28 flex items-center gap-1">
@@ -325,24 +325,24 @@ export function MapLayerSwitcher({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ type: "spring", bounce: 0.2, duration: 0.25 }}
-            className="absolute left-0 bottom-12 mb-1 w-56 max-h-[440px] overflow-y-auto rounded-2xl bg-[#141821]/92 backdrop-blur-2xl border border-white/15 shadow-2xl p-2 select-none scrollbar-thin text-white"
+            className="absolute left-0 bottom-12 mb-1 w-56 max-h-[440px] overflow-y-auto rounded-xl bg-[#141821]/92 backdrop-blur-2xl border border-white/15 shadow-2xl p-2 select-none scrollbar-thin text-foreground"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2 px-1">
               <div className="flex items-center gap-1.5">
-                <Sparkles className="size-3 text-cyan-400" />
-                <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-cyan-300">
+                <Sparkles className="size-3 text-cyan-300" />
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-cyan-300">
                   Maps & Weather
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="rounded bg-cyan-500/15 border border-cyan-400/30 px-1.5 py-0.2 font-mono text-[8.5px] font-bold text-cyan uppercase">
+                <span className="rounded-md bg-cyan-500/15 border border-cyan-400/30 px-1.5 py-0.2 font-mono text-xs font-bold text-cyan-300 uppercase">
                   {viewMode === "3d" ? "3D" : "2D"}
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                  className="rounded-lg p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors cursor-pointer"
                   aria-label="Close basemap menu"
                 >
                   <X className="size-3" />
@@ -352,7 +352,7 @@ export function MapLayerSwitcher({
 
             {/* SECTION 1: LIVE MAPS */}
             <div className="mb-2">
-              <div className="px-1 text-[8.5px] font-mono uppercase tracking-widest text-slate-400 mb-1 flex items-center justify-between">
+              <div className="px-1 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1 flex items-center justify-between">
                 <span>Live Maps</span>
                 <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
               </div>
@@ -361,7 +361,7 @@ export function MapLayerSwitcher({
 
             {/* SECTION 2: ATMOSPHERIC & FORECAST BASEMAPS */}
             <div className="mb-2 pt-1 border-t border-white/10">
-              <div className="px-1 text-[8.5px] font-mono uppercase tracking-widest text-slate-400 mb-1">
+              <div className="px-1 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
                 Forecast & Atmosphere
               </div>
               <div className="space-y-1">{atmosphericMaps.map((opt) => renderOptionItem(opt))}</div>
@@ -369,33 +369,33 @@ export function MapLayerSwitcher({
 
             {/* SECTION 3: TERRAIN & VECTOR */}
             <div className="mb-2 pt-1 border-t border-white/10">
-              <div className="px-1 text-[8.5px] font-mono uppercase tracking-widest text-slate-400 mb-1">
+              <div className="px-1 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
                 Terrain & Vector
               </div>
               <div className="space-y-1">{terrainMaps.map((opt) => renderOptionItem(opt))}</div>
             </div>
 
             {/* ---------------- 3. TOGGLE CHECKBOXES ---------------- */}
-            <div className="pt-2 border-t border-white/10 flex flex-col gap-1.5 font-mono text-[10px] px-1">
+            <div className="pt-2 border-t border-white/10 flex flex-col gap-1.5 font-mono text-xs px-1">
               {/* Show Labels Toggle */}
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-cyan-200 transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer text-foreground hover:text-cyan-300 transition-colors">
                 <input
                   type="checkbox"
                   checked={showLabels}
                   onChange={(e) => onToggleLabels?.(e.target.checked)}
-                  className="size-3 rounded border-white/20 bg-slate-900 accent-cyan cursor-pointer"
+                  className="size-3 rounded-md border-white/20 bg-slate-900 accent-cyan cursor-pointer"
                 />
-                <Eye className="size-3 text-cyan-400" />
+                <Eye className="size-3 text-cyan-300" />
                 <span>Place Labels & Borders</span>
               </label>
 
               {/* 3D Terrain Elevation Mesh Toggle */}
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-emerald-200 transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer text-foreground hover:text-emerald-400 transition-colors">
                 <input
                   type="checkbox"
                   checked={enable3dTerrain}
                   onChange={(e) => onToggle3dTerrain?.(e.target.checked)}
-                  className="size-3 rounded border-white/20 bg-slate-900 accent-emerald cursor-pointer"
+                  className="size-3 rounded-md border-white/20 bg-slate-900 accent-emerald cursor-pointer"
                 />
                 <Box className="size-3 text-emerald-400" />
                 <span>3D Terrain Relief Mesh</span>
@@ -420,8 +420,8 @@ export function MapLayerSwitcher({
           className={cn(
             "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-mono transition-all duration-150 cursor-pointer text-left",
             isSelected
-              ? "bg-white/15 border border-white/35 text-white font-semibold shadow-inner"
-              : "text-slate-300 hover:bg-white/5 hover:text-white border border-transparent",
+              ? "bg-white/15 border border-white/35 text-foreground font-semibold shadow-inner"
+              : "text-foreground hover:bg-white/5 hover:text-foreground border border-transparent",
           )}
         >
           <div className="flex items-center gap-2 truncate">
@@ -436,7 +436,7 @@ export function MapLayerSwitcher({
                   e.stopPropagation();
                   onOpenInfoModal(opt.id);
                 }}
-                className="p-0.5 rounded hover:bg-white/20 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                className="p-0.5 rounded-md hover:bg-white/20 text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
                 title="Layer info"
               >
                 <Info className="size-3" />
@@ -444,12 +444,12 @@ export function MapLayerSwitcher({
             )}
             {hasSub ? (
               isExpanded ? (
-                <ChevronUp className="size-3 text-slate-400" />
+                <ChevronUp className="size-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="size-3 text-slate-400" />
+                <ChevronDown className="size-3 text-muted-foreground" />
               )
             ) : isSelected ? (
-              <Check className="size-3 text-cyan-400 stroke-[3]" />
+              <Check className="size-3 text-cyan-300 stroke-[3]" />
             ) : null}
           </div>
         </button>
@@ -472,16 +472,16 @@ export function MapLayerSwitcher({
                     onSubOptionChange?.(sub.id);
                   }}
                   className={cn(
-                    "w-full flex items-center justify-between px-2 py-1 rounded text-[11px] font-mono transition-all text-left cursor-pointer",
+                    "w-full flex items-center justify-between px-2 py-1 rounded-md text-xs font-mono transition-all text-left cursor-pointer",
                     isSubSelected
                       ? "text-cyan-300 font-bold bg-white/10"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/5",
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5",
                   )}
                   title={sub.description}
                 >
                   <span className="flex items-center gap-1.5 truncate">
                     {isSubSelected ? (
-                      <Check className="size-2.5 text-cyan-400 stroke-[3]" />
+                      <Check className="size-2.5 text-cyan-300 stroke-[3]" />
                     ) : (
                       <span className="size-2.5 inline-block" />
                     )}

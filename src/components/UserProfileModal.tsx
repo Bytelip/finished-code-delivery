@@ -81,9 +81,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [homeLat, setHomeLat] = useState(savedPrefs.homeCoords.lat);
   const [homeLon, setHomeLon] = useState(savedPrefs.homeCoords.lon);
   const [defaultViewMode, setDefaultViewMode] = useState(savedPrefs.defaultViewMode);
-  const [defaultActiveLayer, setDefaultActiveLayer] = useState(
-    savedPrefs.defaultActiveLayer,
-  );
+  const [defaultActiveLayer, setDefaultActiveLayer] = useState(savedPrefs.defaultActiveLayer);
   const [units, setUnits] = useState(savedPrefs.units);
 
   // Notification States
@@ -142,7 +140,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#070c18]/95 text-white shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(6,182,212,0.2)] backdrop-blur-2xl">
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-cyan-500/30 bg-[#070c18]/95 text-foreground shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(6,182,212,0.2)] backdrop-blur-2xl">
         {/* Glowing Top Frame Accent */}
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-blue-500" />
 
@@ -150,7 +148,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4.5">
           <div className="flex items-center gap-3">
             <div
-              className="flex size-11 items-center justify-center rounded-xl font-mono text-lg font-black text-slate-950 shadow-md"
+              className="flex size-11 items-center justify-center rounded-xl font-mono text-lg font-black text-muted-foreground shadow-md"
               style={{
                 background: `linear-gradient(135deg, ${avatarColor}, #ffffff)`,
                 boxShadow: `0 0 16px ${avatarColor}66`,
@@ -160,15 +158,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold tracking-tight text-white">{fullName}</h2>
-                <span className="rounded bg-emerald-500/15 border border-emerald-500/40 px-2 py-0.5 font-mono text-[9px] font-bold text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
+                <h2 className="text-lg font-bold tracking-tight text-foreground">{fullName}</h2>
+                <span className="rounded-md bg-emerald-500/15 border border-emerald-500/40 px-2 py-0.5 font-mono text-xs font-bold text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
                   {role}
                 </span>
-                <span className="flex items-center gap-1 rounded bg-cyan-500/15 border border-cyan-500/40 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan-300">
-                  <ShieldCheck className="size-3 text-cyan-400" /> GMAIL VERIFIED
+                <span className="flex items-center gap-1 rounded-md bg-cyan-500/15 border border-cyan-500/40 px-2 py-0.5 font-mono text-xs font-bold text-cyan-300">
+                  <ShieldCheck className="size-3 text-cyan-300" /> GMAIL VERIFIED
                 </span>
               </div>
-              <p className="font-mono text-xs text-slate-400 mt-0.5">{profile.email}</p>
+              <p className="font-mono text-xs text-muted-foreground mt-0.5">{profile.email}</p>
             </div>
           </div>
 
@@ -176,7 +174,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close Profile Settings"
-            className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors cursor-pointer"
           >
             <X className="size-5" />
           </button>
@@ -190,7 +188,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "profile"
                 ? "border-cyan-400 text-cyan-300 bg-cyan-500/10"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             <User className="size-3.5" />
@@ -203,7 +201,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "mission"
                 ? "border-cyan-400 text-cyan-300 bg-cyan-500/10"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             <Compass className="size-3.5" />
@@ -216,7 +214,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "notifications"
                 ? "border-cyan-400 text-cyan-300 bg-cyan-500/10"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             <Bell className="size-3.5" />
@@ -229,7 +227,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "security"
                 ? "border-cyan-400 text-cyan-300 bg-cyan-500/10"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             <Key className="size-3.5" />
@@ -245,7 +243,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Operator Full Name
                     </label>
                     <input
@@ -253,12 +251,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-white focus:border-cyan-400 focus:bg-white/[0.08] focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                      className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:bg-white/[0.08] focus:outline-none focus:ring-1 focus:ring-cyan-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Callsign / Title
                     </label>
                     <input
@@ -266,20 +264,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       value={callsign}
                       onChange={(e) => setCallsign(e.target.value)}
                       placeholder="e.g. Orbital Commander"
-                      className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-white focus:border-cyan-400 focus:bg-white/[0.08] focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                      className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:bg-white/[0.08] focus:outline-none focus:ring-1 focus:ring-cyan-400"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Operational Role Clearance
                     </label>
                     <select
                       value={role}
                       onChange={(e) => setRole(e.target.value as OperatorRole)}
-                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3.5 py-2.5 font-mono text-sm text-white focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                     >
                       <option value="COMMANDER">COMMANDER (Full Flight Clearance)</option>
                       <option value="OPERATOR">OPERATOR (Telemetry & Drone Fleet)</option>
@@ -289,20 +287,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Authentication Provider
                     </label>
-                    <div className="flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.03] px-3.5 py-2.5 font-mono text-sm text-slate-200">
+                    <div className="flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.03] px-3.5 py-2.5 font-mono text-sm text-foreground">
                       <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
                       <span>{profile.provider}</span>
-                      <span className="ml-auto text-[10px] text-emerald-400 font-bold">ACTIVE</span>
+                      <span className="ml-auto text-xs text-emerald-400 font-bold">ACTIVE</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Avatar Color Theme */}
                 <div>
-                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                     Operator HUD Aura Color
                   </label>
                   <div className="flex items-center gap-3">
@@ -321,7 +319,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                           style={{ backgroundColor: col.hex }}
                           title={col.name}
                         >
-                          {isSelected && <Check className="size-4 text-slate-950 font-black" />}
+                          {isSelected && (
+                            <Check className="size-4 text-muted-foreground font-black" />
+                          )}
                         </button>
                       );
                     })}
@@ -335,7 +335,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Default Home Base Name
                     </label>
                     {onNavigateHome && (
@@ -348,7 +348,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                           });
                           onClose();
                         }}
-                        className="flex items-center gap-1 font-mono text-[11px] text-cyan-400 hover:text-cyan-200 cursor-pointer"
+                        className="flex items-center gap-1 font-mono text-xs text-cyan-300 hover:text-cyan-300 cursor-pointer"
                       >
                         <MapPin className="size-3" /> Fly to Base
                       </button>
@@ -359,13 +359,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     value={homeBaseName}
                     onChange={(e) => setHomeBaseName(e.target.value)}
                     placeholder="e.g. Kolar Plateau, Karnataka"
-                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-white focus:border-cyan-400 focus:bg-white/[0.08] focus:outline-none"
+                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:bg-white/[0.08] focus:outline-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Base Latitude
                     </label>
                     <input
@@ -373,12 +373,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       step="0.0001"
                       value={homeLat}
                       onChange={(e) => setHomeLat(parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-white focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Base Longitude
                     </label>
                     <input
@@ -386,7 +386,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       step="0.0001"
                       value={homeLon}
                       onChange={(e) => setHomeLon(parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-white focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -396,7 +396,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   onClick={handleUseCurrentCoords}
                   className="flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3.5 py-2 font-mono text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-colors cursor-pointer"
                 >
-                  <MapPin className="size-3.5 text-cyan-400" />
+                  <MapPin className="size-3.5 text-cyan-300" />
                   <span>
                     Lock Current GPS Position as Home Base [{currentLat.toFixed(4)}°,{" "}
                     {currentLon.toFixed(4)}°]
@@ -405,13 +405,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Default View Mode
                     </label>
                     <select
                       value={defaultViewMode}
                       onChange={(e) => setDefaultViewMode(e.target.value as "3d" | "2d")}
-                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-white focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-foreground focus:border-cyan-400 focus:outline-none"
                     >
                       <option value="3d">3D Orbital Globe</option>
                       <option value="2d">2D Satellite Map</option>
@@ -419,13 +419,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Default NASA Layer
                     </label>
                     <select
                       value={defaultActiveLayer}
                       onChange={(e) => setDefaultActiveLayer(e.target.value)}
-                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-white focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-foreground focus:border-cyan-400 focus:outline-none"
                     >
                       {MAP_LAYERS.map((layer) => (
                         <option key={layer} value={layer}>
@@ -436,13 +436,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Telemetry Units
                     </label>
                     <select
                       value={units}
                       onChange={(e) => setUnits(e.target.value as "metric" | "imperial")}
-                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-white focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-foreground focus:border-cyan-400 focus:outline-none"
                     >
                       <option value="metric">Metric (°C / km / mm)</option>
                       <option value="imperial">Imperial (°F / mi / in)</option>
@@ -460,7 +460,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {/* ---------------- TAB 3: HAZARD ALERTS & NOTIFICATIONS ---------------- */}
             {activeTab === "notifications" && (
               <div className="space-y-3">
-                <p className="text-xs text-slate-400 mb-2">
+                <p className="text-xs text-muted-foreground mb-2">
                   Configure orbital telemetry alert broadcasts and threshold monitoring.
                 </p>
 
@@ -470,7 +470,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <div className="font-mono text-xs font-semibold text-rose-400 flex items-center gap-1.5">
                       <span>🌀</span> Severe Cyclone Track Alerts
                     </div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-xs text-muted-foreground">
                       Notify immediately when an active EONET tropical storm vector is within 300
                       km.
                     </div>
@@ -489,7 +489,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <div className="font-mono text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
                       <span>⚡</span> USGS Seismic Epicenter Alerts
                     </div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-xs text-muted-foreground">
                       Alert on seismic events above M2.0 detected within the agricultural grid
                       basin.
                     </div>
@@ -508,7 +508,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <div className="font-mono text-xs font-semibold text-amber-400 flex items-center gap-1.5">
                       <span>☀️</span> Severe Crop Drought & Water Stress
                     </div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-xs text-muted-foreground">
                       Broadcast warning when ECOSTRESS Evaporative Stress Index exceeds 0.80 ratio.
                     </div>
                   </div>
@@ -526,7 +526,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <div className="font-mono text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
                       <span>✉️</span> Emergency Email Dispatch
                     </div>
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-xs text-muted-foreground">
                       Forward critical agricultural hazard alerts to {profile.email}.
                     </div>
                   </div>
@@ -544,7 +544,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {activeTab === "security" && (
               <div className="space-y-4">
                 <div>
-                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                     Custom NASA Earthdata API Key (Optional)
                   </label>
                   <input
@@ -552,24 +552,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     value={nasaApiKey}
                     onChange={(e) => setNasaApiKey(e.target.value)}
                     placeholder="Enter NASA CMR / GIBS token for extended rate limits"
-                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                   />
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Leave blank to use default public NASA GIBS & POWER community endpoints.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
-                  <div className="font-mono text-xs font-semibold text-slate-300">
+                  <div className="font-mono text-xs font-semibold text-foreground">
                     Session Security Information
                   </div>
-                  <div className="text-xs text-slate-400 space-y-1">
+                  <div className="text-xs text-muted-foreground space-y-1">
                     <div>
-                      Operator ID: <span className="font-mono text-cyan-400">{profile.id}</span>
+                      Operator ID: <span className="font-mono text-cyan-300">{profile.id}</span>
                     </div>
                     <div>
                       Verified On:{" "}
-                      <span className="font-mono text-slate-300">
+                      <span className="font-mono text-foreground">
                         {profile.verifiedAt ? new Date(profile.verifiedAt).toLocaleString() : "—"}
                       </span>
                     </div>
@@ -590,7 +590,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       onSignOut();
                       onClose();
                     }}
-                    className="flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 font-mono text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition-colors cursor-pointer"
+                    className="flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 font-mono text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
                   >
                     <LogOut className="size-4 text-rose-400" />
                     <span>Sign Out & Terminate Clearance</span>
@@ -602,8 +602,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
           {/* Modal Footer Actions */}
           <div className="flex items-center justify-between border-t border-white/10 px-6 py-4 bg-black/40">
-            <div className="font-mono text-[11px] text-slate-400 flex items-center gap-1.5">
-              <Sparkles className="size-3 text-cyan-400" />
+            <div className="font-mono text-xs text-muted-foreground flex items-center gap-1.5">
+              <Sparkles className="size-3 text-cyan-300" />
               <span>Real-time local state synchronization active</span>
             </div>
 
@@ -611,13 +611,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl border border-white/15 px-4 py-2 font-mono text-xs font-semibold text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
+                className="rounded-xl border border-white/15 px-4 py-2 font-mono text-xs font-semibold text-foreground hover:bg-white/10 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 font-mono text-xs font-bold text-slate-950 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 font-mono text-xs font-bold text-muted-foreground shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <Save className="size-3.5" />
                 <span>Save Changes</span>
