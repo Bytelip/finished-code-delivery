@@ -44,6 +44,7 @@ import {
   type Crop600Category,
 } from "@/data/globalCropAtlas600";
 import { cn } from "@/lib/utils";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface AgroDecisionCardProps {
   telemetry: AgroTelemetry;
@@ -277,16 +278,16 @@ export function AgroDecisionCard({
               </div>
               <div>
                 <h3 className="font-mono text-sm font-semibold normal-case tracking-normal text-cyan-300">
-                  AI Agronomic & Climate Decision Engine
+                  {<LocalizedText text={"AI Agronomic & Climate Decision Engine"} />}
                 </h3>
                 <span className="font-mono text-xs text-muted-foreground">
-                  NASA POWER · SMAP L4 · ECOSTRESS ESI
+                  {<LocalizedText text={"NASA POWER · SMAP L4 · ECOSTRESS ESI"} />}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-xs">
-                600 CROPS v6.0
+                {<LocalizedText text={"600 CROPS v6.0"} />}
               </span>
             </div>
           </div>
@@ -323,9 +324,11 @@ export function AgroDecisionCard({
                   {healthScore}
                 </span>
                 <span className="font-mono text-xs uppercase tracking-wider text-emerald-400 font-bold mt-0.5">
-                  HEALTH SCORE
+                  {<LocalizedText text={"HEALTH SCORE"} />}
                 </span>
-                <span className="font-mono text-xs text-muted-foreground">Scale / 100</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {<LocalizedText text={"Scale / 100"} />}
+                </span>
               </div>
             </div>
 
@@ -337,7 +340,7 @@ export function AgroDecisionCard({
                 statusBorder,
               )}
             >
-              {statusLabel}
+              <LocalizedText text={statusLabel} />
             </div>
           </div>
 
@@ -345,8 +348,12 @@ export function AgroDecisionCard({
           <div className="flex flex-col gap-2">
             <div className="p-2.5 rounded-lg bg-[#0e1424]/70 border border-white/5 flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs">
-                <span className="text-muted-foreground">N-P-K NUTRIENT BALANCE INDEX</span>
-                <span className="text-cyan-300 font-bold">OPTIMAL (91.4%)</span>
+                <span className="text-muted-foreground">
+                  {<LocalizedText text={"N-P-K NUTRIENT BALANCE INDEX"} />}
+                </span>
+                <span className="text-cyan-300 font-bold">
+                  {<LocalizedText text={"OPTIMAL (91.4%)"} />}
+                </span>
               </div>
               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-cyan-400 h-full rounded-full" style={{ width: "91.4%" }} />
@@ -355,8 +362,12 @@ export function AgroDecisionCard({
 
             <div className="p-2.5 rounded-lg bg-[#0e1424]/70 border border-white/5 flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs">
-                <span className="text-muted-foreground">IRRIGATION WATER OPTIMIZATION</span>
-                <span className="text-emerald-400 font-bold">94.2% RATIO</span>
+                <span className="text-muted-foreground">
+                  {<LocalizedText text={"IRRIGATION WATER OPTIMIZATION"} />}
+                </span>
+                <span className="text-emerald-400 font-bold">
+                  {<LocalizedText text={"94.2% RATIO"} />}
+                </span>
               </div>
               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-emerald-400 h-full rounded-full" style={{ width: "94.2%" }} />
@@ -365,8 +376,12 @@ export function AgroDecisionCard({
 
             <div className="p-2.5 rounded-lg bg-[#0e1424]/70 border border-white/5 flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs">
-                <span className="text-muted-foreground">FROST RISK INVERSION (7-DAY)</span>
-                <span className="text-amber-400 font-bold">LOW (2.0%)</span>
+                <span className="text-muted-foreground">
+                  {<LocalizedText text={"FROST RISK INVERSION (7-DAY)"} />}
+                </span>
+                <span className="text-amber-400 font-bold">
+                  {<LocalizedText text={"LOW (2.0%)"} />}
+                </span>
               </div>
               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-amber-400 h-full rounded-full" style={{ width: "2%" }} />
@@ -379,49 +394,65 @@ export function AgroDecisionCard({
             <div className="p-2 rounded-lg border border-white/10 bg-[#060913]/60">
               <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
                 <Sprout className="size-3 text-emerald-400" />
-                <span>NDVI Vigor</span>
+                <span>{<LocalizedText text={"NDVI Vigor"} />}</span>
               </div>
               <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
                 {ndviValue.toFixed(2)}
-                <span className="text-xs font-normal text-muted-foreground ml-1">index</span>
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  {<LocalizedText text={"index"} />}
+                </span>
               </div>
-              <div className="text-xs text-emerald-400 truncate">MODIS Terra 250m</div>
+              <div className="text-xs text-emerald-400 truncate">
+                {<LocalizedText text={"MODIS Terra 250m"} />}
+              </div>
             </div>
 
             <div className="p-2 rounded-lg border border-white/10 bg-[#060913]/60">
               <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
                 <Droplets className="size-3 text-cyan-300" />
-                <span>Root Moisture</span>
+                <span>{<LocalizedText text={"Root Moisture"} />}</span>
               </div>
               <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
                 {soilMoisturePct}%
-                <span className="text-xs font-normal text-muted-foreground ml-1">vol</span>
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  {<LocalizedText text={"vol"} />}
+                </span>
               </div>
-              <div className="text-xs text-cyan-300 truncate">SMAP L4 Polar</div>
+              <div className="text-xs text-cyan-300 truncate">
+                {<LocalizedText text={"SMAP L4 Polar"} />}
+              </div>
             </div>
 
             <div className="p-2 rounded-lg border border-white/10 bg-[#060913]/60">
               <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
                 <Sun className="size-3 text-amber-400" />
-                <span>Evapo ESI</span>
+                <span>{<LocalizedText text={"Evapo ESI"} />}</span>
               </div>
               <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
                 {esiRatio}
-                <span className="text-xs font-normal text-muted-foreground ml-1">ratio</span>
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  {<LocalizedText text={"ratio"} />}
+                </span>
               </div>
-              <div className="text-xs text-amber-400 truncate">ISS ECOSTRESS 70m</div>
+              <div className="text-xs text-amber-400 truncate">
+                {<LocalizedText text={"ISS ECOSTRESS 70m"} />}
+              </div>
             </div>
 
             <div className="p-2 rounded-lg border border-white/10 bg-[#060913]/60">
               <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
                 <CloudRain className="size-3 text-cyan-300" />
-                <span>Rainfall</span>
+                <span>{<LocalizedText text={"Rainfall"} />}</span>
               </div>
               <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
                 {rainMm}
-                <span className="text-xs font-normal text-muted-foreground ml-1">mm/mo</span>
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  {<LocalizedText text={"mm/mo"} />}
+                </span>
               </div>
-              <div className="text-xs text-cyan-300 truncate">GPM IMERG Core</div>
+              <div className="text-xs text-cyan-300 truncate">
+                {<LocalizedText text={"GPM IMERG Core"} />}
+              </div>
             </div>
           </div>
 
@@ -430,9 +461,11 @@ export function AgroDecisionCard({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-cyan-300 font-mono text-xs font-bold">
                 <Bot className="size-3.5 text-cyan-300" />
-                <span>AI SYNTHETIC ADVISORY</span>
+                <span>{<LocalizedText text={"AI SYNTHETIC ADVISORY"} />}</span>
               </div>
-              <span className="text-xs font-mono text-muted-foreground">CONFIDENCE: 97.4%</span>
+              <span className="text-xs font-mono text-muted-foreground">
+                {<LocalizedText text={"CONFIDENCE: 97.4%"} />}
+              </span>
             </div>
             <div className="mt-1 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-400/40 bg-emerald-500/10 p-2">
               <div className="relative inline-block overflow-hidden rounded-md">
@@ -446,7 +479,9 @@ export function AgroDecisionCard({
                   title={`Selected Crop: ${activeCrop.name} (${activeCrop.adjustedScore}/100)`}
                 >
                   <Sprout className="size-4 text-emerald-400" />
-                  <span className="font-bold">🌱 Best Crop Match:</span>
+                  <span className="font-bold">
+                    {<LocalizedText text={"🌱 Best Crop Match:"} />}
+                  </span>
                   <span className="font-semibold text-foreground underline decoration-emerald-400/60">
                     {activeCrop.name} ({activeCrop.adjustedScore}/100)
                   </span>
@@ -460,10 +495,13 @@ export function AgroDecisionCard({
                 />
               </div>
               <span className="text-xs font-semibold text-emerald-400">
-                Water Saved vs. Paddy: +{waterSavedVsPaddy}%
+                {<LocalizedText text={"Water Saved vs. Paddy: +"} />}
+                {waterSavedVsPaddy}%
               </span>
             </div>
-            <p className="font-sans text-xs text-foreground leading-relaxed">{recommendation}</p>
+            <p className="font-sans text-xs text-foreground leading-relaxed">
+              <LocalizedText text={recommendation} />
+            </p>
           </div>
 
           {/* Export Report CTA */}
@@ -474,7 +512,7 @@ export function AgroDecisionCard({
             className="w-full h-8 text-xs font-semibold rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.25)] transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-auto"
           >
             <FileText className="size-3.5 text-cyan-300" />
-            <span>📄 Export NASA Field Report</span>
+            <span>{<LocalizedText text={"📄 Export NASA Field Report"} />}</span>
           </Button>
         </div>
 
@@ -499,20 +537,22 @@ export function AgroDecisionCard({
                 </div>
                 <div>
                   <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-400">
-                    🌾 Top Recommended Crops for {meta.regionLabel}
+                    {<LocalizedText text={"🌾 Top Recommended Crops for "} />}
+                    {meta.regionLabel}
                   </h3>
                   <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                     <span className="font-mono text-xs text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-1.5 py-0.2 rounded-md font-semibold">
                       {zoneInfo.zoneDisplay}
                     </span>
                     <span className="font-mono text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.2 rounded-md font-semibold">
-                      Region: {zoneInfo.worldRegion}
+                      {<LocalizedText text={"Region: "} />}
+                      {zoneInfo.worldRegion}
                     </span>
                   </div>
                 </div>
               </div>
               <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs">
-                600 ATLAS
+                {<LocalizedText text={"600 ATLAS"} />}
               </span>
             </div>
 
@@ -536,7 +576,9 @@ export function AgroDecisionCard({
                     )}
                   >
                     <span>{pill.icon}</span>
-                    <span>{pill.label}</span>
+                    <span>
+                      <LocalizedText text={pill.label} />
+                    </span>
                   </Button>
                 );
               })}
@@ -544,8 +586,13 @@ export function AgroDecisionCard({
           </div>
 
           <div className="font-sans text-xs text-muted-foreground">
-            Ranked predictive model for crop rotation shift under forecasted micro-climate
-            alterations & groundwater dynamics:
+            {
+              <LocalizedText
+                text={
+                  "Ranked predictive model for crop rotation shift under forecasted micro-climate alterations & groundwater dynamics:"
+                }
+              />
+            }
           </div>
 
           {/* Top 5 Crops Leaderboard Rows */}
@@ -602,7 +649,7 @@ export function AgroDecisionCard({
                               {(crop.name.split("/")[0] ?? crop.name).trim()}
                             </span>
                             <span className="text-muted-foreground text-xs font-mono">
-                              ({categoryIcon} {crop.season})
+                              ({categoryIcon} <LocalizedText text={crop.season} />)
                             </span>
                           </div>
                           {crop.botanicalName && (
@@ -619,10 +666,12 @@ export function AgroDecisionCard({
                             className="font-mono text-xs font-extrabold"
                             style={{ color: crop.tierColorHex }}
                           >
-                            Live NASA: {crop.adjustedScore}%
+                            {<LocalizedText text={"Live NASA: "} />}
+                            {crop.adjustedScore}%
                           </span>
                           <span className="text-xs font-mono px-1.5 py-0.2 rounded-md bg-white/5 border border-white/10 text-muted-foreground">
-                            Atlas: {crop.baseScore}%
+                            {<LocalizedText text={"Atlas: "} />}
+                            {crop.baseScore}%
                           </span>
                         </div>
                         <span
@@ -631,7 +680,7 @@ export function AgroDecisionCard({
                             crop.tierBadgeClass,
                           )}
                         >
-                          {crop.suitabilityTier}
+                          <LocalizedText text={crop.suitabilityTier} />
                         </span>
                       </div>
                     </div>
@@ -643,7 +692,8 @@ export function AgroDecisionCard({
                         title={`Water: ${crop.factors.water}/100`}
                       >
                         <span className="text-muted-foreground text-xs">
-                          Water: {crop.factors.water}%
+                          {<LocalizedText text={"Water: "} />}
+                          {crop.factors.water}%
                         </span>
                         <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                           <div
@@ -658,7 +708,8 @@ export function AgroDecisionCard({
                         title={`Soil: ${crop.factors.soil}/100`}
                       >
                         <span className="text-muted-foreground text-xs">
-                          Soil: {crop.factors.soil}%
+                          {<LocalizedText text={"Soil: "} />}
+                          {crop.factors.soil}%
                         </span>
                         <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                           <div
@@ -673,7 +724,8 @@ export function AgroDecisionCard({
                         title={`Terrain: ${crop.factors.terrain}/100`}
                       >
                         <span className="text-muted-foreground text-xs">
-                          Terrain: {crop.factors.terrain}%
+                          {<LocalizedText text={"Terrain: "} />}
+                          {crop.factors.terrain}%
                         </span>
                         <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                           <div
@@ -688,7 +740,8 @@ export function AgroDecisionCard({
                         title={`Climate: ${crop.factors.climate}/100`}
                       >
                         <span className="text-muted-foreground text-xs">
-                          Climate: {crop.factors.climate}%
+                          {<LocalizedText text={"Climate: "} />}
+                          {crop.factors.climate}%
                         </span>
                         <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                           <div
@@ -703,7 +756,8 @@ export function AgroDecisionCard({
                         title={`Economics: ${crop.factors.economics}/100`}
                       >
                         <span className="text-muted-foreground text-xs">
-                          Econ: {crop.factors.economics}%
+                          {<LocalizedText text={"Econ: "} />}
+                          {crop.factors.economics}%
                         </span>
                         <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                           <div
@@ -727,7 +781,7 @@ export function AgroDecisionCard({
                     className="mt-1 w-auto self-start min-h-[36px] rounded-lg px-4 py-2 text-xs font-semibold"
                   >
                     <Scale className="size-4" />
-                    <span>⚡ Compare & Simulate Shift</span>
+                    <span>{<LocalizedText text={"⚡ Compare & Simulate Shift"} />}</span>
                   </Button>
                 </motion.div>
               );
@@ -755,15 +809,15 @@ export function AgroDecisionCard({
               </div>
               <div>
                 <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-amber-400">
-                  4-Day Agro-Met Strip
+                  {<LocalizedText text={"4-Day Agro-Met Strip"} />}
                 </h3>
                 <span className="font-mono text-xs text-muted-foreground">
-                  Open-Meteo · GFS Tandem
+                  {<LocalizedText text={"Open-Meteo · GFS Tandem"} />}
                 </span>
               </div>
             </div>
             <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-xs">
-              SPECTRAL
+              {<LocalizedText text={"SPECTRAL"} />}
             </span>
           </div>
 
@@ -776,13 +830,21 @@ export function AgroDecisionCard({
                   <Sun className="size-4" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-mono text-xs font-bold text-foreground">TODAY • D0</span>
-                  <span className="font-mono text-xs text-muted-foreground">LST 28°C / 16°C</span>
+                  <span className="font-mono text-xs font-bold text-foreground">
+                    {<LocalizedText text={"TODAY • D0"} />}
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {<LocalizedText text={"LST 28°C / 16°C"} />}
+                  </span>
                 </div>
               </div>
               <div className="text-right font-mono">
-                <div className="text-xs text-emerald-400 font-bold">10% RAIN</div>
-                <div className="text-xs text-muted-foreground">ET₀ 4.8 mm/d</div>
+                <div className="text-xs text-emerald-400 font-bold">
+                  {<LocalizedText text={"10% RAIN"} />}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {<LocalizedText text={"ET₀ 4.8 mm/d"} />}
+                </div>
               </div>
             </div>
 
@@ -794,14 +856,20 @@ export function AgroDecisionCard({
                 </div>
                 <div className="flex flex-col">
                   <span className="font-mono text-xs font-bold text-foreground">
-                    TOMORROW • D+1
+                    {<LocalizedText text={"TOMORROW • D+1"} />}
                   </span>
-                  <span className="font-mono text-xs text-muted-foreground">LST 23°C / 14°C</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {<LocalizedText text={"LST 23°C / 14°C"} />}
+                  </span>
                 </div>
               </div>
               <div className="text-right font-mono">
-                <div className="text-xs text-cyan-300 font-bold">65% RAIN</div>
-                <div className="text-xs text-muted-foreground">ET₀ 2.6 mm/d</div>
+                <div className="text-xs text-cyan-300 font-bold">
+                  {<LocalizedText text={"65% RAIN"} />}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {<LocalizedText text={"ET₀ 2.6 mm/d"} />}
+                </div>
               </div>
             </div>
 
@@ -813,14 +881,20 @@ export function AgroDecisionCard({
                 </div>
                 <div className="flex flex-col">
                   <span className="font-mono text-xs font-bold text-foreground">
-                    WEDNESDAY • D+2
+                    {<LocalizedText text={"WEDNESDAY • D+2"} />}
                   </span>
-                  <span className="font-mono text-xs text-muted-foreground">LST 25°C / 15°C</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {<LocalizedText text={"LST 25°C / 15°C"} />}
+                  </span>
                 </div>
               </div>
               <div className="text-right font-mono">
-                <div className="text-xs text-emerald-400 font-bold">20% RAIN</div>
-                <div className="text-xs text-muted-foreground">ET₀ 3.9 mm/d</div>
+                <div className="text-xs text-emerald-400 font-bold">
+                  {<LocalizedText text={"20% RAIN"} />}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {<LocalizedText text={"ET₀ 3.9 mm/d"} />}
+                </div>
               </div>
             </div>
 
@@ -832,14 +906,20 @@ export function AgroDecisionCard({
                 </div>
                 <div className="flex flex-col">
                   <span className="font-mono text-xs font-bold text-foreground">
-                    THURSDAY • D+3
+                    {<LocalizedText text={"THURSDAY • D+3"} />}
                   </span>
-                  <span className="font-mono text-xs text-muted-foreground">LST 29°C / 17°C</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {<LocalizedText text={"LST 29°C / 17°C"} />}
+                  </span>
                 </div>
               </div>
               <div className="text-right font-mono">
-                <div className="text-xs text-emerald-400 font-bold">5% RAIN</div>
-                <div className="text-xs text-muted-foreground">ET₀ 5.1 mm/d</div>
+                <div className="text-xs text-emerald-400 font-bold">
+                  {<LocalizedText text={"5% RAIN"} />}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {<LocalizedText text={"ET₀ 5.1 mm/d"} />}
+                </div>
               </div>
             </div>
           </div>
@@ -848,9 +928,11 @@ export function AgroDecisionCard({
           <div className="p-3 rounded-xl bg-[#060913]/90 border border-amber-500/20 flex flex-col gap-2 mt-auto">
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs text-muted-foreground uppercase">
-                DIRECT NORMAL IRRAD (DNI)
+                {<LocalizedText text={"DIRECT NORMAL IRRAD (DNI)"} />}
               </span>
-              <span className="font-mono text-xs text-amber-400 font-bold">820 W/m²</span>
+              <span className="font-mono text-xs text-amber-400 font-bold">
+                {<LocalizedText text={"820 W/m²"} />}
+              </span>
             </div>
 
             {/* Sparkline SVG Curve with Gradient Fill */}
@@ -875,9 +957,9 @@ export function AgroDecisionCard({
             </svg>
 
             <div className="flex justify-between font-mono text-xs text-muted-foreground">
-              <span>06:00 DAWN</span>
-              <span>12:00 ZENITH</span>
-              <span>18:00 DUSK</span>
+              <span>{<LocalizedText text={"06:00 DAWN"} />}</span>
+              <span>{<LocalizedText text={"12:00 ZENITH"} />}</span>
+              <span>{<LocalizedText text={"18:00 DUSK"} />}</span>
             </div>
           </div>
         </div>
@@ -892,18 +974,24 @@ export function AgroDecisionCard({
             <DialogHeader className="border-b border-white/10 pb-4">
               <div className="flex items-center gap-2 text-cyan-300 font-mono text-xs uppercase tracking-wider">
                 <Scale className="size-4 text-cyan-300" />
-                <span>Field Shift Suitability & Crop Comparison Engine</span>
+                <span>
+                  {<LocalizedText text={"Field Shift Suitability & Crop Comparison Engine"} />}
+                </span>
               </div>
               <DialogTitle className="text-xl font-bold flex items-center gap-2.5 mt-1 text-foreground">
                 <span>{CATEGORY_ICONS[modalCrop.category] || "🌱"}</span>
                 <span>{modalCrop.name}</span>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-400/40 font-mono font-normal">
-                  Score: {modalCrop.adjustedScore}/100 • {modalCrop.suitabilityTier}
+                  {<LocalizedText text={"Score: "} />}
+                  {modalCrop.adjustedScore}/100 • <LocalizedText text={modalCrop.suitabilityTier} />
                 </span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                {zoneInfo.zoneDisplay} • Field Coordinates: [{input.lat.toFixed(3)},{" "}
-                {input.lon.toFixed(3)}] • Elevation: {zoneInfo.elevationM}m ASL
+                {zoneInfo.zoneDisplay} {<LocalizedText text={" • Field Coordinates: ["} />}
+                {input.lat.toFixed(3)}, {input.lon.toFixed(3)}
+                {<LocalizedText text={"] • Elevation: "} />}
+                {zoneInfo.elevationM}
+                {<LocalizedText text={"m ASL"} />}
               </DialogDescription>
             </DialogHeader>
 
@@ -912,31 +1000,43 @@ export function AgroDecisionCard({
               {/* Baseline Monoculture Box */}
               <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-950/20">
                 <div className="flex items-center justify-between text-xs font-mono text-rose-400 font-bold mb-2">
-                  <span>BASELINE (Conventional Paddy Rice)</span>
+                  <span>{<LocalizedText text={"BASELINE (Conventional Paddy Rice)"} />}</span>
                   <span className="px-1.5 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-xs">
-                    HIGH DEFICIT
+                    {<LocalizedText text={"HIGH DEFICIT"} />}
                   </span>
                 </div>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between py-1 border-b border-rose-500/15">
-                    <span className="text-muted-foreground">Suitability Index:</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"Suitability Index:"} />}
+                    </span>
                     <span className="font-mono font-bold text-rose-400">48 / 100</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-rose-500/15">
-                    <span className="text-muted-foreground">Water Consumption:</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"Water Consumption:"} />}
+                    </span>
                     <span className="font-mono font-bold text-rose-400">
-                      1,250 mm/season (~12.5M L/ha)
+                      {<LocalizedText text={"1,250 mm/season (~12.5M L/ha)"} />}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-rose-500/15">
-                    <span className="text-muted-foreground">Borewell Overdraft Risk:</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"Borewell Overdraft Risk:"} />}
+                    </span>
                     <span className="font-mono font-bold text-rose-400">
-                      Critical ({input.borewellDepth}m depth)
+                      {<LocalizedText text={"Critical ("} />}
+                      {input.borewellDepth}
+                      {<LocalizedText text={"m depth)"} />}
                     </span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-muted-foreground">Soil Health Trajectory:</span>
-                    <span className="font-mono text-rose-400">Depleting mineral reserves</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"Soil Health Trajectory:"} />}
+                    </span>
+                    <span className="font-mono text-rose-400">
+                      {<LocalizedText text={"Depleting mineral reserves"} />}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -951,40 +1051,52 @@ export function AgroDecisionCard({
                   colorTo="#38bdf8"
                 />
                 <div className="flex items-center justify-between text-xs font-mono text-emerald-400 font-bold mb-2">
-                  <span>SHIFT TARGET ({modalCrop.name})</span>
+                  <span>
+                    {<LocalizedText text={"SHIFT TARGET ("} />}
+                    {modalCrop.name})
+                  </span>
                   <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-xs">
-                    OPTIMAL MATCH
+                    {<LocalizedText text={"OPTIMAL MATCH"} />}
                   </span>
                 </div>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between py-1 border-b border-emerald-500/20">
-                    <span className="text-muted-foreground">Suitability Index:</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"Suitability Index:"} />}
+                    </span>
                     <span className="font-mono font-bold text-emerald-400">
                       {modalCrop.adjustedScore} / 100 (+
-                      {Math.max(0, Math.round(modalCrop.adjustedScore - 48))} pts)
+                      {Math.max(0, Math.round(modalCrop.adjustedScore - 48))}{" "}
+                      {<LocalizedText text={" pts)"} />}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-emerald-500/20">
-                    <span className="text-muted-foreground">Water Requirement:</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"Water Requirement:"} />}
+                    </span>
                     <span className="font-mono font-bold text-emerald-400">
-                      {modalCrop.waterRequirementMm} mm/season (+
+                      {modalCrop.waterRequirementMm} {<LocalizedText text={" mm/season (+"} />}
                       {Math.max(
                         0,
                         Math.round(((1250 - modalCrop.waterRequirementMm) / 1250) * 100),
                       )}
-                      % saved)
+                      {<LocalizedText text={"% saved)"} />}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-emerald-500/20">
-                    <span className="text-muted-foreground">Climate Resilience:</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"Climate Resilience:"} />}
+                    </span>
                     <span className="font-mono font-bold text-emerald-400">
-                      Deep root-zone buffer
+                      {<LocalizedText text={"Deep root-zone buffer"} />}
                     </span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-muted-foreground">Soil Regeneration:</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"Soil Regeneration:"} />}
+                    </span>
                     <span className="font-mono text-emerald-400">
-                      High biomass aeration & recovery
+                      {<LocalizedText text={"High biomass aeration & recovery"} />}
                     </span>
                   </div>
                 </div>
@@ -996,10 +1108,11 @@ export function AgroDecisionCard({
               <div className="flex items-center justify-between text-xs font-mono font-bold text-cyan-300">
                 <span className="flex items-center gap-1.5">
                   <BarChart3 className="size-3.5 text-cyan-300" />
-                  NASA 5-Factor Suitability Breakdown
+                  {<LocalizedText text={"NASA 5-Factor Suitability Breakdown"} />}
                 </span>
                 <span className="text-xs text-muted-foreground font-normal">
-                  Formula-calibrated (Water weight: {modalCrop.waterWeightPct}%)
+                  {<LocalizedText text={"Formula-calibrated (Water weight: "} />}
+                  {modalCrop.waterWeightPct}%)
                 </span>
               </div>
 
@@ -1007,7 +1120,9 @@ export function AgroDecisionCard({
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-muted-foreground">
-                      💧 Water Suitability ({modalCrop.waterWeightPct}% weight)
+                      {<LocalizedText text={"💧 Water Suitability ("} />}
+                      {modalCrop.waterWeightPct}
+                      {<LocalizedText text={"% weight)"} />}
                     </span>
                     <span className="text-cyan-300 font-bold">{modalCrop.factors.water}/100</span>
                   </div>
@@ -1022,7 +1137,7 @@ export function AgroDecisionCard({
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-muted-foreground">
-                      🌱 Soil Chemistry & Depth (20% weight)
+                      {<LocalizedText text={"🌱 Soil Chemistry & Depth (20% weight)"} />}
                     </span>
                     <span className="text-emerald-400 font-bold">{modalCrop.factors.soil}/100</span>
                   </div>
@@ -1036,7 +1151,9 @@ export function AgroDecisionCard({
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">⛰️ Terrain & Slope (20% weight)</span>
+                    <span className="text-muted-foreground">
+                      {<LocalizedText text={"⛰️ Terrain & Slope (20% weight)"} />}
+                    </span>
                     <span className="text-amber-400 font-bold">
                       {modalCrop.factors.terrain}/100
                     </span>
@@ -1052,7 +1169,7 @@ export function AgroDecisionCard({
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-muted-foreground">
-                      ☀️ Climate & Thermal ESI (20% weight)
+                      {<LocalizedText text={"☀️ Climate & Thermal ESI (20% weight)"} />}
                     </span>
                     <span className="text-cyan-300 font-bold">{modalCrop.factors.climate}/100</span>
                   </div>
@@ -1068,7 +1185,7 @@ export function AgroDecisionCard({
               <div className="pt-1">
                 <div className="flex justify-between text-xs font-mono mb-1">
                   <span className="text-muted-foreground">
-                    💰 Economic Yield & Market Margin (20% weight)
+                    {<LocalizedText text={"💰 Economic Yield & Market Margin (20% weight)"} />}
                   </span>
                   <span className="text-cyan-300 font-bold">{modalCrop.factors.economics}/100</span>
                 </div>
@@ -1089,7 +1206,7 @@ export function AgroDecisionCard({
                 onClick={() => setModalCrop(null)}
                 className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
               >
-                Close Inspector
+                {<LocalizedText text={"Close Inspector"} />}
               </Button>
               <Button
                 type="button"
@@ -1099,15 +1216,22 @@ export function AgroDecisionCard({
                     0,
                     Math.round(((1250 - modalCrop.waterRequirementMm) / 1250) * 100),
                   );
-                  toast.success(`Farm Plan Shifted to ${modalCrop.name}!`, {
-                    description: `Irrigation schedule calibrated. Projected water savings: +${savings}%.`,
-                  });
+                  toast.success(
+                    <LocalizedText text={`Farm Plan Shifted to ${modalCrop.name}!`} />,
+                    {
+                      description: (
+                        <LocalizedText
+                          text={`Irrigation schedule calibrated. Projected water savings: +${savings}%.`}
+                        />
+                      ),
+                    },
+                  );
                   setModalCrop(null);
                 }}
                 className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs px-4 py-2 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] cursor-pointer flex items-center gap-2 transition-all"
               >
                 <Zap className="size-3.5 fill-black" />
-                <span>Apply Shift to Farm Plan</span>
+                <span>{<LocalizedText text={"Apply Shift to Farm Plan"} />}</span>
               </Button>
             </div>
           </DialogContent>

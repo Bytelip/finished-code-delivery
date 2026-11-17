@@ -93,6 +93,7 @@ import {
   projectionModeForZoom,
 } from "@/lib/orbitalZoom";
 import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 export const TELEMETRY_TABS = MAP_LAYERS;
@@ -850,8 +851,10 @@ export function GlobeViewport({
     if (!webGLSupported) return;
     handleGlobeZoom(GLOBE_DEFAULT_ZOOM);
     setViewMode("3d");
-    toast.info("Entering 3D Orbital Overview", {
-      description: "Zoomed out to the global view. Switched to the 3D satellite globe.",
+    toast.info(<LocalizedText text="Entering 3D Orbital Overview" />, {
+      description: (
+        <LocalizedText text="Zoomed out to the global view. Switched to the 3D satellite globe." />
+      ),
     });
   }, [webGLSupported, handleGlobeZoom]);
 
@@ -913,7 +916,7 @@ export function GlobeViewport({
         e.preventDefault();
         if (viewMode === "3d") {
           globeApiRef.current?.flyTo(lat, lon, GLOBE_FLY_TO_MIN_ZOOM);
-          toast.info("Target camera reset");
+          toast.info(<LocalizedText text="Target camera reset" />);
         } else {
           leafletMapRef.current?.flyTo?.([lat, lon], 13, { animate: true, duration: 0.8 });
         }
@@ -1213,9 +1216,10 @@ export function GlobeViewport({
             <span className="relative inline-flex rounded-full size-2 bg-cyan-400" />
           </span>
           <span className="font-bold text-cyan-300 tracking-wider">
-            [ TARGET LOCKED: {Math.abs(targetLockedBanner.lat).toFixed(4)}°{" "}
-            {targetLockedBanner.lat >= 0 ? "N" : "S"}, {Math.abs(targetLockedBanner.lon).toFixed(4)}
-            ° {targetLockedBanner.lon >= 0 ? "E" : "W"} ]
+            {<LocalizedText text={"[ TARGET LOCKED: "} />}
+            {Math.abs(targetLockedBanner.lat).toFixed(4)}° {targetLockedBanner.lat >= 0 ? "N" : "S"}
+            , {Math.abs(targetLockedBanner.lon).toFixed(4)}°{" "}
+            {targetLockedBanner.lon >= 0 ? "E" : "W"} ]
           </span>
         </div>
       )}
@@ -1258,12 +1262,12 @@ export function GlobeViewport({
               }}
               attribution={
                 basemapStyle === "dark"
-                  ? "Tiles &copy; Esri &mdash; Esri Dark Canvas"
+                  ? "Tiles © Esri — Esri Dark Canvas"
                   : basemapStyle === "terrain"
-                    ? "Tiles &copy; Esri &mdash; World Topo Map & Elevation Contours"
+                    ? "Tiles © Esri — World Topo Map & Elevation Contours"
                     : basemapStyle === "default"
-                      ? "Tiles &copy; Esri &mdash; World Street Map"
-                      : "Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
+                      ? "Tiles © Esri — World Street Map"
+                      : "Tiles © Esri — High-Resolution Farm Satellite"
               }
             />
 
@@ -1350,17 +1354,19 @@ export function GlobeViewport({
               <LeafletComp.Popup className="hud-leaflet-popup">
                 <div className="font-mono text-xs p-1 text-foreground">
                   <div className="font-bold text-cyan-300 flex items-center gap-1.5">
-                    <Radar className="size-3.5" /> FARM PIN RETICLE
+                    <Radar className="size-3.5" /> {<LocalizedText text={" FARM PIN RETICLE"} />}
                   </div>
                   <div className="mt-1 text-muted-foreground">
-                    Lat: <span className="text-cyan-300">{lat.toFixed(4)}°</span> Lon:{" "}
+                    {<LocalizedText text={"Lat: "} />}
+                    <span className="text-cyan-300">{lat.toFixed(4)}°</span>{" "}
+                    {<LocalizedText text={" Lon:"} />}{" "}
                     <span className="text-cyan-300">{lon.toFixed(4)}°</span>
                   </div>
                   <div className="mt-1 font-semibold" style={{ color: tone }}>
                     {activeLayer}: {reading.value} {reading.unit}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground border-t border-border/50 pt-1">
-                    Drag pin or click map to reposition field pin.
+                    {<LocalizedText text={"Drag pin or click map to reposition field pin."} />}
                   </div>
                 </div>
               </LeafletComp.Popup>
@@ -1455,7 +1461,7 @@ export function GlobeViewport({
                       </p>
                       <div className="mt-2 rounded-md bg-black/40 p-1.5 border border-border/50 text-xs text-emerald-400">
                         <div className="font-semibold text-emerald-400 uppercase text-xs">
-                          Farmer Action Checklist:
+                          {<LocalizedText text={"Farmer Action Checklist:"} />}
                         </div>
                         {hazard.action}
                       </div>
@@ -1488,7 +1494,7 @@ export function GlobeViewport({
           aria-live="polite"
         >
           <span className="mr-2 inline-block size-1.5 animate-pulse rounded-full bg-cyan-300" />
-          Loading map tiles…
+          {<LocalizedText text={"Loading map tiles…"} />}
         </div>
       )}
 
@@ -1557,7 +1563,7 @@ export function GlobeViewport({
                   {t("elevation", "ELEVATION")}
                 </span>
                 <span className="text-right tabular-nums font-semibold">
-                  {meta.elevationM} m ASL
+                  {meta.elevationM} {<LocalizedText text={" m ASL"} />}
                 </span>
                 <span className="text-muted-foreground font-medium">
                   {t("satellite_pass", "PASS")}
@@ -1569,7 +1575,8 @@ export function GlobeViewport({
                   {t("next_window", "NEXT WINDOW")}
                 </span>
                 <span className="text-right tabular-nums text-amber-400 font-semibold">
-                  T-{meta.nextPassMin} min
+                  {<LocalizedText text={"T-"} />}
+                  {meta.nextPassMin} {<LocalizedText text={" min"} />}
                 </span>
               </div>
 
@@ -1834,7 +1841,8 @@ export function GlobeViewport({
               : `Field Resolution: Zoom ${gisZoom}`
           }
         >
-          Z:{viewMode === "3d" ? globeZoom.toFixed(2) : currentZoomLevel}
+          {<LocalizedText text={"Z:"} />}
+          {viewMode === "3d" ? globeZoom.toFixed(2) : currentZoomLevel}
         </div>
 
         <div className="w-full h-px bg-cyan-500/30 my-0.5" />
@@ -1891,7 +1899,8 @@ export function GlobeViewport({
             ) : (
               <EyeOff className="size-3 mr-1" />
             )}
-            Hazards: {hazardsVisible ? "ON" : "OFF"}
+            {<LocalizedText text={"Hazards: "} />}
+            {hazardsVisible ? "ON" : "OFF"}
           </Button>
         </div>
 
@@ -1910,7 +1919,7 @@ export function GlobeViewport({
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
-              All
+              {<LocalizedText text={"All"} />}
             </Button>
             <Button
               type="button"
@@ -1925,7 +1934,7 @@ export function GlobeViewport({
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
-              🔥 Fires
+              {<LocalizedText text={"🔥 Fires"} />}
             </Button>
             <Button
               type="button"
@@ -1940,7 +1949,7 @@ export function GlobeViewport({
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
-              💨 Wind
+              {<LocalizedText text={"💨 Wind"} />}
             </Button>
             <Button
               type="button"
@@ -1955,7 +1964,7 @@ export function GlobeViewport({
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
-              🌀 Storms
+              {<LocalizedText text={"🌀 Storms"} />}
             </Button>
             <Button
               type="button"
@@ -1970,7 +1979,7 @@ export function GlobeViewport({
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
-              ⚡ Seismic
+              {<LocalizedText text={"⚡ Seismic"} />}
             </Button>
 
             <div className="h-3 w-px bg-cyan-500/30" />
@@ -1982,7 +1991,7 @@ export function GlobeViewport({
               className="h-6 px-2 text-xs text-cyan-300 hover:bg-cyan-500/20 font-mono"
               title="Fit viewport to encompass all active hazards"
             >
-              🎯 Fit All Hazards
+              {<LocalizedText text={"🎯 Fit All Hazards"} />}
             </Button>
           </>
         )}
@@ -2050,14 +2059,14 @@ export function GlobeViewport({
           >
             <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
             <span className="font-semibold text-foreground">
-              {activeLayer}: {reading.value} {reading.unit}
+              <LocalizedText text={activeLayer} />: {reading.value} {reading.unit}
             </span>
             <span className="text-foreground">•</span>
             <span className="text-cyan-300 font-bold flex items-center gap-1">
               <ChevronUp className="size-3.5" /> {t("open_orbital_layers", "Telemetry Dock")}
             </span>
             <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded-md bg-black/50 border border-white/10 text-xs text-foreground font-sans">
-              L
+              {<LocalizedText text={"L"} />}
             </kbd>
           </button>
         )}
@@ -2098,12 +2107,15 @@ export function GlobeViewport({
 
               {/* FIELD Readout */}
               <span className="px-2 py-0.5 rounded-md bg-black/60 font-semibold border border-cyan-500/40 text-cyan-300 text-xs tabular-nums shrink-0">
-                FIELD: {reading.value} {reading.unit}
+                {<LocalizedText text={"FIELD: "} />}
+                {reading.value} {reading.unit}
               </span>
 
               {/* GLOW Opacity Slider */}
               <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                <span className="text-xs text-muted-foreground font-mono">GLOW</span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {<LocalizedText text={"GLOW"} />}
+                </span>
                 <Slider
                   aria-label="Layer opacity"
                   className="w-14 sm:w-18"
@@ -2159,7 +2171,7 @@ export function GlobeViewport({
                     type="button"
                     role="radio"
                     aria-checked={isSelected}
-                    aria-label={tab}
+                    aria-label={t(tab, tab)}
                     onClick={() => handleSelectTelemetryLayer(tab)}
                     className={`px-2.5 sm:px-3 py-1 font-mono text-xs sm:text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
                       isSelected
@@ -2170,7 +2182,9 @@ export function GlobeViewport({
                     {isSelected && (
                       <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee] animate-pulse" />
                     )}
-                    <span>{tab}</span>
+                    <span>
+                      <LocalizedText text={tab} />
+                    </span>
                   </button>
                 );
               })}

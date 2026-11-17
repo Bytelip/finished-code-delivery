@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { processIncomingAuthCallback } from "@/services/authService";
 import { saveStoredProfile } from "@/types/userProfile";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export const Route = createFileRoute("/auth/callback")({ component: AuthCallbackRoute });
 
@@ -49,12 +50,12 @@ function AuthCallbackRoute() {
               onClick={() => navigate({ to: "/login", replace: true })}
               className="mt-5 min-h-11 rounded-lg bg-cyan-400 px-4 font-semibold text-muted-foreground"
             >
-              Return to sign in
+              {<LocalizedText text={"Return to sign in"} />}
             </button>
           </>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
-            Please wait while we verify your account.
+            {<LocalizedText text={"Please wait while we verify your account."} />}
           </p>
         )}
       </div>

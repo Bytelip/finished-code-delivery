@@ -21,6 +21,7 @@ import {
 } from "@/types/zoomEarthLayers";
 import { MAP_LAYERS, type MapLayer } from "@/types/agroSpace";
 import { cn } from "@/lib/utils";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface ZoomEarthSidebarProps {
   activeLayer: ZoomEarthLayerId;
@@ -91,7 +92,7 @@ export function ZoomEarthSidebar({
       {/* Dashbar Header */}
       <div className="flex items-center justify-between px-1.5 pb-2 border-b border-white/10 text-xs font-mono font-bold tracking-wider text-foreground">
         <span className="flex items-center gap-1.5 uppercase text-xs text-cyan-300">
-          <Sparkles className="size-3 text-cyan-300" /> MAP LAYERS
+          <Sparkles className="size-3 text-cyan-300" /> {<LocalizedText text={" MAP LAYERS"} />}
         </span>
         <div className="flex items-center gap-1">
           <button
@@ -116,7 +117,7 @@ export function ZoomEarthSidebar({
       {/* SECTION 1: LIVE MAPS */}
       <div className="mt-2">
         <div className="px-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
-          Live Maps
+          {<LocalizedText text={"Live Maps"} />}
         </div>
         <div className="space-y-1">
           {/* Satellite */}
@@ -131,9 +132,12 @@ export function ZoomEarthSidebar({
             )}
           >
             <span className="flex items-center gap-2">
-              <Satellite className="size-3.5 text-cyan-300" /> Satellite
+              <Satellite className="size-3.5 text-cyan-300" />{" "}
+              {<LocalizedText text={" Satellite"} />}
             </span>
-            {activeLayer === "satellite" && <span className="text-xs text-cyan-300">● LIVE</span>}
+            {activeLayer === "satellite" && (
+              <span className="text-xs text-cyan-300">{<LocalizedText text={"● LIVE"} />}</span>
+            )}
           </button>
 
           {/* Radar */}
@@ -148,9 +152,11 @@ export function ZoomEarthSidebar({
             )}
           >
             <span className="flex items-center gap-2">
-              <Radio className="size-3.5 text-emerald-400" /> Radar
+              <Radio className="size-3.5 text-emerald-400" /> {<LocalizedText text={" Radar"} />}
             </span>
-            {activeLayer === "radar" && <span className="text-xs text-emerald-400">● LIVE</span>}
+            {activeLayer === "radar" && (
+              <span className="text-xs text-emerald-400">{<LocalizedText text={"● LIVE"} />}</span>
+            )}
           </button>
         </div>
       </div>
@@ -158,7 +164,7 @@ export function ZoomEarthSidebar({
       {/* SECTION 2: FORECAST & ATMOSPHERIC MAPS */}
       <div className="mt-3">
         <div className="px-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
-          Forecast & Atmospheric
+          {<LocalizedText text={"Forecast & Atmospheric"} />}
         </div>
         <div className="space-y-1">
           {/* Precipitation */}
@@ -173,7 +179,8 @@ export function ZoomEarthSidebar({
             )}
           >
             <span className="flex items-center gap-2">
-              <CloudRain className="size-3.5 text-cyan-300" /> Precipitation
+              <CloudRain className="size-3.5 text-cyan-300" />{" "}
+              {<LocalizedText text={" Precipitation"} />}
             </span>
           </button>
 
@@ -190,9 +197,11 @@ export function ZoomEarthSidebar({
               )}
             >
               <span className="flex items-center gap-2">
-                <Wind className="size-3.5 text-emerald-400" /> Wind
+                <Wind className="size-3.5 text-emerald-400" /> {<LocalizedText text={" Wind"} />}
               </span>
-              <span className="text-xs opacity-60 font-mono">Streamlines</span>
+              <span className="text-xs opacity-60 font-mono">
+                {<LocalizedText text={"Streamlines"} />}
+              </span>
             </button>
             {activeLayer === "wind" && (
               <div className="pl-6 pr-2 py-1 space-y-0.5 bg-black/25 border-l-2 border-teal-400 my-1 ml-3 rounded-r-lg animate-in fade-in duration-200">
@@ -206,7 +215,7 @@ export function ZoomEarthSidebar({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>Wind Speed</span>
+                  <span>{<LocalizedText text={"Wind Speed"} />}</span>
                   {activeSubLayer === "wind_speed" && <Check className="size-3 text-emerald-400" />}
                 </button>
                 <button
@@ -219,7 +228,7 @@ export function ZoomEarthSidebar({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>Wind Gusts</span>
+                  <span>{<LocalizedText text={"Wind Gusts"} />}</span>
                   {activeSubLayer === "wind_gusts" && <Check className="size-3 text-emerald-400" />}
                 </button>
               </div>
@@ -239,9 +248,10 @@ export function ZoomEarthSidebar({
               )}
             >
               <span className="flex items-center gap-2">
-                <Thermometer className="size-3.5 text-amber-400" /> Temperature
+                <Thermometer className="size-3.5 text-amber-400" />{" "}
+                {<LocalizedText text={" Temperature"} />}
               </span>
-              <span className="text-xs opacity-60 font-mono">°C</span>
+              <span className="text-xs opacity-60 font-mono">{<LocalizedText text={"°C"} />}</span>
             </button>
             {activeLayer === "temperature" && (
               <div className="pl-6 pr-2 py-1 space-y-0.5 bg-black/25 border-l-2 border-amber-400 my-1 ml-3 rounded-r-lg animate-in fade-in duration-200">
@@ -255,7 +265,7 @@ export function ZoomEarthSidebar({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>Actual</span>
+                  <span>{<LocalizedText text={"Actual"} />}</span>
                   {activeSubLayer === "temp_actual" && <Check className="size-3 text-amber-400" />}
                 </button>
                 <button
@@ -268,7 +278,7 @@ export function ZoomEarthSidebar({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>Feels Like</span>
+                  <span>{<LocalizedText text={"Feels Like"} />}</span>
                   {activeSubLayer === "temp_feels" && <Check className="size-3 text-amber-400" />}
                 </button>
               </div>
@@ -288,7 +298,8 @@ export function ZoomEarthSidebar({
               )}
             >
               <span className="flex items-center gap-2">
-                <Droplets className="size-3.5 text-cyan-300" /> Humidity
+                <Droplets className="size-3.5 text-cyan-300" />{" "}
+                {<LocalizedText text={" Humidity"} />}
               </span>
               <span className="text-xs opacity-60 font-mono">%</span>
             </button>
@@ -304,7 +315,7 @@ export function ZoomEarthSidebar({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>Relative</span>
+                  <span>{<LocalizedText text={"Relative"} />}</span>
                   {activeSubLayer === "hum_relative" && <Check className="size-3 text-cyan-300" />}
                 </button>
                 <button
@@ -317,7 +328,7 @@ export function ZoomEarthSidebar({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>Dew Point</span>
+                  <span>{<LocalizedText text={"Dew Point"} />}</span>
                   {activeSubLayer === "hum_dewpoint" && <Check className="size-3 text-cyan-300" />}
                 </button>
                 <button
@@ -330,7 +341,7 @@ export function ZoomEarthSidebar({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>Wet-Bulb</span>
+                  <span>{<LocalizedText text={"Wet-Bulb"} />}</span>
                   {activeSubLayer === "hum_wetbulb" && <Check className="size-3 text-cyan-300" />}
                 </button>
               </div>
@@ -349,9 +360,9 @@ export function ZoomEarthSidebar({
             )}
           >
             <span className="flex items-center gap-2">
-              <Gauge className="size-3.5 text-cyan-300" /> Pressure
+              <Gauge className="size-3.5 text-cyan-300" /> {<LocalizedText text={" Pressure"} />}
             </span>
-            <span className="text-xs opacity-60 font-mono">MSLP</span>
+            <span className="text-xs opacity-60 font-mono">{<LocalizedText text={"MSLP"} />}</span>
           </button>
         </div>
       </div>
@@ -364,7 +375,8 @@ export function ZoomEarthSidebar({
           className="w-full flex items-center justify-between px-1.5 py-1 text-xs font-mono uppercase tracking-wider text-foreground hover:text-foreground rounded-lg hover:bg-white/5"
         >
           <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
-            <Sprout className="size-3" /> NASA AGRO ({MAP_LAYERS.length})
+            <Sprout className="size-3" /> {<LocalizedText text={" NASA AGRO ("} />}
+            {MAP_LAYERS.length})
           </span>
           {isNasaSectionOpen ? (
             <ChevronUp className="size-3" />

@@ -18,6 +18,7 @@ import {
   clearStoredProfile,
 } from "@/types/userProfile";
 import { toast } from "sonner";
+import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
 
 // ==========================================
 // 1. TYPES & USER PROFILE MODEL
@@ -315,6 +316,16 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [otpCode, setOtpCode] = useState<string>("");
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const namePlaceholder = useLocalizedValue("Profile Name (e.g., Commander Naren)");
+  const emailPlaceholder = useLocalizedValue("Enter your email address (e.g. name@gmail.com)");
+  const passwordPlaceholder = useLocalizedValue(
+    authMode === "signup" ? "Create password (min 6 characters)" : "Enter your password",
+  );
+  const passwordToggleLabel = useLocalizedValue(showPassword ? "Hide password" : "Show password");
+  const nameFieldLabel = useLocalizedValue("Profile name");
+  const emailFieldLabel = useLocalizedValue("Email address");
+  const passwordFieldLabel = useLocalizedValue("Password");
+  const otpFieldLabel = useLocalizedValue("6-digit verification code");
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const isNameValid = name.trim().length >= 2 && name.trim().length <= 80;
@@ -414,19 +425,19 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     if (!isEmailValid) {
       const msg = "Please enter a valid email address.";
       setAuthError(msg);
-      toast.error(msg);
+      toast.error(<LocalizedText text={msg} />);
       return;
     }
     if (!password || password.length < 6 || password.length > 128) {
       const msg = "Password must be between 6 and 128 characters long.";
       setAuthError(msg);
-      toast.error(msg);
+      toast.error(<LocalizedText text={msg} />);
       return;
     }
     if (authMode === "signup" && !isNameValid) {
       const msg = "Please enter a name between 2 and 80 characters.";
       setAuthError(msg);
-      toast.error(msg);
+      toast.error(<LocalizedText text={msg} />);
       return;
     }
 
@@ -437,13 +448,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         if (!result.success || !result.user) {
           const msg = result.error || "Authentication failed. Please verify credentials.";
           setAuthError(msg);
-          toast.error(msg);
+          toast.error(<LocalizedText text={msg} />);
           return;
         }
         saveStoredUser(result.user);
         saveStoredProfile(result.user);
-        toast.success(`Welcome back, ${result.user.name}`, {
-          description: "Mission clearance granted. Entering orbit.",
+        toast.success(<LocalizedText text={`Welcome back, ${result.user.name}`} />, {
+          description: <LocalizedText text="Mission clearance granted. Entering orbit." />,
         });
         onAuthComplete?.(result.user);
         onSuccess?.(result.user);
@@ -455,15 +466,19 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       if (!dispatchResult.success) {
         const msg = dispatchResult.error || "Could not send verification email.";
         setAuthError(msg);
-        toast.error(msg);
+        toast.error(<LocalizedText text={msg} />);
         return;
       }
 
       setOtpCode("");
       setResendCooldown(45);
       setStep("otp_verify");
-      toast.success("Verification code sent", {
-        description: `A 6-digit code was emailed to ${email.trim()}. Valid for 5 minutes.`,
+      toast.success(<LocalizedText text="Verification code sent" />, {
+        description: (
+          <LocalizedText
+            text={`A 6-digit code was emailed to ${email.trim()}. Valid for 5 minutes.`}
+          />
+        ),
         duration: 4000,
       });
     } catch (err: unknown) {
@@ -471,7 +486,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       const prefix =
         authMode === "signin" ? "Authentication error" : "Could not send verification email";
       setAuthError(`${prefix}: ${msg}`);
-      toast.error(`${prefix}: ${msg}`);
+      toast.error(<LocalizedText text={`${prefix}: ${msg}`} />);
     } finally {
       setIsSubmitting(false);
     }
@@ -486,17 +501,17 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       if (!result.success) {
         const msg = result.error || "Could not resend verification code.";
         setAuthError(msg);
-        toast.error(msg);
+        toast.error(<LocalizedText text={msg} />);
         return;
       }
       setResendCooldown(45);
-      toast.success("Verification code resent", {
-        description: `A new 6-digit code was emailed to ${email.trim()}.`,
+      toast.success(<LocalizedText text="Verification code resent" />, {
+        description: <LocalizedText text={`A new 6-digit code was emailed to ${email.trim()}.`} />,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setAuthError(`Could not resend code: ${msg}`);
-      toast.error(`Could not resend code: ${msg}`);
+      toast.error(<LocalizedText text={`Could not resend code: ${msg}`} />);
     } finally {
       setIsSubmitting(false);
     }
@@ -508,7 +523,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
     if (otpCode.trim().replace(/\D/g, "").length !== 6) {
       setAuthError("Please enter all 6 digits of the verification code.");
-      toast.error("Please enter all 6 digits of the verification code.");
+      toast.error(<LocalizedText text="Please enter all 6 digits of the verification code." />);
       return;
     }
 
@@ -519,7 +534,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       if (!verifyResult.success) {
         const msg = verifyResult.error || "Invalid verification code.";
         setAuthError(msg);
-        toast.error(msg);
+        toast.error(<LocalizedText text={msg} />);
         return;
       }
 
@@ -531,7 +546,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       if (!signUpResult.success || !signUpResult.user) {
         const msg = signUpResult.error || "Account creation failed after verification.";
         setAuthError(msg);
-        toast.error(msg);
+        toast.error(<LocalizedText text={msg} />);
         return;
       }
 
@@ -542,22 +557,22 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         signUpResult.user.name,
       );
       if (welcomeResult.success) {
-        toast.success(`Welcome, ${signUpResult.user.name}`, {
-          description: "Email verified. Mission clearance granted.",
+        toast.success(<LocalizedText text={`Welcome, ${signUpResult.user.name}`} />, {
+          description: <LocalizedText text="Email verified. Mission clearance granted." />,
           duration: 4000,
         });
       } else {
         const msg =
           welcomeResult.error || "Your account is ready, but the welcome email could not be sent.";
         setAuthError(msg);
-        toast.warning(msg);
+        toast.warning(<LocalizedText text={msg} />);
       }
       onAuthComplete?.(signUpResult.user);
       onSuccess?.(signUpResult.user);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setAuthError(`Verification error: ${msg}`);
-      toast.error(`Verification error: ${msg}`);
+      toast.error(<LocalizedText text={`Verification error: ${msg}`} />);
     } finally {
       setIsVerifying(false);
     }
@@ -593,7 +608,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         {/* Operational error banner if any (never env-var setup notice) */}
         {authError && (
           <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
-            <p>{authError}</p>
+            <p>
+              <LocalizedText text={authError} />
+            </p>
           </div>
         )}
 
@@ -610,7 +627,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Sign In
+                {<LocalizedText text={"Sign In"} />}
               </button>
               <button
                 type="button"
@@ -621,18 +638,24 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Create Account
+                {<LocalizedText text={"Create Account"} />}
               </button>
             </div>
 
             <div className="text-center mb-6">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                {authMode === "signin" ? "Sign in to AgroSpace" : "Create Mission Account"}
+                <LocalizedText
+                  text={authMode === "signin" ? "Sign in to AgroSpace" : "Create Mission Account"}
+                />
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                {authMode === "signin"
-                  ? "Select an account or enter credentials for clearance verification"
-                  : "Register a new operator profile for mission clearance"}
+                <LocalizedText
+                  text={
+                    authMode === "signin"
+                      ? "Select an account or enter credentials for clearance verification"
+                      : "Register a new operator profile for mission clearance"
+                  }
+                />
               </p>
             </div>
 
@@ -663,9 +686,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   />
                 </svg>
                 <span>
-                  {loadingOAuth === "Google"
-                    ? "Opening Account Chooser..."
-                    : "Continue with Google"}
+                  <LocalizedText
+                    text={
+                      loadingOAuth === "Google"
+                        ? "Opening Account Chooser..."
+                        : "Continue with Google"
+                    }
+                  />
                 </span>
               </button>
 
@@ -682,9 +709,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   <path fill="#ffba08" d="M12 12h10v10H12z" />
                 </svg>
                 <span>
-                  {loadingOAuth === "Microsoft"
-                    ? "Opening Account Chooser..."
-                    : "Continue with Microsoft"}
+                  <LocalizedText
+                    text={
+                      loadingOAuth === "Microsoft"
+                        ? "Opening Account Chooser..."
+                        : "Continue with Microsoft"
+                    }
+                  />
                 </span>
               </button>
 
@@ -698,14 +729,22 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
                 </svg>
                 <span>
-                  {loadingOAuth === "Apple" ? "Opening Account Chooser..." : "Continue with Apple"}
+                  <LocalizedText
+                    text={
+                      loadingOAuth === "Apple"
+                        ? "Opening Account Chooser..."
+                        : "Continue with Apple"
+                    }
+                  />
                 </span>
               </button>
             </div>
 
             <div className="my-5 flex items-center gap-4">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-medium text-muted-foreground">Or</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {<LocalizedText text={"Or"} />}
+              </span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
@@ -720,7 +759,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     maxLength={80}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Profile Name (e.g., Commander Naren)"
+                    aria-label={nameFieldLabel}
+                    placeholder={namePlaceholder}
                     className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
@@ -733,7 +773,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   maxLength={254}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email address (e.g. name@gmail.com)"
+                  aria-label={emailFieldLabel}
+                  placeholder={emailPlaceholder}
                   className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
@@ -746,11 +787,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={
-                    authMode === "signup"
-                      ? "Create password (min 6 characters)"
-                      : "Enter your password"
-                  }
+                  aria-label={passwordFieldLabel}
+                  placeholder={passwordPlaceholder}
                   className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 pr-11 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-sans"
                 />
                 <button
@@ -758,7 +796,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   tabIndex={-1}
                   onClick={() => setShowPassword((prev) => !prev)}
                   className="absolute right-3 p-1 text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
-                  title={showPassword ? "Hide password" : "Show password"}
+                  title={passwordToggleLabel}
                 >
                   {showPassword ? (
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -808,11 +846,15 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     : "cursor-not-allowed bg-white/15 text-muted-foreground"
                 }`}
               >
-                {isSubmitting
-                  ? "Authenticating..."
-                  : authMode === "signin"
-                    ? "Sign In to Orbit"
-                    : "Create Account & Enter Orbit"}
+                <LocalizedText
+                  text={
+                    isSubmitting
+                      ? "Authenticating..."
+                      : authMode === "signin"
+                        ? "Sign In to Orbit"
+                        : "Create Account & Enter Orbit"
+                  }
+                />
               </button>
             </form>
           </>
@@ -826,7 +868,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               onClick={handleBackToEntry}
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-4 cursor-pointer transition-colors"
             >
-              ← Back to sign-up
+              {<LocalizedText text={"← Back to sign-up"} />}
             </button>
 
             <div className="text-center mb-5">
@@ -845,9 +887,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-foreground">Verify your email</h2>
+              <h2 className="text-xl font-semibold text-foreground">
+                {<LocalizedText text={"Verify your email"} />}
+              </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Enter the 6-digit code we sent to{" "}
+                {<LocalizedText text={"Enter the 6-digit code we sent to"} />}{" "}
                 <span className="font-mono text-cyan-300">{email.trim()}</span>
               </p>
             </div>
@@ -859,6 +903,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 autoComplete="one-time-code"
                 maxLength={6}
                 value={otpCode}
+                aria-label={otpFieldLabel}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="• • • • • •"
                 className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-2 sm:px-4 py-3 text-center text-xl sm:text-2xl font-mono tracking-[0.3em] sm:tracking-[0.5em] text-foreground placeholder-slate-600 focus:border-cyan-400 focus:outline-none"
@@ -879,7 +924,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             </form>
 
             <div className="mt-4 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Code valid for 5 minutes</span>
+              <span className="text-muted-foreground">
+                {<LocalizedText text={"Code valid for 5 minutes"} />}
+              </span>
               <button
                 type="button"
                 onClick={handleResendOtp}
@@ -897,8 +944,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         )}
 
         <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
-          By continuing, you agree to our <span className="underline">Terms of Service</span> and{" "}
-          <span className="underline">Privacy Policy</span>.
+          {<LocalizedText text={"By continuing, you agree to our "} />}
+          <span className="underline">{<LocalizedText text={"Terms of Service"} />}</span>{" "}
+          {<LocalizedText text={" and"} />}{" "}
+          <span className="underline">{<LocalizedText text={"Privacy Policy"} />}</span>.
         </p>
       </div>
     </CosmicParallaxBg>
@@ -976,7 +1025,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">{user.name}</p>
               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-mono text-emerald-400">
-                ✓ VERIFIED
+                {<LocalizedText text={"✓ VERIFIED"} />}
               </span>
             </div>
             <p className="mt-0.5 text-xs font-mono text-muted-foreground truncate">{user.email}</p>
@@ -992,7 +1041,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
               }}
               className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-foreground hover:bg-white/10 cursor-pointer"
             >
-              <span>⚙️ Account & Profile Settings</span>
+              <span>{<LocalizedText text={"⚙️ Account & Profile Settings"} />}</span>
               <span className="text-muted-foreground">→</span>
             </button>
             <div
@@ -1005,13 +1054,15 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
               className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-muted-foreground cursor-pointer hover:bg-slate-900"
             >
               <div className="font-mono uppercase text-xs text-muted-foreground flex items-center justify-between">
-                <span>Home Base</span>
-                <span className="text-xs text-cyan-300">Lock</span>
+                <span>{<LocalizedText text={"Home Base"} />}</span>
+                <span className="text-xs text-cyan-300">{<LocalizedText text={"Lock"} />}</span>
               </div>
               <div className="text-foreground truncate">{user.homeLocation}</div>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-slate-900/80 px-3 py-2 text-xs">
-              <span className="text-muted-foreground">Default View / Layer</span>
+              <span className="text-muted-foreground">
+                {<LocalizedText text={"Default View / Layer"} />}
+              </span>
               <span className="font-mono text-cyan-300">
                 {user.defaultView} • {user.defaultLayer}
               </span>
@@ -1027,7 +1078,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
             }}
             className="mt-2 w-full rounded-xl border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/20 cursor-pointer"
           >
-            Sign Out of Mission Control
+            {<LocalizedText text={"Sign Out of Mission Control"} />}
           </button>
         </div>
       )}
@@ -1039,10 +1090,16 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
                 <h3 className="text-lg font-semibold text-foreground">
-                  Operator Account & Settings
+                  {<LocalizedText text={"Operator Account & Settings"} />}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Manage your profile name, verified Gmail, and default NASA telemetry settings
+                  {
+                    <LocalizedText
+                      text={
+                        "Manage your profile name, verified Gmail, and default NASA telemetry settings"
+                      }
+                    />
+                  }
                 </p>
               </div>
               <button
@@ -1058,7 +1115,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-mono uppercase text-muted-foreground mb-1">
-                    Profile Name
+                    {<LocalizedText text={"Profile Name"} />}
                   </label>
                   <input
                     type="text"
@@ -1070,7 +1127,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                 </div>
                 <div>
                   <label className="block font-mono uppercase text-muted-foreground mb-1">
-                    Mission Role / Title
+                    {<LocalizedText text={"Mission Role / Title"} />}
                   </label>
                   <input
                     type="text"
@@ -1083,7 +1140,8 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
 
               <div>
                 <label className="block font-mono uppercase text-muted-foreground mb-1">
-                  Verified Gmail / Account Email ({formState.provider})
+                  {<LocalizedText text={"Verified Gmail / Account Email ("} />}
+                  {formState.provider})
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -1093,14 +1151,14 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                     className="w-full rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-muted-foreground"
                   />
                   <span className="shrink-0 rounded-xl bg-emerald-500/20 px-3 py-2 font-mono text-xs text-emerald-400">
-                    ✓ Verified
+                    {<LocalizedText text={"✓ Verified"} />}
                   </span>
                 </div>
               </div>
 
               <div>
                 <label className="block font-mono uppercase text-muted-foreground mb-1">
-                  Default Home Base Coordinates
+                  {<LocalizedText text={"Default Home Base Coordinates"} />}
                 </label>
                 <input
                   type="text"
@@ -1113,7 +1171,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-mono uppercase text-muted-foreground mb-1">
-                    Default Globe Mode
+                    {<LocalizedText text={"Default Globe Mode"} />}
                   </label>
                   <select
                     value={formState.defaultView}
@@ -1125,37 +1183,47 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                     }
                     className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground"
                   >
-                    <option value="3D">3D Orbital Globe</option>
-                    <option value="2D">2D Satellite Map</option>
+                    <option value="3D">{<LocalizedText text={"3D Orbital Globe"} />}</option>
+                    <option value="2D">{<LocalizedText text={"2D Satellite Map"} />}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block font-mono uppercase text-muted-foreground mb-1">
-                    Default NASA Layer
+                    {<LocalizedText text={"Default NASA Layer"} />}
                   </label>
                   <select
                     value={formState.defaultLayer}
                     onChange={(e) => setFormState({ ...formState, defaultLayer: e.target.value })}
                     className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground"
                   >
-                    <option value="NDVI">NDVI Vegetation</option>
-                    <option value="EVI">EVI Canopy</option>
-                    <option value="LAI">LAI Leaf Index</option>
-                    <option value="ECOSTRESS ESI">ECOSTRESS ESI</option>
-                    <option value="SMAP Moisture">SMAP Soil Moisture</option>
-                    <option value="GPM Rain">GPM Precipitation</option>
-                    <option value="FIRMS Fires">FIRMS Thermal Fires</option>
-                    <option value="Smoke AOD">Smoke AOD</option>
+                    <option value="NDVI">{<LocalizedText text={"NDVI Vegetation"} />}</option>
+                    <option value="EVI">{<LocalizedText text={"EVI Canopy"} />}</option>
+                    <option value="LAI">{<LocalizedText text={"LAI Leaf Index"} />}</option>
+                    <option value="ECOSTRESS ESI">
+                      {<LocalizedText text={"ECOSTRESS ESI"} />}
+                    </option>
+                    <option value="SMAP Moisture">
+                      {<LocalizedText text={"SMAP Soil Moisture"} />}
+                    </option>
+                    <option value="GPM Rain">{<LocalizedText text={"GPM Precipitation"} />}</option>
+                    <option value="FIRMS Fires">
+                      {<LocalizedText text={"FIRMS Thermal Fires"} />}
+                    </option>
+                    <option value="Smoke AOD">{<LocalizedText text={"Smoke AOD"} />}</option>
                   </select>
                 </div>
               </div>
 
               <div className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/60 p-3">
                 <div>
-                  <div className="font-semibold text-foreground">Gmail Hazard & Drought Alerts</div>
+                  <div className="font-semibold text-foreground">
+                    {<LocalizedText text={"Gmail Hazard & Drought Alerts"} />}
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    Send alerts to {formState.email} when Cyclone or Drought thresholds trigger
+                    {<LocalizedText text={"Send alerts to "} />}
+                    {formState.email}{" "}
+                    {<LocalizedText text={" when Cyclone or Drought thresholds trigger"} />}
                   </div>
                 </div>
                 <input
@@ -1172,13 +1240,13 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                   onClick={() => setSettingsOpen(false)}
                   className="rounded-xl border border-white/15 px-4 py-2 text-xs font-semibold text-foreground hover:bg-white/10 cursor-pointer"
                 >
-                  Cancel
+                  {<LocalizedText text={"Cancel"} />}
                 </button>
                 <button
                   type="submit"
                   className="rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 text-xs font-semibold text-muted-foreground shadow-[0_0_20px_rgba(34,211,238,0.35)] cursor-pointer"
                 >
-                  Save Account Changes
+                  {<LocalizedText text={"Save Account Changes"} />}
                 </button>
               </div>
             </form>

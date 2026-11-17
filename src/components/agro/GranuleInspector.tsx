@@ -2,6 +2,7 @@ import { Database, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HudCard } from "@/components/agro/hud";
 import { MAP_LAYERS, type AgroTelemetry, type NasaGranule } from "@/types/agroSpace";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 const STATUS: Record<NasaGranule["status"], string> = {
   ingested:
@@ -23,12 +24,20 @@ export function GranuleInspector({ telemetry }: { telemetry: AgroTelemetry }) {
           <table className="w-full min-w-[640px] text-left text-xs">
             <thead>
               <tr className="hud-label border-b border-border/70 pb-2 text-xs text-cyan-300 font-bold">
-                <th className="py-2.5 pr-3 font-semibold">Granule ID / Orbit</th>
-                <th className="py-2.5 pr-3 font-semibold">Product & Sensor</th>
-                <th className="py-2.5 pr-3 font-semibold">Res.</th>
-                <th className="py-2.5 pr-3 font-semibold">Acquired</th>
-                <th className="py-2.5 pr-3 text-right font-semibold">Latency</th>
-                <th className="py-2.5 text-right font-semibold">Status</th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {<LocalizedText text={"Granule ID / Orbit"} />}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">
+                  {<LocalizedText text={"Product & Sensor"} />}
+                </th>
+                <th className="py-2.5 pr-3 font-semibold">{<LocalizedText text={"Res."} />}</th>
+                <th className="py-2.5 pr-3 font-semibold">{<LocalizedText text={"Acquired"} />}</th>
+                <th className="py-2.5 pr-3 text-right font-semibold">
+                  {<LocalizedText text={"Latency"} />}
+                </th>
+                <th className="py-2.5 text-right font-semibold">
+                  {<LocalizedText text={"Status"} />}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
@@ -48,7 +57,7 @@ export function GranuleInspector({ telemetry }: { telemetry: AgroTelemetry }) {
                     {g.acquired}
                   </td>
                   <td className="py-3 pr-3 text-right font-mono text-xs font-semibold tabular-nums text-foreground">
-                    {g.latencyH} h
+                    {g.latencyH} {<LocalizedText text={" h"} />}
                   </td>
                   <td className="py-3 text-right">
                     <span

@@ -35,6 +35,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface ThemeSwitcherProps {
   className?: string;
@@ -100,16 +101,18 @@ export function CustomThemeModal({
 
   const handleSave = () => {
     setTheme("custom");
-    toast.success("Custom Theme Saved & Active", {
-      description: "Custom accent color, surface background, blur, and glow physics applied.",
+    toast.success(<LocalizedText text="Custom Theme Saved & Active" />, {
+      description: (
+        <LocalizedText text="Custom accent color, surface background, blur, and glow physics applied." />
+      ),
     });
     onOpenChange(false);
   };
 
   const handleReset = () => {
     resetCustomSettings();
-    toast.info("Custom Theme Reset", {
-      description: "Restored default custom parameters.",
+    toast.info(<LocalizedText text="Custom Theme Reset" />, {
+      description: <LocalizedText text="Restored default custom parameters." />,
     });
   };
 
@@ -119,10 +122,14 @@ export function CustomThemeModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-bold font-mono tracking-wider text-foreground">
             <Sparkles className="size-4 text-primary animate-pulse" />
-            <span>CUSTOM USER THEME BUILDER</span>
+            <span>{<LocalizedText text={"CUSTOM USER THEME BUILDER"} />}</span>
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Craft your personalized mission control palette with real-time HUD physics.
+            {
+              <LocalizedText
+                text={"Craft your personalized mission control palette with real-time HUD physics."}
+              />
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -131,7 +138,7 @@ export function CustomThemeModal({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="font-mono text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <span>1. Primary Accent Color</span>
+                <span>{<LocalizedText text={"1. Primary Accent Color"} />}</span>
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -180,7 +187,7 @@ export function CustomThemeModal({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="font-mono text-xs font-semibold text-foreground">
-                2. HUD Background Surface
+                {<LocalizedText text={"2. HUD Background Surface"} />}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -229,8 +236,13 @@ export function CustomThemeModal({
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div className="space-y-1">
               <div className="flex items-center justify-between font-mono text-xs">
-                <span className="text-muted-foreground">Glass Blur</span>
-                <span className="font-bold text-foreground">{customSettings.blurPx}px</span>
+                <span className="text-muted-foreground">
+                  {<LocalizedText text={"Glass Blur"} />}
+                </span>
+                <span className="font-bold text-foreground">
+                  {customSettings.blurPx}
+                  {<LocalizedText text={"px"} />}
+                </span>
               </div>
               <input
                 type="range"
@@ -248,7 +260,9 @@ export function CustomThemeModal({
 
             <div className="space-y-1">
               <div className="flex items-center justify-between font-mono text-xs">
-                <span className="text-muted-foreground">Border Glow</span>
+                <span className="text-muted-foreground">
+                  {<LocalizedText text={"Border Glow"} />}
+                </span>
                 <span className="font-bold text-foreground">{customSettings.glowPercent}%</span>
               </div>
               <input
@@ -282,7 +296,7 @@ export function CustomThemeModal({
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-foreground">
                 <Eye className="size-3.5 text-primary" />
-                <span>Live HUD Card Preview</span>
+                <span>{<LocalizedText text={"Live HUD Card Preview"} />}</span>
               </div>
               <span
                 className="text-xs px-1.5 py-0.5 rounded-md font-mono font-bold"
@@ -292,11 +306,15 @@ export function CustomThemeModal({
                   border: `1px solid ${customSettings.accentColor}50`,
                 }}
               >
-                ACTIVE
+                {<LocalizedText text={"ACTIVE"} />}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Dynamic surface contrast, border glow aura, and interactive accents.
+              {
+                <LocalizedText
+                  text={"Dynamic surface contrast, border glow aura, and interactive accents."}
+                />
+              }
             </p>
           </div>
 
@@ -310,7 +328,7 @@ export function CustomThemeModal({
               className="h-8 text-xs font-mono gap-1.5 cursor-pointer"
             >
               <RotateCcw className="size-3" />
-              <span>Reset to Preset</span>
+              <span>{<LocalizedText text={"Reset to Preset"} />}</span>
             </Button>
 
             <Button
@@ -320,7 +338,7 @@ export function CustomThemeModal({
               className="h-8 text-xs font-mono font-bold gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer shadow-md"
             >
               <Save className="size-3" />
-              <span>Save Custom Theme</span>
+              <span>{<LocalizedText text={"Save Custom Theme"} />}</span>
             </Button>
           </div>
         </div>
@@ -369,9 +387,9 @@ export function ThemeSwitcher({ className, variant = "navbar" }: ThemeSwitcherPr
           className="w-68 p-1.5 bg-card/95 backdrop-blur-2xl border border-border/80 shadow-2xl rounded-xl z-50 text-foreground"
         >
           <DropdownMenuLabel className="px-2.5 py-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground flex items-center justify-between">
-            <span>Appearance & Themes</span>
+            <span>{<LocalizedText text={"Appearance & Themes"} />}</span>
             <span className="flex items-center gap-1 text-xs text-primary lowercase">
-              <Sparkles className="size-2.5" /> 5 modes + custom
+              <Sparkles className="size-2.5" /> {<LocalizedText text={" 5 modes + custom"} />}
             </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator className="bg-border/40 my-1" />
@@ -428,15 +446,15 @@ export function ThemeSwitcher({ className, variant = "navbar" }: ThemeSwitcherPr
               <Sparkles className="size-4 text-primary animate-pulse flex-shrink-0" />
               <div className="flex flex-col min-w-0">
                 <span className="truncate text-xs font-semibold text-foreground">
-                  ✨ Custom User Theme
+                  {<LocalizedText text={"✨ Custom User Theme"} />}
                 </span>
                 <span className="text-xs text-muted-foreground truncate font-mono">
-                  Create & Tune Your Own
+                  {<LocalizedText text={"Create & Tune Your Own"} />}
                 </span>
               </div>
             </div>
             <span className="text-xs px-1.5 py-0.5 rounded-md bg-primary/20 text-primary border border-primary/40 font-mono font-bold">
-              Builder
+              {<LocalizedText text={"Builder"} />}
             </span>
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -460,10 +478,10 @@ export function ThemeSettingsCard() {
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-foreground flex items-center gap-2">
             <Palette className="size-3.5 text-primary" />
-            <span>Interface Appearance & Theme</span>
+            <span>{<LocalizedText text={"Interface Appearance & Theme"} />}</span>
           </label>
           <span className="text-xs font-mono text-muted-foreground">
-            5 Presets + Custom Builder
+            {<LocalizedText text={"5 Presets + Custom Builder"} />}
           </span>
         </div>
 
@@ -529,7 +547,9 @@ export function ThemeSettingsCard() {
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4 text-primary animate-pulse" />
-                <span className="text-xs font-semibold text-foreground">Custom User Theme</span>
+                <span className="text-xs font-semibold text-foreground">
+                  {<LocalizedText text={"Custom User Theme"} />}
+                </span>
               </div>
               <span className="size-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
                 ✨
@@ -537,14 +557,22 @@ export function ThemeSettingsCard() {
             </div>
 
             <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-              Live accent color picker, deep surface tones, glass blur, and border glow sliders.
+              {
+                <LocalizedText
+                  text={
+                    "Live accent color picker, deep surface tones, glass blur, and border glow sliders."
+                  }
+                />
+              }
             </p>
 
             <div className="mt-auto pt-1 flex items-center justify-between w-full text-xs font-mono text-muted-foreground">
               <span className="px-1.5 py-0.5 rounded-md bg-primary/20 text-primary border border-primary/40">
-                User Custom
+                {<LocalizedText text={"User Custom"} />}
               </span>
-              <span className="text-primary font-bold">Launch Builder &rarr;</span>
+              <span className="text-primary font-bold">
+                {<LocalizedText text={"Launch Builder →"} />}
+              </span>
             </div>
           </button>
         </div>

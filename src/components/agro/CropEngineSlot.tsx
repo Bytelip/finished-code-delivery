@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { HudCard, Readout } from "@/components/agro/hud";
 import { Progress } from "@/components/ui/progress";
 import type { CropRecommendation } from "@/types/agroSpace";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export function CropEngineSlot({ crop }: { crop: CropRecommendation }) {
   const stressTone =
@@ -31,11 +32,12 @@ export function CropEngineSlot({ crop }: { crop: CropRecommendation }) {
               {crop.crop}
             </span>
             <span className="rounded-md border border-emerald/50 bg-emerald/15 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-              Recommended Sow
+              {<LocalizedText text={"Recommended Sow"} />}
             </span>
           </div>
           <div className="font-mono text-xs text-cyan-300 bg-cyan/10 border border-cyan/30 px-2 py-0.5 rounded-md">
-            Window: Sow {crop.sowingWindow}
+            {<LocalizedText text={"Window: Sow "} />}
+            {crop.sowingWindow}
           </div>
         </div>
 
@@ -73,10 +75,12 @@ export function CropEngineSlot({ crop }: { crop: CropRecommendation }) {
         <div className="mt-4 rounded-lg border border-border/40 bg-background/50 p-3 backdrop-blur-sm">
           <div className="mb-2 flex items-center justify-between font-mono text-xs">
             <span className="flex items-center gap-1.5 text-muted-foreground font-semibold">
-              <Droplets className="size-3 text-cyan-300" /> Water Budget Coverage
+              <Droplets className="size-3 text-cyan-300" />{" "}
+              {<LocalizedText text={" Water Budget Coverage"} />}
             </span>
             <span className={cn("tabular-nums font-bold", stressTone)}>
-              {crop.seasonalAvailable} / {crop.seasonalETc} mm · {coverage}%
+              {crop.seasonalAvailable} / {crop.seasonalETc} {<LocalizedText text={" mm · "} />}
+              {coverage}%
             </span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60 border border-border/40">
@@ -104,9 +108,11 @@ export function CropEngineSlot({ crop }: { crop: CropRecommendation }) {
         <div className="mt-3 flex items-center justify-between text-xs font-mono text-muted-foreground pt-2 border-t border-border/30">
           <span className="flex items-center gap-1.5 text-cyan-300">
             <span className="size-1.5 rounded-full bg-cyan shadow-[0_0_6px_#00f0ff] animate-pulse" />
-            Global Crop Atlas: 600 Crops Active
+            {<LocalizedText text={"Global Crop Atlas: 600 Crops Active"} />}
           </span>
-          <span className="text-xs text-emerald-400">5-Factor Scoring Loaded</span>
+          <span className="text-xs text-emerald-400">
+            {<LocalizedText text={"5-Factor Scoring Loaded"} />}
+          </span>
         </div>
       </HudCard>
     </section>

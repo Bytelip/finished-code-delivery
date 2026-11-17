@@ -53,6 +53,7 @@ import {
   searchDualProviderPlaces,
   type PlaceSearchResult,
 } from "@/utils/preciseLocation";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 function CoordInput({
   label,
@@ -330,7 +331,9 @@ export function CommandBar({
           selectPlace(places[0]!);
         } else {
           toast.error(
-            `No locations found for "${searchQuery.trim()}". Try village, city, or pincode.`,
+            <LocalizedText
+              text={`No locations found for "${searchQuery.trim()}". Try village, city, or pincode.`}
+            />,
           );
         }
       }
@@ -367,11 +370,13 @@ export function CommandBar({
         setShowInsecureBanner(true);
         const host = typeof window !== "undefined" ? window.location.host : "192.168.0.3:8080";
         toast.warning(
-          `Insecure LAN HTTP blocks hardware GPS. Approximate IP location used. Switch to https://${host} or set chrome://flags.`,
+          <LocalizedText
+            text={`Insecure LAN HTTP blocks hardware GPS. Approximate IP location used. Switch to https://${host} or set chrome://flags.`}
+          />,
           { duration: 8000 },
         );
       } else if (result.isCoarse && result.warning) {
-        toast.warning(result.warning, { duration: 7000 });
+        toast.warning(<LocalizedText text={result.warning} />, { duration: 7000 });
       } else {
         toast.success(
           `Location locked: ${result.lat}°, ${result.lon}° (±${Math.round(result.accuracy)}m)`,
@@ -380,7 +385,9 @@ export function CommandBar({
     } catch (err) {
       setLocating(false);
       console.warn("Location error:", err);
-      toast.error("Could not acquire location. Please enter coordinates or search your village.");
+      toast.error(
+        <LocalizedText text="Could not acquire location. Please enter coordinates or search your village." />,
+      );
     }
   };
 
@@ -395,18 +402,21 @@ export function CommandBar({
           <div className="flex items-center gap-2">
             <AlertTriangle className="size-4 shrink-0 text-amber-400" />
             <span>
-              Browsers block hardware GPS on insecure LAN HTTP (<code>http://{host}</code>).
-              Approximate location used.
+              {<LocalizedText text={"Browsers block hardware GPS on insecure LAN HTTP ("} />}
+              <code>http://{host}</code>
+              {<LocalizedText text={"). Approximate location used."} />}
             </span>
             <a
               href={`https://${host}`}
               className="ml-1 inline-flex items-center gap-1 font-semibold text-cyan-300 hover:underline"
             >
-              Switch to HTTPS <ExternalLink className="size-3" />
+              {<LocalizedText text={"Switch to HTTPS "} />}
+              <ExternalLink className="size-3" />
             </a>
             <span className="hidden xl:inline text-muted-foreground ml-2">
-              (or open <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> and add{" "}
-              <code>http://{host}</code>)
+              {<LocalizedText text={"(or open "} />}
+              <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>{" "}
+              {<LocalizedText text={" and add"} />} <code>http://{host}</code>)
             </span>
           </div>
           <button
@@ -430,10 +440,10 @@ export function CommandBar({
           </div>
           <div className="flex items-center gap-1.5 whitespace-nowrap">
             <span className="hidden sm:inline font-mono font-bold text-xs sm:text-sm tracking-wider text-foreground">
-              AgroSpace Nexus
+              {<LocalizedText text={"AgroSpace Nexus"} />}
             </span>
             <span className="text-xs text-cyan-300 font-semibold px-1.5 py-0.2 rounded-full bg-cyan-500/15 border border-cyan-400/30">
-              v2.4
+              {<LocalizedText text={"v2.4"} />}
             </span>
           </div>
 
@@ -442,7 +452,10 @@ export function CommandBar({
             <MapPin className="size-3 text-cyan-300 shrink-0 drop-shadow-[0_0_6px_#00f0ff]" />
             <span className="text-foreground font-medium">
               📍 {locationLabel ? `${locationLabel} • ` : ""}
-              {lat.toFixed(2)}°N, {lon.toFixed(2)}°E
+              {lat.toFixed(2)}
+              {<LocalizedText text={"°N, "} />}
+              {lon.toFixed(2)}
+              {<LocalizedText text={"°E"} />}
             </span>
           </div>
         </div>
@@ -472,7 +485,7 @@ export function CommandBar({
               🔍 {t("search", "Search")}
             </span>
             <kbd className="hidden md:inline-block px-1.5 py-0.2 rounded-md bg-black/40 border border-white/10 text-xs text-foreground font-sans">
-              ⌘K
+              {<LocalizedText text={"⌘K"} />}
             </kbd>
             {isParamsDrawerOpen ? (
               <ChevronUp className="size-3 text-cyan-300 shrink-0" />
@@ -568,7 +581,7 @@ export function CommandBar({
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="size-4 text-cyan-300" />
             <span className="font-mono text-xs font-bold text-cyan-300 tracking-wider uppercase">
-              Field Target & Simulation Parameters
+              {<LocalizedText text={"Field Target & Simulation Parameters"} />}
             </span>
           </div>
           <button
@@ -640,7 +653,7 @@ export function CommandBar({
               ) : (
                 <Crosshair className="size-3 mr-1 text-cyan-300 drop-shadow-[0_0_6px_#00f0ff]" />
               )}
-              GPS
+              {<LocalizedText text={"GPS"} />}
             </Button>
 
             {/* Place Search Input & Dropdown */}
@@ -689,9 +702,12 @@ export function CommandBar({
                 <div className="absolute left-0 top-full z-[1000] mt-1.5 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan/50 bg-[#060a14]/95 p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl">
                   <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-xs text-muted-foreground uppercase tracking-wider border-b border-border/40">
                     <span className="flex items-center gap-1.5 text-cyan-300 font-semibold">
-                      <Globe2 className="size-3 text-cyan-300" /> Dual Geocoder Target Locks
+                      <Globe2 className="size-3 text-cyan-300" />{" "}
+                      {<LocalizedText text={" Dual Geocoder Target Locks"} />}
                     </span>
-                    <span className="text-xs text-muted-foreground">Enter to lock</span>
+                    <span className="text-xs text-muted-foreground">
+                      {<LocalizedText text={"Enter to lock"} />}
+                    </span>
                   </div>
                   <ul className="divide-y divide-border/25 mt-1">
                     {searchResults.map((place, idx) => {
@@ -749,7 +765,8 @@ export function CommandBar({
                 onValueChange={([v]) => v !== undefined && onDepth(v)}
               />
               <span className="w-10 text-right font-mono text-xs font-bold tabular-nums text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
-                {borewellDepth}m
+                {borewellDepth}
+                {<LocalizedText text={"m"} />}
               </span>
             </Field>
 

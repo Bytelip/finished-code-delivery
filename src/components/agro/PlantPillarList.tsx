@@ -1,6 +1,7 @@
 import { HudCard } from "@/components/agro/hud";
 import { cn } from "@/lib/utils";
 import type { PlantHealth } from "@/types/agroSpace";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 const tone = (s: number) =>
   s >= 75
@@ -34,7 +35,9 @@ export function PlantPillarList({ health }: { health: PlantHealth }) {
             className="rounded-lg border border-border/30 bg-background/40 p-2.5 backdrop-blur-sm transition-all hover:border-cyan/40 hover:bg-background/60"
           >
             <div className="flex items-baseline justify-between gap-3">
-              <span className="text-sm font-semibold text-foreground">{p.label}</span>
+              <span className="text-sm font-semibold text-foreground">
+                <LocalizedText text={p.label} />
+              </span>
               <span className={cn("font-mono text-base font-bold tabular-nums", text(p.score))}>
                 {p.score}
                 <span className="text-xs font-normal text-muted-foreground">/100</span>
@@ -47,8 +50,12 @@ export function PlantPillarList({ health }: { health: PlantHealth }) {
               />
             </div>
             <div className="mt-1.5 flex justify-between gap-3 font-mono text-xs text-muted-foreground">
-              <span>{p.note}</span>
-              <span className="truncate text-cyan-300 font-semibold">{p.source}</span>
+              <span>
+                <LocalizedText text={p.note} />
+              </span>
+              <span className="truncate text-cyan-300 font-semibold">
+                <LocalizedText text={p.source} />
+              </span>
             </div>
           </li>
         ))}

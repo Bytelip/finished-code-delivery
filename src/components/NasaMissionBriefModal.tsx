@@ -15,6 +15,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface NasaMissionBriefModalProps {
   isOpen: boolean;
@@ -51,14 +52,15 @@ export function NasaMissionBriefModal({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-bold text-cyan-300 tracking-widest uppercase">
-                  NASA Space Apps Challenge Flagship
+                  {<LocalizedText text={"NASA Space Apps Challenge Flagship"} />}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 font-mono text-xs font-bold text-amber-400">
-                  <Award className="size-2.5" /> GLOBAL COMPETITION GRADE
+                  <Award className="size-2.5" />{" "}
+                  {<LocalizedText text={" GLOBAL COMPETITION GRADE"} />}
                 </span>
               </div>
               <h2 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-                AgroSpace Nexus: Mission Architecture Brief
+                {<LocalizedText text={"AgroSpace Nexus: Mission Architecture Brief"} />}
               </h2>
             </div>
           </div>
@@ -85,7 +87,8 @@ export function NasaMissionBriefModal({
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Satellite className="size-3.5" />8 SATELLITE CONSTELLATIONS
+            <Satellite className="size-3.5" />
+            {<LocalizedText text={"8 SATELLITE CONSTELLATIONS"} />}
           </button>
           <button
             type="button"
@@ -97,7 +100,7 @@ export function NasaMissionBriefModal({
             }`}
           >
             <Cpu className="size-3.5" />
-            4-STAGE 3D/2D WEBGL PIPELINE
+            {<LocalizedText text={"4-STAGE 3D/2D WEBGL PIPELINE"} />}
           </button>
           <button
             type="button"
@@ -109,7 +112,7 @@ export function NasaMissionBriefModal({
             }`}
           >
             <Sprout className="size-3.5" />
-            GLOBAL FOOD SECURITY & IMPACT
+            {<LocalizedText text={"GLOBAL FOOD SECURITY & IMPACT"} />}
           </button>
         </div>
 
@@ -118,94 +121,133 @@ export function NasaMissionBriefModal({
           {activeTab === "satellites" && (
             <div className="space-y-4">
               <p className="text-muted-foreground leading-relaxed text-xs">
-                AgroSpace Nexus fuses 8 NASA Earth Observation constellations directly into
-                real-time scientific WMTS raster layers and quantitative metrics for any
-                agricultural field on Earth:
+                {
+                  <LocalizedText
+                    text={
+                      "AgroSpace Nexus fuses 8 NASA Earth Observation constellations directly into real-time scientific WMTS raster layers and quantitative metrics for any agricultural field on Earth:"
+                    }
+                  />
+                }
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/15">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-xs font-bold text-emerald-400">
-                      MODIS Terra / Aqua (250m)
+                      {<LocalizedText text={"MODIS Terra / Aqua (250m)"} />}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">NDVI & EVI</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {<LocalizedText text={"NDVI & EVI"} />}
+                    </span>
                   </div>
                   <p className="text-xs text-foreground leading-normal">
-                    Normalized Difference Vegetation Index (NDVI) and Enhanced Vegetation Index
-                    (EVI) measure chlorophyll absorption and canopy vigor at 250m spatial resolution
-                    globally every 16 days.
+                    {
+                      <LocalizedText
+                        text={
+                          "Normalized Difference Vegetation Index (NDVI) and Enhanced Vegetation Index (EVI) measure chlorophyll absorption and canopy vigor at 250m spatial resolution globally every 16 days."
+                        }
+                      />
+                    }
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-cyan-500/30 bg-cyan-950/15">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-xs font-bold text-cyan-300">
-                      SMAP L4 Polar (9km / 1km)
+                      {<LocalizedText text={"SMAP L4 Polar (9km / 1km)"} />}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">Soil Moisture</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {<LocalizedText text={"Soil Moisture"} />}
+                    </span>
                   </div>
                   <p className="text-xs text-foreground leading-normal">
-                    L-Band microwave radiometry penetrates the upper 5cm of soil and assimilates
-                    into catchment hydrology models for surface and root-zone moisture metrics.
+                    {
+                      <LocalizedText
+                        text={
+                          "L-Band microwave radiometry penetrates the upper 5cm of soil and assimilates into catchment hydrology models for surface and root-zone moisture metrics."
+                        }
+                      />
+                    }
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/15">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-xs font-bold text-amber-400">
-                      ISS ECOSTRESS (70m)
+                      {<LocalizedText text={"ISS ECOSTRESS (70m)"} />}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">Evaporative ESI</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {<LocalizedText text={"Evaporative ESI"} />}
+                    </span>
                   </div>
                   <p className="text-xs text-foreground leading-normal">
-                    Thermal infrared radiometer mounted on the International Space Station measures
-                    plant surface temperatures to detect drought stress up to 3 weeks before visible
-                    canopy browning.
+                    {
+                      <LocalizedText
+                        text={
+                          "Thermal infrared radiometer mounted on the International Space Station measures plant surface temperatures to detect drought stress up to 3 weeks before visible canopy browning."
+                        }
+                      />
+                    }
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-blue-500/30 bg-blue-950/15">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-xs font-bold text-cyan-300">
-                      GPM IMERG Core (10km)
+                      {<LocalizedText text={"GPM IMERG Core (10km)"} />}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">Precipitation</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {<LocalizedText text={"Precipitation"} />}
+                    </span>
                   </div>
                   <p className="text-xs text-foreground leading-normal">
-                    Global Precipitation Measurement dual-frequency radar and passive microwave
-                    constellation delivers 30-minute calibrated rainfall rates and accumulated
-                    moisture balances.
+                    {
+                      <LocalizedText
+                        text={
+                          "Global Precipitation Measurement dual-frequency radar and passive microwave constellation delivers 30-minute calibrated rainfall rates and accumulated moisture balances."
+                        }
+                      />
+                    }
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-crimson/30 bg-crimson/15">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-xs font-bold text-rose-400">
-                      VIIRS / FIRMS Thermal
+                      {<LocalizedText text={"VIIRS / FIRMS Thermal"} />}
                     </span>
                     <span className="font-mono text-xs text-muted-foreground">
-                      375m Fire Hotspots
+                      {<LocalizedText text={"375m Fire Hotspots"} />}
                     </span>
                   </div>
                   <p className="text-xs text-foreground leading-normal">
-                    Near real-time active fire locations and Fire Radiative Power (MW) detect crop
-                    residue burning, wildfire threats, and thermal anomalies.
+                    {
+                      <LocalizedText
+                        text={
+                          "Near real-time active fire locations and Fire Radiative Power (MW) detect crop residue burning, wildfire threats, and thermal anomalies."
+                        }
+                      />
+                    }
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-950/15">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono text-xs font-bold text-cyan-300">
-                      MODIS Deep Blue / AOD
+                      {<LocalizedText text={"MODIS Deep Blue / AOD"} />}
                     </span>
                     <span className="font-mono text-xs text-muted-foreground">
-                      Aerosol Optical Depth
+                      {<LocalizedText text={"Aerosol Optical Depth"} />}
                     </span>
                   </div>
                   <p className="text-xs text-foreground leading-normal">
-                    Tracks atmospheric particulate matter, smoke plumes, and agricultural stubble
-                    haze to alert farmers to air quality hazards and photosynthetic obstruction.
+                    {
+                      <LocalizedText
+                        text={
+                          "Tracks atmospheric particulate matter, smoke plumes, and agricultural stubble haze to alert farmers to air quality hazards and photosynthetic obstruction."
+                        }
+                      />
+                    }
                   </p>
                 </div>
               </div>
@@ -216,35 +258,65 @@ export function NasaMissionBriefModal({
             <div className="space-y-4">
               <div className="p-4 rounded-xl border border-cyan-500/30 bg-card/60">
                 <h4 className="font-mono text-xs font-bold text-cyan-300 uppercase mb-2">
-                  Google Earth-Style 4-Stage Level of Detail (LOD)
+                  {<LocalizedText text={"Google Earth-Style 4-Stage Level of Detail (LOD)"} />}
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs font-mono">
                   <div className="p-2.5 rounded-md bg-background/60 border border-border/40">
-                    <div className="text-cyan-300 font-bold text-xs">STAGE 1: ORBITAL</div>
-                    <div className="text-xs text-muted-foreground mt-1">alt &gt; 1.5</div>
+                    <div className="text-cyan-300 font-bold text-xs">
+                      {<LocalizedText text={"STAGE 1: ORBITAL"} />}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {<LocalizedText text={"alt > 1.5"} />}
+                    </div>
                     <p className="text-xs text-foreground mt-1 font-sans">
-                      Country & Ocean names only. Clean orbital view.
+                      {<LocalizedText text={"Country & Ocean names only. Clean orbital view."} />}
                     </p>
                   </div>
                   <div className="p-2.5 rounded-md bg-background/60 border border-border/40">
-                    <div className="text-cyan-300 font-bold text-xs">STAGE 2: COUNTRY</div>
-                    <div className="text-xs text-muted-foreground mt-1">0.75 &lt; alt ≤ 1.5</div>
+                    <div className="text-cyan-300 font-bold text-xs">
+                      {<LocalizedText text={"STAGE 2: COUNTRY"} />}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {<LocalizedText text={"0.75 < alt ≤ 1.5"} />}
+                    </div>
                     <p className="text-xs text-foreground mt-1 font-sans">
-                      State & Province names fade in with dark typography halos.
+                      {
+                        <LocalizedText
+                          text={"State & Province names fade in with dark typography halos."}
+                        />
+                      }
                     </p>
                   </div>
                   <div className="p-2.5 rounded-md bg-background/60 border border-border/40">
-                    <div className="text-cyan-300 font-bold text-xs">STAGE 3: REGIONAL</div>
-                    <div className="text-xs text-muted-foreground mt-1">0.28 &lt; alt ≤ 0.75</div>
+                    <div className="text-cyan-300 font-bold text-xs">
+                      {<LocalizedText text={"STAGE 3: REGIONAL"} />}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {<LocalizedText text={"0.28 < alt ≤ 0.75"} />}
+                    </div>
                     <p className="text-xs text-foreground mt-1 font-sans">
-                      City & District dots with screen-space anti-collision culling.
+                      {
+                        <LocalizedText
+                          text={"City & District dots with screen-space anti-collision culling."}
+                        />
+                      }
                     </p>
                   </div>
                   <div className="p-2.5 rounded-md bg-background/60 border border-border/40">
-                    <div className="text-emerald-400 font-bold text-xs">STAGE 4: 2D GIS</div>
-                    <div className="text-xs text-muted-foreground mt-1">alt ≤ 0.28</div>
+                    <div className="text-emerald-400 font-bold text-xs">
+                      {<LocalizedText text={"STAGE 4: 2D GIS"} />}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {<LocalizedText text={"alt ≤ 0.28"} />}
+                    </div>
                     <p className="text-xs text-foreground mt-1 font-sans">
-                      Smooth crossfade to 2D sub-meter satellite GIS and field boundaries.
+                      {
+                        <LocalizedText
+                          text={
+                            "Smooth crossfade to 2D sub-meter satellite GIS and field boundaries."
+                          }
+                        />
+                      }
                     </p>
                   </div>
                 </div>
@@ -253,21 +325,32 @@ export function NasaMissionBriefModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div className="p-3.5 rounded-xl border border-border/60 bg-background/50">
                   <h5 className="font-mono font-bold text-foreground flex items-center gap-1.5 mb-1.5">
-                    <CheckCircle2 className="size-3.5 text-emerald-400" /> 100% Free Keyless Layers
+                    <CheckCircle2 className="size-3.5 text-emerald-400" />{" "}
+                    {<LocalizedText text={" 100% Free Keyless Layers"} />}
                   </h5>
                   <p className="text-muted-foreground text-xs leading-relaxed">
-                    Uses ArcGIS Online Reference overlays and NASA GIBS WMTS endpoints exclusively.
-                    Eliminates all paid Carto API keys and watermark errors completely.
+                    {
+                      <LocalizedText
+                        text={
+                          "Uses ArcGIS Online Reference overlays and NASA GIBS WMTS endpoints exclusively. Eliminates all paid Carto API keys and watermark errors completely."
+                        }
+                      />
+                    }
                   </p>
                 </div>
                 <div className="p-3.5 rounded-xl border border-border/60 bg-background/50">
                   <h5 className="font-mono font-bold text-foreground flex items-center gap-1.5 mb-1.5">
-                    <CheckCircle2 className="size-3.5 text-cyan-300" /> URL Coordinate Deep Linking
+                    <CheckCircle2 className="size-3.5 text-cyan-300" />{" "}
+                    {<LocalizedText text={" URL Coordinate Deep Linking"} />}
                   </h5>
                   <p className="text-muted-foreground text-xs leading-relaxed">
-                    Full bidirectional syncing of coordinates via URL parameters
-                    (?lat=13.175&lon=78.4192) enabling shareable links and instant satellite
-                    fly-ins.
+                    {
+                      <LocalizedText
+                        text={
+                          "Full bidirectional syncing of coordinates via URL parameters (?lat=13.175&lon=78.4192) enabling shareable links and instant satellite fly-ins."
+                        }
+                      />
+                    }
                   </p>
                 </div>
               </div>
@@ -278,13 +361,17 @@ export function NasaMissionBriefModal({
             <div className="space-y-4">
               <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/15">
                 <h4 className="font-mono text-sm font-bold text-emerald-400 uppercase mb-2 flex items-center gap-2">
-                  <Sprout className="size-4" /> Real-World Agricultural & Food Security Impact
+                  <Sprout className="size-4" />{" "}
+                  {<LocalizedText text={" Real-World Agricultural & Food Security Impact"} />}
                 </h4>
                 <p className="text-xs text-foreground leading-relaxed">
-                  Smallholder farmers in drought-prone regions such as Karnataka and Telangana often
-                  rely on depleted borewells and uncoordinated pumping. AgroSpace Nexus bridges the
-                  gap between NASA multimillion-dollar satellites and ground-level farming
-                  operations:
+                  {
+                    <LocalizedText
+                      text={
+                        "Smallholder farmers in drought-prone regions such as Karnataka and Telangana often rely on depleted borewells and uncoordinated pumping. AgroSpace Nexus bridges the gap between NASA multimillion-dollar satellites and ground-level farming operations:"
+                      }
+                    />
+                  }
                 </p>
               </div>
 
@@ -292,28 +379,50 @@ export function NasaMissionBriefModal({
                 <div className="p-3.5 rounded-xl border border-border/50 bg-background/60">
                   <div className="font-mono text-emerald-400 font-bold text-lg">34%</div>
                   <div className="font-mono text-xs text-foreground mt-1 font-semibold">
-                    Water Savings
+                    {<LocalizedText text={"Water Savings"} />}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    By combining SMAP root-zone moisture with ECOSTRESS evapotranspiration rates.
+                    {
+                      <LocalizedText
+                        text={
+                          "By combining SMAP root-zone moisture with ECOSTRESS evapotranspiration rates."
+                        }
+                      />
+                    }
                   </p>
                 </div>
                 <div className="p-3.5 rounded-xl border border-border/50 bg-background/60">
-                  <div className="font-mono text-cyan-300 font-bold text-lg">21 Days</div>
+                  <div className="font-mono text-cyan-300 font-bold text-lg">
+                    {<LocalizedText text={"21 Days"} />}
+                  </div>
                   <div className="font-mono text-xs text-foreground mt-1 font-semibold">
-                    Drought Early Warning
+                    {<LocalizedText text={"Drought Early Warning"} />}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Detects canopy water stress before visible signs appear on the ground.
+                    {
+                      <LocalizedText
+                        text={
+                          "Detects canopy water stress before visible signs appear on the ground."
+                        }
+                      />
+                    }
                   </p>
                 </div>
                 <div className="p-3.5 rounded-xl border border-border/50 bg-background/60">
-                  <div className="font-mono text-amber-400 font-bold text-lg">3 Languages</div>
+                  <div className="font-mono text-amber-400 font-bold text-lg">
+                    {<LocalizedText text={"3 Languages"} />}
+                  </div>
                   <div className="font-mono text-xs text-foreground mt-1 font-semibold">
-                    Farmer Inclusivity
+                    {<LocalizedText text={"Farmer Inclusivity"} />}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Instant 1-click printable PDF advisory reports in English, Hindi, and Kannada.
+                    {
+                      <LocalizedText
+                        text={
+                          "Instant 1-click printable PDF advisory reports in English, Hindi, and Kannada."
+                        }
+                      />
+                    }
                   </p>
                 </div>
               </div>
@@ -324,7 +433,11 @@ export function NasaMissionBriefModal({
         {/* Modal Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-card/40 flex-wrap gap-2">
           <span className="font-mono text-xs text-muted-foreground">
-            NASA Space Apps Challenge 2026 • AgroSpace Nexus Mission Architecture
+            {
+              <LocalizedText
+                text={"NASA Space Apps Challenge 2026 • AgroSpace Nexus Mission Architecture"}
+              />
+            }
           </span>
           <div className="flex items-center gap-2">
             {onStartTour && (
@@ -338,7 +451,7 @@ export function NasaMissionBriefModal({
                 className="h-8 px-3 text-xs font-semibold rounded-lg border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 font-mono flex items-center gap-1.5 cursor-pointer"
               >
                 <GraduationCap className="size-3.5 text-cyan-300 animate-pulse" />
-                <span>🎓 Interactive Tour</span>
+                <span>{<LocalizedText text={"🎓 Interactive Tour"} />}</span>
               </Button>
             )}
             <Button
@@ -346,7 +459,7 @@ export function NasaMissionBriefModal({
               onClick={onClose}
               className="h-8 px-4 text-xs font-semibold rounded-lg bg-cyan-500 hover:bg-cyan-400 text-muted-foreground font-mono shadow-[0_0_15px_rgba(6,182,212,0.4)] cursor-pointer"
             >
-              Launch Live Mission HUD
+              {<LocalizedText text={"Launch Live Mission HUD"} />}
             </Button>
           </div>
         </div>

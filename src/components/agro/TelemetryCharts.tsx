@@ -20,6 +20,7 @@ import {
 import { CloudSun, Droplets, Leaf, Sprout } from "lucide-react";
 import { HudCard } from "@/components/agro/hud";
 import type { AgroTelemetry } from "@/types/agroSpace";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 const tick = { fill: "oklch(0.68 0.035 235)", fontSize: 12, fontFamily: "var(--font-mono)" };
 const tooltipProps = {
@@ -45,6 +46,39 @@ const grid = (
   <CartesianGrid stroke="oklch(0.79 0.17 210 / 0.12)" strokeDasharray="3 4" vertical={false} />
 );
 
+function LocalizedChartTick({
+  x = 0,
+  y = 0,
+  payload,
+  textAnchor = "middle",
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string | number };
+  textAnchor?: "start" | "middle" | "end";
+}) {
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor={textAnchor}
+      dominantBaseline="central"
+      fill="oklch(0.68 0.035 235)"
+      fontSize={12}
+      fontFamily="var(--font-mono)"
+    >
+      <LocalizedText text={String(payload?.value ?? "")} />
+    </text>
+  );
+}
+
+const localizeTooltipLabel = (value: unknown) => <LocalizedText text={String(value ?? "")} />;
+const localizeTooltipSeries = (value: React.ReactNode, name: string | number) => [
+  value,
+  <LocalizedText key={String(name)} text={String(name)} />,
+];
+const localizeLegend = (value: string | number) => <LocalizedText text={String(value)} />;
+
 export function PowerChart({ data }: { data: AgroTelemetry["power"] }) {
   return (
     <HudCard
@@ -61,8 +95,12 @@ export function PowerChart({ data }: { data: AgroTelemetry["power"] }) {
             <YAxis yAxisId="par" tick={tick} tickLine={false} axisLine={false} />
             <YAxis yAxisId="mm" orientation="right" tick={tick} tickLine={false} axisLine={false} />
             <YAxis yAxisId="vpd" hide domain={[0, 6]} />
-            <Tooltip {...tooltipProps} />
-            <Legend {...legendProps} />
+            <Tooltip
+              {...tooltipProps}
+              labelFormatter={localizeTooltipLabel}
+              formatter={localizeTooltipSeries}
+            />
+            <Legend {...legendProps} formatter={localizeLegend} />
             <Bar
               yAxisId="mm"
               dataKey="PRECTOTCORR"
@@ -113,8 +151,14 @@ export function SoilMoistureChart({ data, depth }: { data: AgroTelemetry["soil"]
       className="border-cyan/35 shadow-[0_0_25px_rgba(0,0,0,0.5)]"
       right={
         <div className="rounded-md border border-cyan/30 bg-cyan/10 px-2 py-1 text-right font-mono text-xs leading-tight shadow-[0_0_8px_rgba(0,240,255,0.2)]">
-          <div className="font-bold text-cyan-300">BOREWELL {depth} m</div>
-          <div className="text-muted-foreground">aquifer reach {access}%</div>
+          <div className="font-bold text-cyan-300">
+            {<LocalizedText text={"BOREWELL "} />}
+            {depth} {<LocalizedText text={" m"} />}
+          </div>
+          <div className="text-muted-foreground">
+            {<LocalizedText text={"aquifer reach "} />}
+            {access}%
+          </div>
         </div>
       }
     >
@@ -137,8 +181,12 @@ export function SoilMoistureChart({ data, depth }: { data: AgroTelemetry["soil"]
             {grid}
             <XAxis dataKey="day" tick={tick} interval={5} tickLine={false} axisLine={false} />
             <YAxis tick={tick} domain={[0, 100]} tickLine={false} axisLine={false} />
-            <Tooltip {...tooltipProps} />
-            <Legend {...legendProps} />
+            <Tooltip
+              {...tooltipProps}
+              labelFormatter={localizeTooltipLabel}
+              formatter={localizeTooltipSeries}
+            />
+            <Legend {...legendProps} formatter={localizeLegend} />
             <Area
               dataKey="sm0_5"
               name="0–5cm seedbed"
@@ -206,12 +254,13 @@ export function PlantHealthRadar({
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={health.pillars} outerRadius="72%">
             <PolarGrid stroke="oklch(0.79 0.17 210 / 0.18)" />
-            <PolarAngleAxis
-              dataKey="label"
-              tick={{ ...tick, fill: "oklch(0.92 0.015 220)", fontSize: 12 }}
-            />
+            <PolarAngleAxis dataKey="label" tick={<LocalizedChartTick />} />
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-            <Tooltip {...tooltipProps} />
+            <Tooltip
+              {...tooltipProps}
+              labelFormatter={localizeTooltipLabel}
+              formatter={localizeTooltipSeries}
+            />
             <Radar
               dataKey="score"
               name="Score"
@@ -247,8 +296,12 @@ export function WaterBudgetChart({
             {grid}
             <XAxis dataKey="stage" tick={tick} tickLine={false} axisLine={false} />
             <YAxis tick={tick} tickLine={false} axisLine={false} />
-            <Tooltip {...tooltipProps} />
-            <Legend {...legendProps} />
+            <Tooltip
+              {...tooltipProps}
+              labelFormatter={localizeTooltipLabel}
+              formatter={localizeTooltipSeries}
+            />
+            <Legend {...legendProps} formatter={localizeLegend} />
             <Bar dataKey="ETc" name="Crop need ETc" fill="var(--amber)" radius={[4, 4, 0, 0]} />
             <Bar
               dataKey="available"

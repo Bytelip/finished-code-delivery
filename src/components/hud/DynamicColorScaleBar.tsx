@@ -5,6 +5,7 @@ import {
   ZOOM_EARTH_LAYERS_META,
 } from "@/types/zoomEarthLayers";
 import { cn } from "@/lib/utils";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface DynamicColorScaleBarProps {
   activeLayer: ZoomEarthLayerId;
@@ -83,7 +84,7 @@ export function DynamicColorScaleBar({
       {/* Optional Hover / Reticle Live Telemetry Tag */}
       {hoverValue !== undefined && hoverValue !== null && (
         <div className="mt-1 pt-1 border-t border-white/10 flex items-center justify-between text-xs font-mono text-cyan-300">
-          <span>Target Field:</span>
+          <span>{<LocalizedText text={"Target Field:"} />}</span>
           <span className="font-bold text-foreground bg-cyan-500/20 px-1 rounded-md border border-cyan-400/30">
             {hoverValue} {unit}
           </span>

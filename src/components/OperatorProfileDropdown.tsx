@@ -12,6 +12,7 @@ import {
   Lock,
 } from "lucide-react";
 import type { UserProfile } from "@/types/userProfile";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export interface OperatorProfileDropdownProps {
   profile: UserProfile | null;
@@ -57,7 +58,7 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
         className={`flex items-center gap-2.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-600/10 px-3.5 py-2 font-mono text-xs font-semibold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:border-cyan-400 hover:bg-cyan-500/25 transition-all cursor-pointer ${className}`}
       >
         <Lock className="size-3.5 text-cyan-300" />
-        <span>Mission Control Auth</span>
+        <span>{<LocalizedText text={"Mission Control Auth"} />}</span>
         <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse" />
       </button>
     );
@@ -100,7 +101,7 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
               {profile.fullName}
             </span>
             <span className="rounded-md bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.2 font-mono text-xs font-bold text-emerald-400">
-              VERIFIED
+              {<LocalizedText text={"VERIFIED"} />}
             </span>
           </div>
           <div className="flex items-center gap-1 font-mono text-xs text-cyan-300">
@@ -150,9 +151,12 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
             <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2 text-xs font-mono">
               <span className="flex items-center gap-1 text-emerald-400 font-semibold">
                 <ShieldCheck className="size-3 text-emerald-400" />
-                GMAIL VERIFIED
+                {<LocalizedText text={"GMAIL VERIFIED"} />}
               </span>
-              <span className="text-muted-foreground">Via {profile.provider}</span>
+              <span className="text-muted-foreground">
+                {<LocalizedText text={"Via "} />}
+                {profile.provider}
+              </span>
             </div>
           </div>
 
@@ -169,9 +173,11 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
             >
               <Settings className="size-4 text-cyan-300" />
               <div>
-                <div className="font-semibold text-foreground">Operator Profile & Settings</div>
+                <div className="font-semibold text-foreground">
+                  {<LocalizedText text={"Operator Profile & Settings"} />}
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  Preferences, role, and telemetry HUD
+                  {<LocalizedText text={"Preferences, role, and telemetry HUD"} />}
                 </div>
               </div>
             </button>
@@ -192,8 +198,12 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
               <MapPin className="size-4 text-emerald-400" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1">
-                  <span className="font-semibold text-foreground">Home Base Station</span>
-                  <span className="text-xs text-emerald-400 font-bold">RADAR LOCK</span>
+                  <span className="font-semibold text-foreground">
+                    {<LocalizedText text={"Home Base Station"} />}
+                  </span>
+                  <span className="text-xs text-emerald-400 font-bold">
+                    {<LocalizedText text={"RADAR LOCK"} />}
+                  </span>
                 </div>
                 <div className="truncate text-xs text-muted-foreground">
                   {homeBase} [{homeCoords.lat.toFixed(2)}°, {homeCoords.lon.toFixed(2)}°]
@@ -212,9 +222,11 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
             >
               <Bell className="size-4 text-amber-400" />
               <div>
-                <div className="font-semibold text-foreground">API Keys & Hazard Alerts</div>
+                <div className="font-semibold text-foreground">
+                  {<LocalizedText text={"API Keys & Hazard Alerts"} />}
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  EONET cyclone, USGS quake, drought
+                  {<LocalizedText text={"EONET cyclone, USGS quake, drought"} />}
                 </div>
               </div>
             </button>
@@ -233,7 +245,7 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs text-rose-400 hover:bg-rose-500/15 transition-colors cursor-pointer"
           >
             <LogOut className="size-3.5 text-rose-400" />
-            <span>Sign Out Operator Clearance</span>
+            <span>{<LocalizedText text={"Sign Out Operator Clearance"} />}</span>
           </button>
         </div>
       )}

@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export const TOUR_STORAGE_KEY = "agrospace_tour_completed_v1";
 
@@ -538,7 +539,9 @@ export function GuidedTourOverlay({
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]" />
               <span className="font-mono text-xs font-bold text-cyan-300 tracking-widest uppercase">
-                STEP {currentStepIndex + 1} OF {steps.length} • {currentStep.category}
+                {<LocalizedText text={"STEP "} />}
+                {currentStepIndex + 1} {<LocalizedText text={" OF "} />}
+                {steps.length} • {currentStep.category}
               </span>
             </div>
 
@@ -595,7 +598,7 @@ export function GuidedTourOverlay({
                 <span className="truncate">{currentStep.actionLabel}</span>
               </div>
               <span className="text-xs text-cyan-300 group-hover:translate-x-0.5 transition-transform shrink-0 font-semibold">
-                TRY LIVE ↗
+                {<LocalizedText text={"TRY LIVE ↗"} />}
               </span>
             </button>
           </div>
@@ -649,7 +652,7 @@ export function GuidedTourOverlay({
 
           {/* Mini Keyboard Hint */}
           <div className="mt-2 text-center text-xs font-mono text-foreground">
-            ← Prev • → Next • Esc Exit
+            {<LocalizedText text={"← Prev • → Next • Esc Exit"} />}
           </div>
         </motion.div>
       </AnimatePresence>

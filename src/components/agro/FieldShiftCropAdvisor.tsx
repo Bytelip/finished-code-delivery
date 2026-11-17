@@ -39,6 +39,7 @@ import {
   detectAgroClimaticZone,
 } from "@/data/cropSuitabilityAtlas";
 import type { AgroTelemetry } from "@/types/agroSpace";
+import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
 
 const SEASON_TABS = ["ALL", "KHARIF", "RABI", "ZAID", "PERENNIAL"] as const;
 type SeasonFilter = (typeof SEASON_TABS)[number];
@@ -93,6 +94,11 @@ export function FieldShiftCropAdvisor({
   className,
   variant = "full",
 }: FieldShiftCropAdvisorProps) {
+  const searchPlaceholder = useLocalizedValue(
+    "Search 600 crops (e.g. Ragi, Oyster Mushroom, Saffron, Flax)...",
+  );
+  const clearSearchLabel = useLocalizedValue("Clear crop search");
+  const cropSeasonLabel = useLocalizedValue("Crop season");
   const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>("ALL");
   const [selectedCropId, setSelectedCropId] = useState<string>("finger-millet-ragi");
   const [showAllCrops, setShowAllCrops] = useState(false);
@@ -274,7 +280,7 @@ export function FieldShiftCropAdvisor({
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald/40 bg-emerald/15 px-2.5 py-0.5 font-mono text-xs font-bold text-emerald-400 shadow-[0_0_8px_rgba(0,255,157,0.3)]">
               <Activity className="size-3 text-emerald-400 animate-pulse" />
-              600 Crops Atlas Active
+              {<LocalizedText text={"600 Crops Atlas Active"} />}
             </span>
           </div>
         }
@@ -288,14 +294,22 @@ export function FieldShiftCropAdvisor({
                   {resolvedRegion.zoneDisplay}
                 </h4>
                 <span className="text-xs font-mono text-muted-foreground">
-                  (Region: {resolvedRegion.worldRegion})
+                  {<LocalizedText text={"(Region: "} />}
+                  {resolvedRegion.worldRegion})
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                {resolvedRegion.zoneInfo?.regionalDescription || zone.description} Dominant:{" "}
-                <span className="text-foreground font-medium">{zone.dominantSoil}</span>. Elevation:{" "}
+                <LocalizedText
+                  text={resolvedRegion.zoneInfo?.regionalDescription || zone.description}
+                />{" "}
+                {<LocalizedText text={" Dominant:"} />}{" "}
+                <span className="text-foreground font-medium">
+                  <LocalizedText text={zone.dominantSoil} />
+                </span>
+                {<LocalizedText text={". Elevation:"} />}{" "}
                 <span className="text-cyan-300 font-mono font-medium">
-                  {resolvedRegion.elevationM}m ASL
+                  {resolvedRegion.elevationM}
+                  {<LocalizedText text={"m ASL"} />}
                 </span>
                 .
               </p>
@@ -304,21 +318,22 @@ export function FieldShiftCropAdvisor({
             {/* Live NASA Satellite Modifiers Indicator */}
             <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
               <div className="rounded-md border border-cyan-500/30 bg-cyan-950/40 px-2 py-1 text-cyan-300">
-                SMAP Soil:{" "}
+                {<LocalizedText text={"SMAP Soil:"} />}{" "}
                 <span className="font-bold text-cyan-300">
                   {telemetryContext.smapMoisture.toFixed(0)}%
                 </span>
               </div>
               <div className="rounded-md border border-emerald-500/30 bg-emerald-950/40 px-2 py-1 text-emerald-400">
-                Borewell:{" "}
+                {<LocalizedText text={"Borewell:"} />}{" "}
                 <span className="font-bold text-emerald-400">
-                  {telemetryContext.borewellDepthM}m
+                  {telemetryContext.borewellDepthM}
+                  {<LocalizedText text={"m"} />}
                 </span>
               </div>
               {telemetryContext.isDrought && (
                 <div className="inline-flex items-center gap-1 rounded-md border border-crimson/50 bg-crimson/20 px-2 py-1 text-rose-400 font-bold shadow-[0_0_8px_rgba(255,46,86,0.3)] animate-pulse">
                   <ShieldAlert className="size-3 text-rose-400" />
-                  Hard Feasibility Active (Water Weight: 35%)
+                  {<LocalizedText text={"Hard Feasibility Active (Water Weight: 35%)"} />}
                 </div>
               )}
             </div>
@@ -335,13 +350,13 @@ export function FieldShiftCropAdvisor({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search 600 crops (e.g. Ragi, Oyster Mushroom, Saffron, Flax)..."
+                placeholder={searchPlaceholder}
                 className="min-h-11 w-full rounded-lg border border-white/15 bg-[#0a1426] pl-10 pr-12 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:border-cyan-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  aria-label="Clear crop search"
+                  aria-label={clearSearchLabel}
                   onClick={() => setSearchQuery("")}
                   className="absolute right-1 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-md text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -352,7 +367,7 @@ export function FieldShiftCropAdvisor({
 
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 leading-none text-xs font-mono text-muted-foreground">
-                <span className="leading-none">Section:</span>
+                <span className="leading-none">{<LocalizedText text={"Section:"} />}</span>
                 <select
                   value={selectedCategoryFilter}
                   onChange={(e) => setSelectedCategoryFilter(e.target.value)}
@@ -360,7 +375,7 @@ export function FieldShiftCropAdvisor({
                 >
                   {CATEGORY_FILTERS.map((cat) => (
                     <option key={cat.id} value={cat.id}>
-                      {cat.label}
+                      <LocalizedText text={cat.label} />
                     </option>
                   ))}
                 </select>
@@ -368,7 +383,7 @@ export function FieldShiftCropAdvisor({
 
               <div
                 role="group"
-                aria-label="Crop season"
+                aria-label={cropSeasonLabel}
                 className="flex min-h-11 items-center gap-1 rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl"
               >
                 <AnimatedBackground
@@ -396,7 +411,7 @@ export function FieldShiftCropAdvisor({
                             : "border border-transparent text-muted-foreground hover:text-foreground",
                         )}
                       >
-                        {tab}
+                        <LocalizedText text={tab} />
                       </Button>
                     );
                   })}
@@ -411,7 +426,7 @@ export function FieldShiftCropAdvisor({
                   className="size-4 rounded-md border-white/20 bg-[#0a1426] text-cyan-300 focus:ring-2 focus:ring-ring cursor-pointer"
                 />
                 <span className={showExperimental ? "font-semibold text-cyan-300" : ""}>
-                  Show Global / Experimental Crops
+                  {<LocalizedText text={"Show Global / Experimental Crops"} />}
                 </span>
               </label>
             </div>
@@ -421,7 +436,7 @@ export function FieldShiftCropAdvisor({
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-3">
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-                <span>Region</span>
+                <span>{<LocalizedText text={"Region"} />}</span>
                 <select
                   value={selectedZoneFilter}
                   onChange={(e) => setSelectedZoneFilter(e.target.value)}
@@ -429,13 +444,13 @@ export function FieldShiftCropAdvisor({
                 >
                   {ALL_ZONES.map((z) => (
                     <option key={z.code} value={z.code}>
-                      {z.label.replace(/^Zone\s+[^\u00b7]+\u00b7\s*/, "")}
+                      <LocalizedText text={z.label.replace(/^Zone\s+[^\u00b7]+\u00b7\s*/, "")} />
                     </option>
                   ))}
                 </select>
               </label>
               <label className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-                <span>Sort</span>
+                <span>{<LocalizedText text={"Sort"} />}</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -443,15 +458,16 @@ export function FieldShiftCropAdvisor({
                 >
                   {SORT_OPTIONS.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.label}
+                      <LocalizedText text={s.label} />
                     </option>
                   ))}
                 </select>
               </label>
             </div>
             <div className="font-mono text-xs text-muted-foreground" aria-live="polite">
-              Showing <span className="font-bold text-cyan-300">{filteredCrops.length}</span> ranked
-              crops (out of 600 total)
+              {<LocalizedText text={"Showing "} />}
+              <span className="font-bold text-cyan-300">{filteredCrops.length}</span>{" "}
+              {<LocalizedText text={" ranked crops (out of 600 total)"} />}
             </div>
           </div>
         </div>
@@ -506,24 +522,35 @@ export function FieldShiftCropAdvisor({
                           </span>
                         )}
                         <span className="rounded-md bg-muted/40 border border-border/40 px-1.5 py-0.2 font-mono text-xs text-muted-foreground uppercase">
-                          {crop.season}
+                          <LocalizedText text={crop.season} />
                         </span>
                         {crop.isIndoorControlled && (
                           <span className="rounded-md bg-purple-500/20 border border-purple-500/40 px-1.5 py-0.2 font-mono text-xs text-cyan-300">
-                            🍄 Controlled
+                            {<LocalizedText text={"🍄 Controlled"} />}
                           </span>
                         )}
                       </div>
 
                       <div className="mt-1 flex flex-wrap items-center gap-3 text-xs font-mono text-muted-foreground">
-                        <span>Water: ~{crop.waterRequirementMm}mm</span>
+                        <span>
+                          {<LocalizedText text={"Water: ~"} />}
+                          {crop.waterRequirementMm}
+                          {<LocalizedText text={"mm"} />}
+                        </span>
                         <span>•</span>
-                        <span>Dur: {crop.durationDays}d</span>
+                        <span>
+                          {<LocalizedText text={"Dur: "} />}
+                          {crop.durationDays}
+                          {<LocalizedText text={"d"} />}
+                        </span>
                         <span>•</span>
-                        <span>Atlas Base: {crop.baseScore}%</span>
+                        <span>
+                          {<LocalizedText text={"Atlas Base: "} />}
+                          {crop.baseScore}%
+                        </span>
                         {crop.droughtTolerance === "High" && (
                           <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                            🌱 Drought-Hardy
+                            {<LocalizedText text={"🌱 Drought-Hardy"} />}
                           </span>
                         )}
                       </div>
@@ -531,7 +558,9 @@ export function FieldShiftCropAdvisor({
                       {crop.hardFilterViolation && crop.hardFilterMessage && (
                         <div className="mt-1.5 text-xs font-mono font-bold text-rose-400 flex items-center gap-1">
                           <ShieldAlert className="size-3 shrink-0" />
-                          <span>{crop.hardFilterMessage}</span>
+                          <span>
+                            <LocalizedText text={crop.hardFilterMessage} />
+                          </span>
                         </div>
                       )}
                     </div>
@@ -555,7 +584,7 @@ export function FieldShiftCropAdvisor({
                         crop.tierBadgeClass,
                       )}
                     >
-                      {crop.suitabilityTier}
+                      <LocalizedText text={crop.suitabilityTier} />
                     </span>
                   </div>
                 </div>
@@ -572,12 +601,13 @@ export function FieldShiftCropAdvisor({
               >
                 {showAllCrops ? (
                   <>
-                    <ChevronUp className="size-3.5" /> Show Top 5 Recommendations
+                    <ChevronUp className="size-3.5" />{" "}
+                    {<LocalizedText text={" Show Top 5 Recommendations"} />}
                   </>
                 ) : (
                   <>
-                    <ChevronDown className="size-3.5" /> View Extended{" "}
-                    {Math.min(40, filteredCrops.length)} Ranked Crops
+                    <ChevronDown className="size-3.5" /> {<LocalizedText text={" View Extended"} />}{" "}
+                    {Math.min(40, filteredCrops.length)} {<LocalizedText text={" Ranked Crops"} />}
                   </>
                 )}
               </Button>
@@ -592,7 +622,7 @@ export function FieldShiftCropAdvisor({
                   <div className="flex items-center gap-2">
                     <h4 className="text-base font-bold text-foreground">{selectedCrop.name}</h4>
                     <span className="rounded-md bg-cyan-500/15 border border-cyan-400/40 px-2 py-0.5 font-mono text-xs font-bold text-cyan-300 uppercase">
-                      {selectedCrop.category}
+                      <LocalizedText text={selectedCrop.category} />
                     </span>
                   </div>
                   {selectedCrop.botanicalName && (
@@ -601,12 +631,17 @@ export function FieldShiftCropAdvisor({
                     </p>
                   )}
                   <p className="text-xs font-mono text-cyan-300 mt-1">
-                    Section: {selectedCrop.section} • Duration: {selectedCrop.durationDays} days
+                    {<LocalizedText text={"Section: "} />}
+                    <LocalizedText text={selectedCrop.section} />{" "}
+                    {<LocalizedText text={" • Duration: "} />}
+                    {selectedCrop.durationDays} {<LocalizedText text={" days"} />}
                   </p>
                 </div>
 
                 <div className="text-right">
-                  <div className="text-xs font-mono text-muted-foreground">NASA Match</div>
+                  <div className="text-xs font-mono text-muted-foreground">
+                    {<LocalizedText text={"NASA Match"} />}
+                  </div>
                   <div
                     className="font-mono text-2xl font-extrabold drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]"
                     style={{ color: selectedCrop.tierColorHex }}
@@ -614,7 +649,8 @@ export function FieldShiftCropAdvisor({
                     {selectedCrop.adjustedScore.toFixed(1)}%
                   </div>
                   <div className="text-xs font-mono text-muted-foreground">
-                    Atlas Base: {selectedCrop.baseScore}%
+                    {<LocalizedText text={"Atlas Base: "} />}
+                    {selectedCrop.baseScore}%
                   </div>
                 </div>
               </div>
@@ -623,10 +659,12 @@ export function FieldShiftCropAdvisor({
               <div className="mt-3.5 space-y-3 divide-y divide-white/10">
                 <div className="flex items-center justify-between pb-3 text-sm font-mono font-semibold text-cyan-300">
                   <span className="flex items-center gap-1.5">
-                    <Sparkles className="size-3 text-cyan-300" /> 5-Factor Agro-Ecological Breakdown
+                    <Sparkles className="size-3 text-cyan-300" />{" "}
+                    {<LocalizedText text={" 5-Factor Agro-Ecological Breakdown"} />}
                   </span>
                   <span className="text-xs font-normal text-muted-foreground">
-                    Water weight: {selectedCrop.waterWeightPct}%
+                    {<LocalizedText text={"Water weight: "} />}
+                    {selectedCrop.waterWeightPct}%
                   </span>
                 </div>
 
@@ -634,7 +672,8 @@ export function FieldShiftCropAdvisor({
                 <div className="py-3">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Droplets className="size-3 text-cyan-300" /> Water & Deficit Resilience (
+                      <Droplets className="size-3 text-cyan-300" />{" "}
+                      {<LocalizedText text={" Water & Deficit Resilience ("} />}
                       {selectedCrop.waterWeightPct}%)
                     </span>
                     <span className="font-bold text-cyan-300">
@@ -642,7 +681,7 @@ export function FieldShiftCropAdvisor({
                       {((selectedCrop.factors.water * selectedCrop.waterWeightPct) / 100).toFixed(
                         1,
                       )}{" "}
-                      pts
+                      {<LocalizedText text={"pts"} />}
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -657,12 +696,13 @@ export function FieldShiftCropAdvisor({
                 <div className="py-3">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Sprout className="size-3 text-emerald-400" /> Soil & Nutrient Compatibility
-                      (20%)
+                      <Sprout className="size-3 text-emerald-400" />{" "}
+                      {<LocalizedText text={" Soil & Nutrient Compatibility (20%)"} />}
                     </span>
                     <span className="font-bold text-emerald-400">
                       {selectedCrop.factors.soil}/100 · +
-                      {(selectedCrop.factors.soil * 0.2).toFixed(1)} pts
+                      {(selectedCrop.factors.soil * 0.2).toFixed(1)}{" "}
+                      {<LocalizedText text={" pts"} />}
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -677,11 +717,13 @@ export function FieldShiftCropAdvisor({
                 <div className="py-3">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Sun className="size-3 text-amber-400" /> Climate & Thermal Zone Match (20%)
+                      <Sun className="size-3 text-amber-400" />{" "}
+                      {<LocalizedText text={" Climate & Thermal Zone Match (20%)"} />}
                     </span>
                     <span className="font-bold text-amber-400">
                       {selectedCrop.factors.climate}/100 · +
-                      {(selectedCrop.factors.climate * 0.2).toFixed(1)} pts
+                      {(selectedCrop.factors.climate * 0.2).toFixed(1)}{" "}
+                      {<LocalizedText text={" pts"} />}
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -696,11 +738,13 @@ export function FieldShiftCropAdvisor({
                 <div className="py-3">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Mountain className="size-3 text-cyan-300" /> Terrain & Slope Drainage (20%)
+                      <Mountain className="size-3 text-cyan-300" />{" "}
+                      {<LocalizedText text={" Terrain & Slope Drainage (20%)"} />}
                     </span>
                     <span className="font-bold text-cyan-300">
                       {selectedCrop.factors.terrain}/100 · +
-                      {(selectedCrop.factors.terrain * 0.2).toFixed(1)} pts
+                      {(selectedCrop.factors.terrain * 0.2).toFixed(1)}{" "}
+                      {<LocalizedText text={" pts"} />}
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -715,11 +759,13 @@ export function FieldShiftCropAdvisor({
                 <div className="py-3">
                   <div className="flex items-center justify-between text-xs font-mono mb-1">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Coins className="size-3 text-amber-400" /> Capital & Market Safety (20%)
+                      <Coins className="size-3 text-amber-400" />{" "}
+                      {<LocalizedText text={" Capital & Market Safety (20%)"} />}
                     </span>
                     <span className="font-bold text-amber-400">
                       {selectedCrop.factors.economics}/100 · +
-                      {(selectedCrop.factors.economics * 0.2).toFixed(1)} pts
+                      {(selectedCrop.factors.economics * 0.2).toFixed(1)}{" "}
+                      {<LocalizedText text={" pts"} />}
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden border border-border/30">
@@ -734,14 +780,16 @@ export function FieldShiftCropAdvisor({
               {/* Agronomic Field Notes */}
               <div className="mt-4 rounded-md border border-border/40 bg-background/50 p-2.5 text-xs text-foreground leading-relaxed backdrop-blur-sm">
                 <span className="font-mono text-xs text-cyan-300 font-bold block mb-1">
-                  AGRONOMIC ADVISORY & ATLAS PROFILE:
+                  {<LocalizedText text={"AGRONOMIC ADVISORY & ATLAS PROFILE:"} />}
                 </span>
-                {selectedCrop.agronomicNotes}
+                <LocalizedText text={selectedCrop.agronomicNotes} />
               </div>
 
               {/* Geographic Zone Badges */}
               <div className="mt-3 pt-2 border-t border-border/30 flex flex-wrap items-center gap-1.5 text-xs font-mono">
-                <span className="text-muted-foreground">Adapted Zones:</span>
+                <span className="text-muted-foreground">
+                  {<LocalizedText text={"Adapted Zones:"} />}
+                </span>
                 {selectedCrop.indiaZones.map((z) => (
                   <span
                     key={z}
@@ -762,17 +810,23 @@ export function FieldShiftCropAdvisor({
               <Zap className="size-4.5 text-amber-400 animate-pulse" />
               <div>
                 <h4 className="font-mono text-sm font-bold text-foreground">
-                  ⚡ Field Shift Water & Economics Simulator
+                  {<LocalizedText text={"⚡ Field Shift Water & Economics Simulator"} />}
                 </h4>
                 <p className="text-xs text-muted-foreground">
-                  Simulate transition from unsustainable baseline to climate-smart shift crop
+                  {
+                    <LocalizedText
+                      text={
+                        "Simulate transition from unsustainable baseline to climate-smart shift crop"
+                      }
+                    />
+                  }
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="rounded-md bg-emerald-500/15 border border-emerald-400/40 px-2 py-0.5 font-mono text-xs font-bold text-emerald-400">
-                Aquifer Preservation Engine
+                {<LocalizedText text={"Aquifer Preservation Engine"} />}
               </span>
             </div>
           </div>
@@ -781,24 +835,36 @@ export function FieldShiftCropAdvisor({
             {/* Baseline Crop Selector */}
             <div className="rounded-lg border border-border/40 bg-background/40 p-3">
               <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1.5">
-                Current Baseline Crop
+                {<LocalizedText text={"Current Baseline Crop"} />}
               </label>
               <select
                 value={baselineCropId}
                 onChange={(e) => setBaselineCropId(e.target.value)}
                 className="w-full bg-[#081224] border border-border/60 rounded-md px-2.5 py-1.5 font-mono text-xs font-semibold text-foreground focus:outline-none focus:border-cyan"
               >
-                <option value="sugarcane">Sugarcane (Perennial · ~1,800mm)</option>
-                <option value="paddy-rice-kharif">Rice / Paddy (Kharif · 1,250mm)</option>
-                <option value="tomato-hybrid">Tomato (Intensive · 650mm)</option>
-                <option value="cotton-bt">Cotton (Kharif · 850mm)</option>
-                <option value="banana-grand-naine">Banana (Perennial · 1,600mm)</option>
-                <option value="wheat-durum">Wheat (Rabi · 550mm)</option>
+                <option value="sugarcane">
+                  {<LocalizedText text={"Sugarcane (Perennial · ~1,800mm)"} />}
+                </option>
+                <option value="paddy-rice-kharif">
+                  {<LocalizedText text={"Rice / Paddy (Kharif · 1,250mm)"} />}
+                </option>
+                <option value="tomato-hybrid">
+                  {<LocalizedText text={"Tomato (Intensive · 650mm)"} />}
+                </option>
+                <option value="cotton-bt">
+                  {<LocalizedText text={"Cotton (Kharif · 850mm)"} />}
+                </option>
+                <option value="banana-grand-naine">
+                  {<LocalizedText text={"Banana (Perennial · 1,600mm)"} />}
+                </option>
+                <option value="wheat-durum">
+                  {<LocalizedText text={"Wheat (Rabi · 550mm)"} />}
+                </option>
               </select>
               <div className="mt-2 text-xs font-mono text-muted-foreground">
-                Water need:{" "}
+                {<LocalizedText text={"Water need:"} />}{" "}
                 <span className="font-bold text-rose-400">
-                  {baselineCrop.waterRequirementMm} mm
+                  {baselineCrop.waterRequirementMm} {<LocalizedText text={" mm"} />}
                 </span>
               </div>
             </div>
@@ -806,7 +872,7 @@ export function FieldShiftCropAdvisor({
             {/* Shift Alternative Selector */}
             <div className="rounded-lg border border-border/40 bg-background/40 p-3">
               <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-1.5">
-                Recommended Shift Crop
+                {<LocalizedText text={"Recommended Shift Crop"} />}
               </label>
               <select
                 value={targetCropId}
@@ -815,14 +881,15 @@ export function FieldShiftCropAdvisor({
               >
                 {filteredCrops.slice(0, 15).map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.adjustedScore.toFixed(0)}% · {c.waterRequirementMm}mm)
+                    {c.name} ({c.adjustedScore.toFixed(0)}% · {c.waterRequirementMm}
+                    {<LocalizedText text={"mm)"} />}
                   </option>
                 ))}
               </select>
               <div className="mt-2 text-xs font-mono text-muted-foreground">
-                Water need:{" "}
+                {<LocalizedText text={"Water need:"} />}{" "}
                 <span className="font-bold text-emerald-400">
-                  {targetCrop.waterRequirementMm} mm
+                  {targetCrop.waterRequirementMm} {<LocalizedText text={" mm"} />}
                 </span>
               </div>
             </div>
@@ -830,14 +897,16 @@ export function FieldShiftCropAdvisor({
             {/* Water Savings Metric */}
             <div className="rounded-lg border border-emerald-500/40 bg-emerald-950/20 p-3 flex flex-col justify-between">
               <div className="text-xs font-mono text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                <TrendingUp className="size-3 text-emerald-400" /> Water-Use Efficiency
+                <TrendingUp className="size-3 text-emerald-400" />{" "}
+                {<LocalizedText text={" Water-Use Efficiency"} />}
               </div>
               <div className="mt-1">
                 <div className="font-mono text-2xl font-extrabold text-emerald-400 drop-shadow-[0_0_10px_rgba(0,255,157,0.4)]">
                   +{waterSavingsPct}%
                 </div>
                 <div className="text-xs font-mono text-emerald-400">
-                  Saves {waterSavingsMm} mm groundwater/ha
+                  {<LocalizedText text={"Saves "} />}
+                  {waterSavingsMm} {<LocalizedText text={" mm groundwater/ha"} />}
                 </div>
               </div>
             </div>
@@ -845,14 +914,15 @@ export function FieldShiftCropAdvisor({
             {/* Capital / Upkeep Safety Metric */}
             <div className="rounded-lg border border-cyan-500/40 bg-cyan-950/20 p-3 flex flex-col justify-between">
               <div className="text-xs font-mono text-cyan-300 uppercase tracking-wider flex items-center gap-1">
-                <ShieldCheck className="size-3 text-cyan-300" /> Capital & Debt Safety
+                <ShieldCheck className="size-3 text-cyan-300" />{" "}
+                {<LocalizedText text={" Capital & Debt Safety"} />}
               </div>
               <div className="mt-1">
                 <div className="font-mono text-2xl font-extrabold text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]">
                   +{capitalSafetyGain > 0 ? capitalSafetyGain : 35}%
                 </div>
                 <div className="text-xs font-mono text-cyan-300">
-                  Reduced fertilizer/pumping risks
+                  {<LocalizedText text={"Reduced fertilizer/pumping risks"} />}
                 </div>
               </div>
             </div>
@@ -866,18 +936,23 @@ export function FieldShiftCropAdvisor({
               <Sprout className="size-4 text-emerald-400" />
               <div>
                 <h4 className="font-mono text-sm font-bold text-foreground">
-                  Smart 3-Season Crop Rotation Sequence · {rotationPlan.zoneName}
+                  {<LocalizedText text={"Smart 3-Season Crop Rotation Sequence · "} />}
+                  {rotationPlan.zoneName}
                 </h4>
-                <p className="text-xs text-muted-foreground">{rotationPlan.rationale}</p>
+                <p className="text-xs text-muted-foreground">
+                  <LocalizedText text={rotationPlan.rationale} />
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 font-mono text-xs">
               <span className="text-cyan-300 font-semibold">
-                Total Water: {rotationPlan.totalWaterMm} mm
+                {<LocalizedText text={"Total Water: "} />}
+                {rotationPlan.totalWaterMm} {<LocalizedText text={" mm"} />}
               </span>
               <span className="text-emerald-400 font-semibold">
-                Saves: ~{rotationPlan.waterSavedMmVsRiceSugarcane} mm
+                {<LocalizedText text={"Saves: ~"} />}
+                {rotationPlan.waterSavedMmVsRiceSugarcane} {<LocalizedText text={" mm"} />}
               </span>
             </div>
           </div>
@@ -887,9 +962,11 @@ export function FieldShiftCropAdvisor({
             <div className="relative rounded-lg border border-cyan-500/40 bg-cyan-950/15 p-3.5 backdrop-blur-sm">
               <div className="flex items-center justify-between font-mono text-xs mb-2">
                 <span className="rounded-md bg-cyan-500/20 border border-cyan-400/50 px-2 py-0.5 text-cyan-300 font-bold uppercase">
-                  1. Kharif Cycle
+                  {<LocalizedText text={"1. Kharif Cycle"} />}
                 </span>
-                <span className="text-cyan-300">~{rotationPlan.kharif.waterMm} mm</span>
+                <span className="text-cyan-300">
+                  ~{rotationPlan.kharif.waterMm} {<LocalizedText text={" mm"} />}
+                </span>
               </div>
               <div className="text-sm font-bold text-foreground">{rotationPlan.kharif.crop}</div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
@@ -901,9 +978,11 @@ export function FieldShiftCropAdvisor({
             <div className="relative rounded-lg border border-emerald-500/40 bg-emerald-950/15 p-3.5 backdrop-blur-sm">
               <div className="flex items-center justify-between font-mono text-xs mb-2">
                 <span className="rounded-md bg-emerald-500/20 border border-emerald-400/50 px-2 py-0.5 text-emerald-400 font-bold uppercase">
-                  2. Rabi Cycle
+                  {<LocalizedText text={"2. Rabi Cycle"} />}
                 </span>
-                <span className="text-emerald-400">~{rotationPlan.rabi.waterMm} mm</span>
+                <span className="text-emerald-400">
+                  ~{rotationPlan.rabi.waterMm} {<LocalizedText text={" mm"} />}
+                </span>
               </div>
               <div className="text-sm font-bold text-foreground">{rotationPlan.rabi.crop}</div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
@@ -915,9 +994,11 @@ export function FieldShiftCropAdvisor({
             <div className="relative rounded-lg border border-amber-500/40 bg-amber-950/15 p-3.5 backdrop-blur-sm">
               <div className="flex items-center justify-between font-mono text-xs mb-2">
                 <span className="rounded-md bg-amber-500/20 border border-amber-400/50 px-2 py-0.5 text-amber-400 font-bold uppercase">
-                  3. Zaid / Summer Cycle
+                  {<LocalizedText text={"3. Zaid / Summer Cycle"} />}
                 </span>
-                <span className="text-amber-400">~{rotationPlan.zaid.waterMm} mm</span>
+                <span className="text-amber-400">
+                  ~{rotationPlan.zaid.waterMm} {<LocalizedText text={" mm"} />}
+                </span>
               </div>
               <div className="text-sm font-bold text-foreground">{rotationPlan.zaid.crop}</div>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">

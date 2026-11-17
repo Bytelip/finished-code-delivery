@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { Severity } from "@/types/agroSpace";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export function HudCard({
   title,
@@ -28,11 +29,11 @@ export function HudCard({
           )}
           <div className="min-w-0">
             <h3 className="truncate font-sans text-sm font-semibold tracking-tight text-foreground">
-              {title}
+              <LocalizedText text={title} />
             </h3>
             {subtitle && (
               <p className="mt-0.5 truncate font-mono text-xs tracking-wider text-muted-foreground normal-case">
-                {subtitle}
+                <LocalizedText text={subtitle} />
               </p>
             )}
           </div>
@@ -98,7 +99,7 @@ export function SeverityChip({ severity }: { severity: Severity }) {
           (severity === "critical" || severity === "warning") && "animate-pulse",
         )}
       />
-      {s.label}
+      <LocalizedText text={s.label} />
     </span>
   );
 }
@@ -116,10 +117,16 @@ export function Readout({
 }) {
   return (
     <div className="min-w-0 rounded-md border border-border/30 bg-background/30 p-2 backdrop-blur-sm">
-      <div className="hud-label truncate text-xs text-muted-foreground">{label}</div>
+      <div className="hud-label truncate text-xs text-muted-foreground">
+        <LocalizedText text={label} />
+      </div>
       <div className={cn("mt-1 truncate font-mono text-lg font-semibold tabular-nums", tone)}>
         {value}
-        {unit && <span className="ml-1 text-xs font-normal text-muted-foreground">{unit}</span>}
+        {unit && (
+          <span className="ml-1 text-xs font-normal text-muted-foreground">
+            <LocalizedText text={unit} />
+          </span>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React from "react";
 import { Play, Pause, SkipBack, SkipForward, Radio, Layers, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export interface TimeStep {
   id: string;
@@ -146,14 +147,14 @@ export function TimePlayerPill({
               isLive ? "bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" : "bg-slate-500",
             )}
           />
-          LIVE
+          {<LocalizedText text={"LIVE"} />}
         </button>
       </div>
 
       {/* Model Source Badge Pill */}
       <div className="hidden lg:flex items-center gap-1.5 rounded-full bg-[#181C24]/80 backdrop-blur-md border border-white/10 px-3 py-1 text-xs font-mono text-foreground shadow-lg">
         <Layers className="size-3 text-cyan-300" />
-        <span>NASA GIBS • ICON 13 km • GFS 22 km</span>
+        <span>{<LocalizedText text={"NASA GIBS • ICON 13 km • GFS 22 km"} />}</span>
       </div>
     </div>
   );

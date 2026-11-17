@@ -6,6 +6,7 @@ import {
   ZOOM_EARTH_LAYERS_META,
 } from "@/types/zoomEarthLayers";
 import { cn } from "@/lib/utils";
+import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
 
 interface LayerInfoModalProps {
   layerId: ZoomEarthLayerId | null;
@@ -24,6 +25,7 @@ export function LayerInfoModal({
   dontShowAgain = false,
   onToggleDontShowAgain,
 }: LayerInfoModalProps) {
+  const closeDialogTitle = useLocalizedValue("Close Dialog");
   if (!open || !layerId) return null;
 
   const meta = ZOOM_EARTH_LAYERS_META[layerId] || ZOOM_EARTH_LAYERS_META["satellite"]!;
@@ -45,7 +47,7 @@ export function LayerInfoModal({
           type="button"
           onClick={onClose}
           className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
-          title="Close Dialog"
+          title={closeDialogTitle}
         >
           <X className="size-4" />
         </button>
@@ -58,33 +60,40 @@ export function LayerInfoModal({
         {/* Category Pill */}
         <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-xs font-mono text-cyan-300 uppercase tracking-widest mb-2">
           <Sparkles className="size-2.5" />
-          {meta.category === "atmospheric"
-            ? "Forecast & Atmospheric Map"
-            : meta.category === "live"
-              ? "Live Geospatial Observation"
-              : "NASA Agro-Climatic Telemetry"}
+          {
+            <LocalizedText
+              text={
+                meta.category === "atmospheric"
+                  ? "Forecast & Atmospheric Map"
+                  : meta.category === "live"
+                    ? "Live Geospatial Observation"
+                    : "NASA Agro-Climatic Telemetry"
+              }
+            />
+          }
         </div>
 
         {/* Title */}
         <h2 className="text-xl font-bold tracking-tight text-foreground font-sans">
-          {activeSub ? `${meta.name} • ${activeSub.label}` : meta.title}
+          <LocalizedText text={activeSub ? `${meta.name} • ${activeSub.label}` : meta.title} />
         </h2>
 
         {/* Scientific Description */}
         <p className="mt-3 text-sm text-foreground leading-relaxed font-sans px-2">
-          {meta.description}
+          <LocalizedText text={meta.description} />
         </p>
 
         {activeSub && (
           <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-cyan-300 font-mono inline-block">
-            Mode: {activeSub.description}
+            {<LocalizedText text={"Mode: "} />}
+            <LocalizedText text={activeSub.description} />
           </div>
         )}
 
         {/* Model Resolution Badge */}
         <div className="mt-4 flex items-center justify-center gap-2 text-xs font-mono text-muted-foreground">
           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Resolution: ICON 13 km • GFS 22 km • NASA GIBS</span>
+          <span>{<LocalizedText text={"Resolution: ICON 13 km • GFS 22 km • NASA GIBS"} />}</span>
         </div>
 
         {/* Blue Primary "OK" Button */}
@@ -93,7 +102,7 @@ export function LayerInfoModal({
           onClick={onClose}
           className="mt-5 w-full py-2.5 px-4 rounded-xl bg-[#1D74F5] hover:bg-[#3B82F6] active:bg-[#1E40AF] text-foreground font-semibold text-sm tracking-wide shadow-[0_4px_16px_rgba(29,116,245,0.35)] transition-all duration-150 cursor-pointer"
         >
-          OK
+          {<LocalizedText text={"OK"} />}
         </button>
 
         {/* Don't show again toggle */}
@@ -105,7 +114,7 @@ export function LayerInfoModal({
               onChange={(e) => onToggleDontShowAgain(e.target.checked)}
               className="rounded-md border-white/20 bg-black/40 text-cyan-300 focus:ring-0 size-3.5"
             />
-            <span>Don't show automatically when switching layers</span>
+            <span>{<LocalizedText text={"Don't show automatically when switching layers"} />}</span>
           </label>
         )}
       </div>

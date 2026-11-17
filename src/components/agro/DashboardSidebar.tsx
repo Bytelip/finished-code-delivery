@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { FARM_PRESETS, type DashboardTab, type FarmPreset } from "@/types/agroSpace";
 import { useLanguage } from "@/context/LanguageContext";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export const TABS: { id: DashboardTab; label: string; icon: typeof Leaf }[] = [
   { id: "overview", label: "HUD Overview", icon: LayoutDashboard },
@@ -132,14 +133,14 @@ export function DashboardSidebar({
               >
                 <div className="flex items-center gap-1.5">
                   <span className="truncate font-sans text-xs font-bold tracking-tight text-foreground">
-                    AgroSpace
+                    {<LocalizedText text={"AgroSpace"} />}
                   </span>
                   <span className="rounded-md bg-cyan-500/20 px-1 py-0.2 font-mono text-xs font-semibold text-cyan-300 uppercase tracking-widest border border-cyan-400/30">
-                    v2.4
+                    {<LocalizedText text={"v2.4"} />}
                   </span>
                 </div>
                 <div className="hud-label mt-0.5 truncate text-xs text-cyan-300">
-                  SPATIAL OBSERVATORY
+                  {<LocalizedText text={"SPATIAL OBSERVATORY"} />}
                 </div>
               </motion.div>
             )}
@@ -182,7 +183,9 @@ export function DashboardSidebar({
             <span className="hud-label tracking-widest text-xs text-muted-foreground font-bold">
               {t("orbital_modules", "ORBITAL MODULES")}
             </span>
-            <span className="font-mono text-xs text-cyan-300">[ONLINE]</span>
+            <span className="font-mono text-xs text-cyan-300">
+              {<LocalizedText text={"[ONLINE]"} />}
+            </span>
           </div>
         )}
 
@@ -255,7 +258,9 @@ export function DashboardSidebar({
             <span className="hud-label tracking-widest text-xs text-muted-foreground font-bold">
               {t("target_waypoints", "TARGET WAYPOINTS")}
             </span>
-            <span className="font-mono text-xs text-emerald-400">RADAR LOCK</span>
+            <span className="font-mono text-xs text-emerald-400">
+              {<LocalizedText text={"RADAR LOCK"} />}
+            </span>
           </div>
         )}
 
@@ -339,7 +344,11 @@ export function DashboardSidebar({
             <span className="hud-label text-xs">{t("collapse_dock", "Collapse Dock")}</span>
           )}
         </div>
-        {!collapsed && <span className="text-xs text-muted-foreground">[TAB / H]</span>}
+        {!collapsed && (
+          <span className="text-xs text-muted-foreground">
+            {<LocalizedText text={"[TAB / H]"} />}
+          </span>
+        )}
       </button>
     </motion.aside>
   );

@@ -9,6 +9,7 @@ import {
 import { processIncomingAuthCallback, signOutUser } from "@/services/authService";
 import { toast } from "sonner";
 import { syncUrlCoords } from "@/utils/preciseLocation";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface AuthGateProps {
   children: (props: {
@@ -35,7 +36,8 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     (userName: string) => {
       if (
         hasAcquiredInitialGps.current ||
-        (typeof window !== "undefined" && window.sessionStorage?.getItem("agro_initial_gps_done") === "true")
+        (typeof window !== "undefined" &&
+          window.sessionStorage?.getItem("agro_initial_gps_done") === "true")
       ) {
         return;
       }
@@ -45,8 +47,10 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
       } catch {}
 
       if (typeof window === "undefined" || !navigator.geolocation) {
-        toast.info(`Welcome, ${userName}`, {
-          description: "Hardware GPS not supported on this device. Manual coordinate entry active.",
+        toast.info(<LocalizedText text={`Welcome, ${userName}`} />, {
+          description: (
+            <LocalizedText text="Hardware GPS not supported on this device. Manual coordinate entry active." />
+          ),
         });
         return;
       }
@@ -101,9 +105,13 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
         // Update parent dashboard state & flight pipeline
         onLiveLocationAcquired?.(fixedLat, fixedLon, placeName);
 
-        toast.success(`🛰️ GPS Target Lock: ${placeName}`, {
+        toast.success(<LocalizedText text={`🛰️ GPS Target Lock: ${placeName}`} />, {
           id: "auto-gps-lock",
-          description: `Live coordinates ${fixedLat}°N, ${fixedLon}°E (±${accuracy}m). Telemetry calibrated.`,
+          description: (
+            <LocalizedText
+              text={`Live coordinates ${fixedLat}Â°N, ${fixedLon}Â°E (Â±${accuracy}m). Telemetry calibrated.`}
+            />
+          ),
           duration: 2000,
         });
       };
@@ -120,7 +128,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
         maximumAge: 60000,
       });
     },
-    [onLiveLocationAcquired]
+    [onLiveLocationAcquired],
   );
 
   // Check returning OAuth callback tokens or initialize GPS for existing verified session
@@ -134,7 +142,11 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
       }
     });
 
-    if (currentUser && (currentUser.verified || currentUser.isVerified) && !hasAcquiredInitialGps.current) {
+    if (
+      currentUser &&
+      (currentUser.verified || currentUser.isVerified) &&
+      !hasAcquiredInitialGps.current
+    ) {
       triggerAutoGpsTracking(currentUser.fullName || currentUser.name || "Operator");
     }
   }, [currentUser, triggerAutoGpsTracking]);
@@ -153,8 +165,10 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     } catch {}
     await signOutUser();
     setCurrentUser(null);
-    toast.info("Operator Signed Out", {
-      description: "Mission Control session terminated. Authentication required to access telemetry.",
+    toast.info(<LocalizedText text="Operator Signed Out" />, {
+      description: (
+        <LocalizedText text="Mission Control session terminated. Authentication required to access telemetry." />
+      ),
     });
     if (typeof window !== "undefined") {
       window.location.assign(window.location.origin);
@@ -172,5 +186,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     return <CosmicAuthPage onSuccess={handleAuthSuccess} />;
   }
 
-  return <>{children({ user: currentUser, onSignOut: handleSignOut, onUpdateUser: handleUpdateUser })}</>;
+  return (
+    <>{children({ user: currentUser, onSignOut: handleSignOut, onUpdateUser: handleUpdateUser })}</>
+  );
 }

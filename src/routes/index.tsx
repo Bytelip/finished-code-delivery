@@ -52,6 +52,7 @@ import type {
   Scenario,
   Season,
 } from "@/types/agroSpace";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -159,7 +160,6 @@ function AgroSpaceDashboard({
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showMissionBriefModal, setShowMissionBriefModal] = useState(false);
   const [showAdvisoryReportModal, setShowAdvisoryReportModal] = useState(false);
-  const [advisoryLanguage, setAdvisoryLanguage] = useState<"en" | "hi" | "kn">("en");
   const [showTour, setShowTour] = useState(false);
 
   // Auto-launch guided tutorial tour for first-time visitors / hackathon judges after 1200ms
@@ -395,7 +395,9 @@ function AgroSpaceDashboard({
       />
 
       <main className="min-w-0 w-full flex-1 overflow-x-hidden pb-20 sm:pb-0">
-        <h1 className="sr-only">AgroSpace Nexus — Precision Agriculture &amp; Multi-Hazard HUD</h1>
+        <h1 className="sr-only">
+          {<LocalizedText text={"AgroSpace Nexus — Precision Agriculture & Multi-Hazard HUD"} />}
+        </h1>
         <CommandBar
           lat={lat}
           lon={lon}
@@ -543,46 +545,64 @@ function AgroSpaceDashboard({
           <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-xs mt-6 shadow-xl">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-cyan-300 font-bold uppercase tracking-wider">
-                TELEMETRY STREAM:
+                {<LocalizedText text={"TELEMETRY STREAM:"} />}
               </span>
-              <span className="text-foreground">SENTINEL-1 C-SAR PASS: 41.2° INCLINATION</span>
+              <span className="text-foreground">
+                {<LocalizedText text={"SENTINEL-1 C-SAR PASS: 41.2° INCLINATION"} />}
+              </span>
               <span className="hidden md:inline text-foreground">•</span>
               <span className="hidden md:inline text-foreground">
-                LANDSAT-9 OLI-2 / TIRS-2 THERMAL CALIBRATION: NOMINAL [0.03K DELTA]
+                {
+                  <LocalizedText
+                    text={"LANDSAT-9 OLI-2 / TIRS-2 THERMAL CALIBRATION: NOMINAL [0.03K DELTA]"}
+                  />
+                }
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-              <span className="text-foreground font-semibold">NASA-LANCE AG-INTEL READY</span>
+              <span className="text-foreground font-semibold">
+                {<LocalizedText text={"NASA-LANCE AG-INTEL READY"} />}
+              </span>
             </div>
           </div>
 
           {/* Observatory Mission Footer (Google Stitch) */}
           <footer className="w-full rounded-xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-xs">
-            <div>AGROSPACE NEXUS • NASA EARTH OBSERVATION MISSION SYSTEM • EO-OPS-CORE-V4.9</div>
+            <div>
+              {
+                <LocalizedText
+                  text={
+                    "AGROSPACE NEXUS • NASA EARTH OBSERVATION MISSION SYSTEM • EO-OPS-CORE-V4.9"
+                  }
+                />
+              }
+            </div>
             <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => setTab("overview")}
                 className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
-                GLOBAL OBSERVATORY
+                {<LocalizedText text={"GLOBAL OBSERVATORY"} />}
               </button>
               <button
                 type="button"
                 onClick={() => setTab("crop-atlas")}
                 className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
-                CROP SHIFT
+                {<LocalizedText text={"CROP SHIFT"} />}
               </button>
               <button
                 type="button"
                 onClick={() => setShowMissionBriefModal(true)}
                 className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
-                MISSION BRIEF
+                {<LocalizedText text={"MISSION BRIEF"} />}
               </button>
-              <span className="text-emerald-400 font-semibold">• ALL ORBITAL FEEDS NOMINAL</span>
+              <span className="text-emerald-400 font-semibold">
+                {<LocalizedText text={"• ALL ORBITAL FEEDS NOMINAL"} />}
+              </span>
             </div>
           </footer>
         </div>
@@ -596,8 +616,12 @@ function AgroSpaceDashboard({
               setOperator(u);
               saveStoredProfile(u);
               setShowAuthModal(false);
-              toast.success(`Welcome, ${u.fullName}`, {
-                description: `Authenticated via ${u.provider}. Clearance Level: ${u.role}.`,
+              toast.success(<LocalizedText text={`Welcome, ${u.fullName}`} />, {
+                description: (
+                  <LocalizedText
+                    text={`Authenticated via ${u.provider}. Clearance Level: ${u.role}.`}
+                  />
+                ),
               });
             }}
             onClose={() => setShowAuthModal(false)}
@@ -643,8 +667,6 @@ function AgroSpaceDashboard({
           telemetry={telemetry}
           tacticalHazards={[]}
           checkedSteps={{}}
-          language={advisoryLanguage}
-          onLanguageChange={setAdvisoryLanguage}
           onClose={() => setShowAdvisoryReportModal(false)}
         />
       )}

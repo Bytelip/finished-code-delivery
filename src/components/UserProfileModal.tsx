@@ -22,6 +22,7 @@ import {
 } from "@/types/userProfile";
 import { MAP_LAYERS, type MapLayer } from "@/types/agroSpace";
 import { ThemeSettingsCard } from "@/components/theme/ThemeSwitcher";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export interface UserProfileModalProps {
   profile: UserProfile;
@@ -96,7 +97,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const handleUseCurrentCoords = () => {
     setHomeLat(Number(currentLat.toFixed(4)));
     setHomeLon(Number(currentLon.toFixed(4)));
-    toast.info("Coordinates Locked", {
+    toast.info(<LocalizedText text="Coordinates Locked" />, {
       description: `Home coordinates set to current position: [${currentLat.toFixed(4)}°, ${currentLon.toFixed(4)}°]`,
     });
   };
@@ -132,8 +133,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
     saveStoredProfile(updated);
     onSave(updated);
-    toast.success("Profile Updated", {
-      description: "Mission preferences and operator credentials saved successfully.",
+    toast.success(<LocalizedText text="Profile Updated" />, {
+      description: (
+        <LocalizedText text="Mission preferences and operator credentials saved successfully." />
+      ),
     });
     onClose();
   };
@@ -163,7 +166,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {role}
                 </span>
                 <span className="flex items-center gap-1 rounded-md bg-cyan-500/15 border border-cyan-500/40 px-2 py-0.5 font-mono text-xs font-bold text-cyan-300">
-                  <ShieldCheck className="size-3 text-cyan-300" /> GMAIL VERIFIED
+                  <ShieldCheck className="size-3 text-cyan-300" />{" "}
+                  {<LocalizedText text={" GMAIL VERIFIED"} />}
                 </span>
               </div>
               <p className="font-mono text-xs text-muted-foreground mt-0.5">{profile.email}</p>
@@ -192,7 +196,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             }`}
           >
             <User className="size-3.5" />
-            <span>Profile Identity</span>
+            <span>{<LocalizedText text={"Profile Identity"} />}</span>
           </button>
 
           <button
@@ -205,7 +209,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             }`}
           >
             <Compass className="size-3.5" />
-            <span>Mission Preferences</span>
+            <span>{<LocalizedText text={"Mission Preferences"} />}</span>
           </button>
 
           <button
@@ -218,7 +222,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             }`}
           >
             <Bell className="size-3.5" />
-            <span>Hazard Alerts</span>
+            <span>{<LocalizedText text={"Hazard Alerts"} />}</span>
           </button>
 
           <button
@@ -231,7 +235,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             }`}
           >
             <Key className="size-3.5" />
-            <span>API & Session</span>
+            <span>{<LocalizedText text={"API & Session"} />}</span>
           </button>
         </div>
 
@@ -244,7 +248,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Operator Full Name
+                      {<LocalizedText text={"Operator Full Name"} />}
                     </label>
                     <input
                       type="text"
@@ -257,7 +261,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Callsign / Title
+                      {<LocalizedText text={"Callsign / Title"} />}
                     </label>
                     <input
                       type="text"
@@ -272,28 +276,38 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Operational Role Clearance
+                      {<LocalizedText text={"Operational Role Clearance"} />}
                     </label>
                     <select
                       value={role}
                       onChange={(e) => setRole(e.target.value as OperatorRole)}
                       className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                     >
-                      <option value="COMMANDER">COMMANDER (Full Flight Clearance)</option>
-                      <option value="OPERATOR">OPERATOR (Telemetry & Drone Fleet)</option>
-                      <option value="AGRONOMIST">AGRONOMIST (Soil & Crop Analysis)</option>
-                      <option value="RESEARCHER">RESEARCHER (NASA GIBS Remote Sensing)</option>
+                      <option value="COMMANDER">
+                        {<LocalizedText text={"COMMANDER (Full Flight Clearance)"} />}
+                      </option>
+                      <option value="OPERATOR">
+                        {<LocalizedText text={"OPERATOR (Telemetry & Drone Fleet)"} />}
+                      </option>
+                      <option value="AGRONOMIST">
+                        {<LocalizedText text={"AGRONOMIST (Soil & Crop Analysis)"} />}
+                      </option>
+                      <option value="RESEARCHER">
+                        {<LocalizedText text={"RESEARCHER (NASA GIBS Remote Sensing)"} />}
+                      </option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Authentication Provider
+                      {<LocalizedText text={"Authentication Provider"} />}
                     </label>
                     <div className="flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.03] px-3.5 py-2.5 font-mono text-sm text-foreground">
                       <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
                       <span>{profile.provider}</span>
-                      <span className="ml-auto text-xs text-emerald-400 font-bold">ACTIVE</span>
+                      <span className="ml-auto text-xs text-emerald-400 font-bold">
+                        {<LocalizedText text={"ACTIVE"} />}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -301,7 +315,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 {/* Avatar Color Theme */}
                 <div>
                   <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                    Operator HUD Aura Color
+                    {<LocalizedText text={"Operator HUD Aura Color"} />}
                   </label>
                   <div className="flex items-center gap-3">
                     {AVATAR_COLORS.map((col) => {
@@ -336,21 +350,23 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Default Home Base Name
+                      {<LocalizedText text={"Default Home Base Name"} />}
                     </label>
                     {onNavigateHome && (
                       <button
                         type="button"
                         onClick={() => {
                           onNavigateHome(homeLat, homeLon, homeBaseName);
-                          toast.success("Navigating to Home Base", {
-                            description: `Camera centering on ${homeBaseName}`,
+                          toast.success(<LocalizedText text="Navigating to Home Base" />, {
+                            description: (
+                              <LocalizedText text={`Camera centering on ${homeBaseName}`} />
+                            ),
                           });
                           onClose();
                         }}
                         className="flex items-center gap-1 font-mono text-xs text-cyan-300 hover:text-cyan-300 cursor-pointer"
                       >
-                        <MapPin className="size-3" /> Fly to Base
+                        <MapPin className="size-3" /> {<LocalizedText text={" Fly to Base"} />}
                       </button>
                     )}
                   </div>
@@ -366,7 +382,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Base Latitude
+                      {<LocalizedText text={"Base Latitude"} />}
                     </label>
                     <input
                       type="number"
@@ -379,7 +395,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Base Longitude
+                      {<LocalizedText text={"Base Longitude"} />}
                     </label>
                     <input
                       type="number"
@@ -398,29 +414,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 >
                   <MapPin className="size-3.5 text-cyan-300" />
                   <span>
-                    Lock Current GPS Position as Home Base [{currentLat.toFixed(4)}°,{" "}
-                    {currentLon.toFixed(4)}°]
+                    {<LocalizedText text={"Lock Current GPS Position as Home Base ["} />}
+                    {currentLat.toFixed(4)}°, {currentLon.toFixed(4)}°]
                   </span>
                 </button>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Default View Mode
+                      {<LocalizedText text={"Default View Mode"} />}
                     </label>
                     <select
                       value={defaultViewMode}
                       onChange={(e) => setDefaultViewMode(e.target.value as "3d" | "2d")}
                       className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-foreground focus:border-cyan-400 focus:outline-none"
                     >
-                      <option value="3d">3D Orbital Globe</option>
-                      <option value="2d">2D Satellite Map</option>
+                      <option value="3d">{<LocalizedText text={"3D Orbital Globe"} />}</option>
+                      <option value="2d">{<LocalizedText text={"2D Satellite Map"} />}</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Default NASA Layer
+                      {<LocalizedText text={"Default NASA Layer"} />}
                     </label>
                     <select
                       value={defaultActiveLayer}
@@ -437,15 +453,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                   <div>
                     <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Telemetry Units
+                      {<LocalizedText text={"Telemetry Units"} />}
                     </label>
                     <select
                       value={units}
                       onChange={(e) => setUnits(e.target.value as "metric" | "imperial")}
                       className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-foreground focus:border-cyan-400 focus:outline-none"
                     >
-                      <option value="metric">Metric (°C / km / mm)</option>
-                      <option value="imperial">Imperial (°F / mi / in)</option>
+                      <option value="metric">
+                        {<LocalizedText text={"Metric (°C / km / mm)"} />}
+                      </option>
+                      <option value="imperial">
+                        {<LocalizedText text={"Imperial (°F / mi / in)"} />}
+                      </option>
                     </select>
                   </div>
                 </div>
@@ -461,18 +481,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {activeTab === "notifications" && (
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground mb-2">
-                  Configure orbital telemetry alert broadcasts and threshold monitoring.
+                  {
+                    <LocalizedText
+                      text={
+                        "Configure orbital telemetry alert broadcasts and threshold monitoring."
+                      }
+                    />
+                  }
                 </p>
 
                 {/* Cyclone Alert Toggle */}
                 <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors cursor-pointer">
                   <div className="space-y-0.5">
                     <div className="font-mono text-xs font-semibold text-rose-400 flex items-center gap-1.5">
-                      <span>🌀</span> Severe Cyclone Track Alerts
+                      <span>🌀</span> {<LocalizedText text={" Severe Cyclone Track Alerts"} />}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Notify immediately when an active EONET tropical storm vector is within 300
-                      km.
+                      {
+                        <LocalizedText
+                          text={
+                            "Notify immediately when an active EONET tropical storm vector is within 300 km."
+                          }
+                        />
+                      }
                     </div>
                   </div>
                   <input
@@ -487,11 +518,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors cursor-pointer">
                   <div className="space-y-0.5">
                     <div className="font-mono text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-                      <span>⚡</span> USGS Seismic Epicenter Alerts
+                      <span>⚡</span> {<LocalizedText text={" USGS Seismic Epicenter Alerts"} />}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Alert on seismic events above M2.0 detected within the agricultural grid
-                      basin.
+                      {
+                        <LocalizedText
+                          text={
+                            "Alert on seismic events above M2.0 detected within the agricultural grid basin."
+                          }
+                        />
+                      }
                     </div>
                   </div>
                   <input
@@ -506,10 +542,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors cursor-pointer">
                   <div className="space-y-0.5">
                     <div className="font-mono text-xs font-semibold text-amber-400 flex items-center gap-1.5">
-                      <span>☀️</span> Severe Crop Drought & Water Stress
+                      <span>☀️</span>{" "}
+                      {<LocalizedText text={" Severe Crop Drought & Water Stress"} />}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Broadcast warning when ECOSTRESS Evaporative Stress Index exceeds 0.80 ratio.
+                      {
+                        <LocalizedText
+                          text={
+                            "Broadcast warning when ECOSTRESS Evaporative Stress Index exceeds 0.80 ratio."
+                          }
+                        />
+                      }
                     </div>
                   </div>
                   <input
@@ -524,10 +567,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors cursor-pointer">
                   <div className="space-y-0.5">
                     <div className="font-mono text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
-                      <span>✉️</span> Emergency Email Dispatch
+                      <span>✉️</span> {<LocalizedText text={" Emergency Email Dispatch"} />}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Forward critical agricultural hazard alerts to {profile.email}.
+                      {<LocalizedText text={"Forward critical agricultural hazard alerts to "} />}
+                      {profile.email}.
                     </div>
                   </div>
                   <input
@@ -545,7 +589,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="space-y-4">
                 <div>
                   <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Custom NASA Earthdata API Key (Optional)
+                    {<LocalizedText text={"Custom NASA Earthdata API Key (Optional)"} />}
                   </label>
                   <input
                     type="password"
@@ -555,28 +599,35 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Leave blank to use default public NASA GIBS & POWER community endpoints.
+                    {
+                      <LocalizedText
+                        text={
+                          "Leave blank to use default public NASA GIBS & POWER community endpoints."
+                        }
+                      />
+                    }
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
                   <div className="font-mono text-xs font-semibold text-foreground">
-                    Session Security Information
+                    {<LocalizedText text={"Session Security Information"} />}
                   </div>
                   <div className="text-xs text-muted-foreground space-y-1">
                     <div>
-                      Operator ID: <span className="font-mono text-cyan-300">{profile.id}</span>
+                      {<LocalizedText text={"Operator ID: "} />}
+                      <span className="font-mono text-cyan-300">{profile.id}</span>
                     </div>
                     <div>
-                      Verified On:{" "}
+                      {<LocalizedText text={"Verified On:"} />}{" "}
                       <span className="font-mono text-foreground">
                         {profile.verifiedAt ? new Date(profile.verifiedAt).toLocaleString() : "—"}
                       </span>
                     </div>
                     <div>
-                      Encryption:{" "}
+                      {<LocalizedText text={"Encryption:"} />}{" "}
                       <span className="font-mono text-emerald-400">
-                        AES-256 GCM (Client-Side Storage)
+                        {<LocalizedText text={"AES-256 GCM (Client-Side Storage)"} />}
                       </span>
                     </div>
                   </div>
@@ -593,7 +644,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     className="flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 font-mono text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
                   >
                     <LogOut className="size-4 text-rose-400" />
-                    <span>Sign Out & Terminate Clearance</span>
+                    <span>{<LocalizedText text={"Sign Out & Terminate Clearance"} />}</span>
                   </button>
                 </div>
               </div>
@@ -604,7 +655,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="flex items-center justify-between border-t border-white/10 px-6 py-4 bg-black/40">
             <div className="font-mono text-xs text-muted-foreground flex items-center gap-1.5">
               <Sparkles className="size-3 text-cyan-300" />
-              <span>Real-time local state synchronization active</span>
+              <span>{<LocalizedText text={"Real-time local state synchronization active"} />}</span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -613,14 +664,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 onClick={onClose}
                 className="rounded-xl border border-white/15 px-4 py-2 font-mono text-xs font-semibold text-foreground hover:bg-white/10 transition-colors cursor-pointer"
               >
-                Cancel
+                {<LocalizedText text={"Cancel"} />}
               </button>
               <button
                 type="submit"
                 className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 font-mono text-xs font-bold text-muted-foreground shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <Save className="size-3.5" />
-                <span>Save Changes</span>
+                <span>{<LocalizedText text={"Save Changes"} />}</span>
               </button>
             </div>
           </div>
