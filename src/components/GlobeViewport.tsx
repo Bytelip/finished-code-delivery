@@ -1086,7 +1086,7 @@ export function GlobeViewport({
       data-lon={lon}
       data-layer={activeLayer}
       onPointerDown={() => onInteraction?.()}
-      className="relative mx-auto w-full max-w-[1920px] h-[calc(100dvh-4.25rem)] min-h-[500px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
+      className="relative mx-auto w-full max-w-[1920px] h-[58dvh] sm:h-[calc(100dvh-8rem)] min-h-[340px] sm:min-h-[440px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
     >
       {/* Ambient Radiant Orbital Glows (Google Stitch) */}
       <div

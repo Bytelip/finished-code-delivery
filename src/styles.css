@@ -12,6 +12,27 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  button,
+  [role="button"] {
+    min-height: 44px;
+  }
+}
+
 /*
  * AgroSpace Nexus — Award-Winning Orbital HUD & Telemetry Dashboard Design System.
  * Semantic high-contrast neon accents:

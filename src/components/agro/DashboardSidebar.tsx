@@ -27,6 +27,7 @@ export const TABS: { id: DashboardTab; label: string; icon: typeof Leaf }[] = [
 ];
 
 export function DashboardSidebar({
+  isMobile = false,
   collapsed,
   onToggle,
   isPinned = false,
@@ -40,6 +41,7 @@ export function DashboardSidebar({
   operator,
   onOpenAuth,
 }: {
+  isMobile?: boolean;
   collapsed: boolean;
   onToggle: () => void;
   isPinned?: boolean;
@@ -78,7 +80,7 @@ export function DashboardSidebar({
     <motion.aside
       initial={false}
       animate={{
-        width: collapsed ? 56 : 240,
+        width: isMobile ? "calc(100% - 1rem)" : collapsed ? 56 : 240,
       }}
       transition={{
         type: "spring",
@@ -86,14 +88,16 @@ export function DashboardSidebar({
         damping: 30,
       }}
       className={cn(
-        "fixed left-3 top-16 bottom-4 z-30 flex shrink-0 flex-col rounded-2xl",
+        isMobile
+          ? "fixed left-2 right-2 top-auto bottom-2 z-50 flex h-16 flex-row items-center rounded-2xl"
+          : "fixed left-3 top-16 bottom-4 z-30 flex shrink-0 flex-col rounded-2xl",
         "bg-[#070D19]/88 backdrop-blur-2xl border border-white/10",
         "shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)]",
         "overflow-hidden select-none",
       )}
     >
       {/* Station Brand Header & Pin Control */}
-      <div className="relative flex h-14 items-center justify-between border-b border-white/[0.08] px-2.5 overflow-hidden shrink-0">
+      <div className={cn("relative flex h-14 items-center justify-between border-b border-white/[0.08] px-2.5 overflow-hidden shrink-0", isMobile && "hidden")}>
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-transparent pointer-events-none" />
 
         <div className="flex items-center gap-2.5 min-w-0">
@@ -151,8 +155,8 @@ export function DashboardSidebar({
       </div>
 
       {/* Navigation Modules */}
-      <nav className="flex flex-col gap-1 p-2 overflow-y-auto no-scrollbar shrink-0" aria-label="Dashboard sections">
-        {!collapsed && (
+      <nav className={cn("flex gap-1 p-2 overflow-y-auto no-scrollbar shrink-0", isMobile ? "flex-row w-full justify-around overflow-x-auto" : "flex-col")} aria-label="Dashboard sections">
+        {!collapsed && !isMobile && (
           <div className="flex items-center justify-between px-2 pb-1 pt-1">
             <span className="hud-label tracking-widest text-[9.5px] text-muted-foreground/80 font-bold">
               {t("orbital_modules", "ORBITAL MODULES")}
@@ -165,14 +169,15 @@ export function DashboardSidebar({
           const active = tab === id;
           const displayLabel = getTabLabel(id, label);
           return (
-            <div key={id} className="relative group">
+            <div key={id} className={cn("relative group", isMobile && "flex-none")}>
               <button
                 type="button"
                 onClick={() => onTab(id)}
-                title={collapsed ? displayLabel : undefined}
+                title={collapsed || isMobile ? displayLabel : undefined}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex h-9.5 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-xs font-medium transition-all duration-150 cursor-pointer",
+                  "relative flex h-11 sm:h-9.5 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-xs font-medium transition-all duration-150 cursor-pointer",
+                  isMobile && "min-w-11 justify-center px-2",
                   active
                     ? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/40 shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                     : "text-muted-foreground hover:bg-white/5 hover:text-white border border-transparent",
@@ -191,7 +196,7 @@ export function DashboardSidebar({
                   )}
                 />
 
-                {!collapsed && <span className="truncate">{displayLabel}</span>}
+                {!collapsed && !isMobile && <span className="truncate">{displayLabel}</span>}
 
                 {id === "hazards" && activeHazards > 0 && (
                   <span
@@ -218,7 +223,7 @@ export function DashboardSidebar({
       </nav>
 
       {/* Preset Target Waypoints */}
-      <div className="flex flex-col gap-1 border-t border-white/[0.08] p-2 flex-1 overflow-y-auto no-scrollbar">
+      <div className={cn("flex flex-col gap-1 border-t border-white/[0.08] p-2 flex-1 overflow-y-auto no-scrollbar", isMobile && "hidden")}>
         {!collapsed && (
           <div className="flex items-center justify-between px-2 pb-1 pt-1 shrink-0">
             <span className="hud-label tracking-widest text-[9.5px] text-muted-foreground/80 font-bold">
@@ -286,7 +291,7 @@ export function DashboardSidebar({
       <button
         type="button"
         onClick={onToggle}
-        className="mt-auto flex h-10 items-center justify-between border-t border-white/[0.08] px-3 text-xs font-mono text-muted-foreground transition-colors hover:text-cyan-300 hover:bg-cyan-500/10 cursor-pointer shrink-0"
+        className={cn("mt-auto flex h-11 items-center justify-between border-t border-white/[0.08] px-3 text-xs font-mono text-muted-foreground transition-colors hover:text-cyan-300 hover:bg-cyan-500/10 cursor-pointer shrink-0", isMobile && "hidden")}
         aria-label={collapsed ? t("expand_dock", "Expand sidebar") : t("collapse_dock", "Collapse sidebar")}
       >
         <div className="flex items-center gap-2">

@@ -416,15 +416,15 @@ export function CommandBar({
       )}
 
       {/* ---------------- 1. SINGLE UNIFIED GLASS NAVBAR (h-13) ---------------- */}
-      <div className="w-full max-w-full h-13 px-4 flex items-center justify-between gap-3 border-b border-white/[0.08] bg-[#050912]/90 backdrop-blur-2xl relative z-40">
+      <div className="w-full max-w-full min-h-13 px-2 sm:px-4 py-1 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3 border-b border-white/[0.08] bg-[#050912]/90 backdrop-blur-2xl relative z-40">
         {/* Left: Crisp Brand Emblem + AgroSpace Nexus title + Live Coordinate Pill */}
-        <div className="flex items-center gap-2.5 shrink-0 whitespace-nowrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 min-w-0 whitespace-nowrap">
           {/* Brand Emblem */}
           <div className="grid size-7.5 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.35)] shrink-0">
             <Satellite className="size-4 animate-pulse text-cyan-300" />
           </div>
           <div className="flex items-center gap-1.5 whitespace-nowrap">
-            <span className="font-mono font-bold text-sm tracking-wider text-white">
+            <span className="hidden sm:inline font-mono font-bold text-xs sm:text-sm tracking-wider text-white">
               AgroSpace Nexus
             </span>
             <span className="text-[9.5px] text-cyan-300 font-semibold px-1.5 py-0.2 rounded-full bg-cyan-500/15 border border-cyan-400/30">
@@ -442,7 +442,7 @@ export function CommandBar({
         </div>
 
         {/* Center: Sleek single-line Command Pill */}
-        <div data-tour="search-field-params" className="flex items-center justify-center shrink-0">
+        <div data-tour="search-field-params" className="flex items-center justify-center shrink-0 order-3 sm:order-none w-full sm:w-auto">
           <button
             type="button"
             data-params-trigger="true"
@@ -476,7 +476,7 @@ export function CommandBar({
         {/* Right: Compact icon-first action pills */}
         <div
           data-tour="top-right-controls"
-          className="flex items-center gap-2 shrink-0 whitespace-nowrap"
+          className="flex items-center gap-1 sm:gap-2 shrink-0 max-w-full whitespace-nowrap"
         >
           {plantHealthOverall !== undefined && (
             <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0 whitespace-nowrap">

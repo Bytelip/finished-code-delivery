@@ -31,7 +31,6 @@ import { SeverityChip } from "@/components/agro/hud";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
 import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiService";
 import { AgroDecisionCard } from "@/components/agro/AgroDecisionCard";
-import { PresenterBriefingCard } from "@/components/agro/PresenterBriefingCard";
 import { NasaMissionBriefModal } from "@/components/NasaMissionBriefModal";
 import { FarmerAdvisoryModal } from "@/components/HazardAlertCenter";
 import { GuidedTourOverlay, TOUR_STORAGE_KEY } from "@/components/tutorial/GuidedTourOverlay";
@@ -359,11 +358,12 @@ function AgroSpaceDashboard({
   const tabLabel = TABS.find((t) => t.id === tab)?.label;
 
   return (
-    <div className="flex min-h-screen relative">
+    <div className="relative flex min-h-[100dvh] w-full max-w-full overflow-x-hidden">
       {/* GitHub + Linear + DeepMind GPU-Accelerated Cosmic Background */}
       <VibeCosmicBackground />
 
       <DashboardSidebar
+        isMobile={isMobile}
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         isPinned={isPinned}
@@ -379,7 +379,7 @@ function AgroSpaceDashboard({
         onOpenSettings={() => setShowSettingsModal(true)}
       />
 
-      <main className="min-w-0 flex-1 overflow-x-hidden">
+      <main className="min-w-0 w-full flex-1 overflow-x-hidden pb-20 sm:pb-0">
         <CommandBar
           lat={lat}
           lon={lon}
@@ -416,7 +416,7 @@ function AgroSpaceDashboard({
           onOpenTour={() => setShowTour(true)}
         />
 
-        <div className="space-y-2.5 p-2 sm:p-3 lg:p-4 pl-18 sm:pl-20">
+        <div className="min-w-0 space-y-2.5 p-2 sm:p-3 lg:p-4 pl-2 sm:pl-20">
           <GlobeContainer
             telemetry={telemetry}
             activeLayer={activeLayer}
@@ -436,19 +436,8 @@ function AgroSpaceDashboard({
           </div>
 
           {tab === "overview" && (
-            <div className="antigravity-float-1" data-tour="presenter-briefing">
-              <PresenterBriefingCard
-                fieldLabel={telemetry.meta.regionLabel}
-                plantHealth={telemetry.plantHealth.overall}
-                activeAlerts={activeHazards}
-                onOpenBriefing={() => setShowMissionBriefModal(true)}
-              />
-            </div>
-          )}
-
-          {tab === "overview" && (
             <>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <div className="antigravity-float-2">
                   <SpotlightCard className="p-0 border-white/10 bg-transparent">
                     <PowerChart data={telemetry.power} />
@@ -473,7 +462,7 @@ function AgroSpaceDashboard({
                   </SpotlightCard>
                 </div>
               </div>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <div className="antigravity-float-3">
                   <SpotlightCard className="p-0 border-white/10 bg-transparent">
                     <HazardMatrixSlot
@@ -504,7 +493,7 @@ function AgroSpaceDashboard({
           )}
 
           {tab === "plant-health" && (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <PlantHealthRadar health={telemetry.plantHealth} tall />
               <PlantPillarList health={telemetry.plantHealth} />
               <div className="lg:col-span-2">
@@ -515,7 +504,7 @@ function AgroSpaceDashboard({
 
           {tab === "groundwater" && (
             <div className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
                 <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
                 <div className="lg:col-span-2">
