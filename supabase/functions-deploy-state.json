@@ -1,0 +1,17 @@
+{
+  "projectId": "72971365",
+  "functions": {
+    "nasa-proxy": {
+      "hasChanged": false,
+      "hash": "9412c4ec6f3ef34610d898ba41223b49d872840f59de103cd05b8fc4947c9a65"
+    },
+    "send-auth-email": {
+      "hasChanged": false,
+      "hash": "549ae563dd77948c4c87b8812a62732aa82bbdcd1c5ad37f6bf4d14a6ceb18e4"
+    },
+    "verify-auth-otp": {
+      "hasChanged": false,
+      "hash": "58f4d928eaa02db5673cfdaadf69100bfab746831a77ff78e47246c3a42cce00"
+    }
+  }
+}

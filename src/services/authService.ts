@@ -953,6 +953,143 @@ export async function signInWithEmailPassword(
 }
 
 // -------------------------------------------------------------
+// 3.6. RESEND-BACKED EMAIL VERIFICATION (Edge Function Flow)
+// -------------------------------------------------------------
+//
+// The browser calls these helpers, which in turn invoke the send-auth-email
+// and verify-auth-otp Supabase Edge Functions. The actual Resend API call and
+// API key live ONLY in the edge function — the browser never touches
+// api.resend.com, which avoids CORS and 403 domain-verification errors and
+// keeps the key out of the client bundle.
+
+function getEdgeFunctionUrl(slug: string): string | null {
+  const base = getSupabaseUrl();
+  if (!base) return null;
+  return `${base.replace(/\/$/, "")}/functions/v1/${slug}`;
+}
+
+function getEdgeFunctionHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const anonKey = getSupabaseAnonKey();
+  if (anonKey) {
+    headers["Authorization"] = `Bearer ${anonKey}`;
+    headers["apikey"] = anonKey;
+  }
+  return headers;
+}
+
+/**
+ * Dispatches a 6-digit verification code to the given email via the
+ * send-auth-email edge function (Resend API server-side). The code is
+ * generated and stored as a salted hash in the pending_otps table; the
+ * plaintext is never returned to the browser.
+ */
+export async function dispatchVerificationEmail(
+  email: string,
+  name?: string,
+  action: "signup" | "verify" = "signup",
+): Promise<AuthResult> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, error: "Please enter a valid email address." };
+  }
+
+  const url = getEdgeFunctionUrl("send-auth-email");
+  if (!url) {
+    return {
+      success: false,
+      error: "Email service is not configured. Cannot send verification code.",
+    };
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: getEdgeFunctionHeaders(),
+      body: JSON.stringify({ email: cleanEmail, name, action }),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      error?: string;
+      message?: string;
+    };
+
+    if (!res.ok || !data.success) {
+      const msg = data.error || `Email delivery failed (${res.status}).`;
+      console.warn("[dispatchVerificationEmail] Edge function error:", res.status, data);
+      return { success: false, error: msg };
+    }
+
+    return { success: true, isConfigured: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[dispatchVerificationEmail] Network/edge error:", msg);
+    return {
+      success: false,
+      error: `Could not reach the email service. ${msg}`,
+    };
+  }
+}
+
+/**
+ * Verifies a 6-digit code entered by the user against the hash stored by the
+ * send-auth-email edge function, via the verify-auth-otp edge function.
+ * Returns success without creating a session — the caller completes sign-up
+ * or sign-in after a successful verification.
+ */
+export async function verifyOtpCode(
+  email: string,
+  code: string,
+): Promise<AuthResult> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanCode = code.trim().replace(/\D/g, "");
+
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, error: "Please enter a valid email address." };
+  }
+  if (cleanCode.length !== 6) {
+    return { success: false, error: "Please enter all 6 digits of the verification code." };
+  }
+
+  const url = getEdgeFunctionUrl("verify-auth-otp");
+  if (!url) {
+    return {
+      success: false,
+      error: "Email service is not configured. Cannot verify code.",
+    };
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: getEdgeFunctionHeaders(),
+      body: JSON.stringify({ email: cleanEmail, code: cleanCode }),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      error?: string;
+      message?: string;
+    };
+
+    if (!res.ok || !data.success) {
+      const msg = data.error || `Verification failed (${res.status}).`;
+      return { success: false, error: msg };
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[verifyOtpCode] Network/edge error:", msg);
+    return {
+      success: false,
+      error: `Could not reach the email service. ${msg}`,
+    };
+  }
+}
+
+// -------------------------------------------------------------
 // 4. EMAIL OTP FLOW (Legacy / Fallback Verification)
 // -------------------------------------------------------------
 
@@ -1188,33 +1325,9 @@ export async function sendEmailOtp(
     }
   }
 
-  // 4. Secondary Provider: Resend Integration
-  const resendApiKey = getEnvVar("VITE_RESEND_API_KEY");
-  if (resendApiKey && !resendApiKey.includes("your_resend_api_key")) {
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "AgroSpace Nexus <onboarding@resend.dev>",
-          to: cleanEmail,
-          subject: "AgroSpace Nexus — Verification Code",
-          html: `<div style="font-family: sans-serif; background: #0B111E; color: #FFF; padding: 24px; border-radius: 12px;"><h2 style="color: #22D3EE;">AgroSpace Nexus</h2><p>Your 6-digit verification code is:</p><h1 style="font-size: 32px; letter-spacing: 4px; color: #38BDF8; font-family: monospace;">${secureOtp}</h1><p style="color: #94A3B8; font-size: 12px;">Valid for 5 minutes.</p></div>`,
-        }),
-      });
-
-      if (res.ok) {
-        return { success: true, isConfigured: true, devCode: secureOtp };
-      }
-      const text = await res.text();
-      console.warn("[Resend Dispatch Warning]", res.status, text);
-    } catch (err: unknown) {
-      console.warn("[Resend Dispatch Exception]", err);
-    }
-  }
+  // 4. Resend is handled server-side via the send-auth-email edge function.
+  //    Never call api.resend.com directly from the browser — it triggers CORS
+  //    and 403 domain-verification errors, and exposes the API key.
 
   // 5. Client EmailJS Service
   const serviceId = getEnvVar("VITE_EMAILJS_SERVICE_ID");

@@ -173,8 +173,15 @@ describe("User Profile & Authentication System", () => {
     expect(screen.queryByText(/⚙️ SMTP/i)).toBeNull();
   });
 
-  it("registers a new user in Create Account mode via Email and Password and signs in immediately", async () => {
+  it("registers a new user in Create Account mode via email OTP verification flow", async () => {
     const mockNewUser = createInitialProfile("cadet@nasa.gov", "Email", "Cadet Rao");
+    const dispatchSpy = vi.spyOn(authService, "dispatchVerificationEmail").mockResolvedValue({
+      success: true,
+      isConfigured: true,
+    });
+    const verifySpy = vi.spyOn(authService, "verifyOtpCode").mockResolvedValue({
+      success: true,
+    });
     const signUpSpy = vi.spyOn(authService, "signUpWithEmailPassword").mockResolvedValue({
       success: true,
       user: mockNewUser,
@@ -199,7 +206,21 @@ describe("User Profile & Authentication System", () => {
     const submitBtn = screen.getByRole("button", { name: /Create Account & Enter Orbit/i });
     fireEvent.click(submitBtn);
 
+    // Sign-up dispatches a verification email then transitions to OTP step
     await waitFor(() => {
+      expect(dispatchSpy).toHaveBeenCalledWith("cadet@nasa.gov", "Cadet Rao", "signup");
+      expect(screen.getByText(/Verify your email/i)).toBeDefined();
+    });
+
+    // Enter the 6-digit code and submit verification
+    const otpInput = screen.getByPlaceholderText(/• • • • • •/i);
+    fireEvent.change(otpInput, { target: { value: "123456" } });
+
+    const verifyBtn = screen.getByRole("button", { name: /Verify & Enter Orbit/i });
+    fireEvent.click(verifyBtn);
+
+    await waitFor(() => {
+      expect(verifySpy).toHaveBeenCalledWith("cadet@nasa.gov", "123456");
       expect(signUpSpy).toHaveBeenCalledWith("cadet@nasa.gov", "securePass456", "Cadet Rao");
       expect(handleSuccess).toHaveBeenCalledWith(mockNewUser);
     });
@@ -379,11 +400,10 @@ describe("User Profile & Authentication System", () => {
     });
   });
 
-  it("submitting in Create Account tab executes registration flow without requiring verification emails", async () => {
-    const mockUser = createInitialProfile("fresh.cadet@agrospace.nasa.gov", "Email", "Fresh Cadet");
-    const signUpSpy = vi.spyOn(authService, "signUpWithEmailPassword").mockResolvedValue({
+  it("submitting in Create Account tab dispatches a verification email and shows the OTP step", async () => {
+    const dispatchSpy = vi.spyOn(authService, "dispatchVerificationEmail").mockResolvedValue({
       success: true,
-      user: mockUser,
+      isConfigured: true,
     });
 
     const handleSuccess = vi.fn();
@@ -403,16 +423,16 @@ describe("User Profile & Authentication System", () => {
     const submitBtn = screen.getByRole("button", { name: /Create Account & Enter Orbit/i });
     fireEvent.click(submitBtn);
 
-    // In signup mode, user is authenticated immediately without OTP screen
+    // Sign-up dispatches a verification email then transitions to OTP step
     await waitFor(() => {
-      expect(signUpSpy).toHaveBeenCalledWith(
+      expect(dispatchSpy).toHaveBeenCalledWith(
         "fresh.cadet@agrospace.nasa.gov",
-        "cadetPass123",
         undefined,
+        "signup",
       );
-      expect(handleSuccess).toHaveBeenCalledWith(mockUser);
+      expect(screen.getByText(/Verify your email/i)).toBeDefined();
     });
-    expect(screen.queryByText(/Check your Gmail/i)).toBeNull();
+    expect(handleSuccess).not.toHaveBeenCalled();
   });
 
   it("registers new account in signup mode and allows subsequent signin", async () => {

@@ -4,6 +4,8 @@ import {
   completeDirectOAuthLogin,
   signInWithEmailPassword,
   signUpWithEmailPassword,
+  dispatchVerificationEmail,
+  verifyOtpCode,
   processIncomingAuthCallback,
   getUserFromDatabase,
   saveUserToDatabase,
@@ -15,6 +17,7 @@ import {
   loadStoredProfile,
   clearStoredProfile,
 } from "@/types/userProfile";
+import { toast } from "sonner";
 
 // ==========================================
 // 1. TYPES & USER PROFILE MODEL
@@ -359,7 +362,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   onSuccess,
   onClose,
 }) => {
-  const [step, setStep] = useState<"entry" | "oauth_chooser">("entry");
+  const [step, setStep] = useState<"entry" | "oauth_chooser" | "otp_verify">("entry");
   const [selectedProvider, setSelectedProvider] = useState<OAuthProvider>("Google");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -371,6 +374,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [otpCode, setOtpCode] = useState<string>("");
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -381,8 +387,16 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setName("");
     setCustomOAuthEmail("");
     setCustomOAuthName("");
+    setOtpCode("");
     setAuthError("");
   };
+
+  // Resend cooldown timer (45s) for the OTP step
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   // Listen for OAuth session on mount or return
   useEffect(() => {
@@ -481,41 +495,163 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
     if (!isEmailValid) {
       setAuthError("Please enter a valid email address.");
+      toast.error("Please enter a valid email address.");
       return;
     }
 
     if (!password) {
       setAuthError("Please enter your password.");
+      toast.error("Please enter your password.");
       return;
     }
 
     if (password.length < 6) {
       setAuthError("Password must be at least 6 characters long.");
+      toast.error("Password must be at least 6 characters long.");
       return;
     }
 
+    // Sign In: authenticate immediately.
+    if (authMode === "signin") {
+      setIsSubmitting(true);
+      try {
+        const result = await signInWithEmailPassword(email.trim(), password);
+        setIsSubmitting(false);
+        if (!result.success || !result.user) {
+          const msg = result.error || "Authentication failed. Please verify credentials.";
+          setAuthError(msg);
+          toast.error(msg);
+          return;
+        }
+        saveStoredUser(result.user);
+        saveStoredProfile(result.user);
+        toast.success(`Welcome back, ${result.user.name}`, {
+          description: "Mission clearance granted. Entering orbit.",
+        });
+        onAuthComplete?.(result.user);
+        onSuccess?.(result.user);
+      } catch (err: unknown) {
+        setIsSubmitting(false);
+        const msg = err instanceof Error ? err.message : String(err);
+        setAuthError(`Authentication error: ${msg}`);
+        toast.error(`Authentication error: ${msg}`);
+      }
+      return;
+    }
+
+    // Sign Up: dispatch a verification email via the send-auth-email edge
+    // function, then transition to the OTP verification step. The account is
+    // NOT created until the code is confirmed.
     setIsSubmitting(true);
     try {
-      const result =
-        authMode === "signin"
-          ? await signInWithEmailPassword(email.trim(), password)
-          : await signUpWithEmailPassword(email.trim(), password, name.trim() || undefined);
-
+      const dispatchResult = await dispatchVerificationEmail(
+        email.trim(),
+        name.trim() || undefined,
+        "signup",
+      );
       setIsSubmitting(false);
 
-      if (!result.success || !result.user) {
-        setAuthError(result.error || "Authentication failed. Please verify credentials.");
+      if (!dispatchResult.success) {
+        const msg = dispatchResult.error || "Could not send verification email.";
+        setAuthError(msg);
+        toast.error(msg);
         return;
       }
 
-      saveStoredUser(result.user);
-      saveStoredProfile(result.user);
-      onAuthComplete?.(result.user);
-      onSuccess?.(result.user);
+      setOtpCode("");
+      setResendCooldown(45);
+      setStep("otp_verify");
+      toast.success("Verification code sent", {
+        description: `A 6-digit code was emailed to ${email.trim()}. Valid for 5 minutes.`,
+        duration: 4000,
+      });
     } catch (err: unknown) {
       setIsSubmitting(false);
       const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(`Authentication error: ${msg}`);
+      setAuthError(`Could not send verification email: ${msg}`);
+      toast.error(`Could not send verification email: ${msg}`);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    setAuthError("");
+    setIsSubmitting(true);
+    try {
+      const result = await dispatchVerificationEmail(
+        email.trim(),
+        name.trim() || undefined,
+        "signup",
+      );
+      setIsSubmitting(false);
+      if (!result.success) {
+        const msg = result.error || "Could not resend verification code.";
+        setAuthError(msg);
+        toast.error(msg);
+        return;
+      }
+      setResendCooldown(45);
+      toast.success("Verification code resent", {
+        description: `A new 6-digit code was emailed to ${email.trim()}.`,
+      });
+    } catch (err: unknown) {
+      setIsSubmitting(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      setAuthError(`Could not resend code: ${msg}`);
+      toast.error(`Could not resend code: ${msg}`);
+    }
+  };
+
+  const handleOtpVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+
+    if (otpCode.trim().replace(/\D/g, "").length !== 6) {
+      setAuthError("Please enter all 6 digits of the verification code.");
+      toast.error("Please enter all 6 digits of the verification code.");
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      // 1. Verify the code via the verify-auth-otp edge function.
+      const verifyResult = await verifyOtpCode(email.trim(), otpCode);
+      if (!verifyResult.success) {
+        setIsVerifying(false);
+        const msg = verifyResult.error || "Invalid verification code.";
+        setAuthError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      // 2. Create the account now that the email is verified.
+      const signUpResult = await signUpWithEmailPassword(
+        email.trim(),
+        password,
+        name.trim() || undefined,
+      );
+      setIsVerifying(false);
+
+      if (!signUpResult.success || !signUpResult.user) {
+        const msg = signUpResult.error || "Account creation failed after verification.";
+        setAuthError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      saveStoredUser(signUpResult.user);
+      saveStoredProfile(signUpResult.user);
+      toast.success(`Welcome, ${signUpResult.user.name}`, {
+        description: "Email verified. Mission clearance granted.",
+        duration: 4000,
+      });
+      onAuthComplete?.(signUpResult.user);
+      onSuccess?.(signUpResult.user);
+    } catch (err: unknown) {
+      setIsVerifying(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      setAuthError(`Verification error: ${msg}`);
+      toast.error(`Verification error: ${msg}`);
     }
   };
 
@@ -756,7 +892,85 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           </>
         )}
 
-        {/* STEP 2: INTERACTIVE OAUTH ACCOUNT CHOOSER (Google, Microsoft, Apple) */}
+        {/* STEP 2: OTP EMAIL VERIFICATION (Sign-Up) */}
+        {step === "otp_verify" && (
+          <div className="animate-in fade-in zoom-in-95 duration-200">
+            <button
+              type="button"
+              onClick={handleBackToEntry}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white mb-4 cursor-pointer transition-colors"
+            >
+              ← Back to sign-up
+            </button>
+
+            <div className="text-center mb-5">
+              <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
+                <svg
+                  className="h-6 w-6 text-cyan-300"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-white">Verify your email</h2>
+              <p className="mt-1 text-xs text-slate-400">
+                Enter the 6-digit code we sent to{" "}
+                <span className="font-mono text-cyan-300">{email.trim()}</span>
+              </p>
+            </div>
+
+            <form onSubmit={handleOtpVerifySubmit} className="space-y-4">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="• • • • • •"
+                className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] text-white placeholder-slate-600 focus:border-cyan-400 focus:outline-none"
+                autoFocus
+              />
+
+              <button
+                type="submit"
+                disabled={otpCode.replace(/\D/g, "").length !== 6 || isVerifying}
+                className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
+                  otpCode.replace(/\D/g, "").length === 6 && !isVerifying
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+                    : "cursor-not-allowed bg-white/15 text-slate-400"
+                }`}
+              >
+                {isVerifying ? "Verifying..." : "Verify & Enter Orbit"}
+              </button>
+            </form>
+
+            <div className="mt-4 flex items-center justify-between text-xs">
+              <span className="text-slate-500">Code valid for 5 minutes</span>
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={resendCooldown > 0 || isSubmitting}
+                className="font-medium text-cyan-300 transition hover:text-cyan-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {resendCooldown > 0
+                  ? `Resend in ${resendCooldown}s`
+                  : isSubmitting
+                    ? "Sending..."
+                    : "Resend code"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: INTERACTIVE OAUTH ACCOUNT CHOOSER (Google, Microsoft, Apple) */}
         {step === "oauth_chooser" && (
           <div className="animate-in fade-in zoom-in-95 duration-200">
             {/* Back button */}

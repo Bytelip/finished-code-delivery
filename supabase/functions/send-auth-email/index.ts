@@ -1,17 +1,19 @@
 /**
  * Supabase Edge Function: send-auth-email
- * Supabase Auth Send Email Hook implementation.
  *
- * Receives the Send Email Hook payload from Supabase GoTrue Auth:
- * - user.email
- * - email_data.token (6-digit OTP code)
- * - email_data.email_action_type
+ * Generates a 6-digit OTP, stores its hash in the pending_otps table, and
+ * dispatches it to the recipient via the Resend API. The plaintext code is
+ * NEVER persisted — only a salted SHA-256 hash is written to the database.
  *
- * Dispatches the genuine verification code using Resend's official HTTP API
- * (https://api.resend.com/emails) without requiring custom SMTP servers.
+ * Called from the browser (sign-up flow) with:
+ *   { email: string, name?: string, action?: "signup" | "verify" }
+ *
+ * Resend credentials come from RESEND_API_KEY. The sender address defaults to
+ * onboarding@resend.dev (Resend's shared sandbox sender) so that requests do
+ * not fail with a 403 domain-verification error before a custom domain is
+ * configured. Override with RESEND_FROM_EMAIL.
  */
 
-// Global Deno type definition for TypeScript checks
 declare const Deno: {
   env: {
     get(key: string): string | undefined;
@@ -21,88 +23,122 @@ declare const Deno: {
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-interface SupabaseAuthHookPayload {
-  user?: {
-    id?: string;
-    email?: string;
-    user_metadata?: Record<string, unknown>;
-  };
-  email_data?: {
-    token?: string;
-    token_hash?: string;
-    redirect_to?: string;
-    email_action_type?: string;
-    site_url?: string;
-  };
-  // Fallbacks if the payload is passed in flat structure
+interface SendEmailRequest {
   email?: string;
-  token?: string;
+  name?: string;
+  action?: string;
+}
+
+// SHA-256 helper using Web Crypto (available in the Deno runtime).
+async function sha256(str: string): Promise<string> {
+  const buffer = new TextEncoder().encode(str);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 Deno.serve(async (req: Request) => {
-  // 1. Handle CORS preflight
+  // 1. CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  // Supabase Auth Hooks send HTTP POST requests
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Method not allowed. Use POST." }, 405);
   }
 
   try {
-    const payload: SupabaseAuthHookPayload = await req.json();
+    const body: SendEmailRequest = await req.json().catch(() => ({}));
+    const recipientEmail = (body.email || "").trim().toLowerCase();
 
-    const recipientEmail =
-      payload.user?.email ||
-      payload.email;
-
-    const otpCode =
-      payload.email_data?.token ||
-      payload.token;
-
-    const actionType = payload.email_data?.email_action_type || "verification";
-
-    if (!recipientEmail || !otpCode) {
-      console.error("[send-auth-email] Missing email or token in payload:", payload);
-      return new Response(
-        JSON.stringify({
-          error: "Invalid hook payload: missing user.email or email_data.token",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+      return jsonResponse({ error: "A valid email address is required." }, 400);
     }
 
-    // 2. Fetch Resend API credentials
+    const displayName = (body.name || recipientEmail.split("@")[0] || "").trim();
+    const actionType = body.action === "verify" ? "verify" : "signup";
+
+    // 2. Resend credentials
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
-      console.error("[send-auth-email] RESEND_API_KEY environment variable is not configured.");
-      return new Response(
-        JSON.stringify({
-          error: "RESEND_API_KEY secret is not set in Supabase project secrets.",
-        }),
+      console.error("[send-auth-email] RESEND_API_KEY is not configured.");
+      return jsonResponse(
         {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+          error:
+            "Email delivery is not configured. Add RESEND_API_KEY to the project secrets.",
+        },
+        500,
       );
     }
 
     const fromEmail =
       Deno.env.get("RESEND_FROM_EMAIL") || "AgroSpace Nexus <onboarding@resend.dev>";
 
-    const subject = `AgroSpace Verification Code: ${otpCode}`;
+    // 3. Generate a cryptographically secure 6-digit code
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    const otpCode = (((arr[0] ?? 0) % 900000) + 100000).toString();
 
+    const salt = Math.random().toString(36).substring(2);
+    const codeHash = await sha256(`${recipientEmail}:${otpCode}:${salt}`);
+
+    // 4. Persist the hash (not the plaintext) to the database via the service
+    // role key. Replace any existing pending code for this email.
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (supabaseUrl && serviceRoleKey) {
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+      const upsertRes = await fetch(
+        `${supabaseUrl}/rest/v1/pending_otps?on_conflict=email`,
+        {
+          method: "POST",
+          headers: {
+            apikey: serviceRoleKey,
+            Authorization: `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+            Prefer: "resolution=merge-duplicates,return=minimal",
+          },
+          body: JSON.stringify({
+            email: recipientEmail,
+            code_hash: codeHash,
+            salt,
+            attempts: 0,
+            verified: false,
+            expires_at: expiresAt,
+          }),
+        },
+      );
+
+      if (!upsertRes.ok) {
+        const errText = await upsertRes.text();
+        console.error("[send-auth-email] Failed to persist OTP:", upsertRes.status, errText);
+        return jsonResponse(
+          { error: "Failed to stage verification code. Please try again." },
+          500,
+        );
+      }
+    } else {
+      console.warn(
+        "[send-auth-email] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing — OTP not persisted.",
+      );
+    }
+
+    // 5. Build the email body
+    const subject = `AgroSpace Verification Code: ${otpCode}`;
     const htmlBody = `
 <!DOCTYPE html>
 <html lang="en">
@@ -111,61 +147,42 @@ Deno.serve(async (req: Request) => {
   <title>AgroSpace Nexus Clearance Code</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; background-color: #070B14; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #FFFFFF;">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #070B14; padding: 40px 16px;">
+<body style="margin:0;padding:0;background-color:#070B14;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#FFFFFF;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#070B14;padding:40px 16px;">
     <tr>
       <td align="center">
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #0B111E; border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 20px; padding: 36px 28px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(34, 211, 238, 0.15);">
-          
-          <!-- Emblem -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:520px;background-color:#0B111E;border:1px solid rgba(56,189,248,0.25);border-radius:20px;padding:36px 28px;box-shadow:0 24px 60px rgba(0,0,0,0.8),0 0 30px rgba(34,211,238,0.15);">
           <tr>
-            <td align="center" style="padding-bottom: 18px;">
-              <div style="display: inline-block; width: 56px; height: 56px; line-height: 56px; text-align: center; border-radius: 16px; background: linear-gradient(180deg, rgba(34, 211, 238, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%); border: 1px solid rgba(34, 211, 238, 0.4); font-size: 26px;">
-                🛰️
+            <td align="center" style="padding-bottom:18px;">
+              <div style="display:inline-block;width:56px;height:56px;line-height:56px;text-align:center;border-radius:16px;background:linear-gradient(180deg,rgba(34,211,238,0.2) 0%,rgba(37,99,235,0.1) 100%);border:1px solid rgba(34,211,238,0.4);font-size:26px;">🛰️</div>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding-bottom:6px;">
+              <h1 style="margin:0;font-size:22px;font-weight:700;color:#FFFFFF;letter-spacing:0.5px;">AgroSpace Nexus</h1>
+              <p style="margin:4px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#22D3EE;font-family:monospace;">Orbital Telemetry • Earth Intelligence</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:22px 0 16px;">
+              <p style="margin:0;font-size:14px;line-height:1.6;color:#94A3B8;">
+                Hello <strong style="color:#F8FAFC;">${displayName}</strong>, use this single-use 6-digit verification code to complete your mission clearance on <strong style="color:#F8FAFC;">${recipientEmail}</strong>:
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:10px 0 24px;">
+              <div style="display:inline-block;background-color:#030712;border:1px solid #22D3EE;border-radius:14px;padding:16px 32px;box-shadow:0 0 25px rgba(34,211,238,0.25);">
+                <span style="font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:36px;font-weight:800;letter-spacing:8px;color:#38BDF8;">${otpCode}</span>
               </div>
             </td>
           </tr>
-
-          <!-- Heading -->
           <tr>
-            <td align="center" style="padding-bottom: 6px;">
-              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #FFFFFF; letter-spacing: 0.5px;">AgroSpace Nexus</h1>
-              <p style="margin: 4px 0 0; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #22D3EE; font-family: monospace;">Orbital Telemetry • Earth Intelligence</p>
+            <td style="border-top:1px solid rgba(255,255,255,0.08);padding-top:20px;text-align:center;">
+              <p style="margin:0 0 6px;font-size:12px;color:#64748B;">⏱️ Security clearance code is valid for <strong>5 minutes</strong> (${actionType}).</p>
+              <p style="margin:0;font-size:11px;color:#475569;">If you did not request this code, you can safely ignore this email.</p>
             </td>
           </tr>
-
-          <!-- Instructional text -->
-          <tr>
-            <td align="center" style="padding: 22px 0 16px;">
-              <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #94A3B8;">
-                Here is your single-use 6-digit verification code to authenticate your mission clearance on <strong style="color: #F8FAFC;">${recipientEmail}</strong>:
-              </p>
-            </td>
-          </tr>
-
-          <!-- 6-digit Code Box -->
-          <tr>
-            <td align="center" style="padding: 10px 0 24px;">
-              <div style="display: inline-block; background-color: #030712; border: 1px solid #22D3EE; border-radius: 14px; padding: 16px 32px; box-shadow: 0 0 25px rgba(34, 211, 238, 0.25);">
-                <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #38BDF8;">
-                  ${otpCode}
-                </span>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Expiration & Security Notice -->
-          <tr>
-            <td style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; text-align: center;">
-              <p style="margin: 0 0 6px; font-size: 12px; color: #64748B;">
-                ⏱️ Security clearance code is valid for <strong>5 minutes</strong> (${actionType}).
-              </p>
-              <p style="margin: 0; font-size: 11px; color: #475569;">
-                If you did not request this login code, you can safely ignore this email.
-              </p>
-            </td>
-          </tr>
-
         </table>
       </td>
     </tr>
@@ -174,7 +191,7 @@ Deno.serve(async (req: Request) => {
 </html>
     `.trim();
 
-    // 3. Dispatch via Resend HTTP API
+    // 6. Dispatch via Resend HTTP API
     console.log(`[send-auth-email] Dispatching OTP email via Resend to ${recipientEmail}`);
 
     const resendResponse = await fetch("https://api.resend.com/emails", {
@@ -186,39 +203,37 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         from: fromEmail,
         to: [recipientEmail],
-        subject: subject,
+        subject,
         html: htmlBody,
       }),
     });
 
-    const resendData = await resendResponse.json();
+    const resendData = await resendResponse.json().catch(() => ({}));
 
     if (!resendResponse.ok) {
-      console.error("[send-auth-email] Resend API error:", resendResponse.status, resendData);
-      return new Response(
-        JSON.stringify({
-          error: resendData.message || "Failed to dispatch email via Resend API",
-        }),
-        {
-          status: resendResponse.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+      console.error(
+        "[send-auth-email] Resend API error:",
+        resendResponse.status,
+        resendData,
       );
+      const apiMessage =
+        (resendData as { message?: string }).message ||
+        "Email delivery failed. Please try again shortly.";
+      return jsonResponse({ error: apiMessage }, resendResponse.status);
     }
 
-    console.log(`[send-auth-email] Successfully sent email via Resend: ${resendData.id}`);
+    console.log(
+      `[send-auth-email] Successfully sent email via Resend: ${(resendData as { id?: string }).id}`,
+    );
 
-    // Supabase Auth Hooks expect an empty JSON or success response with status 200
-    return new Response(JSON.stringify({ success: true, id: resendData.id }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return jsonResponse({
+      success: true,
+      id: (resendData as { id?: string }).id,
+      message: "Verification code dispatched. Check your inbox.",
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error("[send-auth-email] Unhandled exception:", errorMsg);
-    return new Response(JSON.stringify({ error: errorMsg }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: errorMsg }, 500);
   }
 });

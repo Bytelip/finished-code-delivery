@@ -1,0 +1,11 @@
+[functions.send-auth-email]
+verify_jwt = false
+entrypoint = "./functions/send-auth-email/index.ts"
+
+[functions.verify-auth-otp]
+verify_jwt = false
+entrypoint = "./functions/verify-auth-otp/index.ts"
+
+[functions.nasa-proxy]
+verify_jwt = true
+entrypoint = "./functions/nasa-proxy/index.ts"
