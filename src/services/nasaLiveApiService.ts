@@ -69,7 +69,12 @@ async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS, signa
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
-    const body = await res.clone().text();
+    // Keep lightweight Response mocks and fetch adapters working. Native
+    // browser Responses support clone/text and can be cached; compatible
+    // response-like objects are returned untouched.
+    const responseClone = typeof res.clone === "function" ? res.clone() : null;
+    if (!responseClone || typeof responseClone.text !== "function") return res;
+    const body = await responseClone.text();
     apiResponseCache.set(url, {
       expiresAt: Date.now() + API_CACHE_TTL_MS,
       body,

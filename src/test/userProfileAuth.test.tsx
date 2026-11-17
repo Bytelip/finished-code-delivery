@@ -122,7 +122,7 @@ describe("User Profile & Authentication System", () => {
     });
   });
 
-  it("opens interactive OAuth account chooser when OAuth provider has no credentials, without showing any red Authentication Setup Notice", async () => {
+  it("shows a clear provider error instead of a simulated OAuth account chooser", async () => {
     vi.spyOn(authService, "initiateOAuthLogin").mockResolvedValue({
       success: false,
       needsAccountPicker: true,
@@ -134,11 +134,11 @@ describe("User Profile & Authentication System", () => {
     fireEvent.click(googleBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Choose an account/i)).toBeDefined();
-      expect(screen.getByText(/Naren Google/i)).toBeDefined();
+      expect(screen.getByText(/Google sign-in could not be started/i)).toBeDefined();
     });
 
-    // CRITICAL: Red Authentication Setup Notice must be completely absent
+    expect(screen.queryByText(/Choose an account/i)).toBeNull();
+    expect(screen.queryByText(/Naren Google/i)).toBeNull();
     expect(screen.queryByText(/Authentication Setup Notice/i)).toBeNull();
     expect(screen.queryByText(/Google OAuth is not configured/i)).toBeNull();
   });
