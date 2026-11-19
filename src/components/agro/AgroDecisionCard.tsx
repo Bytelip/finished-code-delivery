@@ -252,16 +252,16 @@ export function AgroDecisionCard({
   const strokeDashoffset = circumference - (healthScore / 100) * circumference;
 
   return (
-    <div className={cn("w-full flex flex-col gap-5", className)}>
+    <div className={cn("@container w-full flex flex-col gap-5", className)}>
       {/* ========================================================================= */}
       {/* GOOGLE STITCH "GLOBAL OBSERVATORY" 12-COLUMN ASYMMETRIC BENTO GRID       */}
       {/* Card A (Col 4) | Card B (Col 5) | Card C (Col 3)                          */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full items-start">
+      <div className="grid grid-cols-1 @5xl:grid-cols-12 gap-3 @2xl:gap-5 w-full items-start">
         {/* ========================================================================= */}
         {/* CARD A: AI AGRONOMIC DECISION ENGINE (Col-span 4)                         */}
         {/* ========================================================================= */}
-        <div className="xl:col-span-4 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-5 shadow-2xl flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
+        <div className="@5xl:col-span-4 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-4 @2xl:p-5 shadow-2xl flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
           <BorderBeam
             size={240}
             duration={14}
@@ -468,14 +468,14 @@ export function AgroDecisionCard({
               </span>
             </div>
             <div className="mt-1 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-400/40 bg-emerald-500/10 p-2">
-              <div className="relative inline-block overflow-hidden rounded-md">
+              <div className="relative inline-block max-w-full overflow-hidden rounded-md">
                 <Button
                   type="button"
                   size="sm"
                   variant="toggle"
                   aria-pressed="true"
                   onClick={() => setSelectedCropId(activeCrop.id)}
-                  className="relative z-10 min-h-11 rounded-md border-emerald-400/40 bg-emerald-500/15 px-3 text-xs text-emerald-400 hover:bg-emerald-500/25"
+                  className="relative z-10 h-auto min-h-11 max-w-full flex-wrap justify-start whitespace-normal rounded-md border-emerald-400/40 bg-emerald-500/15 px-3 py-1.5 text-left text-xs text-emerald-400 hover:bg-emerald-500/25"
                   title={`Selected Crop: ${activeCrop.name} (${activeCrop.adjustedScore}/100)`}
                 >
                   <Sprout className="size-4 text-emerald-400" />
@@ -519,7 +519,7 @@ export function AgroDecisionCard({
         {/* ========================================================================= */}
         {/* CARD B: FIELD SHIFT: TOP 5 CROPS LEADERBOARD (Col-span 5)                 */}
         {/* ========================================================================= */}
-        <div className="xl:col-span-5 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-5 shadow-2xl flex flex-col gap-3.5 backdrop-blur-2xl relative overflow-hidden">
+        <div className="@5xl:col-span-5 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-4 @2xl:p-5 shadow-2xl flex flex-col gap-3.5 backdrop-blur-2xl relative overflow-hidden">
           <BorderBeam
             size={220}
             duration={16}
@@ -686,7 +686,7 @@ export function AgroDecisionCard({
                     </div>
 
                     {/* 5-Factor Micro Gauges (WATER, SOIL, TERRAIN, CLIMATE, ECON) */}
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center font-mono text-xs pt-2 border-t border-white/10 w-full">
+                    <div className="grid grid-cols-2 @lg:grid-cols-5 gap-3 text-center font-mono text-xs pt-2 border-t border-white/10 w-full">
                       <div
                         className="flex flex-col gap-3 py-1"
                         title={`Water: ${crop.factors.water}/100`}
@@ -792,7 +792,7 @@ export function AgroDecisionCard({
         {/* ========================================================================= */}
         {/* CARD C: 4-DAY METEOROLOGICAL & SPECTRAL FORECAST STRIP (Col-span 3)        */}
         {/* ========================================================================= */}
-        <div className="xl:col-span-3 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-5 shadow-2xl flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
+        <div className="@5xl:col-span-3 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-4 @2xl:p-5 shadow-2xl flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
           <BorderBeam
             size={200}
             duration={18}

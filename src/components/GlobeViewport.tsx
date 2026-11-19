@@ -1124,7 +1124,7 @@ export function GlobeViewport({
       data-lon={lon}
       data-layer={activeLayer}
       onPointerDown={() => onInteraction?.()}
-      className="relative mx-auto w-full max-w-[1920px] h-[58dvh] sm:h-[calc(100dvh-8rem)] min-h-[340px] sm:min-h-[440px] max-h-[820px] rounded-xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
+      className="relative mx-auto w-full max-w-[1920px] h-[calc(100dvh-9.5rem)] sm:h-[calc(100dvh-8rem)] min-h-[420px] sm:min-h-[440px] max-h-[820px] rounded-xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
     >
       {/* Ambient Radiant Orbital Glows (Google Stitch) */}
       <div
@@ -1482,16 +1482,6 @@ export function GlobeViewport({
         </div>
       ) : null}
 
-      {tilesLoading && (
-        <div
-          className="pointer-events-none absolute left-1/2 top-16 z-40 -translate-x-1/2 rounded-full border border-cyan-400/30 bg-slate-950/85 px-3 py-1.5 text-xs font-mono text-cyan-300 shadow-lg backdrop-blur-md"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="mr-2 inline-block size-1.5 animate-pulse rounded-full bg-cyan-300" />
-          {<LocalizedText text={"Loading map tiles…"} />}
-        </div>
-      )}
 
       {/* ---------------- SSR & ENGINE LOADING FALLBACK GRID ---------------- */}
       {(!mounted ||
@@ -1515,7 +1505,7 @@ export function GlobeViewport({
         <div
           data-hud-overlay="reticle"
           data-tour="reticle-lock"
-          className="pointer-events-auto w-max max-w-[calc(100vw-5.5rem)] rounded-xl border border-cyan-500/30 bg-[#071120]/90 p-2.5 shadow-lg backdrop-blur-md"
+          className="pointer-events-auto w-max max-w-[calc(100vw-6.5rem)] sm:max-w-none rounded-xl border border-cyan-500/30 bg-[#071120]/90 p-2.5 shadow-lg backdrop-blur-md"
         >
           <div className="flex items-center gap-2 text-xs font-semibold text-cyan-200">
             <Radar className="size-4 shrink-0 text-cyan-300" />
@@ -1523,19 +1513,27 @@ export function GlobeViewport({
             <span className="size-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]" />
           </div>
           <div className="mt-1 whitespace-nowrap font-mono text-xs font-medium tabular-nums text-foreground">
-            {Math.abs(lat).toFixed(2)}?? {lat >= 0 ? "N" : "S"} ?? {Math.abs(lon).toFixed(2)}?? {lon >= 0 ? "E" : "W"}
+            {Math.abs(lat).toFixed(2)}° {lat >= 0 ? "N" : "S"} · {Math.abs(lon).toFixed(2)}° {lon >= 0 ? "E" : "W"}
           </div>
           <div className="mt-1.5 flex items-center gap-1.5 font-mono text-xs">
             <span className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
               NDVI {telemetry.layers.NDVI.value} {telemetry.layers.NDVI.unit}
             </span>
-            <span
-              data-hud-overlay="layer-readout"
-              className="rounded-md border border-cyan-400/25 bg-cyan-500/10 px-1.5 py-0.5 text-cyan-200"
-            >
-              {activeLayer} {reading.value} {reading.unit}
-            </span>
+            {activeLayer !== "NDVI" && (
+              <span
+                data-hud-overlay="layer-readout"
+                className="rounded-md border border-cyan-400/25 bg-cyan-500/10 px-1.5 py-0.5 text-cyan-200"
+              >
+                {activeLayer} {reading.value} {reading.unit}
+              </span>
+            )}
           </div>
+          {tilesLoading && (
+            <div className="mt-1.5 flex items-center gap-1.5 font-mono text-xs text-cyan-300" role="status" aria-live="polite">
+              <span className="inline-block size-1.5 shrink-0 animate-pulse rounded-full bg-cyan-300" />
+              <LocalizedText text={"Loading map tiles…"} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -1614,13 +1612,13 @@ export function GlobeViewport({
             title="Open map controls (L)"
           >
             <Satellite className="size-4" />
-            {activeLayer} ? {reading.value} {reading.unit}
+            {activeLayer} · {reading.value} {reading.unit}
             <ChevronUp className="size-3.5" />
           </button>
         ) : (
           <div className="pointer-events-auto flex w-full min-w-0 flex-col gap-1.5 rounded-2xl border border-cyan-500/25 bg-[#071120]/90 p-2 shadow-lg backdrop-blur-md">
-            <div className="flex min-w-0 items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <Button
                   type="button"
                   size="sm"
@@ -1645,41 +1643,11 @@ export function GlobeViewport({
                   </span>
                 )}
               </div>
-              <div data-tour="basemap-switcher" className="shrink-0">
-                <MapLayerSwitcher
-                  currentStyle={basemapStyle}
-                  onStyleChange={handleBasemapStyleChange}
-                  activeSubOption={basemapSubOption}
-                  onSubOptionChange={setBasemapSubOption}
-                  onOpenInfoModal={(style) => {
-                    setInfoModalLayerId(style as ZoomEarthLayerId);
-                    setShowLayerInfoModal(true);
-                  }}
-                  showLabels={showLabels}
-                  onToggleLabels={setShowLabels}
-                  enable3dTerrain={enable3dTerrain}
-                  onToggle3dTerrain={setEnable3dTerrain}
-                  viewMode={viewMode}
-                  coordinates={{ lat, lon }}
-                  compact
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsDockMinimized(true)}
-                aria-label="Collapse map controls"
-                title="Collapse map controls (L)"
-                className="hidden size-8 shrink-0 place-items-center rounded-full border border-white/10 text-muted-foreground hover:border-cyan-400/30 hover:text-cyan-200 sm:grid"
+              <div
+                data-hud-overlay="hazard-filter"
+                aria-label="Hazard filters"
+                className="relative min-w-0 flex-1 overflow-hidden"
               >
-                <ChevronDown className="size-4" />
-              </button>
-            </div>
-
-            <div
-              data-hud-overlay="hazard-filter"
-              aria-label="Hazard filters"
-              className="relative min-w-0 overflow-hidden"
-            >
               <div
                 className="flex snap-x snap-mandatory items-center gap-1.5 overflow-x-auto no-scrollbar px-2 py-1"
                 style={{ maskImage: "linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent)" }}
@@ -1714,6 +1682,35 @@ export function GlobeViewport({
                   Fit All
                 </button>
               </div>
+              </div>
+              <div data-tour="basemap-switcher" className="shrink-0">
+                <MapLayerSwitcher
+                  currentStyle={basemapStyle}
+                  onStyleChange={handleBasemapStyleChange}
+                  activeSubOption={basemapSubOption}
+                  onSubOptionChange={setBasemapSubOption}
+                  onOpenInfoModal={(style) => {
+                    setInfoModalLayerId(style as ZoomEarthLayerId);
+                    setShowLayerInfoModal(true);
+                  }}
+                  showLabels={showLabels}
+                  onToggleLabels={setShowLabels}
+                  enable3dTerrain={enable3dTerrain}
+                  onToggle3dTerrain={setEnable3dTerrain}
+                  viewMode={viewMode}
+                  coordinates={{ lat, lon }}
+                  compact
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDockMinimized(true)}
+                aria-label="Collapse map controls"
+                title="Collapse map controls (L)"
+                className="hidden size-8 shrink-0 place-items-center rounded-full border border-white/10 text-muted-foreground hover:border-cyan-400/30 hover:text-cyan-200 sm:grid"
+              >
+                <ChevronDown className="size-4" />
+              </button>
             </div>
 
             <div

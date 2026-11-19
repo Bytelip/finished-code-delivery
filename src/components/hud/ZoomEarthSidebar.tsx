@@ -408,7 +408,7 @@ export function ForecastAtmospherePanel({
                     </span>
                   )}
                   {!loading && (
-                    <span className="rounded bg-black/30 px-1 py-0.5 text-[8px] text-muted-foreground">
+                    <span className="rounded bg-black/30 px-1 py-0.5 text-xs text-muted-foreground">
                       {metric?.source === "Open-Meteo"
                         ? "NOW"
                         : metric?.source === "NASA POWER"
@@ -446,7 +446,7 @@ export function ForecastAtmospherePanel({
               {infoOpen === id && (
                 <div
                   role="tooltip"
-                  className="mx-1 rounded-md border border-cyan-400/20 bg-slate-950/95 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground shadow-lg"
+                  className="mx-1 rounded-md border border-cyan-400/20 bg-slate-950/95 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground shadow-lg"
                 >
                   <b className="text-cyan-300">{info.dataset}</b>
                   <br />
@@ -459,7 +459,7 @@ export function ForecastAtmospherePanel({
                 </div>
               )}
               {expanded === id && (
-                <div className="ml-3 border-l-2 border-white/15 bg-black/25 px-2 py-2 text-[10px] text-muted-foreground">
+                <div className="ml-3 border-l-2 border-white/15 bg-black/25 px-2 py-2 text-xs text-muted-foreground">
                   {id === "wind" && (
                     <div className="mb-2 flex flex-wrap gap-1">
                       <span className="mr-1 self-center">Height</span>
@@ -571,7 +571,7 @@ export function ForecastAtmospherePanel({
         })}
       </div>
       <div
-        className="mt-1 px-2 text-[9px] leading-tight text-muted-foreground"
+        className="mt-1 px-2 text-xs leading-tight text-muted-foreground"
         title="Coordinates are submitted to point APIs; gridded source data represents the nearest native grid cell."
       >
         {loading

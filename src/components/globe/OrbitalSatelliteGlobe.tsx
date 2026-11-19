@@ -178,6 +178,11 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     }
     mapRef.current = map;
 
+    // Keep the credits collapsed to the small (i) button so the bottom map dock never covers them.
+    map.once("load", () => {
+      el.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+    });
+
     // Missing tiles (ocean gaps, GIBS dates) are expected; keep them out of the error log.
     map.on("error", (e) => {
       const msg = String((e as { error?: { message?: string } }).error?.message ?? "");

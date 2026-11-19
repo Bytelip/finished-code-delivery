@@ -304,17 +304,18 @@ export function MapLayerSwitcher({
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
           "group flex items-center gap-2 border text-xs font-mono font-semibold transition-all duration-300 shadow-2xl backdrop-blur-xl cursor-pointer",
-          compact ? "h-8 rounded-full px-2.5" : "rounded-xl px-3 py-2",
+          compact ? "h-8 justify-center rounded-full px-2.5" : "rounded-xl px-3 py-2",
           isOpen
             ? "border-cyan-400 bg-[#090D18]/95 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.35)]"
             : "border-cyan-500/40 bg-[#080D1A]/90 text-foreground hover:border-cyan-400 hover:text-cyan-300 hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]",
         )}
         title={changeBasemapTitle}
+        aria-label={changeBasemapTitle}
       >
         {compact ? (
           <>
             <Layers className="size-4 shrink-0 text-cyan-300" />
-            <span className="max-w-24 truncate text-xs font-semibold text-foreground">
+            <span className="hidden max-w-24 truncate text-xs font-semibold text-foreground sm:inline">
               {currentStyle === "satellite" ? "Satellite" : activeOption.label}
             </span>
           </>
