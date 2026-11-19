@@ -99,6 +99,7 @@ export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 export const TELEMETRY_TABS = MAP_LAYERS;
 
 interface LeafletMapInstance {
+  getCenter?: () => { lat: number; lng: number };
   panTo: (coords: [number, number], options?: { animate?: boolean }) => void;
   flyTo?: (
     coords: [number, number],
@@ -203,6 +204,7 @@ interface LeafletBundle {
   useMapEvents: (handlers: {
     click?: (e: { latlng?: { lat: number; lng: number } }) => void;
     zoomend?: (e: { target: { getZoom: () => number } }) => void;
+    moveend?: (e: { target: { getCenter?: () => { lat: number; lng: number } } }) => void;
   }) => void;
   L: {
     DivIcon: new (options: {
@@ -658,7 +660,18 @@ export function GlobeViewport({
   const overpassTimerStr = `${overpassMinutes}m ${overpassRemSec < 10 ? "0" : ""}${overpassRemSec}s`;
 
   // NASA GIBS WMTS URL definition for 2D Leaflet
-  const gibsTileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/{z}/{y}/{x}.${activeSatelliteConfig.format}`;
+  const atmosphereGibsLayers: Partial<Record<BasemapStyle, { layer: string; zoom: number }>> = {
+    precipitation: { layer: "IMERG_Precipitation_Rate", zoom: 6 },
+    wind: { layer: "MERRA2_Surface_Wind_Speed_Monthly", zoom: 6 },
+    temperature: { layer: "MODIS_Terra_Land_Surface_Temp_Day", zoom: 6 },
+    humidity: { layer: "AIRS_L2_RelativeHumidity_500hPa_Day", zoom: 6 },
+    pressure: { layer: "MERRA2_Surface_Pressure_Monthly", zoom: 6 },
+  };
+  const atmosphereGibs = atmosphereGibsLayers[basemapStyle];
+  const gibsMaxZoom = atmosphereGibs?.zoom ?? activeSatelliteConfig.maxZoom;
+  const gibsTileUrl = atmosphereGibs
+    ? `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${atmosphereGibs.layer}/default/default/GoogleMapsCompatible_Level${atmosphereGibs.zoom}/{z}/{y}/{x}.png`
+    : `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/{z}/{y}/{x}.${activeSatelliteConfig.format}`;
 
   // HTML target reticle + hazard markers (place names come from the Esri label tiles)
   const dynamicGlobeHtmlMarkers = useMemo(() => {
@@ -1195,7 +1208,7 @@ export function GlobeViewport({
               basemapStyle={basemapStyle}
               showLabels={showLabels}
               overlayUrl={gibsTileUrl}
-              overlayMaxZoom={activeSatelliteConfig.maxZoom}
+              overlayMaxZoom={gibsMaxZoom}
               overlayOpacity={opacity / 100}
               markers={globeMarkers}
               onPick={onPick}
@@ -1311,7 +1324,7 @@ export function GlobeViewport({
             <LeafletComp.TileLayer
               key={`2d-nasa-overlay-${activeLayer}`}
               url={gibsTileUrl}
-              maxNativeZoom={activeSatelliteConfig.maxZoom}
+              maxNativeZoom={gibsMaxZoom}
               maxZoom={18}
               opacity={opacity / 100}
               zIndex={10}
@@ -1480,6 +1493,7 @@ export function GlobeViewport({
               }}
               onZoomChange={setGisZoom}
               onAutoSwitchTo3D={handleAutoTransitionTo3D}
+              onCenterChange={onPick}
               useMap={LeafletComp.useMap}
               useMapEvents={LeafletComp.useMapEvents}
             />
@@ -2013,6 +2027,7 @@ export function GlobeViewport({
           enable3dTerrain={enable3dTerrain}
           onToggle3dTerrain={setEnable3dTerrain}
           viewMode={viewMode}
+          coordinates={{ lat, lon }}
         />
       </div>
 
@@ -2264,12 +2279,14 @@ function LeafletBridge({
   setMapInstance,
   onZoomChange,
   onAutoSwitchTo3D,
+  onCenterChange,
   useMap,
   useMapEvents,
 }: {
   setMapInstance: (m: LeafletMapInstance | null) => void;
   onZoomChange: (z: number) => void;
   onAutoSwitchTo3D?: () => void;
+  onCenterChange?: (lat: number, lon: number) => void;
   useMap: LeafletBundle["useMap"];
   useMapEvents: LeafletBundle["useMapEvents"];
 }) {
@@ -2300,6 +2317,14 @@ function LeafletBridge({
           onAutoSwitchTo3D();
         }
       }
+    },
+    moveend(e) {
+      const center = e?.target?.getCenter?.();
+      if (center)
+        onCenterChange?.(
+          Math.round(center.lat * 10000) / 10000,
+          Math.round(center.lng * 10000) / 10000,
+        );
     },
   });
   return null;

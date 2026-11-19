@@ -80,7 +80,9 @@ function buildStyle(p: OrbitalSatelliteGlobeProps): StyleSpecification {
   return {
     version: 8,
     // Sphere in orbit, morphing into a flat mercator field map at 1 km altitude (and back).
-    projection: { type: globeProjectionExpression() as unknown as NonNullable<ProjectionSpecification["type"]> },
+    projection: {
+      type: globeProjectionExpression() as unknown as NonNullable<ProjectionSpecification["type"]>,
+    },
     sky: {
       "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 1, 8, 0],
     },
@@ -204,7 +206,10 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
         if (mapRef.current !== map) return;
         const z = map.getZoom();
         const now = performance.now();
-        if ((Number.isNaN(lastSent) || Math.abs(z - lastSent) >= 0.01) && now - lastZoomUpdateAt >= 100) {
+        if (
+          (Number.isNaN(lastSent) || Math.abs(z - lastSent) >= 0.01) &&
+          now - lastZoomUpdateAt >= 100
+        ) {
           lastSent = z;
           lastZoomUpdateAt = now;
           propsRef.current.onZoom(z);
@@ -225,6 +230,21 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
       lastTargetRef.current = { lat, lon };
       map.flyTo(cinematicFlight(lat, lon, flyToZoomFor(map.getZoom())));
       propsRef.current.onPick(lat, lon);
+    });
+
+    // Keep the locked reticle and coordinate-driven data aligned with a deliberate pan.
+    map.on("moveend", () => {
+      if (mapRef.current !== map) return;
+      const center = map.getCenter();
+      const lat = round4(center.lat);
+      const lon = round4(center.lng);
+      if (
+        Math.abs(lastTargetRef.current.lat - lat) > 0.0005 ||
+        Math.abs(lastTargetRef.current.lon - lon) > 0.0005
+      ) {
+        lastTargetRef.current = { lat, lon };
+        propsRef.current.onPick(lat, lon);
+      }
     });
 
     const api: OrbitalGlobeApi = {
@@ -280,7 +300,9 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
       (map.getSource("basemap") as RasterTileSource | undefined)?.setTiles([
         globeBasemapTileUrl(props.basemapStyle),
       ]);
-      (map.getSource("labels") as RasterTileSource | undefined)?.setTiles([globeLabelsTileUrl(props.basemapStyle)]);
+      (map.getSource("labels") as RasterTileSource | undefined)?.setTiles([
+        globeLabelsTileUrl(props.basemapStyle),
+      ]);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
@@ -292,13 +314,34 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     const apply = () => {
       if (props.showLabels) {
         if (!map.getSource("labels")) {
-          map.addSource("labels", { type: "raster", tiles: [globeLabelsTileUrl(props.basemapStyle)], tileSize: 256, maxzoom: 19 });
+          map.addSource("labels", {
+            type: "raster",
+            tiles: [globeLabelsTileUrl(props.basemapStyle)],
+            tileSize: 256,
+            maxzoom: 19,
+          });
         }
         if (!map.getSource("roads")) {
-          map.addSource("roads", { type: "raster", tiles: [globeTransportationTileUrl()], tileSize: 256, maxzoom: 19 });
+          map.addSource("roads", {
+            type: "raster",
+            tiles: [globeTransportationTileUrl()],
+            tileSize: 256,
+            maxzoom: 19,
+          });
         }
-        if (!map.getLayer("roads")) map.addLayer({ id: "roads", type: "raster", source: "roads", minzoom: 11, paint: { "raster-opacity": 0.85 } }, "gibs");
-        if (!map.getLayer("labels")) map.addLayer({ id: "labels", type: "raster", source: "labels" });
+        if (!map.getLayer("roads"))
+          map.addLayer(
+            {
+              id: "roads",
+              type: "raster",
+              source: "roads",
+              minzoom: 11,
+              paint: { "raster-opacity": 0.85 },
+            },
+            "gibs",
+          );
+        if (!map.getLayer("labels"))
+          map.addLayer({ id: "labels", type: "raster", source: "labels" });
       } else {
         if (map.getLayer("labels")) map.removeLayer("labels");
         if (map.getLayer("roads")) map.removeLayer("roads");

@@ -23,6 +23,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
+import { ForecastAtmospherePanel } from "@/components/hud/ZoomEarthSidebar";
 
 export type BasemapStyle =
   | "satellite"
@@ -229,6 +230,7 @@ export interface MapLayerSwitcherProps {
   enable3dTerrain?: boolean;
   onToggle3dTerrain?: (enable: boolean) => void;
   viewMode?: "3d" | "2d";
+  coordinates?: { lat: number; lon: number };
   className?: string;
 }
 
@@ -243,6 +245,7 @@ export function MapLayerSwitcher({
   enable3dTerrain = true,
   onToggle3dTerrain,
   viewMode = "3d",
+  coordinates = { lat: 0, lon: 0 },
   className,
 }: MapLayerSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -285,7 +288,6 @@ export function MapLayerSwitcher({
   };
 
   const liveMaps = BASEMAP_OPTIONS.filter((o) => o.category === "live");
-  const atmosphericMaps = BASEMAP_OPTIONS.filter((o) => o.category === "atmospheric");
   const terrainMaps = BASEMAP_OPTIONS.filter((o) => o.category === "terrain");
 
   return (
@@ -370,7 +372,11 @@ export function MapLayerSwitcher({
               <div className="px-1 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
                 {<LocalizedText text={"Forecast & Atmosphere"} />}
               </div>
-              <div className="space-y-1">{atmosphericMaps.map((opt) => renderOptionItem(opt))}</div>
+              <ForecastAtmospherePanel
+                coordinates={coordinates}
+                activeLayer={currentStyle as import("@/types/zoomEarthLayers").ZoomEarthLayerId}
+                onLayerChange={(layer) => onStyleChange(layer as BasemapStyle)}
+              />
             </div>
 
             {/* SECTION 3: TERRAIN & VECTOR */}

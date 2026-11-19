@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Satellite,
   Radio,
@@ -22,6 +22,12 @@ import {
 import { MAP_LAYERS, type MapLayer } from "@/types/agroSpace";
 import { cn } from "@/lib/utils";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
+import {
+  fetchForecastAtmosphere,
+  FORECAST_INFO,
+  type AtmosphereMetricId,
+  type ForecastAtmosphere,
+} from "@/services/forecastAtmosphereService";
 
 interface ZoomEarthSidebarProps {
   activeLayer: ZoomEarthLayerId;
@@ -29,6 +35,7 @@ interface ZoomEarthSidebarProps {
   activeSubLayer: SubLayerId;
   onSubLayerChange: (sub: SubLayerId) => void;
   onOpenInfoModal: (layerId: ZoomEarthLayerId) => void;
+  coordinates: { lat: number; lon: number };
   className?: string;
 }
 
@@ -38,6 +45,7 @@ export function ZoomEarthSidebar({
   activeSubLayer,
   onSubLayerChange,
   onOpenInfoModal,
+  coordinates,
   className,
 }: ZoomEarthSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -161,212 +169,64 @@ export function ZoomEarthSidebar({
         </div>
       </div>
 
-      {/* SECTION 2: FORECAST & ATMOSPHERIC MAPS */}
       <div className="mt-3">
         <div className="px-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
-          {<LocalizedText text={"Forecast & Atmospheric"} />}
-        </div>
-        <div className="space-y-1">
-          {/* Precipitation */}
-          <button
-            type="button"
-            onClick={() => handleSelectParent("precipitation")}
-            className={cn(
-              "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
-              activeLayer === "precipitation"
-                ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
-                : "text-foreground hover:bg-white/5 hover:text-foreground",
-            )}
-          >
-            <span className="flex items-center gap-2">
-              <CloudRain className="size-3.5 text-cyan-300" />{" "}
-              {<LocalizedText text={" Precipitation"} />}
-            </span>
-          </button>
-
-          {/* Wind with Sub-Options */}
-          <div className="rounded-xl overflow-hidden transition-all duration-200">
-            <button
-              type="button"
-              onClick={() => handleSelectParent("wind")}
-              className={cn(
-                "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
-                activeLayer === "wind"
-                  ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
-                  : "text-foreground hover:bg-white/5 hover:text-foreground",
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <Wind className="size-3.5 text-emerald-400" /> {<LocalizedText text={" Wind"} />}
-              </span>
-              <span className="text-xs opacity-60 font-mono">
-                {<LocalizedText text={"Streamlines"} />}
-              </span>
-            </button>
-            {activeLayer === "wind" && (
-              <div className="pl-6 pr-2 py-1 space-y-0.5 bg-black/25 border-l-2 border-teal-400 my-1 ml-3 rounded-r-lg animate-in fade-in duration-200">
-                <button
-                  type="button"
-                  onClick={() => onSubLayerChange("wind_speed")}
-                  className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
-                    activeSubLayer === "wind_speed"
-                      ? "text-emerald-400 font-semibold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{<LocalizedText text={"Wind Speed"} />}</span>
-                  {activeSubLayer === "wind_speed" && <Check className="size-3 text-emerald-400" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSubLayerChange("wind_gusts")}
-                  className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
-                    activeSubLayer === "wind_gusts"
-                      ? "text-emerald-400 font-semibold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{<LocalizedText text={"Wind Gusts"} />}</span>
-                  {activeSubLayer === "wind_gusts" && <Check className="size-3 text-emerald-400" />}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Temperature with Sub-Options */}
-          <div className="rounded-xl overflow-hidden transition-all duration-200">
-            <button
-              type="button"
-              onClick={() => handleSelectParent("temperature")}
-              className={cn(
-                "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
-                activeLayer === "temperature"
-                  ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
-                  : "text-foreground hover:bg-white/5 hover:text-foreground",
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <Thermometer className="size-3.5 text-amber-400" />{" "}
-                {<LocalizedText text={" Temperature"} />}
-              </span>
-              <span className="text-xs opacity-60 font-mono">{<LocalizedText text={"°C"} />}</span>
-            </button>
-            {activeLayer === "temperature" && (
-              <div className="pl-6 pr-2 py-1 space-y-0.5 bg-black/25 border-l-2 border-amber-400 my-1 ml-3 rounded-r-lg animate-in fade-in duration-200">
-                <button
-                  type="button"
-                  onClick={() => onSubLayerChange("temp_actual")}
-                  className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
-                    activeSubLayer === "temp_actual"
-                      ? "text-amber-400 font-semibold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{<LocalizedText text={"Actual"} />}</span>
-                  {activeSubLayer === "temp_actual" && <Check className="size-3 text-amber-400" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSubLayerChange("temp_feels")}
-                  className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
-                    activeSubLayer === "temp_feels"
-                      ? "text-amber-400 font-semibold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{<LocalizedText text={"Feels Like"} />}</span>
-                  {activeSubLayer === "temp_feels" && <Check className="size-3 text-amber-400" />}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Humidity with Sub-Options */}
-          <div className="rounded-xl overflow-hidden transition-all duration-200">
-            <button
-              type="button"
-              onClick={() => handleSelectParent("humidity")}
-              className={cn(
-                "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
-                activeLayer === "humidity"
-                  ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
-                  : "text-foreground hover:bg-white/5 hover:text-foreground",
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <Droplets className="size-3.5 text-cyan-300" />{" "}
-                {<LocalizedText text={" Humidity"} />}
-              </span>
-              <span className="text-xs opacity-60 font-mono">%</span>
-            </button>
-            {activeLayer === "humidity" && (
-              <div className="pl-6 pr-2 py-1 space-y-0.5 bg-black/25 border-l-2 border-blue-400 my-1 ml-3 rounded-r-lg animate-in fade-in duration-200">
-                <button
-                  type="button"
-                  onClick={() => onSubLayerChange("hum_relative")}
-                  className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
-                    activeSubLayer === "hum_relative"
-                      ? "text-cyan-300 font-semibold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{<LocalizedText text={"Relative"} />}</span>
-                  {activeSubLayer === "hum_relative" && <Check className="size-3 text-cyan-300" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSubLayerChange("hum_dewpoint")}
-                  className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
-                    activeSubLayer === "hum_dewpoint"
-                      ? "text-cyan-300 font-semibold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{<LocalizedText text={"Dew Point"} />}</span>
-                  {activeSubLayer === "hum_dewpoint" && <Check className="size-3 text-cyan-300" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSubLayerChange("hum_wetbulb")}
-                  className={cn(
-                    "w-full flex items-center justify-between py-1 px-1.5 rounded-md text-xs font-sans transition-colors",
-                    activeSubLayer === "hum_wetbulb"
-                      ? "text-cyan-300 font-semibold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{<LocalizedText text={"Wet-Bulb"} />}</span>
-                  {activeSubLayer === "hum_wetbulb" && <Check className="size-3 text-cyan-300" />}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Pressure */}
-          <button
-            type="button"
-            onClick={() => handleSelectParent("pressure")}
-            className={cn(
-              "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150",
-              activeLayer === "pressure"
-                ? "bg-white/15 border border-white/30 text-foreground font-semibold shadow-inner"
-                : "text-foreground hover:bg-white/5 hover:text-foreground",
-            )}
-          >
-            <span className="flex items-center gap-2">
-              <Gauge className="size-3.5 text-cyan-300" /> {<LocalizedText text={" Pressure"} />}
-            </span>
-            <span className="text-xs opacity-60 font-mono">{<LocalizedText text={"MSLP"} />}</span>
-          </button>
+          Forecast &amp; Atmosphere
         </div>
       </div>
+      <ForecastAtmospherePanel
+        coordinates={coordinates}
+        activeLayer={activeLayer}
+        onLayerChange={onLayerChange}
+      />
 
+      {/* SECTION 3: NASA AGRO & HAZARD LAYERS */}
+      <div className="mt-3 pt-2 border-t border-white/10">
+        <button
+          type="button"
+          onClick={() => setIsNasaSectionOpen(!isNasaSectionOpen)}
+          className="w-full flex items-center justify-between px-1.5 py-1 text-xs font-mono uppercase tracking-wider text-foreground hover:text-foreground rounded-lg hover:bg-white/5"
+        >
+          <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+            <Sprout className="size-3" /> {<LocalizedText text={" NASA AGRO ("} />}
+            {MAP_LAYERS.length})
+          </span>
+          {isNasaSectionOpen ? (
+            <ChevronUp className="size-3" />
+          ) : (
+            <ChevronDown className="size-3" />
+          )}
+        </button>
+        {isNasaSectionOpen && (
+          <div className="space-y-1 mt-1.5 animate-in fade-in duration-150">
+            {MAP_LAYERS.map((layer: MapLayer) => {
+              const meta = ZOOM_EARTH_LAYERS_META[layer];
+              const isSelected = activeLayer === layer;
+              return (
+                <button
+                  key={layer}
+                  type="button"
+                  onClick={() => handleSelectParent(layer)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-2 py-1 rounded-lg text-xs font-sans transition-colors",
+                    isSelected
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-400/40 font-semibold"
+                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <span>{meta?.emoji || "🌱"}</span>
+                    <span className="truncate">{meta?.name || layer}</span>
+                  </span>
+                  {isSelected && <Check className="size-3 text-emerald-400 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Removed duplicated inline weather rows; ForecastAtmospherePanel owns them. */}
       {/* SECTION 3: NASA AGRO & HAZARD LAYERS */}
       <div className="mt-3 pt-2 border-t border-white/10">
         <button
@@ -415,4 +275,317 @@ export function ZoomEarthSidebar({
       </div>
     </div>
   );
+}
+
+export function ForecastAtmospherePanel({
+  coordinates,
+  activeLayer,
+  onLayerChange,
+}: {
+  coordinates: { lat: number; lon: number };
+  activeLayer: ZoomEarthLayerId;
+  onLayerChange: (layer: ZoomEarthLayerId) => void;
+}) {
+  const [data, setData] = useState<ForecastAtmosphere | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState<AtmosphereMetricId | null>(null);
+  const [infoOpen, setInfoOpen] = useState<AtmosphereMetricId | null>(null);
+  const [windHeight, setWindHeight] = useState<"10m" | "2m">("10m");
+  const [windUnit, setWindUnit] = useState<"km/h" | "m/s">("km/h");
+  const [temperatureUnit, setTemperatureUnit] = useState<"°C" | "°F">("°C");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    const timer = window.setTimeout(() => {
+      fetchForecastAtmosphere(coordinates.lat, coordinates.lon, controller.signal)
+        .then((result) => {
+          if (!controller.signal.aborted) setData(result);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setData(null);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 400);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [coordinates.lat, coordinates.lon]);
+
+  const rows: {
+    id: AtmosphereMetricId;
+    label: string;
+    icon: typeof CloudRain;
+    color: string;
+    expandable?: boolean;
+  }[] = [
+    { id: "precipitation", label: "Precipitation", icon: CloudRain, color: "text-cyan-300" },
+    { id: "wind", label: "Wind", icon: Wind, color: "text-emerald-400", expandable: true },
+    {
+      id: "temperature",
+      label: "Temperature",
+      icon: Thermometer,
+      color: "text-amber-400",
+      expandable: true,
+    },
+    { id: "humidity", label: "Humidity", icon: Droplets, color: "text-sky-300", expandable: true },
+    { id: "pressure", label: "Pressure", icon: Gauge, color: "text-indigo-300" },
+  ];
+  const valueFor = (id: AtmosphereMetricId): number | null => {
+    if (!data) return null;
+    if (id === "wind")
+      return windHeight === "2m" ? data.windSpeed2m.value : data.metrics.wind.value;
+    return data.metrics[id].value;
+  };
+  const formatted = (id: AtmosphereMetricId): string => {
+    const value = valueFor(id);
+    if (value == null) return "—";
+    if (id === "wind")
+      return `${(value * (windUnit === "km/h" ? 3.6 : 1)).toFixed(1)} ${windUnit}${data?.windDirection == null ? "" : ` ${directionLabel(data.windDirection)}`}`;
+    if (id === "temperature")
+      return `${(temperatureUnit === "°F" ? (value * 9) / 5 + 32 : value).toFixed(1)} ${temperatureUnit}`;
+    if (id === "precipitation")
+      return `${value.toFixed(1)} ${data?.metrics.precipitation.cadence === "daily" ? "mm/d" : "mm/h"}`;
+    if (id === "humidity") return `${Math.round(value)}%`;
+    return `${Math.round(value)} hPa`;
+  };
+  const displayStat = (value: number | null, id: AtmosphereMetricId) => {
+    if (value == null) return "—";
+    if (id === "temperature")
+      return `${(temperatureUnit === "°F" ? (value * 9) / 5 + 32 : value).toFixed(1)}${temperatureUnit}`;
+    if (id === "wind") return `${(value * (windUnit === "km/h" ? 3.6 : 1)).toFixed(1)} ${windUnit}`;
+    if (id === "humidity") return `${Math.round(value)}%`;
+    if (id === "pressure") return `${Math.round(value)} hPa`;
+    return `${value.toFixed(1)} ${data?.metrics.precipitation.cadence === "daily" ? "mm/d" : "mm/h"}`;
+  };
+  const select = (id: AtmosphereMetricId) => onLayerChange(id as ZoomEarthLayerId);
+
+  return (
+    <div>
+      <div className="space-y-1">
+        {rows.map(({ id, label, icon: Icon, color, expandable }) => {
+          const active = activeLayer === id;
+          const metric = data?.metrics[id];
+          const info = FORECAST_INFO[id];
+          const statMetric = id === "wind" && windHeight === "2m" ? data?.windSpeed2m : metric;
+          const latestValue = metric?.baseline;
+          const latestLabel = metric?.date
+            ? `${metric.date} · NASA POWER baseline`
+            : "NASA POWER · most recent valid daily value";
+          const observation =
+            metric?.cadence && metric.cadence !== "daily" ? data?.timestamp : metric?.date;
+          const title = `NASA POWER / MERRA-2 · ${info.parameter} · ${info.resolution}. Submitted coordinate ${coordinates.lat.toFixed(3)}, ${coordinates.lon.toFixed(3)}. Observation: ${observation ?? "waiting for a valid value"}. Current value source: ${metric?.source ?? "loading"}.`;
+          return (
+            <div key={id} className="overflow-hidden rounded-lg">
+              <div
+                className={cn(
+                  "flex items-center gap-1 rounded-lg border px-2 py-1.5 transition-colors",
+                  active ? "bg-white/15 border-white/30" : "border-transparent hover:bg-white/5",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => select(id)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left text-xs"
+                  title={title}
+                  aria-pressed={active}
+                >
+                  <Icon className={cn("size-3.5 shrink-0", color)} />
+                  <span className={cn("truncate", active && "font-semibold text-foreground")}>
+                    {label}
+                  </span>
+                  {loading ? (
+                    <span
+                      className="ml-auto h-3 w-16 animate-pulse rounded bg-white/15"
+                      aria-label="Loading"
+                    />
+                  ) : (
+                    <span className="ml-auto whitespace-nowrap font-mono text-xs tabular-nums text-foreground">
+                      {formatted(id)}
+                    </span>
+                  )}
+                  {!loading && (
+                    <span className="rounded bg-black/30 px-1 py-0.5 text-[8px] text-muted-foreground">
+                      {metric?.source === "Open-Meteo"
+                        ? "NOW"
+                        : metric?.source === "NASA POWER"
+                          ? "POWER"
+                          : "—"}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  title={title}
+                  aria-label={`${label} NASA data information`}
+                  aria-expanded={infoOpen === id}
+                  onClick={() => setInfoOpen(infoOpen === id ? null : id)}
+                  className="rounded p-0.5 text-muted-foreground hover:text-cyan-300"
+                >
+                  <Info className="size-3" />
+                </button>
+                {expandable && (
+                  <button
+                    type="button"
+                    aria-label={`${expanded === id ? "Collapse" : "Expand"} ${label} details`}
+                    aria-expanded={expanded === id}
+                    onClick={() => setExpanded(expanded === id ? null : id)}
+                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    {expanded === id ? (
+                      <ChevronUp className="size-3" />
+                    ) : (
+                      <ChevronDown className="size-3" />
+                    )}
+                  </button>
+                )}
+              </div>
+              {infoOpen === id && (
+                <div
+                  role="tooltip"
+                  className="mx-1 rounded-md border border-cyan-400/20 bg-slate-950/95 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground shadow-lg"
+                >
+                  <b className="text-cyan-300">{info.dataset}</b>
+                  <br />
+                  Parameter: {info.parameter}
+                  <br />
+                  Resolution: {info.resolution}
+                  <br />
+                  Observation: {observation ?? "No valid observation yet"}. Value source:{" "}
+                  {metric?.source ?? "loading"}.
+                </div>
+              )}
+              {expanded === id && (
+                <div className="ml-3 border-l-2 border-white/15 bg-black/25 px-2 py-2 text-[10px] text-muted-foreground">
+                  {id === "wind" && (
+                    <div className="mb-2 flex flex-wrap gap-1">
+                      <span className="mr-1 self-center">Height</span>
+                      {(["2m", "10m"] as const).map((height) => (
+                        <button
+                          key={height}
+                          type="button"
+                          onClick={() => setWindHeight(height)}
+                          className={cn(
+                            "rounded px-1.5 py-0.5",
+                            windHeight === height
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : "bg-white/5",
+                          )}
+                        >
+                          {height}
+                          {height === "2m" ? " ag surface" : " standard"}
+                        </button>
+                      ))}
+                      <span className="ml-auto self-center">Units</span>
+                      {(["m/s", "km/h"] as const).map((selectedUnit) => (
+                        <button
+                          key={selectedUnit}
+                          type="button"
+                          onClick={() => setWindUnit(selectedUnit)}
+                          className={cn(
+                            "rounded px-1.5 py-0.5",
+                            windUnit === selectedUnit
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : "bg-white/5",
+                          )}
+                        >
+                          {selectedUnit}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {id === "temperature" && (
+                    <div className="mb-2 flex gap-1">
+                      <span className="self-center">Units</span>
+                      {(["°C", "°F"] as const).map((selectedUnit) => (
+                        <button
+                          key={selectedUnit}
+                          type="button"
+                          onClick={() => setTemperatureUnit(selectedUnit)}
+                          className={cn(
+                            "rounded px-1.5 py-0.5",
+                            temperatureUnit === selectedUnit
+                              ? "bg-amber-500/20 text-amber-300"
+                              : "bg-white/5",
+                          )}
+                        >
+                          {selectedUnit}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {id === "humidity" && (
+                    <div className="mb-1">
+                      Specific humidity:{" "}
+                      {data?.specificHumidity == null
+                        ? "—"
+                        : `${data.specificHumidity.toFixed(2)} g/kg`}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-3 gap-1 text-center">
+                    <span>
+                      MIN
+                      <br />
+                      <b className="text-foreground">
+                        {id === "temperature"
+                          ? displayStat(data?.temperatureDaily.min ?? null, id)
+                          : displayStat(statMetric?.min ?? null, id)}
+                      </b>
+                    </span>
+                    <span>
+                      MAX
+                      <br />
+                      <b className="text-foreground">
+                        {id === "temperature"
+                          ? displayStat(data?.temperatureDaily.max ?? null, id)
+                          : displayStat(statMetric?.max ?? null, id)}
+                      </b>
+                    </span>
+                    <span>
+                      7D AVG
+                      <br />
+                      <b className="text-foreground">
+                        {id === "temperature"
+                          ? displayStat(data?.temperatureDaily.average ?? null, id)
+                          : displayStat(statMetric?.average ?? null, id)}
+                      </b>
+                    </span>
+                  </div>
+                  <div className="mt-2 border-t border-white/10 pt-1">
+                    {info.dataset} · {info.parameter}
+                    <br />
+                    {latestLabel}
+                    <br />
+                    Current source: {metric?.source ?? "loading"}
+                    {latestValue != null && metric?.source === "Open-Meteo"
+                      ? ` · ${displayStat(latestValue, id)}`
+                      : ""}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div
+        className="mt-1 px-2 text-[9px] leading-tight text-muted-foreground"
+        title="Coordinates are submitted to point APIs; gridded source data represents the nearest native grid cell."
+      >
+        {loading
+          ? "Querying coordinate…"
+          : data
+            ? `${data.coordinates.lat.toFixed(3)}, ${data.coordinates.lon.toFixed(3)} · ${data.loadingSource}`
+            : `${coordinates.lat.toFixed(3)}, ${coordinates.lon.toFixed(3)} · data unavailable`}
+      </div>
+    </div>
+  );
+}
+
+function directionLabel(degrees: number): string {
+  return ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][
+    Math.round((((degrees % 360) + 360) % 360) / 45) % 8
+  ]!;
 }
