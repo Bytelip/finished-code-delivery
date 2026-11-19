@@ -21,6 +21,7 @@ export interface OperatorProfileDropdownProps {
   onNavigateHome?: ((lat: number, lon: number, label: string) => void) | undefined;
   onSignOut: () => void;
   className?: string;
+  compact?: boolean;
 }
 
 export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = ({
@@ -30,6 +31,7 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
   onNavigateHome,
   onSignOut,
   className = "",
+  compact = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -55,11 +57,21 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
       <button
         type="button"
         onClick={onOpenAuth}
-        className={`flex items-center gap-2.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-600/10 px-3.5 py-2 font-mono text-xs font-semibold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:border-cyan-400 hover:bg-cyan-500/25 transition-all cursor-pointer ${className}`}
+        aria-label="Sign in to AgroSpace"
+        title="Sign in to AgroSpace"
+        className={compact
+          ? `grid size-8 place-items-center rounded-full border border-cyan-400/40 bg-cyan-500/15 font-mono text-xs font-bold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:border-cyan-400 hover:bg-cyan-500/25 transition-all cursor-pointer ${className}`
+          : `flex items-center gap-2.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-600/10 px-3.5 py-2 font-mono text-xs font-semibold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:border-cyan-400 hover:bg-cyan-500/25 transition-all cursor-pointer ${className}`}
       >
-        <Lock className="size-3.5 text-cyan-300" />
-        <span>{<LocalizedText text={"Mission Control Auth"} />}</span>
-        <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse" />
+        {compact ? (
+          <span>NG</span>
+        ) : (
+          <>
+            <Lock className="size-3.5 text-cyan-300" />
+            <span>{<LocalizedText text={"Mission Control Auth"} />}</span>
+            <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse" />
+          </>
+        )}
       </button>
     );
   }

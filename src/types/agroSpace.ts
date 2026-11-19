@@ -37,7 +37,13 @@ export const SATELLITE_PASSES = ["MODIS Terra", "SMAP L4", "GPM IMERG", "ISS ECO
 export type SatellitePass = (typeof SATELLITE_PASSES)[number];
 
 export type DashboardTab =
-  "overview" | "crop-atlas" | "plant-health" | "groundwater" | "hazards" | "granules";
+  | "overview"
+  | "crop-atlas"
+  | "plant-health"
+  | "groundwater"
+  | "atmosphere"
+  | "hazards"
+  | "granules";
 
 export const BOREWELL_DEPTH_RANGE = { min: 2, max: 150 } as const;
 

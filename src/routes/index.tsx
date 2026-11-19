@@ -5,6 +5,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
 import { CommandBar } from "@/components/agro/CommandBar";
 import { GlobeContainer } from "@/components/agro/GlobeContainer";
+import { ForecastAtmospherePanel } from "@/components/hud/ZoomEarthSidebar";
+import type { BasemapStyle } from "@/components/map/MapLayerSwitcher";
+import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { CosmicAuthPage, getStoredUser, saveStoredUser } from "@/components/CosmicAuthPage";
 import { UserProfileModal } from "@/components/UserProfileModal";
@@ -138,13 +141,14 @@ function AgroSpaceDashboard({
     }
   }, [isPinned]);
 
-  const [lat, setLat] = useState(13.13);
-  const [lon, setLon] = useState(78.13);
+  const [lat, setLat] = useState(12.6622);
+  const [lon, setLon] = useState(77.4503);
   const [borewellDepth, setBorewellDepth] = useState(60);
   const [irrigation, setIrrigation] = useState<Irrigation>("Borewell");
   const [season, setSeason] = useState<Season>("Kharif");
   const [scenario, setScenario] = useState<Scenario>("Nominal");
   const [activeLayer, setActiveLayer] = useState<MapLayer>("NDVI");
+  const [mapBasemap, setMapBasemap] = useState<BasemapStyle>("satellite");
   const [opacity, setOpacity] = useState(70);
 
   const [locationMeta, setLocationMeta] = useState<{
@@ -394,7 +398,7 @@ function AgroSpaceDashboard({
         onOpenSettings={() => setShowSettingsModal(true)}
       />
 
-      <main className="min-w-0 w-full flex-1 overflow-x-hidden pb-20 sm:pb-0">
+      <main className="min-w-0 w-full flex-1 overflow-x-hidden pb-20 md:pb-0">
         <h1 className="sr-only">
           {<LocalizedText text={"AgroSpace Nexus — Precision Agriculture & Multi-Hazard HUD"} />}
         </h1>
@@ -434,7 +438,11 @@ function AgroSpaceDashboard({
           onOpenTour={() => setShowTour(true)}
         />
 
-        <div className="min-w-0 space-y-2.5 p-2 sm:p-3 lg:p-4 pl-2 sm:pl-20">
+        <div
+          className="min-w-0 space-y-2.5 p-2 sm:p-3 lg:p-4"
+          style={{ paddingLeft: isMobile ? 8 : collapsed ? 80 : 256 }}
+        >
+          <div className="grid min-w-0 gap-2.5 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.75fr)]">
           <GlobeContainer
             telemetry={telemetry}
             activeLayer={activeLayer}
@@ -443,14 +451,29 @@ function AgroSpaceDashboard({
             onOpacity={setOpacity}
             onPick={setLocation}
             onInteraction={handleMapInteraction}
+            activeBasemapStyle={mapBasemap}
+            onBasemapStyleChange={setMapBasemap}
           />
 
-          {/* AI Agronomic & Climate Decision Card */}
-          <div className="antigravity-float-3" data-tour="crop-decision-engine">
-            <AgroDecisionCard
-              telemetry={telemetry}
-              onExportReport={() => setShowAdvisoryReportModal(true)}
-            />
+          <div className="grid min-w-0 content-start gap-2.5">
+            {tab === "atmosphere" && (
+              <SpotlightCard className="min-w-0 border-cyan-500/20 bg-[#071120]/85 p-0 backdrop-blur-md">
+                <ForecastAtmospherePanel
+                  coordinates={{ lat, lon }}
+                  activeLayer={mapBasemap as ZoomEarthLayerId}
+                  onLayerChange={(layer) => setMapBasemap(layer as BasemapStyle)}
+                />
+              </SpotlightCard>
+            )}
+
+            {/* AI Agronomic & Climate Decision Card */}
+            <div className="antigravity-float-3 min-w-0" data-tour="crop-decision-engine">
+              <AgroDecisionCard
+                telemetry={telemetry}
+                onExportReport={() => setShowAdvisoryReportModal(true)}
+              />
+            </div>
+          </div>
           </div>
 
           {tab === "overview" && (

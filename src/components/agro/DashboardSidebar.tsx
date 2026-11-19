@@ -4,6 +4,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Droplets,
+  CloudSun,
   LayoutDashboard,
   Leaf,
   MapPin,
@@ -19,12 +20,11 @@ import { useLanguage } from "@/context/LanguageContext";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export const TABS: { id: DashboardTab; label: string; icon: typeof Leaf }[] = [
-  { id: "overview", label: "HUD Overview", icon: LayoutDashboard },
-  { id: "crop-atlas", label: "Global Crop Atlas (600 Crops)", icon: Sprout },
-  { id: "plant-health", label: "Plant Health (6-Pillar)", icon: Leaf },
-  { id: "groundwater", label: "Groundwater & Crops", icon: Droplets },
-  { id: "hazards", label: "Hazard Center (8 Alerts)", icon: TriangleAlert },
-  { id: "granules", label: "NASA Granule Inspector", icon: Satellite },
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "crop-atlas", label: "Crops", icon: Sprout },
+  { id: "groundwater", label: "Soil", icon: Droplets },
+  { id: "atmosphere", label: "Atmosphere", icon: CloudSun },
+  { id: "hazards", label: "Hazards", icon: TriangleAlert },
 ];
 
 export function DashboardSidebar({
@@ -69,6 +69,8 @@ export function DashboardSidebar({
         return t("tab_plant_health", fallback);
       case "groundwater":
         return t("tab_groundwater", fallback);
+      case "atmosphere":
+        return t("tab_atmosphere", fallback);
       case "hazards":
         return t("tab_hazards", fallback);
       case "granules":
@@ -81,7 +83,7 @@ export function DashboardSidebar({
     <motion.aside
       initial={false}
       animate={{
-        width: isMobile ? "calc(100% - 1rem)" : collapsed ? 56 : 240,
+        width: isMobile ? "100%" : collapsed ? 56 : 240,
       }}
       transition={{
         type: "spring",
@@ -90,7 +92,7 @@ export function DashboardSidebar({
       }}
       className={cn(
         isMobile
-          ? "fixed left-2 right-2 top-auto bottom-2 z-50 flex h-16 flex-row items-center rounded-xl"
+          ? "fixed inset-x-0 bottom-0 top-auto z-50 flex h-16 w-full flex-row items-center rounded-t-2xl border-x-0 border-b-0"
           : "fixed left-3 top-16 bottom-4 z-30 flex shrink-0 flex-col rounded-xl",
         "bg-[#070D19]/88 backdrop-blur-2xl border border-white/10",
         "shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)]",
@@ -174,7 +176,7 @@ export function DashboardSidebar({
         id="dashboard-sections-nav"
         className={cn(
           "flex gap-2.5 p-2.5 overflow-y-auto no-scrollbar shrink-0",
-          isMobile ? "flex-row w-full justify-around overflow-x-auto" : "flex-col",
+          isMobile ? "h-full w-full flex-row items-stretch justify-around gap-1 overflow-hidden px-2 py-1.5" : "flex-col",
         )}
         aria-label="Dashboard sections"
       >
@@ -193,7 +195,7 @@ export function DashboardSidebar({
           const active = tab === id;
           const displayLabel = getTabLabel(id, label);
           return (
-            <div key={id} className={cn("relative group", isMobile && "flex-none")}>
+            <div key={id} className={cn("relative group", isMobile && "flex min-w-0 flex-1")}>
               <button
                 type="button"
                 onClick={() => onTab(id)}
@@ -201,11 +203,11 @@ export function DashboardSidebar({
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex min-h-10 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-xs font-medium transition-all duration-150 cursor-pointer",
-                  isMobile && "min-w-11 justify-center px-2",
+                  isMobile && "h-full min-h-0 flex-col justify-center gap-1 rounded-xl px-1 py-1 text-center",
                   active
                     ? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/40 shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                     : "text-muted-foreground hover:bg-white/5 hover:text-foreground border border-transparent",
-                  collapsed && "justify-center px-0",
+                  !isMobile && collapsed && "justify-center px-0",
                 )}
               >
                 {active && (
@@ -213,16 +215,22 @@ export function DashboardSidebar({
                 )}
                 <Icon
                   className={cn(
-                    "size-4 shrink-0 transition-transform duration-200 group-hover:scale-110",
+                    isMobile ? "size-4 shrink-0" : "size-4 shrink-0 transition-transform duration-200 group-hover:scale-110",
                     active
                       ? "text-cyan-300 drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]"
                       : "text-muted-foreground",
                   )}
                 />
 
-                {!collapsed && !isMobile && <span className="truncate">{displayLabel}</span>}
+                {isMobile ? (
+                  <span className="max-w-full truncate text-xs leading-none">
+                    {id === "atmosphere" ? "Atmos." : displayLabel}
+                  </span>
+                ) : (
+                  !collapsed && <span className="truncate">{displayLabel}</span>
+                )}
 
-                {id === "hazards" && activeHazards > 0 && (
+                {id === "hazards" && activeHazards > 0 && !isMobile && (
                   <span
                     className={cn(
                       "grid min-w-4.5 place-items-center rounded-full bg-crimson/25 border border-crimson/60 px-1 py-0.2 font-mono text-xs font-bold text-rose-400 shadow-[0_0_10px_rgba(255,46,86,0.4)] animate-pulse",
@@ -235,7 +243,7 @@ export function DashboardSidebar({
               </button>
 
               {/* Collapsed Instant Tooltip */}
-              {collapsed && (
+              {collapsed && !isMobile && (
                 <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 z-50 rounded-lg bg-[#0b0f19]/95 border border-cyan-500/30 px-2.5 py-1 text-xs font-mono text-cyan-300 shadow-2xl backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   {displayLabel}
                   {id === "hazards" && activeHazards > 0 && ` (${activeHazards} active)`}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   Crosshair,
   Loader2,
@@ -11,13 +11,8 @@ import {
   Check,
   Globe2,
   SlidersHorizontal,
-  Rocket,
-  Clock,
-  Radio,
   Satellite,
-  Menu,
-  ChevronDown,
-  ChevronUp,
+  Rocket,
   GraduationCap,
 } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
@@ -138,10 +133,6 @@ export function CommandBar({
   onUpdateUser,
   onOpenMissionBrief,
   onOpenTour,
-  onToggleSidebar,
-  sidebarCollapsed,
-  plantHealthOverall,
-  elevationM,
 }: {
   lat: number;
   lon: number;
@@ -168,22 +159,6 @@ export function CommandBar({
   plantHealthOverall?: number;
   elevationM?: number;
 }) {
-  const [metSeconds, setMetSeconds] = useState(142 * 3600 + 18 * 60 + 22);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setMetSeconds((s) => s + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const metFormatted = useMemo(() => {
-    const h = Math.floor(metSeconds / 3600);
-    const m = Math.floor((metSeconds % 3600) / 60);
-    const s = metSeconds % 60;
-    return `T+ ${String(h).padStart(3, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }, [metSeconds]);
-
   const [locating, setLocating] = useState(false);
   const [accuracyBadge, setAccuracyBadge] = useState<{
     text: string;
@@ -430,123 +405,41 @@ export function CommandBar({
         </div>
       )}
 
-      {/* ---------------- 1. SINGLE UNIFIED GLASS NAVBAR (h-13) ---------------- */}
-      <div className="w-full max-w-full min-h-13 px-2 sm:px-4 py-1 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3 border-b border-white/[0.08] bg-[#050912]/90 backdrop-blur-2xl relative z-40">
-        {/* Left: Crisp Brand Emblem + AgroSpace Nexus title + Live Coordinate Pill */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 min-w-0 whitespace-nowrap">
-          {/* Brand Emblem */}
-          <div className="grid size-7.5 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.35)] shrink-0">
-            <Satellite className="size-4 animate-pulse text-cyan-300" />
+      {/* ---------------- SINGLE-ROW GLASS HEADER ---------------- */}
+      <div className="sticky top-0 z-40 flex h-14 w-full max-w-full flex-nowrap items-center justify-between gap-2 border-b border-white/[0.08] bg-[#050B14]/95 px-3 backdrop-blur-2xl">
+        <div className="flex min-w-0 shrink items-center gap-2 whitespace-nowrap">
+          <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.25)]">
+            <Satellite className="size-4 animate-pulse" />
           </div>
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
-            <span className="hidden sm:inline font-mono font-bold text-xs sm:text-sm tracking-wider text-foreground">
-              {<LocalizedText text={"AgroSpace Nexus"} />}
-            </span>
-            <span className="text-xs text-cyan-300 font-semibold px-1.5 py-0.2 rounded-full bg-cyan-500/15 border border-cyan-400/30">
-              {<LocalizedText text={"v2.4"} />}
-            </span>
-          </div>
-
-          {/* Live Coordinate Pill */}
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-mono text-muted-foreground shrink-0 whitespace-nowrap">
-            <MapPin className="size-3 text-cyan-300 shrink-0 drop-shadow-[0_0_6px_#00f0ff]" />
-            <span className="text-foreground font-medium">
-              📍 {locationLabel ? `${locationLabel} • ` : ""}
-              {lat.toFixed(2)}
-              {<LocalizedText text={"°N, "} />}
-              {lon.toFixed(2)}
-              {<LocalizedText text={"°E"} />}
-            </span>
-          </div>
+          <span className="truncate font-mono text-xs font-bold tracking-wide text-foreground sm:text-sm">
+            AgroSpace
+          </span>
+          <span className="shrink-0 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-1.5 py-0.5 font-mono text-xs font-semibold text-cyan-300">
+            v2.4
+          </span>
         </div>
 
-        {/* Center: Sleek single-line Command Pill */}
-        <div
-          data-tour="search-field-params"
-          className="flex items-center justify-center shrink-0 order-3 sm:order-none w-full sm:w-auto"
-        >
+        <div data-tour="top-right-controls" className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap">
           <button
             type="button"
+            data-tour="search-field-params"
             data-params-trigger="true"
             onClick={() => setIsParamsDrawerOpen((prev) => !prev)}
+            aria-label={t("search", "Search locations and field parameters")}
+            aria-expanded={isParamsDrawerOpen}
+            title="Search locations and field parameters (Ctrl+K)"
             className={cn(
-              "whitespace-nowrap inline-flex items-center gap-2 h-8.5 px-3.5 py-1 rounded-full border text-xs font-mono font-semibold transition-all cursor-pointer shadow-inner shrink-0",
+              "grid size-8 place-items-center rounded-full border transition-colors",
               isParamsDrawerOpen
-                ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-300 shadow-[0_0_18px_rgba(6,182,212,0.35)]"
-                : "bg-white/[0.04] hover:bg-white/[0.08] border-white/15 text-cyan-300 hover:border-cyan-500/40",
+                ? "border-cyan-400/60 bg-cyan-500/20 text-cyan-300"
+                : "border-white/10 bg-white/[0.04] text-cyan-300 hover:border-cyan-400/40 hover:bg-white/[0.08]",
             )}
-            title="Search Location or Field Params (⌘K)"
           >
-            <Search className="size-3.5 text-cyan-300 shrink-0 drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
-            <span className="font-semibold whitespace-nowrap hidden sm:inline">
-              🔍 {t("search_params", "Search Location or Field Params")}
-            </span>
-            <span className="font-semibold whitespace-nowrap sm:hidden">
-              🔍 {t("search", "Search")}
-            </span>
-            <kbd className="hidden md:inline-block px-1.5 py-0.2 rounded-md bg-black/40 border border-white/10 text-xs text-foreground font-sans">
-              {<LocalizedText text={"⌘K"} />}
-            </kbd>
-            {isParamsDrawerOpen ? (
-              <ChevronUp className="size-3 text-cyan-300 shrink-0" />
-            ) : (
-              <ChevronDown className="size-3 text-cyan-300 shrink-0" />
-            )}
+            <Search className="size-4" />
           </button>
-        </div>
-
-        {/* Right: Compact icon-first action pills */}
-        <div
-          data-tour="top-right-controls"
-          className="flex max-w-full flex-wrap items-center justify-end gap-2.5 px-2 pt-3 sm:px-4 whitespace-nowrap shrink-0"
-        >
-          {plantHealthOverall !== undefined && (
-            <div className="hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-xs font-semibold shadow-[0_0_10px_rgba(16,185,129,0.15)] select-none shrink-0 whitespace-nowrap">
-              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>
-                {t("health", "Health")}: {Math.round(plantHealthOverall)}/100
-              </span>
-            </div>
-          )}
-
-          {/* 🌐 Prominent Language Selector Dropdown */}
-          <div className="shrink-0 whitespace-nowrap">
-            <LanguageSelector />
-          </div>
-
-          {/* Theme Switcher */}
-          <div className="shrink-0 whitespace-nowrap">
-            <ThemeSwitcher />
-          </div>
-
-          {/* Mission Brief Button */}
-          <Button
-            type="button"
-            size="sm"
-            onClick={onOpenMissionBrief}
-            className="h-8 px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
-            title="Open NASA Space Apps Mission Brief"
-          >
-            <Rocket className="size-3.5 text-cyan-300 animate-pulse shrink-0" />
-            <span className="hidden sm:inline">🚀 {t("brief", "Brief")}</span>
-          </Button>
-
-          {/* 🎓 Interactive Guided Tour Button */}
-          {onOpenTour && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={onOpenTour}
-              className="h-8 px-2.5 py-1 text-xs font-mono font-bold tracking-wider rounded-full bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_14px_rgba(6,182,212,0.25)] transition-all flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
-              title="Start Interactive Guided Tour"
-            >
-              <GraduationCap className="size-3.5 text-cyan-300 animate-pulse shrink-0" />
-              <span className="hidden sm:inline">🎓 {t("tour", "Tour")}</span>
-            </Button>
-          )}
-
-          {/* Operator Profile Avatar */}
-          <div className="shrink-0 whitespace-nowrap">
+          <LanguageSelector compact />
+          <ThemeSwitcher variant="compact" className="border-white/10 bg-white/[0.04] hover:bg-white/[0.08]" />
+          <div className="shrink-0">
             {profile ? (
               <UserProfileNavbarWidget
                 user={profile}
@@ -557,6 +450,7 @@ export function CommandBar({
             ) : (
               <OperatorProfileDropdown
                 profile={null}
+                compact
                 onOpenAuth={onOpenAuth || (() => {})}
                 onOpenSettings={onOpenSettings || (() => {})}
                 onNavigateHome={onNavigateHome}
@@ -593,6 +487,35 @@ export function CommandBar({
             <X className="size-3.5" /> {t("done", "Done")}
           </button>
         </div>
+
+        {(onOpenMissionBrief || onOpenTour) && (
+          <div className="mb-3 flex flex-wrap justify-end gap-2">
+            {onOpenMissionBrief && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsParamsDrawerOpen(false);
+                  onOpenMissionBrief();
+                }}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 font-mono text-xs text-cyan-200 hover:bg-cyan-500/20"
+              >
+                <Rocket className="size-3.5" /> Mission Brief
+              </button>
+            )}
+            {onOpenTour && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsParamsDrawerOpen(false);
+                  onOpenTour();
+                }}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 font-mono text-xs text-cyan-200 hover:bg-cyan-500/20"
+              >
+                <GraduationCap className="size-3.5" /> Guided Tour
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Cluster 1: Lat / Lon / Accuracy / GPS / Search */}

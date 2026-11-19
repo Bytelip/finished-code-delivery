@@ -359,25 +359,28 @@ export function ThemeSwitcher({ className, variant = "navbar" }: ThemeSwitcherPr
             type="button"
             size="sm"
             className={cn(
-              "h-7 px-2.5 text-xs font-mono font-bold tracking-wider rounded-full border transition-all duration-300 flex items-center gap-1.5 cursor-pointer select-none",
+              variant === "compact"
+                ? "size-8 rounded-full border p-0"
+                : "h-7 px-2.5 text-xs font-mono font-bold tracking-wider rounded-full border transition-all duration-300 flex items-center gap-1.5",
+              "cursor-pointer select-none",
               "bg-card/80 hover:bg-card text-foreground border-border/80 shadow-[0_0_12px_rgba(0,0,0,0.3)] hover:border-primary/60",
               className,
             )}
             title={`Active Theme: ${currentConfig.name} (${currentConfig.badge})`}
           >
             <Palette className="size-3 text-primary animate-pulse" />
-            <ThemeSwatch
+            {variant !== "compact" && <ThemeSwatch
               primary={currentConfig.swatch.primary}
               secondary={currentConfig.swatch.secondary}
               size={12}
-            />
-            <span className="hidden md:inline font-sans font-medium text-xs">
+            />}
+            {variant !== "compact" && <span className="hidden md:inline font-sans font-medium text-xs">
               {currentConfig.name.split(" ")[0]}
-            </span>
-            <span className="text-xs px-1 py-0.2 rounded-md bg-primary/15 text-primary border border-primary/30 hidden xl:inline">
+            </span>}
+            {variant !== "compact" && <span className="text-xs px-1 py-0.2 rounded-md bg-primary/15 text-primary border border-primary/30 hidden xl:inline">
               {currentConfig.badge}
-            </span>
-            <ChevronDown className="size-2.5 opacity-60" />
+            </span>}
+            {variant !== "compact" && <ChevronDown className="size-2.5 opacity-60" />}
           </Button>
         </DropdownMenuTrigger>
 

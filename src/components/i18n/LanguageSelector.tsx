@@ -4,7 +4,13 @@ import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 
-export function LanguageSelector({ className }: { className?: string }) {
+export function LanguageSelector({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   const { language, setLanguage, languages, t } = useLanguage();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,7 +35,7 @@ export function LanguageSelector({ className }: { className?: string }) {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
-          "h-8 px-2 sm:px-2.5 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm",
+          "h-8 px-2 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm",
           open
             ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.3)]"
             : "bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-cyan-300 hover:border-cyan-400/40",
@@ -39,14 +45,14 @@ export function LanguageSelector({ className }: { className?: string }) {
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        <Globe className="size-3.5 text-cyan-300 shrink-0 animate-pulse" />
-        <span className="font-semibold">{currentLang.nativeName}</span>
-        <ChevronDown
+        {!compact && <Globe className="size-3.5 text-cyan-300 shrink-0 animate-pulse" />}
+        <span className="font-semibold">{compact ? currentLang.code.toUpperCase() : currentLang.nativeName}</span>
+        {!compact && <ChevronDown
           className={cn(
             "size-3 text-cyan-300 transition-transform duration-200",
             open && "rotate-180",
           )}
-        />
+        />}
       </button>
 
       {open && (

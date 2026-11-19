@@ -231,6 +231,7 @@ export interface MapLayerSwitcherProps {
   onToggle3dTerrain?: (enable: boolean) => void;
   viewMode?: "3d" | "2d";
   coordinates?: { lat: number; lon: number };
+  compact?: boolean;
   className?: string;
 }
 
@@ -246,6 +247,7 @@ export function MapLayerSwitcher({
   onToggle3dTerrain,
   viewMode = "3d",
   coordinates = { lat: 0, lon: 0 },
+  compact = false,
   className,
 }: MapLayerSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -301,28 +303,38 @@ export function MapLayerSwitcher({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          "group flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-mono font-semibold transition-all duration-300 shadow-2xl backdrop-blur-xl cursor-pointer",
+          "group flex items-center gap-2 border text-xs font-mono font-semibold transition-all duration-300 shadow-2xl backdrop-blur-xl cursor-pointer",
+          compact ? "h-8 rounded-full px-2.5" : "rounded-xl px-3 py-2",
           isOpen
             ? "border-cyan-400 bg-[#090D18]/95 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.35)]"
             : "border-cyan-500/40 bg-[#080D1A]/90 text-foreground hover:border-cyan-400 hover:text-cyan-300 hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]",
         )}
         title={changeBasemapTitle}
       >
-        <div className="relative flex size-6 shrink-0 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 group-hover:scale-105 transition-transform">
-          <Layers className="size-3.5" />
-          <span className="absolute -top-1 -right-1 size-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
-        </div>
-        <div className="flex flex-col text-left">
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-cyan-300 transition-colors">
-            {<LocalizedText text={"Basemap"} />}
-          </span>
-          <span className="text-xs font-bold text-foreground truncate max-w-28 flex items-center gap-1">
-            <span>{activeOption.emoji}</span>
-            <span>
-              <LocalizedText text={activeOption.label} />
+        {compact ? (
+          <>
+            <Layers className="size-4 shrink-0 text-cyan-300" />
+            <span className="max-w-24 truncate text-xs font-semibold text-foreground">
+              {currentStyle === "satellite" ? "Satellite" : activeOption.label}
             </span>
-          </span>
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="relative flex size-6 shrink-0 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 group-hover:scale-105 transition-transform">
+              <Layers className="size-3.5" />
+              <span className="absolute -top-1 -right-1 size-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-cyan-300 transition-colors">
+                {<LocalizedText text={"Basemap"} />}
+              </span>
+              <span className="text-xs font-bold text-foreground truncate max-w-28 flex items-center gap-1">
+                <span>{activeOption.emoji}</span>
+                <span><LocalizedText text={activeOption.label} /></span>
+              </span>
+            </div>
+          </>
+        )}
       </button>
 
       {/* ---------------- 2. EXPANDABLE ZOOM EARTH DARK-GLASS MAPS MENU ---------------- */}
@@ -333,7 +345,12 @@ export function MapLayerSwitcher({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ type: "spring", bounce: 0.2, duration: 0.25 }}
-            className="absolute left-0 bottom-12 mb-1 w-56 max-h-[440px] overflow-y-auto rounded-xl bg-[#141821]/92 backdrop-blur-2xl border border-white/15 shadow-2xl p-2 select-none scrollbar-thin text-foreground"
+            className={cn(
+              "absolute z-40 w-56 overflow-y-auto rounded-xl border border-white/15 bg-[#141821]/95 p-2 text-foreground shadow-2xl backdrop-blur-2xl scrollbar-thin select-none",
+              compact
+                ? "bottom-full right-0 left-auto mb-2 max-h-[min(440px,max(200px,calc(58dvh-6rem)))] sm:max-h-[min(440px,calc(100dvh-13rem))]"
+                : "bottom-12 left-0 mb-1 max-h-[440px]",
+            )}
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2 px-1">
