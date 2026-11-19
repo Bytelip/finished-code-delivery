@@ -411,15 +411,22 @@ export function CommandBar({
           <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.25)]">
             <Satellite className="size-4 animate-pulse" />
           </div>
-          <span className="truncate font-mono text-xs font-bold tracking-wide text-foreground sm:text-sm">
-            AgroSpace
-          </span>
-          <span className="shrink-0 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-1.5 py-0.5 font-mono text-xs font-semibold text-cyan-300">
-            v2.4
-          </span>
+          <div className="flex min-w-0 flex-col leading-none sm:flex-row sm:items-center sm:gap-2">
+            <span className="truncate font-display text-sm font-bold tracking-tight text-foreground sm:text-base">
+              AgroSpace
+            </span>
+            <div className="mt-0.5 flex items-center gap-1.5 sm:mt-0">
+              <span className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+                Nexus
+              </span>
+              <span className="shrink-0 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-1.5 font-mono text-xs font-semibold leading-4 text-cyan-300">
+                v2.4
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div data-tour="top-right-controls" className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap">
+        <div data-tour="top-right-controls" className="flex shrink-0 items-center justify-end gap-1 whitespace-nowrap sm:gap-1.5">
           <button
             type="button"
             data-tour="search-field-params"

@@ -442,7 +442,7 @@ function AgroSpaceDashboard({
           className="min-w-0 space-y-2.5 p-2 sm:p-3 lg:p-4"
           style={{ paddingLeft: isMobile ? 8 : collapsed ? 80 : 256 }}
         >
-          <div className="grid min-w-0 gap-2.5 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.75fr)]">
+          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(380px,0.8fr)] xl:items-start">
           <GlobeContainer
             telemetry={telemetry}
             activeLayer={activeLayer}
@@ -455,7 +455,7 @@ function AgroSpaceDashboard({
             onBasemapStyleChange={setMapBasemap}
           />
 
-          <div className="grid min-w-0 content-start gap-2.5">
+          <div className="grid min-w-0 content-start gap-3 xl:max-h-[min(820px,calc(100dvh-8rem))] xl:overflow-y-auto xl:pr-1 no-scrollbar">
             {tab === "atmosphere" && (
               <SpotlightCard className="min-w-0 border-cyan-500/20 bg-[#071120]/85 p-0 backdrop-blur-md">
                 <ForecastAtmospherePanel

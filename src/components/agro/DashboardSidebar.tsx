@@ -224,12 +224,15 @@ export function DashboardSidebar({
 
                 {isMobile ? (
                   <span className="max-w-full truncate text-xs leading-none">
-                    {id === "atmosphere" ? "Atmos." : displayLabel}
+                    <LocalizedText text={label} />
                   </span>
                 ) : (
                   !collapsed && <span className="truncate">{displayLabel}</span>
                 )}
 
+                {id === "hazards" && activeHazards > 0 && isMobile && (
+                  <span className="absolute right-[calc(50%-1.1rem)] top-1 size-2 rounded-full bg-crimson shadow-[0_0_8px_#ff2e56]" aria-label={`${activeHazards} active hazards`} />
+                )}
                 {id === "hazards" && activeHazards > 0 && !isMobile && (
                   <span
                     className={cn(

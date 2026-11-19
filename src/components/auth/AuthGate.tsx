@@ -21,13 +21,18 @@ interface AuthGateProps {
 }
 
 export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+  // Saved sessions live in browser storage, so read them after mount; reading them during the
+  // first render made the server (sign-in page) and browser (dashboard) HTML disagree.
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  useEffect(() => {
     const stored = getStoredUser() || loadStoredProfile();
     if (stored && (stored.verified || stored.isVerified)) {
-      return stored;
+      setCurrentUser(stored);
     }
-    return null;
-  });
+    setSessionChecked(true);
+  }, []);
 
   const hasAcquiredInitialGps = useRef(false);
 
@@ -180,6 +185,10 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     saveStoredUser(updated);
     saveStoredProfile(updated);
   };
+
+  if (!sessionChecked) {
+    return <div className="min-h-[100dvh] w-full bg-background" aria-busy="true" />;
+  }
 
   // If unauthenticated or unverified, NEVER render dashboard — display full-screen CosmicAuthPage!
   if (!currentUser || (!currentUser.verified && !currentUser.isVerified)) {
