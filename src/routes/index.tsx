@@ -403,6 +403,7 @@ function AgroSpaceDashboard({
           {<LocalizedText text={"AgroSpace Nexus — Precision Agriculture & Multi-Hazard HUD"} />}
         </h1>
         <CommandBar
+          isMobile={isMobile}
           lat={lat}
           lon={lon}
           borewellDepth={borewellDepth}
@@ -436,6 +437,15 @@ function AgroSpaceDashboard({
           plantHealthOverall={telemetry.plantHealth.overall}
           elevationM={telemetry.meta.elevationM}
           onOpenTour={() => setShowTour(true)}
+          onSearchDestination={(destination) => {
+            if (destination === "soil") setTab("groundwater");
+            if (destination === "satellite") {
+              setActiveLayer("NDVI");
+              setTab("overview");
+            }
+            if (destination === "hazards") setTab("hazards");
+            if (destination === "atmosphere") setTab("atmosphere");
+          }}
         />
 
         <div

@@ -6,6 +6,8 @@ import {
   Search,
   Navigation,
   AlertTriangle,
+  Droplets,
+  CloudSun,
   ExternalLink,
   X,
   Check,
@@ -133,6 +135,9 @@ export function CommandBar({
   onUpdateUser,
   onOpenMissionBrief,
   onOpenTour,
+  onSearchDestination,
+  isMobile = false,
+  sidebarCollapsed = true,
 }: {
   lat: number;
   lon: number;
@@ -154,6 +159,8 @@ export function CommandBar({
   onUpdateUser?: (u: UserProfile) => void;
   onOpenMissionBrief?: () => void;
   onOpenTour?: () => void;
+  onSearchDestination?: (destination: "soil" | "satellite" | "hazards" | "atmosphere") => void;
+  isMobile?: boolean;
   onToggleSidebar?: () => void;
   sidebarCollapsed?: boolean;
   plantHealthOverall?: number;
@@ -173,13 +180,16 @@ export function CommandBar({
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const isInputFocused = useRef(false);
+  const hasUsedSearch = useRef(false);
 
   const { t } = useLanguage();
 
-  // Popover Drawer for Field Parameters & Search (Closed by default!)
+  // Advanced field controls drawer (closed by default)
   const [isParamsDrawerOpen, setIsParamsDrawerOpen] = useState(false);
   const paramsDrawerRef = useRef<HTMLDivElement>(null);
 
@@ -187,15 +197,18 @@ export function CommandBar({
     const handleKey = (e: globalThis.KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setIsParamsDrawerOpen((prev) => !prev);
+        searchInputRef.current?.focus();
+        setSearchPanelOpen(true);
       }
-      if (e.key === "Escape" && isParamsDrawerOpen) {
+      if (e.key === "Escape") {
+        setSearchPanelOpen(false);
+        setDropdownOpen(false);
         setIsParamsDrawerOpen(false);
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isParamsDrawerOpen]);
+  }, []);
 
   // Click outside to close floating parameters drawer
   useEffect(() => {
@@ -217,9 +230,10 @@ export function CommandBar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isParamsDrawerOpen]);
 
-  // Synchronize location label into input if user is not typing
+  // Keep the chosen place visible after the user has used search, without filling
+  // the empty command bar on the initial dashboard load.
   useEffect(() => {
-    if (locationLabel && !isInputFocused.current) {
+    if (hasUsedSearch.current && locationLabel && !isInputFocused.current) {
       setSearchQuery(locationLabel);
     }
   }, [locationLabel]);
@@ -229,6 +243,7 @@ export function CommandBar({
     const handleClickOutside = (e: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
+        setSearchPanelOpen(false);
         setSelectedIndex(-1);
       }
     };
@@ -244,9 +259,13 @@ export function CommandBar({
       setSearchResults([]);
       setDropdownOpen(false);
       setSelectedIndex(-1);
+      setSearching(false);
       return;
     }
 
+    setSearchResults([]);
+    setDropdownOpen(false);
+    setSelectedIndex(-1);
     setSearching(true);
     const timer = setTimeout(async () => {
       const places = await searchDualProviderPlaces(q, controller.signal);
@@ -265,9 +284,11 @@ export function CommandBar({
 
   // Select place from search suggestions
   const selectPlace = (place: PlaceSearchResult) => {
+    hasUsedSearch.current = true;
     onLocation(place.lat, place.lon, place.name);
     setSearchQuery(place.name);
     setDropdownOpen(false);
+    setSearchPanelOpen(false);
     setSelectedIndex(-1);
     setAccuracyBadge({ text: "PINNED / SEARCH", type: "pinned" });
     toast.success(
@@ -291,6 +312,7 @@ export function CommandBar({
       }
     } else if (e.key === "Escape") {
       setDropdownOpen(false);
+      setSearchPanelOpen(false);
       setSelectedIndex(-1);
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -368,6 +390,38 @@ export function CommandBar({
 
   const alert = scenario !== "Nominal";
   const host = typeof window !== "undefined" ? window.location.host : "192.168.0.3:8080";
+  const railInset = isMobile ? 0 : sidebarCollapsed ? 80 : 256;
+
+  const quickSearchSuggestions = [
+    { label: "Districts & villages", detail: "Find a place by name or pincode", icon: MapPin, action: "places" as const },
+    { label: "Agricultural fields", detail: "Open field target controls", icon: Crosshair, action: "coordinates" as const },
+    { label: "Latitude & longitude", detail: "Enter an exact map location", icon: Globe2, action: "coordinates" as const },
+    { label: "Farms by coordinates", detail: "Lock a farm using geographic coordinates", icon: MapPin, action: "coordinates" as const },
+    { label: "Soil conditions & moisture", detail: "View soil moisture and groundwater", icon: Droplets, action: "soil" as const },
+    { label: "Satellite imagery & vegetation", detail: "Explore satellite layers and vegetation indices", icon: Satellite, action: "satellite" as const },
+    { label: "Agricultural hazards", detail: "View active field hazard information", icon: AlertTriangle, action: "hazards" as const },
+    { label: "Weather information", detail: "Open forecast and atmosphere telemetry", icon: CloudSun, action: "atmosphere" as const },
+  ];
+
+  const handleQuickSearch = (action: (typeof quickSearchSuggestions)[number]["action"]) => {
+    setSelectedIndex(-1);
+    setDropdownOpen(false);
+    if (action === "coordinates") {
+      setSearchPanelOpen(false);
+      setIsParamsDrawerOpen(true);
+      return;
+    }
+    if (action === "places") {
+      setSearchQuery("");
+      setSearchPanelOpen(true);
+      searchInputRef.current?.focus();
+      toast.info("Type a district, village, farm name, or pincode to find a location.");
+      return;
+    }
+    setSearchPanelOpen(false);
+    setSearchQuery("");
+    onSearchDestination?.(action);
+  };
 
   return (
     <div className="sticky top-0 z-[100] border-b border-border/80 bg-background/85 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
@@ -420,23 +474,6 @@ export function CommandBar({
         </div>
 
         <div data-tour="top-right-controls" className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap">
-          <button
-            type="button"
-            data-tour="search-field-params"
-            data-params-trigger="true"
-            onClick={() => setIsParamsDrawerOpen((prev) => !prev)}
-            aria-label={t("search", "Search locations and field parameters")}
-            aria-expanded={isParamsDrawerOpen}
-            title="Search locations and field parameters (Ctrl+K)"
-            className={cn(
-              "grid size-8 place-items-center rounded-full border transition-colors",
-              isParamsDrawerOpen
-                ? "border-cyan-400/60 bg-cyan-500/20 text-cyan-300"
-                : "border-white/10 bg-white/[0.04] text-cyan-300 hover:border-cyan-400/40 hover:bg-white/[0.08]",
-            )}
-          >
-            <Search className="size-4" />
-          </button>
           <LanguageSelector compact />
           <ThemeSwitcher variant="compact" className="border-white/10 bg-white/[0.04] hover:bg-white/[0.08]" />
           <div className="shrink-0">
@@ -461,11 +498,180 @@ export function CommandBar({
         </div>
       </div>
 
+      {/* Centered location and insight search */}
+      <div
+        className="w-full px-3 py-3 sm:px-4"
+        style={isMobile ? undefined : { marginLeft: railInset, width: `calc(100% - ${railInset}px)` }}
+      >
+        <div ref={searchContainerRef} className="relative mx-auto w-full max-w-4xl">
+          <div className="group flex h-12 items-center gap-2 rounded-2xl border border-cyan-400/30 bg-[#071120]/90 px-3 shadow-[0_8px_28px_rgba(0,0,0,0.3)] backdrop-blur-xl transition-all duration-200 focus-within:border-cyan-300/70 focus-within:ring-2 focus-within:ring-cyan-400/15 focus-within:shadow-[0_0_24px_rgba(34,211,238,0.22)] sm:px-4">
+            <span className="grid size-8 shrink-0 place-items-center text-cyan-300">
+              {searching ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Search className="size-4 drop-shadow-[0_0_8px_rgba(34,211,238,0.65)]" />
+              )}
+            </span>
+            <Input
+              ref={searchInputRef}
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-label="Search districts, villages, farms, coordinates or agricultural insights"
+              aria-expanded={searchPanelOpen}
+              value={searchQuery}
+              onChange={(e) => {
+                hasUsedSearch.current = true;
+                setSearchQuery(e.target.value);
+                setSearchPanelOpen(true);
+              }}
+              onFocus={() => {
+                isInputFocused.current = true;
+                setSearchPanelOpen(true);
+                if (searchResults.length > 0) setDropdownOpen(true);
+              }}
+              onBlur={() => {
+                isInputFocused.current = false;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Search districts, villages, farms, coordinates or agricultural insights..."
+              className="h-full min-w-0 flex-1 border-0 bg-transparent px-0 font-sans text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/80 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchResults([]);
+                  setDropdownOpen(false);
+                  setSearchPanelOpen(true);
+                  setSelectedIndex(-1);
+                  searchInputRef.current?.focus();
+                }}
+                aria-label="Clear search"
+                title="Clear search"
+                className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-cyan-200"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+            <span className="h-6 w-px shrink-0 bg-white/10" />
+            <button
+              type="button"
+              data-params-trigger="true"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setSearchPanelOpen(false);
+                setIsParamsDrawerOpen((prev) => !prev);
+              }}
+              aria-label="Open advanced field search and filters"
+              aria-expanded={isParamsDrawerOpen}
+              title="Advanced search and field filters"
+              className={cn(
+                "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors",
+                isParamsDrawerOpen
+                  ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
+                  : "border-transparent text-muted-foreground hover:border-cyan-400/30 hover:bg-cyan-500/10 hover:text-cyan-200",
+              )}
+            >
+              <SlidersHorizontal className="size-4" />
+            </button>
+          </div>
+
+          {searchPanelOpen && (
+            <div
+              id="agrospace-search-suggestions"
+              role="region"
+              aria-label="Search suggestions"
+              className="absolute left-0 right-0 top-full z-[1000] mt-2 max-h-[min(70dvh,30rem)] overflow-y-auto rounded-2xl border border-cyan-400/25 bg-[#071120]/[0.98] p-2 shadow-[0_18px_55px_rgba(0,0,0,0.72),0_0_25px_rgba(34,211,238,0.12)] backdrop-blur-2xl sm:p-3"
+            >
+              {searchResults.length > 0 && dropdownOpen && (
+                <div className="mb-2">
+                  <div className="flex items-center justify-between border-b border-white/10 px-2 py-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+                    <span className="flex items-center gap-2 text-cyan-200">
+                      <Globe2 className="size-4" /> Places and coordinate matches
+                    </span>
+                    <span>Enter to lock</span>
+                  </div>
+                  <ul id="agrospace-place-results" role="listbox" aria-label="Place search results" className="mt-1 divide-y divide-white/5">
+                    {searchResults.map((place, idx) => {
+                      const isHighlighted = idx === selectedIndex;
+                      return (
+                        <li
+                          key={place.id}
+                          role="option"
+                          aria-selected={isHighlighted}
+                          onClick={() => selectPlace(place)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                          }}
+                          onMouseEnter={() => setSelectedIndex(idx)}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-xl border border-transparent p-2.5 text-xs transition-all",
+                            isHighlighted
+                              ? "border-cyan-400/30 bg-cyan-500/10 text-cyan-100"
+                              : "hover:bg-white/[0.04]",
+                          )}
+                        >
+                          <MapPin className="mt-0.5 size-4 shrink-0 text-cyan-300" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="truncate font-semibold text-foreground">{place.name}</span>
+                              <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-cyan-200">
+                                {place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°
+                              </span>
+                            </div>
+                            <div className="truncate font-mono text-xs text-muted-foreground">{place.subtitle}</div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {searching && searchQuery.trim().length >= 2 && (
+                <div className="px-2 py-2 font-mono text-xs text-cyan-200">Searching places…</div>
+              )}
+              {!searching && searchQuery.trim().length >= 2 && searchResults.length === 0 && (
+                <div className="px-2 py-2 font-mono text-xs text-muted-foreground">
+                  No place matches yet. Explore a dashboard section below or try coordinates.
+                </div>
+              )}
+
+              <div className="px-2 pb-1 pt-2 font-mono text-xs font-semibold uppercase tracking-wider text-cyan-200">
+                {searchQuery.trim().length < 2 ? "Search suggestions" : "Explore AgroSpace"}
+              </div>
+              <div className="grid gap-1 sm:grid-cols-2">
+                {quickSearchSuggestions.map(({ label, detail, icon: Icon, action }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleQuickSearch(action)}
+                    className="flex min-w-0 items-center gap-3 rounded-xl border border-transparent px-2.5 py-2 text-left transition-colors hover:border-cyan-400/20 hover:bg-cyan-500/[0.07]"
+                  >
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-cyan-400/20 bg-cyan-500/[0.08] text-cyan-300">
+                      <Icon className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-semibold text-foreground">{label}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* ---------------- 2. FLOATING FIELD PARAMETERS DRAWER OVERLAY (ABSOLUTE POPOVER) ---------------- */}
       <div
         ref={paramsDrawerRef}
         className={cn(
-          "transition-all duration-300 z-50 absolute top-14 left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
+          "transition-all duration-300 z-50 absolute top-[8.25rem] left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
           isParamsDrawerOpen
             ? "opacity-100 scale-100 pointer-events-auto visible"
             : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0",
@@ -579,99 +785,6 @@ export function CommandBar({
               {<LocalizedText text={"GPS"} />}
             </Button>
 
-            {/* Place Search Input & Dropdown */}
-            <div ref={searchContainerRef} className="relative w-52 sm:w-64 shrink-0">
-              <div className="relative flex items-center">
-                <span className="pointer-events-none absolute left-2 text-muted-foreground">
-                  {searching ? (
-                    <Loader2 className="size-3.5 animate-spin text-cyan-300" />
-                  ) : (
-                    <Search className="size-3.5 text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
-                  )}
-                </span>
-                <Input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => {
-                    isInputFocused.current = true;
-                    if (searchResults.length > 0) setDropdownOpen(true);
-                  }}
-                  onBlur={() => {
-                    isInputFocused.current = false;
-                  }}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Search village, town, pincode..."
-                  className="h-7.5 w-full pl-7 pr-6 font-mono text-xs bg-card/90 text-foreground placeholder:text-muted-foreground border-cyan/40 focus:border-cyan focus:ring-1 focus:ring-cyan shadow-[0_0_12px_rgba(0,240,255,0.15)] truncate"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSearchResults([]);
-                      setDropdownOpen(false);
-                    }}
-                    className="absolute right-2 text-muted-foreground hover:text-cyan-300"
-                    title="Clear search"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* High-z-index Dark Aerospace HUD Dropdown Suggestions */}
-              {dropdownOpen && searchResults.length > 0 && (
-                <div className="absolute left-0 top-full z-[1000] mt-1.5 max-h-72 w-80 sm:w-96 overflow-y-auto rounded-lg border border-cyan/50 bg-[#060a14]/95 p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-                  <div className="flex items-center justify-between px-2.5 py-1.5 font-mono text-xs text-muted-foreground uppercase tracking-wider border-b border-border/40">
-                    <span className="flex items-center gap-1.5 text-cyan-300 font-semibold">
-                      <Globe2 className="size-3 text-cyan-300" />{" "}
-                      {<LocalizedText text={" Dual Geocoder Target Locks"} />}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {<LocalizedText text={"Enter to lock"} />}
-                    </span>
-                  </div>
-                  <ul className="divide-y divide-border/25 mt-1">
-                    {searchResults.map((place, idx) => {
-                      const isHighlighted = idx === selectedIndex;
-                      return (
-                        <li
-                          key={place.id}
-                          onClick={() => selectPlace(place)}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            selectPlace(place);
-                          }}
-                          onMouseEnter={() => setSelectedIndex(idx)}
-                          className={cn(
-                            "flex cursor-pointer items-start gap-2.5 rounded-md p-2 text-xs transition-all",
-                            isHighlighted
-                              ? "bg-cyan/20 text-cyan-300 border border-cyan/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]"
-                              : "hover:bg-card/70 border border-transparent",
-                          )}
-                        >
-                          <MapPin className="size-3.5 mt-0.5 shrink-0 text-cyan-300 drop-shadow-[0_0_6px_#00f0ff]" />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-baseline justify-between gap-1">
-                              <span className="font-semibold text-foreground truncate">
-                                {place.name}
-                              </span>
-                              <span className="shrink-0 font-mono text-xs text-cyan-300 font-bold">
-                                [{place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°]
-                              </span>
-                            </div>
-                            <div className="font-mono text-xs text-muted-foreground truncate">
-                              {place.subtitle}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Cluster 2: Borewell Depth, Irrigation, Season, Sim Scenario */}
