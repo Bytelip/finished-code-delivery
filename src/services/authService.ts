@@ -774,10 +774,12 @@ export function completeDirectOAuthLogin(
 // 3. SECURE BACKEND-MANAGED OTP STATE (For EmailJS / Standalone Delivery)
 // -------------------------------------------------------------
 interface OtpSessionRecord {
+  challengeId: string;
   email: string;
   hash: string;
   salt: string;
   expiresAt: number; // 5 minutes expiration
+  cooldownUntil: number; // 60s cooldown
   attempts: number; // Max 5 attempts
 }
 
@@ -1015,6 +1017,21 @@ export async function sendEmailOtp(
     // If Supabase hit email rate limit or SMTP not configured, proceed to secondary mailers / secure OTP flow
   }
 
+  // Cooldown Protection: Reject duplicate OTP requests while a recent pending OTP is unexpired
+  if (
+    activeOtpRecord &&
+    activeOtpRecord.email === cleanEmail &&
+    Date.now() < activeOtpRecord.expiresAt &&
+    activeOtpRecord.cooldownUntil &&
+    Date.now() < activeOtpRecord.cooldownUntil
+  ) {
+    const waitSec = Math.ceil((activeOtpRecord.cooldownUntil - Date.now()) / 1000);
+    return {
+      success: false,
+      error: `A verification code was recently sent. Please wait ${waitSec} seconds before requesting a new code.`,
+    };
+  }
+
   // Generate cryptographically secure 6-digit random code
   let randomVal = 0;
   if (typeof crypto !== "undefined" && crypto.getRandomValues) {
@@ -1028,11 +1045,20 @@ export async function sendEmailOtp(
   const salt = Math.random().toString(36).substring(2);
   const hash = await sha256(`${cleanEmail}:${secureOtp}:${salt}`);
 
+  let challengeId = "";
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    challengeId = crypto.randomUUID();
+  } else {
+    challengeId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+
   activeOtpRecord = {
+    challengeId,
     email: cleanEmail,
     hash,
     salt,
     expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes expiration
+    cooldownUntil: Date.now() + 60 * 1000, // 60s cooldown
     attempts: 0,
   };
 
@@ -1068,14 +1094,12 @@ export async function sendEmailOtp(
     const data = await res.json().catch(() => ({}));
     if (res.ok && (data?.ok || data?.success)) {
       console.info(
-        `[AgroSpace Nexus] Verification code successfully dispatched via ${data.deliveryMethod || "mail"} to:`,
-        cleanEmail,
+        `[AgroSpace Nexus] Verification code successfully dispatched via ${data.deliveryMethod || "mail"}`,
       );
 
-      // Log formatted email audit payload in DevTools Console (F12) as secure audit
       if (typeof console !== "undefined") {
         console.info(
-          `%c📬 [AgroSpace Security Dispatch] Verification code dispatched to ${cleanEmail}`,
+          "%c📬 [AgroSpace Security Dispatch] Verification transmission dispatched successfully",
           "color: #22d3ee; font-weight: bold; background: #070b13; padding: 6px 12px; border-radius: 8px; font-size: 13px; border: 1px solid #06b6d4;",
         );
       }
@@ -1246,10 +1270,10 @@ export async function sendEmailOtp(
     }
   }
 
-  // 6. Standalone / unconfigured mode: logged to console and returned for developer/operator testing
+  // 6. Standalone / unconfigured mode: safe operational logging only (no raw email or OTP in logs)
   if (typeof console !== "undefined") {
     console.info(
-      `%c[AgroSpace Mail Dispatch] 6-digit verification code sent to ${cleanEmail}: ${secureOtp}`,
+      "%c[AgroSpace Mail Dispatch] Verification code transmission initialized.",
       "color: #22d3ee; font-weight: bold; font-size: 13px; background: #0b111e; padding: 4px 8px; border-radius: 6px;",
     );
   }
@@ -1272,12 +1296,21 @@ export async function verifyEmailOtp(
   customName?: string,
   mode: "signin" | "signup" = "signin",
   provider: OAuthProvider | "Email" = "Email",
+  challengeId?: string,
 ): Promise<AuthResult> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanOtp = enteredOtp.trim().replace(/\D/g, "");
 
   if (cleanOtp.length !== 6) {
     return { success: false, error: "Please enter all 6 digits of the verification code." };
+  }
+
+  // Challenge isolation: prevent third-parties from burning victim's attempts
+  if (challengeId && activeOtpRecord && activeOtpRecord.challengeId && challengeId !== activeOtpRecord.challengeId) {
+    return {
+      success: false,
+      error: "Invalid or expired verification session. Please request a new verification code.",
+    };
   }
 
   const supabase = getSupabaseClient();
@@ -1351,9 +1384,21 @@ export async function verifyEmailOtp(
   }
 
   const computedHash = await sha256(`${cleanEmail}:${cleanOtp}:${activeOtpRecord.salt}`);
-  if (computedHash !== activeOtpRecord.hash) {
+
+  // Constant-time hash verification
+  let isMatch = computedHash.length === activeOtpRecord.hash.length;
+  let diff = 0;
+  for (let i = 0; i < computedHash.length; i++) {
+    diff |= computedHash.charCodeAt(i) ^ activeOtpRecord.hash.charCodeAt(i);
+  }
+  isMatch = isMatch && diff === 0;
+
+  if (!isMatch) {
     activeOtpRecord.attempts += 1;
     const remaining = 5 - activeOtpRecord.attempts;
+    if (remaining <= 0) {
+      activeOtpRecord = null;
+    }
     return {
       success: false,
       error: `Invalid verification code. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`,

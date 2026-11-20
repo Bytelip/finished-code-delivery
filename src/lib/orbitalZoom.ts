@@ -12,17 +12,46 @@ export const GLOBE_FLY_TO_MIN_ZOOM = 11;
 export const GLOBE_ZOOM_DURATION_MS = 300;
 /** Cinematic fly-to length in milliseconds for location picks. */
 export const GLOBE_FLY_DURATION_MS = 2200;
-/** Zooming in past this level morphs the sphere into a flat mercator map. */
-export const GLOBE_FLAT_ZOOM = 12;
-/** Zooming back out above this level restores the spherical globe (hysteresis). */
-export const GLOBE_SPHERE_ZOOM = 10;
+/** 1.0 km altitude threshold for automatic 2D flat map projection. */
+export const ALTITUDE_TRANSITION_KM = 1.0;
+/**
+ * Zooming in to 1 km altitude (altitudeKmForZoom(15) = 1 km, or zoom >= 15)
+ * smoothly morphs the 3D spherical globe into a flat 2D Mercator map.
+ */
+export const GLOBE_FLAT_ZOOM = 15;
+/**
+ * Zooming back out above 1 km altitude (e.g. into regional/continental view, zoom < 13.5, alt > 2 km)
+ * smoothly restores the 3D spherical globe (hysteresis prevents flicker).
+ */
+export const GLOBE_SPHERE_ZOOM = 13.5;
 
 export type GlobeProjectionId = "globe" | "mercator";
 
-/** Keeps the current projection between thresholds so the view does not flicker. */
+/**
+ * Altitude-triggered auto-transition:
+ * - When altitude <= 1.0 km (or zoom >= GLOBE_FLAT_ZOOM), switches from 3D globe to flat 2D mercator projection.
+ * - When zooming back out past 1.0 km (altitude > 1.0 km and zoom < GLOBE_SPHERE_ZOOM), switches back to 3D globe.
+ * - Keeps current projection in the hysteresis band so the view does not flicker or stutter.
+ */
 export function projectionForZoom(zoom: number, current: GlobeProjectionId): GlobeProjectionId {
-  if (current === "globe" && zoom > GLOBE_FLAT_ZOOM) return "mercator";
-  if (current === "mercator" && zoom < GLOBE_SPHERE_ZOOM) return "globe";
+  const alt = altitudeKmForZoom(zoom);
+  if (current === "globe" && (alt <= ALTITUDE_TRANSITION_KM || zoom >= GLOBE_FLAT_ZOOM)) {
+    return "mercator";
+  }
+  if (current === "mercator" && (alt > ALTITUDE_TRANSITION_KM && zoom < GLOBE_SPHERE_ZOOM)) {
+    return "globe";
+  }
+  return current;
+}
+
+/** Direct altitude-based projection check for camera altitude in km. */
+export function projectionForAltitude(altitudeKm: number, current: GlobeProjectionId): GlobeProjectionId {
+  if (current === "globe" && altitudeKm <= ALTITUDE_TRANSITION_KM) {
+    return "mercator";
+  }
+  if (current === "mercator" && altitudeKm > ALTITUDE_TRANSITION_KM) {
+    return "globe";
+  }
   return current;
 }
 

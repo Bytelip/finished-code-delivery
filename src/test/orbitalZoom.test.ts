@@ -5,6 +5,7 @@ import {
   easeInOutCubic,
   flyToZoomFor,
   orbitalStageForZoom,
+  projectionForAltitude,
   projectionForZoom,
 } from "@/lib/orbitalZoom";
 
@@ -35,11 +36,20 @@ describe("orbital globe zoom rules", () => {
     expect(flyToZoomFor(14.5)).toBe(14.5);
   });
 
-  it("switches to flat mercator past zoom 12 and back to globe below zoom 10", () => {
+  it("switches to flat mercator when altitude reaches <= 1 km (zoom >= 15) and back to globe on zoom out past 1 km", () => {
     expect(projectionForZoom(11, "globe")).toBe("globe");
-    expect(projectionForZoom(12.5, "globe")).toBe("mercator");
-    expect(projectionForZoom(11, "mercator")).toBe("mercator");
-    expect(projectionForZoom(9.9, "mercator")).toBe("globe");
+    expect(projectionForZoom(15, "globe")).toBe("mercator");
+    expect(projectionForZoom(16, "globe")).toBe("mercator");
+    expect(projectionForZoom(14, "mercator")).toBe("mercator");
+    expect(projectionForZoom(13, "mercator")).toBe("globe");
+    expect(projectionForZoom(5, "mercator")).toBe("globe");
+  });
+
+  it("projectionForAltitude switches cleanly at 1.0 km altitude threshold", () => {
+    expect(projectionForAltitude(2.5, "globe")).toBe("globe");
+    expect(projectionForAltitude(1.0, "globe")).toBe("mercator");
+    expect(projectionForAltitude(0.8, "globe")).toBe("mercator");
+    expect(projectionForAltitude(1.5, "mercator")).toBe("globe");
   });
 
   it("eases the fly-to curve from 0 to 1 and is symmetric about the midpoint", () => {

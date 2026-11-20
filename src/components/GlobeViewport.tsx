@@ -67,10 +67,12 @@ import {
   GLOBE_FLY_TO_MIN_ZOOM,
   GLOBE_MAX_ZOOM,
   GLOBE_MIN_ZOOM,
+  ALTITUDE_TRANSITION_KM,
   altitudeKmForZoom,
   clampGlobeZoom,
   orbitalStageForZoom,
 } from "@/lib/orbitalZoom";
+import type { GlobeProjectionId } from "@/lib/orbitalZoom";
 import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
@@ -467,6 +469,9 @@ export function GlobeViewport({
   const [globeZoom, setGlobeZoom] = useState(GLOBE_DEFAULT_ZOOM);
   const [gisZoom, setGisZoom] = useState(12);
   const globeZoomRef = useRef(GLOBE_DEFAULT_ZOOM);
+  /** Current projection of the MapLibre globe (reported by OrbitalSatelliteGlobe). */
+  const [globeProjection, setGlobeProjection] = useState<GlobeProjectionId>("globe");
+
   const handleGlobeZoom = useCallback((z: number) => {
     globeZoomRef.current = z;
     setGlobeZoom(z);
@@ -794,6 +799,7 @@ export function GlobeViewport({
   // Explicit view switchers: the globe keeps its last zoom, 2D inherits a field-level zoom
   const handleSwitchTo3D = useCallback(() => {
     if (!webGLSupported) return;
+    setGlobeProjection("globe");
     setViewMode("3d");
   }, [webGLSupported]);
 
@@ -803,18 +809,46 @@ export function GlobeViewport({
     setViewMode("2d");
   }, []);
 
-  // 2D map zoomed all the way out hands off to the orbital globe
+  // 2D map zoomed all the way out → auto hand-off to the 3D orbital globe with starfield
   const handleAutoTransitionTo3D = useCallback(() => {
     const now = Date.now();
     if (now - lastAutoTransitionRef.current < 400) return;
     lastAutoTransitionRef.current = now;
     if (!webGLSupported) return;
+    setGlobeProjection("globe");
     handleGlobeZoom(GLOBE_DEFAULT_ZOOM);
     setViewMode("3d");
-    toast.info("Entering 3D Orbital Overview", {
-      description: "Zoomed out to the global view. Switched to the 3D satellite globe.",
+    toast.info("🌐 Entering 3D Orbital Overview", {
+      description: "Altitude > 1 km — Switched to the 3D spherical globe with starfield and atmospheric glow.",
     });
   }, [webGLSupported, handleGlobeZoom]);
+
+  /**
+   * Altitude-triggered auto-transition: 3D Globe → 2D Flat Map.
+   * Fires when MapLibre globe's internal projection transitions to "mercator" (altitude ≤ 1 km).
+   * Smoothly hands off to the 2D Leaflet tactical map at field zoom level.
+   */
+  const handleAutoTransitionTo2D = useCallback(() => {
+    if (viewMode !== "3d") return;
+    const now = Date.now();
+    if (now - lastAutoTransitionRef.current < 600) return;
+    lastAutoTransitionRef.current = now;
+    const z = globeApiRef.current?.getZoom() ?? globeZoomRef.current;
+    setGisZoom(Math.max(13, Math.min(18, Math.round(z))));
+    setViewMode("2d");
+    toast.info("🗺️ Entering 2D Field Map", {
+      description: `Altitude ≤ ${ALTITUDE_TRANSITION_KM} km — Switched to high-resolution 2D Mercator tactical map.`,
+    });
+  }, [viewMode]);
+
+  /** Called by OrbitalSatelliteGlobe whenever projection auto-switches (globe ↔ mercator at 1 km). */
+  const handleProjectionChange = useCallback((proj: GlobeProjectionId) => {
+    setGlobeProjection(proj);
+    // Auto-transition to 2D Leaflet map when globe morphs to mercator (altitude ≤ 1 km)
+    if (proj === "mercator") {
+      handleAutoTransitionTo2D();
+    }
+  }, [handleAutoTransitionTo2D]);
 
   const handleZoomIn = useCallback(() => {
     if (viewMode === "3d") {
@@ -915,10 +949,12 @@ export function GlobeViewport({
     [onLayer],
   );
 
-  // 4-Stage Zoom HUD Status Information
+  // 4-Stage Zoom HUD Status Information (syncs projection mode in real time)
   const zoomStageInfo = useMemo(() => {
     if (viewMode === "3d") {
       const s = orbitalStageForZoom(globeZoom);
+      const altKm = altitudeKmForZoom(globeZoom);
+      const projLabel = globeProjection === "globe" ? "GLOBE 3D" : "MERCATOR 2D";
       const tone =
         s.id === "orbital"
           ? { color: "#38BDF8", badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40" }
@@ -933,7 +969,8 @@ export function GlobeViewport({
       return {
         stage: s.stage,
         label: s.label,
-        detail: `ALT: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`,
+        detail: `ALT: ${altKm.toLocaleString()} km • ${projLabel}`,
+        projection: projLabel,
         ...tone,
       };
     }
@@ -941,7 +978,8 @@ export function GlobeViewport({
       return {
         stage: "STAGE 4",
         label: "2D TACTICAL MAP • FIELD PARCEL GIS",
-        detail: `Zoom ${gisZoom} • High-Res`,
+        detail: `Zoom ${gisZoom} • Alt ≤ ${ALTITUDE_TRANSITION_KM} km`,
+        projection: "MERCATOR 2D",
         color: "#10B981",
         badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
       };
@@ -951,6 +989,7 @@ export function GlobeViewport({
         stage: "STAGE 4",
         label: "2D TACTICAL MAP • REGIONAL OVERVIEW",
         detail: `Zoom ${gisZoom}`,
+        projection: "MERCATOR 2D",
         color: "#06B6D4",
         badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
       };
@@ -959,10 +998,11 @@ export function GlobeViewport({
       stage: "STAGE 1",
       label: "AUTO-HAND-OFF • 3D ORBITAL GLOBE",
       detail: `Zoom ${gisZoom} <= 2`,
+      projection: "GLOBE 3D",
       color: "#38BDF8",
       badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
     };
-  }, [viewMode, globeZoom, gisZoom]);
+  }, [viewMode, globeZoom, gisZoom, globeProjection]);
 
   // Fit All Hazards in 2D View
   const handleFitAllHazards = () => {
@@ -1137,6 +1177,7 @@ export function GlobeViewport({
               markers={globeMarkers}
               onPick={onPick}
               onZoom={handleGlobeZoom}
+              onProjectionChange={handleProjectionChange}
               onReady={handleGlobeReady}
               onFailure={handleGlobeFailure}
             />

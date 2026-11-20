@@ -9,21 +9,24 @@ import path from "node:path";
 const cwd = process.cwd();
 const candidates = [".output/public", "dist/client"];
 const srcRel = candidates.find((dir) => fs.existsSync(path.resolve(cwd, dir, "index.html")));
-if (!srcRel) {
-  console.error(`[copy-to-dist] FATAL: no built index.html in ${candidates.join(" or ")}`);
+const dest = path.resolve(cwd, "dist");
+
+if (srcRel) {
+  const src = path.resolve(cwd, srcRel);
+  // Stage outside dist/ first: the source may itself live inside dist/.
+  const staging = fs.mkdtempSync(path.join(os.tmpdir(), "agrospace-dist-"));
+  fs.cpSync(src, staging, { recursive: true });
+
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.cpSync(staging, dest, { recursive: true });
+  fs.rmSync(staging, { recursive: true, force: true });
+  console.log(`[copy-to-dist] Copied ${srcRel} -> dist (${fs.readdirSync(dest).length} entries)`);
+} else if (fs.existsSync(path.join(dest, "index.html"))) {
+  console.log(`[copy-to-dist] Using committed pre-built dist (${fs.readdirSync(dest).length} entries)`);
+} else {
+  console.error(`[copy-to-dist] FATAL: no built index.html in ${candidates.join(" or ")} or dist/`);
   process.exit(1);
 }
-const src = path.resolve(cwd, srcRel);
-
-// Stage outside dist/ first: the source may itself live inside dist/.
-const staging = fs.mkdtempSync(path.join(os.tmpdir(), "agrospace-dist-"));
-fs.cpSync(src, staging, { recursive: true });
-
-const dest = path.resolve(cwd, "dist");
-fs.rmSync(dest, { recursive: true, force: true });
-fs.cpSync(staging, dest, { recursive: true });
-fs.rmSync(staging, { recursive: true, force: true });
-console.log(`[copy-to-dist] Copied ${srcRel} -> dist (${fs.readdirSync(dest).length} entries)`);
 
 const html = fs.readFileSync(path.join(dest, "index.html"), "utf-8");
 const refs = [...new Set([...html.matchAll(/["'(](?:\.?\/)?(assets\/[^"')?#\s]+)/g)].map((m) => m[1]))];

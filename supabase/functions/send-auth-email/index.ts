@@ -9,6 +9,12 @@
  *
  * Dispatches the genuine verification code using Resend's official HTTP API
  * (https://api.resend.com/emails) without requiring custom SMTP servers.
+ *
+ * Security Hardening:
+ * - Strict RFC-5322 email regex rejecting <, >, quotes, spaces, \r, \n, and control characters.
+ * - Strict digits-only OTP validation (6-8 digits).
+ * - Complete HTML escaping of all dynamic values to eliminate markup injection.
+ * - Zero PII in logs (no email addresses, OTP codes, or full request/response bodies).
  */
 
 // Global Deno type definition for TypeScript checks
@@ -43,6 +49,33 @@ interface SupabaseAuthHookPayload {
   token?: string;
 }
 
+/**
+ * Strict RFC 5322 compatible email validation.
+ * Strictly rejects <, >, ", ', whitespace, carriage returns, newlines, and control characters.
+ */
+const STRICT_EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+function isValidEmail(email: unknown): email is string {
+  if (typeof email !== "string") return false;
+  const trimmed = email.trim();
+  if (trimmed.length === 0 || trimmed.length > 254) return false;
+  if (/[\r\n<>"'\s]/.test(trimmed)) return false;
+  return STRICT_EMAIL_REGEX.test(trimmed);
+}
+
+/**
+ * Strict HTML escaping helper to prevent any HTML/markup injection.
+ */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 Deno.serve(async (req: Request) => {
   // 1. Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -60,48 +93,89 @@ Deno.serve(async (req: Request) => {
   try {
     const payload: SupabaseAuthHookPayload = await req.json();
 
-    const recipientEmail =
-      payload.user?.email ||
-      payload.email;
+    const rawEmail = payload.user?.email || payload.email;
+    const rawOtp = payload.email_data?.token || payload.token;
 
-    const otpCode =
-      payload.email_data?.token ||
-      payload.token;
-
-    const actionType = payload.email_data?.email_action_type || "verification";
-
-    if (!recipientEmail || !otpCode) {
-      console.error("[send-auth-email] Missing email or token in payload:", payload);
+    // Strict email format validation
+    if (!isValidEmail(rawEmail)) {
+      console.error("[send-auth-email] Validation failed: missing or invalid email format.");
       return new Response(
         JSON.stringify({
-          error: "Invalid hook payload: missing user.email or email_data.token",
+          error: "Invalid hook payload: invalid email format.",
         }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
+    const cleanEmail = rawEmail.trim().toLowerCase();
+
+    // Strict OTP code validation: digits only, 6 to 8 digits
+    if (!rawOtp || typeof rawOtp !== "string") {
+      console.error("[send-auth-email] Validation failed: missing verification token.");
+      return new Response(
+        JSON.stringify({
+          error: "Invalid hook payload: missing verification token.",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    const cleanOtp = rawOtp.trim().replace(/\D/g, "");
+    if (cleanOtp.length < 6 || cleanOtp.length > 8) {
+      console.error("[send-auth-email] Validation failed: verification token format invalid.");
+      return new Response(
+        JSON.stringify({
+          error: "Invalid hook payload: invalid verification token format.",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Whitelist allowed action types
+    const rawActionType = payload.email_data?.email_action_type || "verification";
+    const allowedActions = [
+      "signup",
+      "magiclink",
+      "recovery",
+      "invite",
+      "email_change",
+      "verification",
+    ];
+    const safeActionType = allowedActions.includes(rawActionType)
+      ? rawActionType
+      : "verification";
 
     // 2. Fetch Resend API credentials
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
-      console.error("[send-auth-email] RESEND_API_KEY environment variable is not configured.");
+      console.error("[send-auth-email] Service configuration error: provider API key not configured.");
       return new Response(
         JSON.stringify({
-          error: "RESEND_API_KEY secret is not set in Supabase project secrets.",
+          error: "Verification delivery service is temporarily unavailable.",
         }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
     const fromEmail =
       Deno.env.get("RESEND_FROM_EMAIL") || "AgroSpace Nexus <onboarding@resend.dev>";
 
-    const subject = `AgroSpace Verification Code: ${otpCode}`;
+    // Hardcode subject strictly on the server (no user-controlled dynamic strings)
+    const subject = `AgroSpace Verification Code: ${cleanOtp}`;
+
+    // Sanitized, escaped HTML body
+    const escapedEmail = escapeHtml(cleanEmail);
+    const escapedAction = escapeHtml(safeActionType);
 
     const htmlBody = `
 <!DOCTYPE html>
@@ -138,7 +212,7 @@ Deno.serve(async (req: Request) => {
           <tr>
             <td align="center" style="padding: 22px 0 16px;">
               <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #94A3B8;">
-                Here is your single-use 6-digit verification code to authenticate your mission clearance on <strong style="color: #F8FAFC;">${recipientEmail}</strong>:
+                Here is your single-use 6-digit verification code to authenticate your mission clearance on <strong style="color: #F8FAFC;">${escapedEmail}</strong>:
               </p>
             </td>
           </tr>
@@ -148,7 +222,7 @@ Deno.serve(async (req: Request) => {
             <td align="center" style="padding: 10px 0 24px;">
               <div style="display: inline-block; background-color: #030712; border: 1px solid #22D3EE; border-radius: 14px; padding: 16px 32px; box-shadow: 0 0 25px rgba(34, 211, 238, 0.25);">
                 <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #38BDF8;">
-                  ${otpCode}
+                  ${cleanOtp}
                 </span>
               </div>
             </td>
@@ -158,7 +232,7 @@ Deno.serve(async (req: Request) => {
           <tr>
             <td style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; text-align: center;">
               <p style="margin: 0 0 6px; font-size: 12px; color: #64748B;">
-                ⏱️ Security clearance code is valid for <strong>5 minutes</strong> (${actionType}).
+                ⏱️ Security clearance code is valid for <strong>5 minutes</strong> (${escapedAction}).
               </p>
               <p style="margin: 0; font-size: 11px; color: #475569;">
                 If you did not request this login code, you can safely ignore this email.
@@ -174,8 +248,8 @@ Deno.serve(async (req: Request) => {
 </html>
     `.trim();
 
-    // 3. Dispatch via Resend HTTP API
-    console.log(`[send-auth-email] Dispatching OTP email via Resend to ${recipientEmail}`);
+    // 3. Dispatch via Resend HTTP API — Safe operational logging only (no PII)
+    console.log("[send-auth-email] Dispatching verification email via provider API.");
 
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -185,7 +259,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: fromEmail,
-        to: [recipientEmail],
+        to: [cleanEmail],
         subject: subject,
         html: htmlBody,
       }),
@@ -194,29 +268,28 @@ Deno.serve(async (req: Request) => {
     const resendData = await resendResponse.json();
 
     if (!resendResponse.ok) {
-      console.error("[send-auth-email] Resend API error:", resendResponse.status, resendData);
+      console.error("[send-auth-email] Provider API response failure, HTTP status:", resendResponse.status);
       return new Response(
         JSON.stringify({
-          error: resendData.message || "Failed to dispatch email via Resend API",
+          error: "Failed to dispatch verification email.",
         }),
         {
           status: resendResponse.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
-    console.log(`[send-auth-email] Successfully sent email via Resend: ${resendData.id}`);
+    console.log("[send-auth-email] Verification email successfully dispatched via provider.");
 
     // Supabase Auth Hooks expect an empty JSON or success response with status 200
     return new Response(JSON.stringify({ success: true, id: resendData.id }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error("[send-auth-email] Unhandled exception:", errorMsg);
-    return new Response(JSON.stringify({ error: errorMsg }), {
+  } catch (_err: unknown) {
+    console.error("[send-auth-email] Internal exception during verification dispatch.");
+    return new Response(JSON.stringify({ error: "Internal server error." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

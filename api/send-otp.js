@@ -1,6 +1,83 @@
 import nodemailer from "nodemailer";
 
+/**
+ * Strict RFC 5322 compatible email validation.
+ * Strictly rejects <, >, ", ', whitespace, carriage returns, newlines, and control characters.
+ */
+const STRICT_EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+function isValidEmail(email) {
+  if (typeof email !== "string") return false;
+  const trimmed = email.trim();
+  if (trimmed.length === 0 || trimmed.length > 254) return false;
+  if (/[\r\n<>"'\s]/.test(trimmed)) return false;
+  return STRICT_EMAIL_REGEX.test(trimmed);
+}
+
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sanitizeName(rawName) {
+  if (typeof rawName !== "string") return "Mission Commander";
+  const cleaned = rawName.replace(/<[^>]*>/g, "").replace(/[^\w\s.-]/g, "").trim();
+  const truncated = cleaned.slice(0, 40);
+  return escapeHtml(truncated) || "Mission Commander";
+}
+
+// In-memory rate limiting & 60s cooldown cache (per email & per IP)
+const rateLimitCache = new Map();
+
+function checkRateLimit(key, cooldownSec = 60, maxPerWindow = 5, windowSec = 900) {
+  const now = Date.now();
+  const record = rateLimitCache.get(key);
+
+  if (!record) {
+    rateLimitCache.set(key, { count: 1, firstSent: now, lastSent: now });
+    return { allowed: true };
+  }
+
+  // 60-second cooldown
+  const timeSinceLast = (now - record.lastSent) / 1000;
+  if (timeSinceLast < cooldownSec) {
+    return {
+      allowed: false,
+      retryAfter: Math.ceil(cooldownSec - timeSinceLast),
+      error: `Please wait ${Math.ceil(cooldownSec - timeSinceLast)} seconds before requesting a new code.`,
+    };
+  }
+
+  // Sliding window (15 minutes)
+  if (now - record.firstSent > windowSec * 1000) {
+    rateLimitCache.set(key, { count: 1, firstSent: now, lastSent: now });
+    return { allowed: true };
+  }
+
+  if (record.count >= maxPerWindow) {
+    const windowRemaining = Math.ceil((windowSec * 1000 - (now - record.firstSent)) / 1000);
+    return {
+      allowed: false,
+      retryAfter: windowRemaining,
+      error: `Maximum verification attempts reached. Please try again in ${Math.ceil(windowRemaining / 60)} minutes.`,
+    };
+  }
+
+  record.count += 1;
+  record.lastSent = now;
+  return { allowed: true };
+}
+
 export function generateNasaOtpHtml(otp, name) {
+  const safeName = sanitizeName(name);
+  const cleanOtp = String(otp).trim().replace(/\D/g, "");
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,7 +99,7 @@ export function generateNasaOtpHtml(otp, name) {
                 Planetary Observatory Access
               </h1>
               <p style="margin: 0; font-size: 14px; color: #94A3B8; line-height: 1.6;">
-                Security Clearance for <strong style="color: #F8FAFC;">${name || "Mission Commander"}</strong>
+                Security Clearance for <strong style="color: #F8FAFC;">${safeName}</strong>
               </p>
             </td>
           </tr>
@@ -35,10 +112,10 @@ export function generateNasaOtpHtml(otp, name) {
                       6-DIGIT VERIFICATION CODE
                     </p>
                     <div style="font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace; font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #22D3EE; text-shadow: 0 0 16px rgba(34, 211, 238, 0.6); padding-left: 12px;">
-                      ${otp}
+                      ${cleanOtp}
                     </div>
                     <div style="margin-top: 14px; display: inline-block; padding: 4px 12px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; font-size: 12px; font-weight: 600; color: #FBBF24;">
-                      ⏱️ Valid for 3 minutes • Single-use orbital passkey
+                      ⏱️ Valid for 5 minutes • Single-use orbital passkey
                     </div>
                   </td>
                 </tr>
@@ -48,7 +125,7 @@ export function generateNasaOtpHtml(otp, name) {
           <tr>
             <td style="padding: 12px 32px 28px 32px;">
               <p style="margin: 0; font-size: 13px; color: #94A3B8; line-height: 1.6; text-align: center;">
-                Enter this code into the AgroSpace Nexus login portal to complete biometric/session handshake and unlock live 3D orbital telemetry.
+                Enter this code into the AgroSpace Nexus login portal to complete verification and unlock live 3D orbital telemetry.
               </p>
               <p style="margin: 14px 0 0 0; font-size: 12px; color: #64748B; text-align: center;">
                 If you did not initiate this sign-in request, please ignore this transmission.
@@ -80,17 +157,45 @@ export default async function handler(req, res) {
 
   const { email, name, otp, gmailUser, gmailAppPassword } = req.body || {};
 
-  if (!email || !otp) {
-    return res.status(400).json({ success: false, error: "Email and OTP are required" });
+  // Strict email validation
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ success: false, error: "Valid recipient email address is required." });
+  }
+  const cleanEmail = String(email).trim().toLowerCase();
+
+  // Strict OTP format validation
+  if (!otp || typeof otp !== "string") {
+    return res.status(400).json({ success: false, error: "Valid 6-digit OTP code is required." });
+  }
+  const cleanOtp = String(otp).trim().replace(/\D/g, "");
+  if (cleanOtp.length < 6 || cleanOtp.length > 8) {
+    return res.status(400).json({ success: false, error: "OTP code must be 6 to 8 digits." });
   }
 
-  const cleanEmail = String(email).trim().toLowerCase();
-  const cleanOtp = String(otp).trim().replace(/\D/g, "");
+  // Rate limit and cooldown check per-email
+  const emailRateLimit = checkRateLimit(`email:${cleanEmail}`);
+  if (!emailRateLimit.allowed) {
+    return res.status(429).json({
+      success: false,
+      error: emailRateLimit.error,
+      retryAfter: emailRateLimit.retryAfter,
+    });
+  }
+
+  // Rate limit check per-IP
+  const clientIp = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown";
+  const ipRateLimit = checkRateLimit(`ip:${String(clientIp).split(",")[0].trim()}`, 2, 10, 900);
+  if (!ipRateLimit.allowed) {
+    return res.status(429).json({
+      success: false,
+      error: "Too many verification requests from this IP. Please wait before retrying.",
+    });
+  }
 
   const user = (gmailUser || process.env.GMAIL_USER || "").trim().toLowerCase();
   const pass = (gmailAppPassword || process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
 
-  if (!user || !pass) {
+  if (!user || !pass || !isValidEmail(user)) {
     return res.status(400).json({
       ok: false,
       success: false,
@@ -99,6 +204,8 @@ export default async function handler(req, res) {
         "Gmail SMTP sender not configured. Please enter your Sender Gmail address and 16-character Google App Password once in the settings modal.",
     });
   }
+
+  const safeName = sanitizeName(name);
 
   try {
     const transporter = nodemailer.createTransport({
@@ -112,27 +219,29 @@ export default async function handler(req, res) {
     const info = await transporter.sendMail({
       from: `"AgroSpace Nexus Mission Control" <${user}>`,
       to: cleanEmail,
-      subject: `AgroSpace Nexus — Your 6-Digit Security Verification Code: ${cleanOtp}`,
-      text: `AgroSpace Nexus Verification Code: ${cleanOtp}\n\nHello ${name || "Mission Commander"},\n\nYour 6-digit security verification code is: ${cleanOtp}\nThis code expires in 5 minutes.\n\nAgroSpace Nexus Planetary Observatory`,
-      html: generateNasaOtpHtml(cleanOtp, name || cleanEmail.split("@")[0]),
+      subject: "AgroSpace Nexus — Your 6-Digit Security Verification Code",
+      text: `AgroSpace Nexus Verification Code: ${cleanOtp}\n\nHello ${safeName},\n\nYour 6-digit security verification code is: ${cleanOtp}\nThis code expires in 5 minutes.\n\nAgroSpace Nexus Planetary Observatory`,
+      html: generateNasaOtpHtml(cleanOtp, safeName),
     });
+
+    // Safe operational log (no email address, no OTP code, no PII)
+    console.info(`[Gmail Serverless] Verification email dispatched successfully (Message ID: ${info.messageId})`);
 
     return res.status(200).json({
       ok: true,
       success: true,
       delivered: true,
-      recipient: cleanEmail,
       deliveryMethod: "gmail_smtp",
       messageId: info.messageId,
       timestamp: new Date().toISOString(),
     });
-  } catch (err) {
-    console.error("[Gmail Serverless Error]", err);
+  } catch (_err) {
+    console.error("[Gmail Serverless Error] Failed to deliver email through SMTP provider.");
     return res.status(500).json({
       ok: false,
       success: false,
       delivered: false,
-      error: `Google SMTP Error: ${err?.message || "Failed to deliver email through smtp.gmail.com:465"}`,
+      error: "Failed to deliver email through Google SMTP. Please verify SMTP credentials.",
     });
   }
 }

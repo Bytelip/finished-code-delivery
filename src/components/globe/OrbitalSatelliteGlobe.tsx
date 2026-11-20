@@ -36,6 +36,8 @@ export interface OrbitalGlobeApi {
   zoomTo: (zoom: number) => void;
   flyTo: (lat: number, lon: number, zoom?: number) => void;
   getZoom: () => number;
+  getProjection: () => GlobeProjectionId;
+  setProjection: (projection: GlobeProjectionId) => void;
 }
 
 export interface OrbitalGlobeMarker {
@@ -58,6 +60,7 @@ export interface OrbitalSatelliteGlobeProps {
   markers: OrbitalGlobeMarker[];
   onPick: (lat: number, lon: number) => void;
   onZoom: (zoom: number) => void;
+  onProjectionChange?: (projection: GlobeProjectionId) => void;
   onReady: (api: OrbitalGlobeApi | null) => void;
   onFailure?: () => void;
 }
@@ -183,6 +186,7 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
       if (next === projection) return;
       projection = next;
       map.setProjection({ type: next });
+      propsRef.current.onProjectionChange?.(next);
     };
     map.on("style.load", syncProjection);
 
@@ -205,6 +209,7 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     // Exact value once an animation settles (rAF sampling can stop at 10.99 instead of 11).
     map.on("zoomend", () => {
       if (mapRef.current !== map) return;
+      syncProjection();
       lastSent = map.getZoom();
       propsRef.current.onZoom(lastSent);
     });
@@ -226,6 +231,12 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
         map.flyTo(cinematicFlight(lat, lon, clampGlobeZoom(zoom ?? flyToZoomFor(map.getZoom()))));
       },
       getZoom: () => map.getZoom(),
+      getProjection: () => projection,
+      setProjection: (p) => {
+        if (p === projection) return;
+        projection = p;
+        map.setProjection({ type: p });
+      },
     };
     initial.onReady(api);
     initial.onZoom(map.getZoom());
