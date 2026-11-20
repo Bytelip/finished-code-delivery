@@ -9,15 +9,9 @@ import { ForecastAtmospherePanel } from "@/components/hud/ZoomEarthSidebar";
 import type { BasemapStyle } from "@/components/map/MapLayerSwitcher";
 import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
 import { AuthGate } from "@/components/auth/AuthGate";
-import { CosmicAuthPage, getStoredUser, saveStoredUser } from "@/components/CosmicAuthPage";
+import { CosmicAuthPage } from "@/components/CosmicAuthPage";
 import { UserProfileModal } from "@/components/UserProfileModal";
-import {
-  clearStoredProfile,
-  loadStoredProfile,
-  saveStoredProfile,
-  type UserProfile,
-} from "@/types/userProfile";
-import { processIncomingAuthCallback, signOutUser } from "@/services/authService";
+import type { UserProfile } from "@/types/userProfile";
 import { toast } from "sonner";
 import {
   PlantHealthRadar,
@@ -157,9 +151,7 @@ function AgroSpaceDashboard({
     elevationM: number;
   } | null>(null);
 
-  const [operator, setOperator] = useState<UserProfile | null>(
-    () => user || getStoredUser() || loadStoredProfile(),
-  );
+  const [operator, setOperator] = useState<UserProfile | null>(user ?? null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showMissionBriefModal, setShowMissionBriefModal] = useState(false);
@@ -190,16 +182,6 @@ function AgroSpaceDashboard({
       setLocation(liveTarget.lat, liveTarget.lon, liveTarget.label);
     }
   }, [liveTarget]);
-
-  useEffect(() => {
-    // Also process any returning OAuth redirect sessions
-    processIncomingAuthCallback().then((u) => {
-      if (u) {
-        setOperator(u);
-        saveStoredProfile(u);
-      }
-    });
-  }, []);
 
   useEffect(() => {
     if (isMobile) setCollapsed(true);
@@ -423,12 +405,9 @@ function AgroSpaceDashboard({
           onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
           onUpdateUser={(updated) => {
             setOperator(updated);
-            saveStoredUser(updated);
-            saveStoredProfile(updated);
             onUpdateUser?.(updated);
           }}
-          onSignOut={async () => {
-            await signOutUser();
+          onSignOut={() => {
             setOperator(null);
             onSignOut?.();
           }}
@@ -647,15 +626,7 @@ function AgroSpaceDashboard({
           <CosmicAuthPage
             onSuccess={(u) => {
               setOperator(u);
-              saveStoredProfile(u);
               setShowAuthModal(false);
-              toast.success(<LocalizedText text={`Welcome, ${u.fullName}`} />, {
-                description: (
-                  <LocalizedText
-                    text={`Authenticated via ${u.provider}. Clearance Level: ${u.role}.`}
-                  />
-                ),
-              });
             }}
             onClose={() => setShowAuthModal(false)}
           />
@@ -670,12 +641,9 @@ function AgroSpaceDashboard({
           currentLon={lon}
           onSave={(updated) => {
             setOperator(updated);
-            saveStoredProfile(updated);
-            saveStoredUser(updated);
             onUpdateUser?.(updated);
           }}
-          onSignOut={async () => {
-            await signOutUser();
+          onSignOut={() => {
             setOperator(null);
             setShowSettingsModal(false);
             onSignOut?.();

@@ -1,12 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { CosmicAuthPage, getStoredUser, saveStoredUser } from "@/components/CosmicAuthPage";
-import {
-  clearStoredProfile,
-  loadStoredProfile,
-  saveStoredProfile,
-  type UserProfile,
-} from "@/types/userProfile";
-import { processIncomingAuthCallback, signOutUser } from "@/services/authService";
+import { CosmicAuthPage, saveStoredUser } from "@/components/CosmicAuthPage";
+import type { UserProfile } from "@/types/userProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchSignedInProfile, saveProfile, signOut } from "@/services/cloudAuth";
 import { toast } from "sonner";
 import { syncUrlCoords } from "@/utils/preciseLocation";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
@@ -21,17 +17,37 @@ interface AuthGateProps {
 }
 
 export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
-  // Saved sessions live in browser storage, so read them after mount; reading them during the
-  // first render made the server (sign-in page) and browser (dashboard) HTML disagree.
+  // The signed-in account comes from Lovable Cloud; the session is restored after mount
+  // (it lives in browser storage), so the server and the first browser render match.
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
-    const stored = getStoredUser() || loadStoredProfile();
-    if (stored && (stored.verified || stored.isVerified)) {
-      setCurrentUser(stored);
-    }
-    setSessionChecked(true);
+    let active = true;
+    const refresh = async () => {
+      const profile = await fetchSignedInProfile();
+      if (!active) return;
+      setCurrentUser(profile);
+      // Display cache only; access is always decided by the live session above.
+      saveStoredUser(profile);
+      setSessionChecked(true);
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        setCurrentUser(null);
+        saveStoredUser(null);
+        setSessionChecked(true);
+        return;
+      }
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
+        // Defer so the auth client finishes its own work before we query the profile.
+        setTimeout(() => void refresh(), 0);
+      }
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const hasAcquiredInitialGps = useRef(false);
@@ -136,31 +152,15 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     [onLiveLocationAcquired],
   );
 
-  // Check returning OAuth callback tokens or initialize GPS for existing verified session
   useEffect(() => {
-    processIncomingAuthCallback().then((user) => {
-      if (user && (user.verified || user.isVerified)) {
-        setCurrentUser(user);
-        saveStoredUser(user);
-        saveStoredProfile(user);
-        triggerAutoGpsTracking(user.fullName || user.name || "Operator");
-      }
-    });
-
-    if (
-      currentUser &&
-      (currentUser.verified || currentUser.isVerified) &&
-      !hasAcquiredInitialGps.current
-    ) {
-      triggerAutoGpsTracking(currentUser.fullName || currentUser.name || "Operator");
+    if (currentUser && !hasAcquiredInitialGps.current) {
+      triggerAutoGpsTracking(currentUser.fullName || currentUser.name || "Farmer");
     }
   }, [currentUser, triggerAutoGpsTracking]);
 
   const handleAuthSuccess = (user: UserProfile) => {
     setCurrentUser(user);
     saveStoredUser(user);
-    saveStoredProfile(user);
-    triggerAutoGpsTracking(user.fullName || user.name || "Operator");
   };
 
   const handleSignOut = async () => {
@@ -168,30 +168,29 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     try {
       window.sessionStorage?.removeItem("agro_initial_gps_done");
     } catch {}
-    await signOutUser();
+    await signOut();
+    saveStoredUser(null);
     setCurrentUser(null);
-    toast.info(<LocalizedText text="Operator Signed Out" />, {
-      description: (
-        <LocalizedText text="Mission Control session terminated. Authentication required to access telemetry." />
-      ),
-    });
-    if (typeof window !== "undefined") {
-      window.location.assign(window.location.origin);
-    }
+    toast.info(<LocalizedText text="Signed out" />);
   };
 
   const handleUpdateUser = (updated: UserProfile) => {
     setCurrentUser(updated);
     saveStoredUser(updated);
-    saveStoredProfile(updated);
+    void saveProfile(updated).then((result) => {
+      if (!result.ok) {
+        toast.error(<LocalizedText text="Your profile changes could not be saved." />, {
+          description: result.error,
+        });
+      }
+    });
   };
 
   if (!sessionChecked) {
     return <div className="min-h-[100dvh] w-full bg-background" aria-busy="true" />;
   }
 
-  // If unauthenticated or unverified, NEVER render dashboard — display full-screen CosmicAuthPage!
-  if (!currentUser || (!currentUser.verified && !currentUser.isVerified)) {
+  if (!currentUser) {
     return <CosmicAuthPage onSuccess={handleAuthSuccess} />;
   }
 
