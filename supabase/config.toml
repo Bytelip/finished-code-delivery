@@ -1,3 +1,4 @@
+project_id = "ljfzjfwtejwmhjpjyjbw"
 [functions.send-auth-email]
 verify_jwt = false
 entrypoint = "./functions/send-auth-email/index.ts"
