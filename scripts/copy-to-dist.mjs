@@ -7,7 +7,11 @@ import path from "node:path";
 // file is answered with an HTML page and the browser shows a blank screen with
 // "Expected a JavaScript-or-Wasm module script but the server responded with text/html".
 const cwd = process.cwd();
-const candidates = [".output/public", "dist/client"];
+const candidates = [
+  ".vercel/output/static",
+  ".output/public",
+  "dist/client",
+];
 const srcRel = candidates.find((dir) => fs.existsSync(path.resolve(cwd, dir, "index.html")));
 const dest = path.resolve(cwd, "dist");
 
@@ -39,15 +43,18 @@ if (srcRel) {
   process.exit(1);
 }
 
-const html = fs.readFileSync(path.join(dest, "index.html"), "utf-8");
+let html = fs.readFileSync(path.join(dest, "index.html"), "utf-8");
+if (/(?:src|href)="\.\/assets\//.test(html)) {
+  console.log('[copy-to-dist] Converting relative "./assets/" paths to absolute "/assets/" in index.html');
+  html = html.replace(/(href|src|content)="\.\/assets\//g, '$1="/assets/');
+  html = html.replace(/"\.\/assets\//g, '"/assets/');
+  fs.writeFileSync(path.join(dest, "index.html"), html, "utf-8");
+}
+
 const refs = [...new Set([...html.matchAll(/["'(](?:\.?\/)?(assets\/[^"')?#\s]+)/g)].map((m) => m[1]))];
 const missing = refs.filter((ref) => !fs.existsSync(path.join(dest, ref)));
 if (missing.length) {
   console.error(`[copy-to-dist] FATAL: index.html references missing files:\n  ${missing.join("\n  ")}`);
-  process.exit(1);
-}
-if (/(?:src|href)="\.\/assets\//.test(html)) {
-  console.error('[copy-to-dist] FATAL: index.html uses relative "./assets/" paths; nested URLs would break.');
   process.exit(1);
 }
 console.log(`[copy-to-dist] OK: all ${refs.length} referenced asset files exist in dist/assets`);

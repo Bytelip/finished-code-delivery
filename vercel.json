@@ -1,5 +1,6 @@
 {
-  "buildCommand": "",
+  "buildCommand": "node scripts/copy-to-dist.mjs",
+  "framework": null,
   "outputDirectory": "dist",
   "rewrites": [
     {
