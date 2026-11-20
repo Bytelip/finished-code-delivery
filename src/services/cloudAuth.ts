@@ -50,10 +50,10 @@ const DEFAULT_NOTIFICATIONS = {
 function readNotifications(value: unknown): NonNullable<UserProfile["notifications"]> {
   const v = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   return {
-    cycloneAlerts: v.cycloneAlerts !== false,
-    usgsQuakeAlerts: v.usgsQuakeAlerts !== false,
-    droughtAlerts: v.droughtAlerts !== false,
-    emailAlerts: v.emailAlerts !== false,
+    cycloneAlerts: v["cycloneAlerts"] !== false,
+    usgsQuakeAlerts: v["usgsQuakeAlerts"] !== false,
+    droughtAlerts: v["droughtAlerts"] !== false,
+    emailAlerts: v["emailAlerts"] !== false,
   };
 }
 
@@ -68,8 +68,8 @@ export function profileFromRow(
 ): UserProfile {
   const email = user.email ?? "";
   const metaName =
-    (user.user_metadata?.full_name as string | undefined) ||
-    (user.user_metadata?.name as string | undefined) ||
+    (user.user_metadata?.["full_name"] as string | undefined) ||
+    (user.user_metadata?.["name"] as string | undefined) ||
     "";
   const name = row?.full_name?.trim() || metaName.trim() || email.split("@")[0] || "Farmer";
   const homeName = row?.home_name ?? "Kolar Plateau, Karnataka";
@@ -150,8 +150,8 @@ async function loadProfileRow(user: User): Promise<ProfileRow | null> {
   if (data) return data;
   // Accounts created before profiles existed get one now.
   const fallbackName =
-    (user.user_metadata?.full_name as string | undefined) ||
-    (user.user_metadata?.name as string | undefined) ||
+    (user.user_metadata?.["full_name"] as string | undefined) ||
+    (user.user_metadata?.["name"] as string | undefined) ||
     user.email?.split("@")[0] ||
     "";
   const { data: created } = await supabase
