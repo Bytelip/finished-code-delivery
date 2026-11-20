@@ -6,12 +6,12 @@ import { type UserProfile, getStoredUser, saveStoredUser } from "@/components/Co
 
 export { type UserProfile, getStoredUser, saveStoredUser };
 
-export type AuthProvider = "Google" | "Microsoft" | "Apple" | "Email";
+export type AuthProvider = "Google" | "Microsoft" | "Apple" | "Lovable" | "Email";
 export type OperatorRole = string;
 
 export function createInitialProfile(
   email: string,
-  provider: "Google" | "Microsoft" | "Apple" | "Email" = "Email",
+  provider: "Google" | "Microsoft" | "Apple" | "Lovable" | "Email" = "Email",
   customName?: string,
 ): UserProfile {
   const emailPrefix = email.split("@")[0] || "operator";

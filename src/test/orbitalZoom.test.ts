@@ -5,8 +5,10 @@ import {
   easeInOutCubic,
   flyToZoomFor,
   orbitalStageForZoom,
-  projectionForAltitude,
-  projectionForZoom,
+  GLOBE_FLAT_ZOOM,
+  flatnessForZoom,
+  formatAltitude,
+  projectionModeForZoom,
 } from "@/lib/orbitalZoom";
 
 describe("orbital globe zoom rules", () => {
@@ -36,20 +38,27 @@ describe("orbital globe zoom rules", () => {
     expect(flyToZoomFor(14.5)).toBe(14.5);
   });
 
-  it("switches to flat mercator when altitude reaches <= 1 km (zoom >= 15) and back to globe on zoom out past 1 km", () => {
-    expect(projectionForZoom(11, "globe")).toBe("globe");
-    expect(projectionForZoom(15, "globe")).toBe("mercator");
-    expect(projectionForZoom(16, "globe")).toBe("mercator");
-    expect(projectionForZoom(14, "mercator")).toBe("mercator");
-    expect(projectionForZoom(13, "mercator")).toBe("globe");
-    expect(projectionForZoom(5, "mercator")).toBe("globe");
+  it("is fully flat 2D at 1 km altitude and spherical 3D above ~1.5 km", () => {
+    expect(35000 / Math.pow(2, GLOBE_FLAT_ZOOM)).toBeCloseTo(1);
+    expect(projectionModeForZoom(GLOBE_FLAT_ZOOM)).toBe("flat");
+    expect(projectionModeForZoom(17)).toBe("flat");
+    expect(projectionModeForZoom(14.8)).toBe("morph");
+    expect(projectionModeForZoom(14)).toBe("globe");
+    expect(projectionModeForZoom(8)).toBe("globe");
+    expect(flatnessForZoom(10)).toBe(0);
+    expect(flatnessForZoom(GLOBE_FLAT_ZOOM)).toBe(1);
   });
 
-  it("projectionForAltitude switches cleanly at 1.0 km altitude threshold", () => {
-    expect(projectionForAltitude(2.5, "globe")).toBe("globe");
-    expect(projectionForAltitude(1.0, "globe")).toBe("mercator");
-    expect(projectionForAltitude(0.8, "globe")).toBe("mercator");
-    expect(projectionForAltitude(1.5, "mercator")).toBe("globe");
+  it("zooming back out past 1 km returns to the 3D globe", () => {
+    expect(projectionModeForZoom(16)).toBe("flat");
+    expect(projectionModeForZoom(GLOBE_FLAT_ZOOM - 0.01)).toBe("morph");
+    expect(projectionModeForZoom(12)).toBe("globe");
+  });
+
+  it("altitude text switches to metres below 10 km", () => {
+    expect(formatAltitude(2)).toBe("8,750 km");
+    expect(formatAltitude(13)).toBe("4.3 km");
+    expect(formatAltitude(17)).toBe("267 m");
   });
 
   it("eases the fly-to curve from 0 to 1 and is symmetric about the midpoint", () => {

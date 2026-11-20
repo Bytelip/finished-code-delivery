@@ -38,6 +38,17 @@ jobs:
 
       - name: Production Build
         run: npm run build
+        env:
+          VITE_BASE_PATH: /finished-code-delivery/
+
+      - name: Prepare GitHub Pages SPA fallback
+        run: |
+          cp .output/public/index.html .output/public/404.html
+          mkdir -p .output/public/login .output/public/signup .output/public/auth/callback
+          cp .output/public/index.html .output/public/login/index.html
+          cp .output/public/index.html .output/public/signup/index.html
+          cp .output/public/index.html .output/public/auth/index.html
+          cp .output/public/index.html .output/public/auth/callback/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

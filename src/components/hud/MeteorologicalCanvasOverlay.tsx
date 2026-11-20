@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { type ZoomEarthLayerId, type SubLayerId } from "@/types/zoomEarthLayers";
 import { cn } from "@/lib/utils";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface MeteorologicalCanvasOverlayProps {
   activeLayer: ZoomEarthLayerId;
@@ -346,13 +347,8 @@ export function MeteorologicalCanvasOverlay({
   }
 
   return (
-    <div
-      className={cn("absolute inset-0 pointer-events-none z-10 overflow-hidden", className)}
-    >
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full block pointer-events-none"
-      />
+    <div className={cn("absolute inset-0 pointer-events-none z-10 overflow-hidden", className)}>
+      <canvas ref={canvasRef} className="w-full h-full block pointer-events-none" />
 
       {/* Floating Cursor Telemetry Tooltips */}
       {cursorPos && (
@@ -360,37 +356,40 @@ export function MeteorologicalCanvasOverlay({
           {/* Pressure Isobar Readout */}
           {activeLayer === "pressure" && cursorPressure && (
             <div
-              className="pointer-events-none absolute z-20 px-2 py-0.5 rounded-full bg-slate-950/90 border border-purple-400/50 text-[11px] font-mono font-bold text-purple-300 shadow-xl backdrop-blur-md transform -translate-x-1/2 -translate-y-8 whitespace-nowrap"
+              className="pointer-events-none absolute z-20 px-2 py-0.5 rounded-full bg-slate-950/90 border border-purple-400/50 text-xs font-mono font-bold text-cyan-300 shadow-xl backdrop-blur-md transform -translate-x-1/2 -translate-y-8 whitespace-nowrap"
               style={{ left: cursorPos.x, top: cursorPos.y }}
             >
-              🧭 {cursorPressure} hPa
+              🧭 {cursorPressure} {<LocalizedText text={" hPa"} />}
             </div>
           )}
 
           {/* Wind Speed & Gusts Readout */}
           {(activeLayer === "wind" || shouldRenderWind) && cursorWind && (
             <div
-              className="pointer-events-none absolute z-20 px-2.5 py-0.5 rounded-full bg-[#141821]/95 border border-cyan-400/50 text-[11px] font-mono font-bold text-cyan-200 shadow-xl backdrop-blur-md transform -translate-x-1/2 -translate-y-8 whitespace-nowrap"
+              className="pointer-events-none absolute z-20 px-2.5 py-0.5 rounded-full bg-[#141821]/95 border border-cyan-400/50 text-xs font-mono font-bold text-cyan-300 shadow-xl backdrop-blur-md transform -translate-x-1/2 -translate-y-8 whitespace-nowrap"
               style={{ left: cursorPos.x, top: cursorPos.y }}
             >
-              💨 Wind: {cursorWind.speed} km/h • Gusts: {cursorWind.gusts} km/h
+              {<LocalizedText text={"💨 Wind: "} />}
+              {cursorWind.speed} {<LocalizedText text={" km/h • Gusts: "} />}
+              {cursorWind.gusts} {<LocalizedText text={" km/h"} />}
             </div>
           )}
 
           {/* Temperature Readout */}
           {activeLayer === "temperature" && cursorTemp && (
             <div
-              className="pointer-events-none absolute z-20 px-2.5 py-0.5 rounded-full bg-[#141821]/95 border border-amber-400/50 text-[11px] font-mono font-bold text-amber-200 shadow-xl backdrop-blur-md transform -translate-x-1/2 -translate-y-8 whitespace-nowrap"
+              className="pointer-events-none absolute z-20 px-2.5 py-0.5 rounded-full bg-[#141821]/95 border border-amber-400/50 text-xs font-mono font-bold text-amber-400 shadow-xl backdrop-blur-md transform -translate-x-1/2 -translate-y-8 whitespace-nowrap"
               style={{ left: cursorPos.x, top: cursorPos.y }}
             >
-              🌡️ {activeSubLayer === "temp_feels" ? "Feels Like" : "Temperature"}: {cursorTemp} °C
+              🌡️ {activeSubLayer === "temp_feels" ? "Feels Like" : "Temperature"}: {cursorTemp}{" "}
+              {<LocalizedText text={" °C"} />}
             </div>
           )}
 
           {/* Humidity Readout */}
           {activeLayer === "humidity" && cursorHum && (
             <div
-              className="pointer-events-none absolute z-20 px-2.5 py-0.5 rounded-full bg-[#141821]/95 border border-blue-400/50 text-[11px] font-mono font-bold text-blue-200 shadow-xl backdrop-blur-md transform -translate-x-1/2 -translate-y-8 whitespace-nowrap"
+              className="pointer-events-none absolute z-20 px-2.5 py-0.5 rounded-full bg-[#141821]/95 border border-blue-400/50 text-xs font-mono font-bold text-cyan-300 shadow-xl backdrop-blur-md transform -translate-x-1/2 -translate-y-8 whitespace-nowrap"
               style={{ left: cursorPos.x, top: cursorPos.y }}
             >
               💧 {activeSubLayer === "hum_wetbulb" ? "Wet-Bulb" : "Relative Humidity"}:{" "}

@@ -44,7 +44,7 @@ describe("MapLayerSwitcher", () => {
     }
 
     // Click "Terrain" option
-    const terrainBtn = screen.getByRole("button", { name: /Terrain/i });
+    const terrainBtn = screen.getByRole("button", { name: /⛰️ Terrain/i });
     fireEvent.click(terrainBtn);
     expect(onStyleChange).toHaveBeenCalledWith("terrain");
   });

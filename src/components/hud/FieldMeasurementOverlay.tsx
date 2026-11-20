@@ -1,6 +1,7 @@
 import React from "react";
 import { Ruler, Trash2, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export interface GeoPoint {
   lat: number;
@@ -72,13 +73,13 @@ export function FieldMeasurementOverlay({
     <div
       data-hud-overlay="measurement-banner"
       className={cn(
-        "absolute top-16 md:top-14 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-3 rounded-2xl bg-[#181C24]/95 backdrop-blur-2xl border border-amber-400/40 px-4 py-2 text-white shadow-2xl animate-in fade-in duration-200 select-none",
+        "absolute top-16 md:top-14 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-3 rounded-xl bg-[#181C24]/95 backdrop-blur-2xl border border-amber-400/40 px-4 py-2 text-foreground shadow-2xl animate-in fade-in duration-200 select-none",
         className,
       )}
     >
       <div className="flex items-center gap-1.5 text-amber-400 font-mono font-bold text-xs">
         <Ruler className="size-4 animate-bounce" />
-        <span>FIELD MEASURE</span>
+        <span>{<LocalizedText text={"FIELD MEASURE"} />}</span>
       </div>
 
       <div className="h-4 w-px bg-white/20" />
@@ -86,8 +87,10 @@ export function FieldMeasurementOverlay({
       {/* Dynamic Measurement Readouts */}
       <div className="flex items-center gap-3 text-xs font-mono">
         <div>
-          <span className="text-slate-400 text-[10px] block">TOTAL DISTANCE</span>
-          <span className="font-bold text-white text-sm">
+          <span className="text-muted-foreground text-xs block">
+            {<LocalizedText text={"TOTAL DISTANCE"} />}
+          </span>
+          <span className="font-bold text-foreground text-sm">
             {totalDistKm < 1
               ? `${Math.round(totalDistKm * 1000)} m`
               : `${totalDistKm.toFixed(2)} km`}
@@ -96,10 +99,14 @@ export function FieldMeasurementOverlay({
 
         {points.length >= 3 && (
           <div>
-            <span className="text-slate-400 text-[10px] block">PARCEL AREA</span>
+            <span className="text-muted-foreground text-xs block">
+              {<LocalizedText text={"PARCEL AREA"} />}
+            </span>
             <span className="font-bold text-emerald-400 text-sm">
-              {areaHa.toFixed(2)} ha{" "}
-              <span className="text-[10px] text-slate-300">({areaAcres.toFixed(1)} ac)</span>
+              {areaHa.toFixed(2)} {<LocalizedText text={" ha"} />}{" "}
+              <span className="text-xs text-foreground">
+                ({areaAcres.toFixed(1)} {<LocalizedText text={" ac)"} />}
+              </span>
             </span>
           </div>
         )}
@@ -112,17 +119,20 @@ export function FieldMeasurementOverlay({
           type="button"
           onClick={onClearPoints}
           disabled={points.length === 0}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-slate-200 disabled:opacity-40 transition-colors cursor-pointer"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-foreground disabled:opacity-40 transition-colors cursor-pointer"
           title="Clear Measurement Points"
         >
-          <Trash2 className="size-3 text-amber-300" />
-          <span>Clear ({points.length})</span>
+          <Trash2 className="size-3 text-amber-400" />
+          <span>
+            {<LocalizedText text={"Clear ("} />}
+            {points.length})
+          </span>
         </button>
 
         <button
           type="button"
           onClick={onClose}
-          className="p-1 rounded-lg hover:bg-white/20 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="p-1 rounded-lg hover:bg-white/20 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           title="Exit Measurement Mode"
         >
           <X className="size-4" />

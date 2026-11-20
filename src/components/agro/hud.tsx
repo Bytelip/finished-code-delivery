@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { Severity } from "@/types/agroSpace";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export function HudCard({
   title,
@@ -22,17 +23,17 @@ export function HudCard({
       <header className="mb-3.5 flex items-start justify-between gap-3 border-b border-border/40 pb-2.5">
         <div className="flex min-w-0 items-start gap-2.5">
           {icon && (
-            <div className="mt-0.5 grid size-6 shrink-0 place-items-center rounded border border-cyan/40 bg-cyan/10 text-cyan shadow-[0_0_10px_rgba(0,240,255,0.25)] [&_svg]:size-3.5">
+            <div className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border border-cyan/40 bg-cyan/10 text-cyan-300 shadow-[0_0_10px_rgba(0,240,255,0.25)] [&_svg]:size-3.5">
               {icon}
             </div>
           )}
           <div className="min-w-0">
-            <h3 className="truncate font-sans text-sm font-semibold tracking-tight text-foreground/95">
-              {title}
+            <h3 className="truncate font-sans text-sm font-semibold tracking-tight text-foreground">
+              <LocalizedText text={title} />
             </h3>
             {subtitle && (
-              <p className="hud-label mt-0.5 truncate tracking-[0.18em] text-[10px] text-cyan/70">
-                {subtitle}
+              <p className="mt-0.5 truncate font-mono text-xs tracking-wider text-muted-foreground normal-case">
+                <LocalizedText text={subtitle} />
               </p>
             )}
           </div>
@@ -50,32 +51,32 @@ export const SEVERITY_STYLES: Record<
 > = {
   nominal: {
     label: "Nominal",
-    text: "text-emerald",
-    chip: "border-emerald/40 bg-emerald/10 text-emerald shadow-[0_0_12px_rgba(0,255,157,0.18)]",
+    text: "text-emerald-400",
+    chip: "border-emerald/40 bg-emerald/10 text-emerald-400 shadow-[0_0_12px_rgba(0,255,157,0.18)]",
     dot: "bg-emerald shadow-[0_0_6px_#00ff9d]",
     ring: "border-emerald/30",
     glow: "glow-emerald",
   },
   watch: {
     label: "Watch",
-    text: "text-cyan",
-    chip: "border-cyan/40 bg-cyan/10 text-cyan shadow-[0_0_12px_rgba(0,240,255,0.18)]",
+    text: "text-cyan-300",
+    chip: "border-cyan/40 bg-cyan/10 text-cyan-300 shadow-[0_0_12px_rgba(0,240,255,0.18)]",
     dot: "bg-cyan shadow-[0_0_6px_#00f0ff]",
     ring: "border-cyan/35",
     glow: "glow-cyan",
   },
   warning: {
     label: "Warning",
-    text: "text-amber",
-    chip: "border-amber/50 bg-amber/15 text-amber shadow-[0_0_14px_rgba(255,183,0,0.25)]",
+    text: "text-amber-400",
+    chip: "border-amber/50 bg-amber/15 text-amber-400 shadow-[0_0_14px_rgba(255,183,0,0.25)]",
     dot: "bg-amber shadow-[0_0_8px_#ffb700]",
     ring: "border-amber/50",
     glow: "glow-amber",
   },
   critical: {
     label: "Critical",
-    text: "text-crimson",
-    chip: "border-crimson/60 bg-crimson/20 text-crimson shadow-[0_0_16px_rgba(255,46,86,0.35)]",
+    text: "text-rose-400",
+    chip: "border-crimson/60 bg-crimson/20 text-rose-400 shadow-[0_0_16px_rgba(255,46,86,0.35)]",
     dot: "bg-crimson shadow-[0_0_10px_#ff2e56]",
     ring: "border-crimson/70",
     glow: "glow-crimson",
@@ -87,7 +88,7 @@ export function SeverityChip({ severity }: { severity: Severity }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider backdrop-blur-md transition-shadow",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-xs font-semibold uppercase tracking-wider backdrop-blur-md transition-shadow",
         s.chip,
       )}
     >
@@ -98,7 +99,7 @@ export function SeverityChip({ severity }: { severity: Severity }) {
           (severity === "critical" || severity === "warning") && "animate-pulse",
         )}
       />
-      {s.label}
+      <LocalizedText text={s.label} />
     </span>
   );
 }
@@ -115,11 +116,17 @@ export function Readout({
   tone?: string;
 }) {
   return (
-    <div className="min-w-0 rounded border border-border/30 bg-background/30 p-2 backdrop-blur-sm">
-      <div className="hud-label truncate text-[9px] text-muted-foreground">{label}</div>
+    <div className="min-w-0 rounded-md border border-border/30 bg-background/30 p-2 backdrop-blur-sm">
+      <div className="hud-label truncate text-xs text-muted-foreground">
+        <LocalizedText text={label} />
+      </div>
       <div className={cn("mt-1 truncate font-mono text-lg font-semibold tabular-nums", tone)}>
         {value}
-        {unit && <span className="ml-1 text-xs font-normal text-muted-foreground/80">{unit}</span>}
+        {unit && (
+          <span className="ml-1 text-xs font-normal text-muted-foreground">
+            <LocalizedText text={unit} />
+          </span>
+        )}
       </div>
     </div>
   );

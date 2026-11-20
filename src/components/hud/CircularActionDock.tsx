@@ -38,18 +38,18 @@ export function CircularActionDock({
       <button
         type="button"
         onClick={onSearchClick}
-        className="group relative size-10 rounded-full bg-[#181C24]/85 backdrop-blur-xl border border-white/15 hover:border-cyan-400/50 hover:bg-white/15 text-slate-200 hover:text-white flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer"
+        className="group relative size-10 rounded-full bg-[#181C24]/85 backdrop-blur-xl border border-white/15 hover:border-cyan-400/50 hover:bg-white/15 text-foreground hover:text-foreground flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer"
         title="Search Location / Coordinates"
         aria-label="Search Location"
       >
-        <Search className="size-4 group-hover:scale-110 transition-transform text-cyan-400" />
+        <Search className="size-4 group-hover:scale-110 transition-transform text-cyan-300" />
       </button>
 
       {/* 2. My GPS Location */}
       <button
         type="button"
         onClick={onLocateGps}
-        className="group relative size-10 rounded-full bg-[#181C24]/85 backdrop-blur-xl border border-white/15 hover:border-cyan-400/50 hover:bg-white/15 text-slate-200 hover:text-white flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer"
+        className="group relative size-10 rounded-full bg-[#181C24]/85 backdrop-blur-xl border border-white/15 hover:border-cyan-400/50 hover:bg-white/15 text-foreground hover:text-foreground flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer"
         title="Center on My GPS Location"
         aria-label="My GPS Location"
       >
@@ -62,7 +62,7 @@ export function CircularActionDock({
       <button
         type="button"
         onClick={onZoomIn}
-        className="group relative size-10 rounded-full bg-[#181C24]/85 backdrop-blur-xl border border-white/15 hover:border-cyan-400/50 hover:bg-white/15 text-slate-200 hover:text-white flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer"
+        className="group relative size-10 rounded-full bg-[#181C24]/85 backdrop-blur-xl border border-white/15 hover:border-cyan-400/50 hover:bg-white/15 text-foreground hover:text-foreground flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer"
         title="Zoom In"
         aria-label="Zoom In"
       >
@@ -73,7 +73,7 @@ export function CircularActionDock({
       <button
         type="button"
         onClick={onZoomOut}
-        className="group relative size-10 rounded-full bg-[#181C24]/85 backdrop-blur-xl border border-white/15 hover:border-cyan-400/50 hover:bg-white/15 text-slate-200 hover:text-white flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer"
+        className="group relative size-10 rounded-full bg-[#181C24]/85 backdrop-blur-xl border border-white/15 hover:border-cyan-400/50 hover:bg-white/15 text-foreground hover:text-foreground flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer"
         title="Zoom Out"
         aria-label="Zoom Out"
       >
@@ -90,7 +90,7 @@ export function CircularActionDock({
           "group relative size-10 rounded-full backdrop-blur-xl border transition-all duration-200 shadow-xl cursor-pointer flex items-center justify-center",
           viewMode === "3d"
             ? "bg-cyan-500/25 border-cyan-400/60 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)]"
-            : "bg-[#181C24]/85 border-white/15 hover:bg-white/15 text-slate-200 hover:text-white",
+            : "bg-[#181C24]/85 border-white/15 hover:bg-white/15 text-foreground hover:text-foreground",
         )}
         title={viewMode === "3d" ? "Switch to 2D Field GIS" : "Switch to 3D Orbital Globe"}
         aria-label="Toggle 3D/2D View"
@@ -109,13 +109,13 @@ export function CircularActionDock({
         className={cn(
           "group relative size-10 rounded-full backdrop-blur-xl border transition-all duration-200 shadow-xl cursor-pointer flex items-center justify-center",
           windStreamlinesActive
-            ? "bg-teal-500/25 border-teal-400/60 text-teal-300 shadow-[0_0_12px_rgba(20,184,166,0.35)]"
-            : "bg-[#181C24]/85 border-white/15 hover:bg-white/15 text-slate-300 hover:text-white",
+            ? "bg-teal-500/25 border-teal-400/60 text-emerald-400 shadow-[0_0_12px_rgba(20,184,166,0.35)]"
+            : "bg-[#181C24]/85 border-white/15 hover:bg-white/15 text-foreground hover:text-foreground",
         )}
         title={windStreamlinesActive ? "Hide Wind Streamlines" : "Show Animated Wind Streamlines"}
         aria-label="Toggle Wind Streamlines"
       >
-        <Wind className={cn("size-4", windStreamlinesActive && "animate-pulse text-teal-300")} />
+        <Wind className={cn("size-4", windStreamlinesActive && "animate-pulse text-emerald-400")} />
       </button>
 
       {/* 7. Measure Field Area / Distance */}
@@ -125,8 +125,8 @@ export function CircularActionDock({
         className={cn(
           "group relative size-10 rounded-full backdrop-blur-xl border transition-all duration-200 shadow-xl cursor-pointer flex items-center justify-center",
           measureToolActive
-            ? "bg-amber-500/25 border-amber-400/60 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.35)]"
-            : "bg-[#181C24]/85 border-white/15 hover:bg-white/15 text-slate-300 hover:text-white",
+            ? "bg-amber-500/25 border-amber-400/60 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.35)]"
+            : "bg-[#181C24]/85 border-white/15 hover:bg-white/15 text-foreground hover:text-foreground",
         )}
         title={measureToolActive ? "Close Field Measuring Tool" : "Measure Field Distance & Area"}
         aria-label="Field Measurement Tool"

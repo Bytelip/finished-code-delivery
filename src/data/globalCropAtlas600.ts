@@ -443,16 +443,16 @@ export function evaluateCrop600Suitability(
 
   let suitabilityTier: EvaluatedCrop600["suitabilityTier"];
   let tierColorHex = "#10B981";
-  let tierBadgeClass = "bg-emerald-500/15 text-emerald-300 border-emerald-500/40";
+  let tierBadgeClass = "bg-emerald-500/15 text-emerald-400 border-emerald-500/40";
 
   if (hardFilterViolation || adjustedScore < 35) {
     suitabilityTier = "UNSUITABLE / HIGH RISK";
     tierColorHex = "#EF4444";
-    tierBadgeClass = "bg-rose-500/15 text-rose-300 border-rose-500/40";
+    tierBadgeClass = "bg-rose-500/15 text-rose-400 border-rose-500/40";
   } else if (adjustedScore >= 75) {
     suitabilityTier = "OPTIMAL / VERY HIGH";
     tierColorHex = "#10B981";
-    tierBadgeClass = "bg-emerald-500/15 text-emerald-300 border-emerald-500/40";
+    tierBadgeClass = "bg-emerald-500/15 text-emerald-400 border-emerald-500/40";
   } else if (adjustedScore >= 55) {
     suitabilityTier = "FAVOURABLE / HIGH";
     tierColorHex = "#06B6D4";
@@ -460,7 +460,7 @@ export function evaluateCrop600Suitability(
   } else {
     suitabilityTier = "MODERATE / CONDITIONAL";
     tierColorHex = "#F59E0B";
-    tierBadgeClass = "bg-amber-500/15 text-amber-300 border-amber-500/40";
+    tierBadgeClass = "bg-amber-500/15 text-amber-400 border-amber-500/40";
   }
 
   return {
@@ -496,7 +496,7 @@ export function getCropSuitabilityColor(score: number): {
       hex: "#84CC16",
       label: "FAVOURABLE / HIGH",
       bg: "bg-lime-500/15",
-      text: "text-lime-400",
+      text: "text-emerald-400",
       border: "border-lime-500/40",
     };
   }

@@ -5,16 +5,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
 import { CommandBar } from "@/components/agro/CommandBar";
 import { GlobeContainer } from "@/components/agro/GlobeContainer";
+import { ForecastAtmospherePanel } from "@/components/hud/ZoomEarthSidebar";
+import type { BasemapStyle } from "@/components/map/MapLayerSwitcher";
+import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
 import { AuthGate } from "@/components/auth/AuthGate";
-import { CosmicAuthPage, getStoredUser, saveStoredUser } from "@/components/CosmicAuthPage";
+import { CosmicAuthPage } from "@/components/CosmicAuthPage";
 import { UserProfileModal } from "@/components/UserProfileModal";
-import {
-  clearStoredProfile,
-  loadStoredProfile,
-  saveStoredProfile,
-  type UserProfile,
-} from "@/types/userProfile";
-import { processIncomingAuthCallback, signOutUser } from "@/services/authService";
+import type { UserProfile } from "@/types/userProfile";
 import { toast } from "sonner";
 import {
   PlantHealthRadar,
@@ -52,6 +49,7 @@ import type {
   Scenario,
   Season,
 } from "@/types/agroSpace";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -76,7 +74,11 @@ export const Route = createFileRoute("/")({
 });
 
 function AgroSpaceAppRoot() {
-  const [liveFlyTarget, setLiveFlyTarget] = useState<{ lat: number; lon: number; label: string } | null>(null);
+  const [liveFlyTarget, setLiveFlyTarget] = useState<{
+    lat: number;
+    lon: number;
+    label: string;
+  } | null>(null);
 
   return (
     <AuthGate
@@ -133,13 +135,14 @@ function AgroSpaceDashboard({
     }
   }, [isPinned]);
 
-  const [lat, setLat] = useState(13.13);
-  const [lon, setLon] = useState(78.13);
+  const [lat, setLat] = useState(12.6622);
+  const [lon, setLon] = useState(77.4503);
   const [borewellDepth, setBorewellDepth] = useState(60);
   const [irrigation, setIrrigation] = useState<Irrigation>("Borewell");
   const [season, setSeason] = useState<Season>("Kharif");
   const [scenario, setScenario] = useState<Scenario>("Nominal");
   const [activeLayer, setActiveLayer] = useState<MapLayer>("NDVI");
+  const [mapBasemap, setMapBasemap] = useState<BasemapStyle>("satellite");
   const [opacity, setOpacity] = useState(70);
 
   const [locationMeta, setLocationMeta] = useState<{
@@ -148,14 +151,11 @@ function AgroSpaceDashboard({
     elevationM: number;
   } | null>(null);
 
-  const [operator, setOperator] = useState<UserProfile | null>(
-    () => user || getStoredUser() || loadStoredProfile()
-  );
+  const [operator, setOperator] = useState<UserProfile | null>(user ?? null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showMissionBriefModal, setShowMissionBriefModal] = useState(false);
   const [showAdvisoryReportModal, setShowAdvisoryReportModal] = useState(false);
-  const [advisoryLanguage, setAdvisoryLanguage] = useState<"en" | "hi" | "kn">("en");
   const [showTour, setShowTour] = useState(false);
 
   // Auto-launch guided tutorial tour for first-time visitors / hackathon judges after 1200ms
@@ -182,16 +182,6 @@ function AgroSpaceDashboard({
       setLocation(liveTarget.lat, liveTarget.lon, liveTarget.label);
     }
   }, [liveTarget]);
-
-  useEffect(() => {
-    // Also process any returning OAuth redirect sessions
-    processIncomingAuthCallback().then((u) => {
-      if (u) {
-        setOperator(u);
-        saveStoredProfile(u);
-      }
-    });
-  }, []);
 
   useEffect(() => {
     if (isMobile) setCollapsed(true);
@@ -242,21 +232,28 @@ function AgroSpaceDashboard({
   // Dynamic reverse-geocoding, elevation, and Köppen climate zone calculation on lat/lon changes
   useEffect(() => {
     let active = true;
-    reverseGeocodeAndElevation(lat, lon).then((res) => {
-      if (!active) return;
-      setLocationMeta((prev) => {
-        // If reverseGeocodeAndElevation returned a raw "Field ..." fallback but we already have a friendly name, keep the friendly name
-        if (prev?.label && !prev.label.startsWith("Field ") && res.label.startsWith("Field ")) {
-          return {
-            ...res,
-            label: prev.label,
-          };
-        }
-        return res;
-      });
-    });
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      reverseGeocodeAndElevation(lat, lon, controller.signal)
+        .then((res) => {
+          if (!active) return;
+          setLocationMeta((prev) => {
+            // If reverseGeocodeAndElevation returned a raw "Field ..." fallback but we already have a friendly name, keep the friendly name
+            if (prev?.label && !prev.label.startsWith("Field ") && res.label.startsWith("Field ")) {
+              return {
+                ...res,
+                label: prev.label,
+              };
+            }
+            return res;
+          });
+        })
+        .catch(() => undefined);
+    }, 400);
     return () => {
       active = false;
+      window.clearTimeout(timer);
+      controller.abort();
     };
   }, [lat, lon]);
 
@@ -273,28 +270,32 @@ function AgroSpaceDashboard({
     let active = true;
     const controller = new AbortController();
     setIsLoadingLive(true);
+    setLiveTelemetry(null);
 
-    fetchLiveTelemetry(
-      { lat, lon, borewellDepth, season, scenario, irrigation },
-      { signal: controller.signal },
-    )
-      .then((res) => {
-        if (!active) return;
-        setLiveTelemetry(res.telemetry);
-        setLiveStatus(res.status);
-        setIsLoadingLive(false);
-      })
-      .catch(() => {
-        if (!active) return;
-        setLiveTelemetry(null);
-        setIsLoadingLive(false);
-      });
+    const timer = window.setTimeout(() => {
+      fetchLiveTelemetry(
+        { lat, lon, borewellDepth, season, scenario, irrigation },
+        { signal: controller.signal, activeLayer, activeView: tab, lazyLayerOnly: true },
+      )
+        .then((res) => {
+          if (!active) return;
+          setLiveTelemetry(res.telemetry);
+          setLiveStatus(res.status);
+          setIsLoadingLive(false);
+        })
+        .catch(() => {
+          if (!active) return;
+          setLiveTelemetry(null);
+          setIsLoadingLive(false);
+        });
+    }, 350);
 
     return () => {
       active = false;
+      window.clearTimeout(timer);
       controller.abort();
     };
-  }, [lat, lon, borewellDepth, season, scenario, irrigation]);
+  }, [lat, lon, borewellDepth, season, scenario, irrigation, activeLayer, tab]);
 
   const baseTelemetry = liveTelemetry ?? fallbackTelemetry;
 
@@ -358,11 +359,12 @@ function AgroSpaceDashboard({
   const tabLabel = TABS.find((t) => t.id === tab)?.label;
 
   return (
-    <div className="flex min-h-screen relative">
+    <div className="relative flex min-h-[100dvh] w-full max-w-full overflow-x-hidden">
       {/* GitHub + Linear + DeepMind GPU-Accelerated Cosmic Background */}
       <VibeCosmicBackground />
 
       <DashboardSidebar
+        isMobile={isMobile}
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         isPinned={isPinned}
@@ -378,8 +380,12 @@ function AgroSpaceDashboard({
         onOpenSettings={() => setShowSettingsModal(true)}
       />
 
-      <main className="min-w-0 flex-1 overflow-x-hidden">
+      <main className="min-w-0 w-full flex-1 overflow-x-hidden pb-20 md:pb-0">
+        <h1 className="sr-only">
+          {<LocalizedText text={"AgroSpace Nexus — Precision Agriculture & Multi-Hazard HUD"} />}
+        </h1>
         <CommandBar
+          isMobile={isMobile}
           lat={lat}
           lon={lon}
           borewellDepth={borewellDepth}
@@ -399,12 +405,9 @@ function AgroSpaceDashboard({
           onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
           onUpdateUser={(updated) => {
             setOperator(updated);
-            saveStoredUser(updated);
-            saveStoredProfile(updated);
             onUpdateUser?.(updated);
           }}
-          onSignOut={async () => {
-            await signOutUser();
+          onSignOut={() => {
             setOperator(null);
             onSignOut?.();
           }}
@@ -413,9 +416,22 @@ function AgroSpaceDashboard({
           plantHealthOverall={telemetry.plantHealth.overall}
           elevationM={telemetry.meta.elevationM}
           onOpenTour={() => setShowTour(true)}
+          onSearchDestination={(destination) => {
+            if (destination === "soil") setTab("groundwater");
+            if (destination === "satellite") {
+              setActiveLayer("NDVI");
+              setTab("overview");
+            }
+            if (destination === "hazards") setTab("hazards");
+            if (destination === "atmosphere") setTab("atmosphere");
+          }}
         />
 
-        <div className="space-y-2.5 p-2 sm:p-3 lg:p-4 pl-18 sm:pl-20">
+        <div
+          className="min-w-0 space-y-2.5 p-2 sm:p-3 lg:p-4"
+          style={{ paddingLeft: isMobile ? 8 : collapsed ? 80 : 256 }}
+        >
+          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(380px,0.8fr)] xl:items-start">
           <GlobeContainer
             telemetry={telemetry}
             activeLayer={activeLayer}
@@ -424,19 +440,34 @@ function AgroSpaceDashboard({
             onOpacity={setOpacity}
             onPick={setLocation}
             onInteraction={handleMapInteraction}
+            activeBasemapStyle={mapBasemap}
+            onBasemapStyleChange={setMapBasemap}
           />
 
-          {/* AI Agronomic & Climate Decision Card */}
-          <div className="antigravity-float-3" data-tour="crop-decision-engine">
-            <AgroDecisionCard
-              telemetry={telemetry}
-              onExportReport={() => setShowAdvisoryReportModal(true)}
-            />
+          <div className="grid min-w-0 content-start gap-3 xl:max-h-[min(820px,calc(100dvh-8rem))] xl:overflow-y-auto xl:pr-1 no-scrollbar">
+            {tab === "atmosphere" && (
+              <SpotlightCard className="min-w-0 border-cyan-500/20 bg-[#071120]/85 p-0 backdrop-blur-md">
+                <ForecastAtmospherePanel
+                  coordinates={{ lat, lon }}
+                  activeLayer={mapBasemap as ZoomEarthLayerId}
+                  onLayerChange={(layer) => setMapBasemap(layer as BasemapStyle)}
+                />
+              </SpotlightCard>
+            )}
+
+            {/* AI Agronomic & Climate Decision Card */}
+            <div className="antigravity-float-3 min-w-0" data-tour="crop-decision-engine">
+              <AgroDecisionCard
+                telemetry={telemetry}
+                onExportReport={() => setShowAdvisoryReportModal(true)}
+              />
+            </div>
+          </div>
           </div>
 
           {tab === "overview" && (
             <>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <div className="antigravity-float-2">
                   <SpotlightCard className="p-0 border-white/10 bg-transparent">
                     <PowerChart data={telemetry.power} />
@@ -461,7 +492,7 @@ function AgroSpaceDashboard({
                   </SpotlightCard>
                 </div>
               </div>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <div className="antigravity-float-3">
                   <SpotlightCard className="p-0 border-white/10 bg-transparent">
                     <HazardMatrixSlot
@@ -492,7 +523,7 @@ function AgroSpaceDashboard({
           )}
 
           {tab === "plant-health" && (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
               <PlantHealthRadar health={telemetry.plantHealth} tall />
               <PlantPillarList health={telemetry.plantHealth} />
               <div className="lg:col-span-2">
@@ -503,7 +534,7 @@ function AgroSpaceDashboard({
 
           {tab === "groundwater" && (
             <div className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 md:grid-cols-2">
                 <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
                 <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
                 <div className="lg:col-span-2">
@@ -523,47 +554,67 @@ function AgroSpaceDashboard({
           {tab === "granules" && <GranuleInspector telemetry={telemetry} />}
 
           {/* Live Telemetry Bottom Mission Tape (Google Stitch) */}
-          <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-[11px] mt-6 shadow-xl">
+          <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-xs mt-6 shadow-xl">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-cyan-400 font-bold uppercase tracking-wider">TELEMETRY STREAM:</span>
-              <span className="text-foreground/90">SENTINEL-1 C-SAR PASS: 41.2° INCLINATION</span>
-              <span className="hidden md:inline text-white/30">•</span>
-              <span className="hidden md:inline text-foreground/80">
-                LANDSAT-9 OLI-2 / TIRS-2 THERMAL CALIBRATION: NOMINAL [0.03K DELTA]
+              <span className="text-cyan-300 font-bold uppercase tracking-wider">
+                {<LocalizedText text={"TELEMETRY STREAM:"} />}
+              </span>
+              <span className="text-foreground">
+                {<LocalizedText text={"SENTINEL-1 C-SAR PASS: 41.2° INCLINATION"} />}
+              </span>
+              <span className="hidden md:inline text-foreground">•</span>
+              <span className="hidden md:inline text-foreground">
+                {
+                  <LocalizedText
+                    text={"LANDSAT-9 OLI-2 / TIRS-2 THERMAL CALIBRATION: NOMINAL [0.03K DELTA]"}
+                  />
+                }
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-              <span className="text-white font-semibold">NASA-LANCE AG-INTEL READY</span>
+              <span className="text-foreground font-semibold">
+                {<LocalizedText text={"NASA-LANCE AG-INTEL READY"} />}
+              </span>
             </div>
           </div>
 
           {/* Observatory Mission Footer (Google Stitch) */}
-          <footer className="w-full rounded-2xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-[10.5px]">
-            <div>AGROSPACE NEXUS • NASA EARTH OBSERVATION MISSION SYSTEM • EO-OPS-CORE-V4.9</div>
+          <footer className="w-full rounded-xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-xs">
+            <div>
+              {
+                <LocalizedText
+                  text={
+                    "AGROSPACE NEXUS • NASA EARTH OBSERVATION MISSION SYSTEM • EO-OPS-CORE-V4.9"
+                  }
+                />
+              }
+            </div>
             <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => setTab("overview")}
-                className="hover:text-cyan-400 transition-colors cursor-pointer"
+                className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
-                GLOBAL OBSERVATORY
+                {<LocalizedText text={"GLOBAL OBSERVATORY"} />}
               </button>
               <button
                 type="button"
                 onClick={() => setTab("crop-atlas")}
-                className="hover:text-cyan-400 transition-colors cursor-pointer"
+                className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
-                CROP SHIFT
+                {<LocalizedText text={"CROP SHIFT"} />}
               </button>
               <button
                 type="button"
                 onClick={() => setShowMissionBriefModal(true)}
-                className="hover:text-cyan-400 transition-colors cursor-pointer"
+                className="hover:text-cyan-300 transition-colors cursor-pointer"
               >
-                MISSION BRIEF
+                {<LocalizedText text={"MISSION BRIEF"} />}
               </button>
-              <span className="text-emerald-400 font-semibold">• ALL ORBITAL FEEDS NOMINAL</span>
+              <span className="text-emerald-400 font-semibold">
+                {<LocalizedText text={"• ALL ORBITAL FEEDS NOMINAL"} />}
+              </span>
             </div>
           </footer>
         </div>
@@ -575,11 +626,7 @@ function AgroSpaceDashboard({
           <CosmicAuthPage
             onSuccess={(u) => {
               setOperator(u);
-              saveStoredProfile(u);
               setShowAuthModal(false);
-              toast.success(`Welcome, ${u.fullName}`, {
-                description: `Authenticated via ${u.provider}. Clearance Level: ${u.role}.`,
-              });
             }}
             onClose={() => setShowAuthModal(false)}
           />
@@ -594,12 +641,9 @@ function AgroSpaceDashboard({
           currentLon={lon}
           onSave={(updated) => {
             setOperator(updated);
-            saveStoredProfile(updated);
-            saveStoredUser(updated);
             onUpdateUser?.(updated);
           }}
-          onSignOut={async () => {
-            await signOutUser();
+          onSignOut={() => {
             setOperator(null);
             setShowSettingsModal(false);
             onSignOut?.();
@@ -624,8 +668,6 @@ function AgroSpaceDashboard({
           telemetry={telemetry}
           tacticalHazards={[]}
           checkedSteps={{}}
-          language={advisoryLanguage}
-          onLanguageChange={setAdvisoryLanguage}
           onClose={() => setShowAdvisoryReportModal(false)}
         />
       )}

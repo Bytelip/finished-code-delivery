@@ -146,6 +146,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export async function fetchMeteorologicalForecast(
   lat: number,
   lon: number,
+  signal?: AbortSignal,
 ): Promise<MeteorologicalForecast> {
   const cacheKey = `${lat.toFixed(2)}_${lon.toFixed(2)}`;
   const storageKey = `agrospace_meteo_cache_${cacheKey}`;
@@ -172,14 +173,18 @@ export async function fetchMeteorologicalForecast(
     }
   }
 
+  let requestTimeout: ReturnType<typeof setTimeout> | undefined;
+  let abortRelay: (() => void) | undefined;
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    abortRelay = () => controller.abort(signal?.reason);
+    if (signal?.aborted) abortRelay();
+    else signal?.addEventListener("abort", abortRelay, { once: true });
+    requestTimeout = setTimeout(() => controller.abort(), 4000);
 
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m,wind_gusts_10m,precipitation&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,surface_pressure_max,surface_pressure_min&timezone=auto&forecast_days=4`;
 
     const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
 
     if (!res.ok) {
       throw new Error(`Open-Meteo HTTP error: ${res.status}`);
@@ -252,6 +257,7 @@ export async function fetchMeteorologicalForecast(
     }
     return result;
   } catch (_e) {
+    if (signal?.aborted) throw new DOMException("Request aborted", "AbortError");
     // If live fetch fails, check if we have any stored cache before falling back
     if (typeof window !== "undefined") {
       try {
@@ -266,5 +272,8 @@ export async function fetchMeteorologicalForecast(
     }
     // Return deterministic fallback
     return generateDeterministicForecast(lat, lon);
+  } finally {
+    if (requestTimeout) clearTimeout(requestTimeout);
+    if (abortRelay) signal?.removeEventListener("abort", abortRelay);
   }
 }

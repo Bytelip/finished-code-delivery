@@ -1,14 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { CosmicAuthPage, getStoredUser, saveStoredUser } from "@/components/CosmicAuthPage";
-import {
-  clearStoredProfile,
-  loadStoredProfile,
-  saveStoredProfile,
-  type UserProfile,
-} from "@/types/userProfile";
-import { processIncomingAuthCallback, signOutUser } from "@/services/authService";
+import { CosmicAuthPage, saveStoredUser } from "@/components/CosmicAuthPage";
+import type { UserProfile } from "@/types/userProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchSignedInProfile, saveProfile, signOut } from "@/services/cloudAuth";
 import { toast } from "sonner";
 import { syncUrlCoords } from "@/utils/preciseLocation";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface AuthGateProps {
   children: (props: {
@@ -20,13 +17,38 @@ interface AuthGateProps {
 }
 
 export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    const stored = getStoredUser() || loadStoredProfile();
-    if (stored && (stored.verified || stored.isVerified)) {
-      return stored;
-    }
-    return null;
-  });
+  // The signed-in account comes from Lovable Cloud; the session is restored after mount
+  // (it lives in browser storage), so the server and the first browser render match.
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      const profile = await fetchSignedInProfile();
+      if (!active) return;
+      setCurrentUser(profile);
+      // Display cache only; access is always decided by the live session above.
+      saveStoredUser(profile);
+      setSessionChecked(true);
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        setCurrentUser(null);
+        saveStoredUser(null);
+        setSessionChecked(true);
+        return;
+      }
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
+        // Defer so the auth client finishes its own work before we query the profile.
+        setTimeout(() => void refresh(), 0);
+      }
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
   const hasAcquiredInitialGps = useRef(false);
 
@@ -35,7 +57,8 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     (userName: string) => {
       if (
         hasAcquiredInitialGps.current ||
-        (typeof window !== "undefined" && window.sessionStorage?.getItem("agro_initial_gps_done") === "true")
+        (typeof window !== "undefined" &&
+          window.sessionStorage?.getItem("agro_initial_gps_done") === "true")
       ) {
         return;
       }
@@ -45,8 +68,10 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
       } catch {}
 
       if (typeof window === "undefined" || !navigator.geolocation) {
-        toast.info(`Welcome, ${userName}`, {
-          description: "Hardware GPS not supported on this device. Manual coordinate entry active.",
+        toast.info(<LocalizedText text={`Welcome, ${userName}`} />, {
+          description: (
+            <LocalizedText text="Hardware GPS not supported on this device. Manual coordinate entry active." />
+          ),
         });
         return;
       }
@@ -101,9 +126,13 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
         // Update parent dashboard state & flight pipeline
         onLiveLocationAcquired?.(fixedLat, fixedLon, placeName);
 
-        toast.success(`🛰️ GPS Target Lock: ${placeName}`, {
+        toast.success(<LocalizedText text={`🛰️ GPS Target Lock: ${placeName}`} />, {
           id: "auto-gps-lock",
-          description: `Live coordinates ${fixedLat}°N, ${fixedLon}°E (±${accuracy}m). Telemetry calibrated.`,
+          description: (
+            <LocalizedText
+              text={`Live coordinates ${fixedLat}Â°N, ${fixedLon}Â°E (Â±${accuracy}m). Telemetry calibrated.`}
+            />
+          ),
           duration: 2000,
         });
       };
@@ -120,30 +149,18 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
         maximumAge: 60000,
       });
     },
-    [onLiveLocationAcquired]
+    [onLiveLocationAcquired],
   );
 
-  // Check returning OAuth callback tokens or initialize GPS for existing verified session
   useEffect(() => {
-    processIncomingAuthCallback().then((user) => {
-      if (user && (user.verified || user.isVerified)) {
-        setCurrentUser(user);
-        saveStoredUser(user);
-        saveStoredProfile(user);
-        triggerAutoGpsTracking(user.fullName || user.name || "Operator");
-      }
-    });
-
-    if (currentUser && (currentUser.verified || currentUser.isVerified) && !hasAcquiredInitialGps.current) {
-      triggerAutoGpsTracking(currentUser.fullName || currentUser.name || "Operator");
+    if (currentUser && !hasAcquiredInitialGps.current) {
+      triggerAutoGpsTracking(currentUser.fullName || currentUser.name || "Farmer");
     }
   }, [currentUser, triggerAutoGpsTracking]);
 
   const handleAuthSuccess = (user: UserProfile) => {
     setCurrentUser(user);
     saveStoredUser(user);
-    saveStoredProfile(user);
-    triggerAutoGpsTracking(user.fullName || user.name || "Operator");
   };
 
   const handleSignOut = async () => {
@@ -151,26 +168,33 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     try {
       window.sessionStorage?.removeItem("agro_initial_gps_done");
     } catch {}
-    await signOutUser();
+    await signOut();
+    saveStoredUser(null);
     setCurrentUser(null);
-    toast.info("Operator Signed Out", {
-      description: "Mission Control session terminated. Authentication required to access telemetry.",
-    });
-    if (typeof window !== "undefined") {
-      window.location.assign(window.location.origin);
-    }
+    toast.info(<LocalizedText text="Signed out" />);
   };
 
   const handleUpdateUser = (updated: UserProfile) => {
     setCurrentUser(updated);
     saveStoredUser(updated);
-    saveStoredProfile(updated);
+    void saveProfile(updated).then((result) => {
+      if (!result.ok) {
+        toast.error(<LocalizedText text="Your profile changes could not be saved." />, {
+          description: result.error,
+        });
+      }
+    });
   };
 
-  // If unauthenticated or unverified, NEVER render dashboard — display full-screen CosmicAuthPage!
-  if (!currentUser || (!currentUser.verified && !currentUser.isVerified)) {
+  if (!sessionChecked) {
+    return <div className="min-h-[100dvh] w-full bg-background" aria-busy="true" />;
+  }
+
+  if (!currentUser) {
     return <CosmicAuthPage onSuccess={handleAuthSuccess} />;
   }
 
-  return <>{children({ user: currentUser, onSignOut: handleSignOut, onUpdateUser: handleUpdateUser })}</>;
+  return (
+    <>{children({ user: currentUser, onSignOut: handleSignOut, onUpdateUser: handleUpdateUser })}</>
+  );
 }

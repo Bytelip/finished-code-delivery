@@ -1,20 +1,17 @@
 import React, { useEffect, useState } from "react";
+import { LovableMark } from "@lovable.dev/cloud-auth-js/react";
 import {
-  initiateOAuthLogin,
-  completeDirectOAuthLogin,
-  signInWithEmailPassword,
-  signUpWithEmailPassword,
-  processIncomingAuthCallback,
-  getUserFromDatabase,
-  saveUserToDatabase,
-  type OAuthProvider,
-} from "@/services/authService";
-import {
-  createInitialProfile,
-  saveStoredProfile,
-  loadStoredProfile,
-  clearStoredProfile,
-} from "@/types/userProfile";
+  MIN_PASSWORD_LENGTH,
+  fetchSignedInProfile,
+  resendConfirmation,
+  sendPasswordReset,
+  signInWithEmail,
+  signInWithProvider,
+  signUpWithEmail,
+  type SocialProvider,
+} from "@/services/cloudAuth";
+import { toast } from "sonner";
+import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
 
 // ==========================================
 // 1. TYPES & USER PROFILE MODEL
@@ -24,7 +21,7 @@ export interface UserProfile {
   name: string;
   fullName?: string | undefined;
   email: string;
-  provider: "Google" | "Microsoft" | "Apple" | "Email";
+  provider: "Google" | "Microsoft" | "Apple" | "Lovable" | "Email";
   verified: boolean;
   isVerified?: boolean | undefined;
   role: string;
@@ -182,7 +179,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
         .cosmic-parallax-container {
           position: relative;
           width: 100%;
-          min-height: 100vh;
+          min-height: 100dvh;
           background: radial-gradient(ellipse at bottom, #0d1d31 0%, #03060c 100%);
           overflow: hidden;
           display: flex;
@@ -272,7 +269,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
 
       {head && (
         <div className="relative z-10 mb-4 text-center pointer-events-none">
-          <div className="text-[11px] font-mono uppercase tracking-[0.35em] text-cyan-300/80">
+          <div className="text-xs font-mono uppercase tracking-[0.35em] text-cyan-300">
             {textParts.join(" • ")}
           </div>
         </div>
@@ -291,108 +288,80 @@ export interface CosmicAuthPageProps {
   onAuthComplete?: (user: UserProfile) => void;
   onSuccess?: (user: UserProfile) => void;
   onClose?: () => void;
+  initialMode?: "signin" | "signup";
 }
 
-const OAUTH_ACCOUNTS: Record<
-  OAuthProvider,
-  Array<{ name: string; email: string; role: string; avatarInitial: string; avatarBg: string }>
-> = {
-  Google: [
-    {
-      name: "Naren Google",
-      email: "naren.google@gmail.com",
-      role: "Mission Commander",
-      avatarInitial: "N",
-      avatarBg: "from-blue-500 to-cyan-500",
-    },
-    {
-      name: "Commander Naren",
-      email: "commander.agrospace@gmail.com",
-      role: "Lead Agronomist",
-      avatarInitial: "C",
-      avatarBg: "from-amber-500 to-orange-500",
-    },
-    {
-      name: "NASA Space Apps Pilot",
-      email: "pilot.agrospace@gmail.com",
-      role: "Flight Officer",
-      avatarInitial: "P",
-      avatarBg: "from-emerald-500 to-teal-500",
-    },
-  ],
-  Microsoft: [
-    {
-      name: "Naren Microsoft",
-      email: "naren.microsoft@outlook.com",
-      role: "Director Naren",
-      avatarInitial: "N",
-      avatarBg: "from-blue-600 to-indigo-600",
-    },
-    {
-      name: "Mission Operations",
-      email: "operations@agrospace.onmicrosoft.com",
-      role: "Command Center",
-      avatarInitial: "M",
-      avatarBg: "from-cyan-600 to-blue-700",
-    },
-  ],
-  Apple: [
-    {
-      name: "Naren Apple",
-      email: "naren.apple@icloud.com",
-      role: "Commander Naren",
-      avatarInitial: "N",
-      avatarBg: "from-slate-600 to-zinc-700",
-    },
-    {
-      name: "AgroSpace Officer",
-      email: "officer.agrospace@icloud.com",
-      role: "Space Systems",
-      avatarInitial: "A",
-      avatarBg: "from-purple-600 to-pink-600",
-    },
-  ],
-};
+type AuthStep = "entry" | "check_email" | "forgot" | "reset_sent";
+
+const inputClass =
+  "w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none";
+const providerButtonClass =
+  "relative flex min-h-11 w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition disabled:opacity-50 cursor-pointer";
+const primaryButtonClass = (enabled: boolean) =>
+  `w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
+    enabled
+      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+      : "cursor-not-allowed bg-white/15 text-muted-foreground"
+  }`;
 
 export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   onAuthComplete,
   onSuccess,
   onClose,
+  initialMode = "signin",
 }) => {
-  const [step, setStep] = useState<"entry" | "oauth_chooser">("entry");
-  const [selectedProvider, setSelectedProvider] = useState<OAuthProvider>("Google");
+  const [step, setStep] = useState<AuthStep>("entry");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
   const [authError, setAuthError] = useState<string>("");
-  const [customOAuthName, setCustomOAuthName] = useState<string>("");
-  const [customOAuthEmail, setCustomOAuthEmail] = useState<string>("");
-  const [loadingOAuth, setLoadingOAuth] = useState<OAuthProvider | null>(null);
+  const [loadingOAuth, setLoadingOAuth] = useState<SocialProvider | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authMode, setAuthMode] = useState<"signin" | "signup">(initialMode);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const namePlaceholder = useLocalizedValue("Your name (e.g., Naren Kumar)");
+  const emailPlaceholder = useLocalizedValue("Enter your email address");
+  const passwordPlaceholder = useLocalizedValue(
+    authMode === "signup"
+      ? `Create password (min ${MIN_PASSWORD_LENGTH} characters)`
+      : "Enter your password",
+  );
+  const passwordToggleLabel = useLocalizedValue(showPassword ? "Hide password" : "Show password");
+  const nameFieldLabel = useLocalizedValue("Your name");
+  const emailFieldLabel = useLocalizedValue("Email address");
+  const passwordFieldLabel = useLocalizedValue("Password");
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const isNameValid = name.trim().length >= 2 && name.trim().length <= 80;
+  const isPasswordValid =
+    authMode === "signup"
+      ? password.length >= MIN_PASSWORD_LENGTH && password.length <= 72
+      : password.length > 0 && password.length <= 72;
+  const canSubmit =
+    isEmailValid && isPasswordValid && (authMode === "signin" || isNameValid) && !isSubmitting;
 
-  const handleBackToEntry = () => {
-    setStep("entry");
-    setEmail("");
-    setPassword("");
-    setName("");
-    setCustomOAuthEmail("");
-    setCustomOAuthName("");
-    setAuthError("");
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
+  const showError = (msg: string) => {
+    setAuthError(msg);
+    toast.error(<LocalizedText text={msg} />);
   };
 
-  // Listen for OAuth session on mount or return
-  useEffect(() => {
-    processIncomingAuthCallback().then((user) => {
-      if (user) {
-        onAuthComplete?.(user);
-        onSuccess?.(user);
-      }
-    });
-  }, [onAuthComplete, onSuccess]);
+  const finishSignIn = async () => {
+    const profile = await fetchSignedInProfile();
+    if (!profile) {
+      showError("Signed in, but your profile could not be loaded. Please try again.");
+      return;
+    }
+    toast.success(<LocalizedText text={`Welcome, ${profile.name}`} />);
+    onAuthComplete?.(profile);
+    onSuccess?.(profile);
+  };
 
   const handleTabSwitch = (newMode: "signin" | "signup") => {
     setAuthMode(newMode);
@@ -401,490 +370,370 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setIsSubmitting(false);
   };
 
-  useEffect(() => {
+  const handleSocialOAuth = async (provider: SocialProvider) => {
     setAuthError("");
-  }, [authMode]);
-
-  // Direct Social OAuth Login (Google, Microsoft, Apple)
-  const handleSocialOAuth = async (provider: OAuthProvider) => {
-    setAuthError("");
-    setSelectedProvider(provider);
     setLoadingOAuth(provider);
-
     try {
-      const result =
-        authMode === "signin"
-          ? await initiateOAuthLogin(provider)
-          : await initiateOAuthLogin(provider, undefined, "signup");
-      setLoadingOAuth(null);
-
-      if (result.success) {
-        if (result.user) {
-          saveStoredUser(result.user);
-          saveStoredProfile(result.user);
-          onAuthComplete?.(result.user);
-          onSuccess?.(result.user);
-          return;
-        }
-        if (result.redirecting) {
-          return;
-        }
+      const result = await signInWithProvider(provider);
+      if (!result.ok) {
+        showError(result.error || "Sign-in could not be started. Please try again.");
+        return;
       }
-
-      // Open interactive OAuth Account Chooser step
-      setStep("oauth_chooser");
-    } catch {
+      if (result.redirected) return;
+      await finishSignIn();
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Sign-in could not be started.");
+    } finally {
       setLoadingOAuth(null);
-      setStep("oauth_chooser");
-    }
-  };
-
-  const handleSelectOAuthAccount = (
-    accountEmail: string,
-    accountName: string,
-    provider: OAuthProvider = selectedProvider,
-  ) => {
-    setAuthError("");
-    const user = completeDirectOAuthLogin(provider, accountEmail, accountName, authMode);
-    if (user) {
-      saveStoredUser(user);
-      saveStoredProfile(user);
-      onAuthComplete?.(user);
-      onSuccess?.(user);
-    } else {
-      setAuthError("Account not found. Please click 'Create Account' tab to register.");
-    }
-  };
-
-  const handleCustomOAuthAccountSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    if (!customOAuthEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customOAuthEmail.trim())) {
-      setAuthError("Please enter a valid email address.");
-      return;
-    }
-    const derivedName = customOAuthName.trim() || customOAuthEmail.split("@")[0];
-    const user = completeDirectOAuthLogin(selectedProvider, customOAuthEmail.trim(), derivedName, authMode);
-    if (user) {
-      saveStoredUser(user);
-      saveStoredProfile(user);
-      onAuthComplete?.(user);
-      onSuccess?.(user);
-    } else {
-      setAuthError("Account not found. Please click 'Create Account' tab to register.");
     }
   };
 
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-
-    if (!isEmailValid) {
-      setAuthError("Please enter a valid email address.");
-      return;
-    }
-
-    if (!password) {
-      setAuthError("Please enter your password.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setAuthError("Password must be at least 6 characters long.");
-      return;
-    }
-
+    if (!canSubmit) return;
     setIsSubmitting(true);
     try {
-      const result =
-        authMode === "signin"
-          ? await signInWithEmailPassword(email.trim(), password)
-          : await signUpWithEmailPassword(email.trim(), password, name.trim() || undefined);
-
-      setIsSubmitting(false);
-
-      if (!result.success || !result.user) {
-        setAuthError(result.error || "Authentication failed. Please verify credentials.");
+      if (authMode === "signin") {
+        const result = await signInWithEmail(email, password);
+        if (!result.ok) return showError(result.error || "Wrong email or password.");
+        await finishSignIn();
         return;
       }
-
-      saveStoredUser(result.user);
-      saveStoredProfile(result.user);
-      onAuthComplete?.(result.user);
-      onSuccess?.(result.user);
+      const result = await signUpWithEmail(name, email, password);
+      if (!result.ok) return showError(result.error || "Could not create your account.");
+      if (result.needsConfirmation) {
+        setPassword("");
+        setResendCooldown(45);
+        setStep("check_email");
+        return;
+      }
+      await finishSignIn();
     } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : String(err));
+    } finally {
       setIsSubmitting(false);
-      const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(`Authentication error: ${msg}`);
     }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    setAuthError("");
+    setIsSubmitting(true);
+    try {
+      const result = await resendConfirmation(email);
+      if (!result.ok) return showError(result.error || "Could not resend the email.");
+      setResendCooldown(45);
+      toast.success(<LocalizedText text="Confirmation email sent again" />);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!isEmailValid) return showError("Please enter a valid email address.");
+    setIsSubmitting(true);
+    try {
+      const result = await sendPasswordReset(email);
+      if (!result.ok) return showError(result.error || "Could not send the reset email.");
+      setStep("reset_sent");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const backToEntry = () => {
+    setStep("entry");
+    setAuthError("");
   };
 
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative rounded-[28px] border border-white/15 bg-[#0B111E]/90 p-8 sm:p-9 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-white">
+      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-[#0B111E]/90 p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-foreground">
         {onClose && (
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white cursor-pointer"
+            aria-label="Close"
+            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-foreground cursor-pointer"
           >
             ✕
           </button>
         )}
 
-        {/* Top Emblem */}
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
-          <svg
-            className="h-7 w-7 text-cyan-300"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          >
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
+          <svg className="h-7 w-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <circle cx="12" cy="12" r="4" />
             <ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-30 12 12)" />
           </svg>
         </div>
 
-        {/* Operational error banner if any (never env-var setup notice) */}
         {authError && (
-          <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
-            <p>{authError}</p>
+          <div role="alert" className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+            <p>
+              <LocalizedText text={authError} />
+            </p>
           </div>
         )}
 
         {step === "entry" && (
           <>
-            {/* Mode Switcher: Sign In vs Create Account */}
             <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-900/90 p-1 border border-white/10">
-              <button
-                type="button"
-                onClick={() => handleTabSwitch("signin")}
-                className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
-                  authMode === "signin"
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTabSwitch("signup")}
-                className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
-                  authMode === "signup"
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Create Account
-              </button>
+              {(["signin", "signup"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => handleTabSwitch(mode)}
+                  className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
+                    authMode === mode
+                      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <LocalizedText text={mode === "signin" ? "Sign In" : "Create Account"} />
+                </button>
+              ))}
             </div>
 
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
-                {authMode === "signin" ? "Sign in to AgroSpace" : "Create Mission Account"}
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                <LocalizedText text={authMode === "signin" ? "Sign in to AgroSpace" : "Create your AgroSpace account"} />
               </h1>
-              <p className="mt-1 text-sm text-slate-400">
-                {authMode === "signin"
-                  ? "Select an account or enter credentials for clearance verification"
-                  : "Register a new operator profile for mission clearance"}
+              <p className="mt-1 text-sm text-muted-foreground">
+                <LocalizedText
+                  text={
+                    authMode === "signin"
+                      ? "Use the account you signed up with"
+                      : "Your farm profile and map settings are saved to your account"
+                  }
+                />
               </p>
             </div>
 
-            {/* Social OAuth Buttons - 1-Click Interactive Account Chooser */}
             <div className="space-y-2.5">
               <button
                 type="button"
                 disabled={loadingOAuth !== null}
-                onClick={() => handleSocialOAuth("Google")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
+                onClick={() => handleSocialOAuth("google")}
+                className={`${providerButtonClass} border-[#8E918F] bg-[#131314] text-[#E3E3E3] hover:brightness-125`}
               >
-                <svg className="absolute left-4 h-4 w-4" viewBox="0 0 24 24">
-                  <path
-                    fill="#EA4335"
-                    d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
-                  />
-                  <path
-                    fill="#4285F4"
-                    d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5L1.6 17c1.9 3.9 5.8 7 10.4 7z"
-                  />
-                </svg>
+                <svg aria-hidden="true" className="absolute left-4 h-[18px] w-[18px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
                 <span>
-                  {loadingOAuth === "Google" ? "Opening Account Chooser..." : "Continue with Google"}
+                  <LocalizedText text={loadingOAuth === "google" ? "Opening Google…" : "Continue with Google"} />
                 </span>
               </button>
 
               <button
                 type="button"
                 disabled={loadingOAuth !== null}
-                onClick={() => handleSocialOAuth("Microsoft")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
+                onClick={() => handleSocialOAuth("microsoft")}
+                className={`${providerButtonClass} border-white/12 bg-white/[0.06] text-foreground hover:border-cyan-400/40 hover:bg-white/[0.11]`}
               >
-                <svg className="absolute left-4 h-4 w-4" viewBox="0 0 23 23">
+                <svg aria-hidden="true" className="absolute left-4 h-4 w-4" viewBox="0 0 23 23">
                   <path fill="#f35325" d="M1 1h10v10H1z" />
                   <path fill="#81bc06" d="M12 1h10v10H12z" />
                   <path fill="#05a6f0" d="M1 12h10v10H1z" />
                   <path fill="#ffba08" d="M12 12h10v10H12z" />
                 </svg>
                 <span>
-                  {loadingOAuth === "Microsoft"
-                    ? "Opening Account Chooser..."
-                    : "Continue with Microsoft"}
+                  <LocalizedText text={loadingOAuth === "microsoft" ? "Opening Microsoft…" : "Continue with Microsoft"} />
                 </span>
               </button>
 
               <button
                 type="button"
                 disabled={loadingOAuth !== null}
-                onClick={() => handleSocialOAuth("Apple")}
-                className="relative flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14px] font-medium text-white transition hover:border-cyan-400/40 hover:bg-white/[0.11] disabled:opacity-50 cursor-pointer"
+                onClick={() => handleSocialOAuth("lovable")}
+                className={`${providerButtonClass} border-white/12 bg-white/[0.06] text-foreground hover:border-cyan-400/40 hover:bg-white/[0.11]`}
               >
-                <svg className="absolute left-4 h-4 w-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-                </svg>
+                <LovableMark className="absolute left-4 h-[18px] w-[18px]" />
                 <span>
-                  {loadingOAuth === "Apple" ? "Opening Account Chooser..." : "Continue with Apple"}
+                  {loadingOAuth === "lovable" ? "Opening Lovable…" : "Continue with Lovable"}
                 </span>
               </button>
             </div>
 
             <div className="my-5 flex items-center gap-4">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-medium text-slate-400">Or</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                <LocalizedText text="Or" />
+              </span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            {/* Email + Password Form */}
             <form onSubmit={handleEmailPasswordSubmit} className="space-y-3">
               {authMode === "signup" && (
-                <div>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Profile Name (optional, e.g., Commander Naren)"
-                    className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
-                  />
-                </div>
+                <input
+                  type="text"
+                  required
+                  minLength={2}
+                  maxLength={80}
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  aria-label={nameFieldLabel}
+                  placeholder={namePlaceholder}
+                  className={inputClass}
+                />
               )}
 
-              <div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email address (e.g. name@gmail.com)"
-                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
-                />
-              </div>
+              <input
+                type="email"
+                required
+                maxLength={254}
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                aria-label={emailFieldLabel}
+                placeholder={emailPlaceholder}
+                className={inputClass}
+              />
 
               <div className="relative flex items-center">
                 <input
                   type={showPassword ? "text" : "password"}
                   required
-                  minLength={6}
+                  minLength={authMode === "signup" ? MIN_PASSWORD_LENGTH : 1}
+                  maxLength={72}
+                  autoComplete={authMode === "signup" ? "new-password" : "current-password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={
-                    authMode === "signup"
-                      ? "Create password (min 6 characters)"
-                      : "Enter your password"
-                  }
-                  className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 pr-11 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-sans"
+                  aria-label={passwordFieldLabel}
+                  placeholder={passwordPlaceholder}
+                  className={`${inputClass} pr-11`}
                 />
                 <button
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 p-1 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
-                  title={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 p-1 text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
+                  title={passwordToggleLabel}
+                  aria-label={passwordToggleLabel}
                 >
-                  {showPassword ? (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"
-                      />
-                    </svg>
-                  ) : (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                      />
-                    </svg>
-                  )}
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    {showPassword ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    )}
+                  </svg>
                 </button>
               </div>
 
-              <button
-                type="submit"
-                disabled={!isEmailValid || !password || password.length < 6 || isSubmitting}
-                className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
-                  isEmailValid && password.length >= 6 && !isSubmitting
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
-                    : "cursor-not-allowed bg-white/15 text-slate-400"
-                }`}
-              >
-                {isSubmitting
-                  ? "Authenticating..."
-                  : authMode === "signin"
-                    ? "Sign In to Orbit"
-                    : "Create Account & Enter Orbit"}
+              {authMode === "signin" && (
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthError("");
+                      setStep("forgot");
+                    }}
+                    className="text-xs font-medium text-cyan-300 hover:underline cursor-pointer"
+                  >
+                    <LocalizedText text="Forgot password?" />
+                  </button>
+                </div>
+              )}
+
+              <button type="submit" disabled={!canSubmit} className={primaryButtonClass(canSubmit)}>
+                <LocalizedText
+                  text={
+                    isSubmitting
+                      ? "Please wait…"
+                      : authMode === "signin"
+                        ? "Sign In"
+                        : "Create Account"
+                  }
+                />
               </button>
             </form>
           </>
         )}
 
-        {/* STEP 2: INTERACTIVE OAUTH ACCOUNT CHOOSER (Google, Microsoft, Apple) */}
-        {step === "oauth_chooser" && (
-          <div className="animate-in fade-in zoom-in-95 duration-200">
-            {/* Back button */}
-            <button
-              type="button"
-              onClick={handleBackToEntry}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white mb-4 cursor-pointer transition-colors"
-            >
-              ← Back to sign-in options
-            </button>
-
-            {/* Provider Header */}
-            <div className="text-center mb-5">
-              <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-inner">
-                {selectedProvider === "Google" && (
-                  <svg className="h-6 w-6" viewBox="0 0 24 24">
-                    <path
-                      fill="#EA4335"
-                      d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5L1.6 17c1.9 3.9 5.8 7 10.4 7z"
-                    />
-                  </svg>
-                )}
-                {selectedProvider === "Microsoft" && (
-                  <svg className="h-6 w-6" viewBox="0 0 23 23">
-                    <path fill="#f35325" d="M1 1h10v10H1z" />
-                    <path fill="#81bc06" d="M12 1h10v10H12z" />
-                    <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                    <path fill="#ffba08" d="M12 12h10v10H12z" />
-                  </svg>
-                )}
-                {selectedProvider === "Apple" && (
-                  <svg className="h-6 w-6 fill-current text-white" viewBox="0 0 24 24">
-                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-                  </svg>
-                )}
-              </div>
-              <h2 className="text-xl font-semibold text-white">Choose an account</h2>
-              <p className="mt-1 text-xs text-slate-400">
-                to continue to AgroSpace Nexus via {selectedProvider}
-              </p>
-            </div>
-
-            {/* Custom account input form */}
-            <form onSubmit={handleCustomOAuthAccountSubmit} className="space-y-2.5 mb-4">
-              <input
-                type="text"
-                value={customOAuthName}
-                onChange={(e) => setCustomOAuthName(e.target.value)}
-                placeholder="Full Name (optional, e.g. Commander Naren)"
-                className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
-              />
-              <input
-                type="email"
-                required
-                value={customOAuthEmail}
-                onChange={(e) => setCustomOAuthEmail(e.target.value)}
-                placeholder={
-                  selectedProvider === "Google"
-                    ? "Enter your Gmail address (e.g. name@gmail.com)"
-                    : `Enter your ${selectedProvider} email address`
-                }
-                className="w-full rounded-xl border border-cyan-400/30 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none font-mono"
-              />
+        {step === "check_email" && (
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-foreground">
+              <LocalizedText text="Check your email" />
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              <LocalizedText text="We sent a confirmation link to" />{" "}
+              <span className="font-mono text-cyan-300 break-all">{email.trim()}</span>.{" "}
+              <LocalizedText text="Open it to finish creating your account, then sign in." />
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
               <button
-                type="submit"
-                disabled={!customOAuthEmail.trim()}
-                className="w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.3)] transition hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                type="button"
+                onClick={handleResend}
+                disabled={resendCooldown > 0 || isSubmitting}
+                className="min-h-11 rounded-xl border border-white/12 text-sm font-medium text-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                Continue to Orbit with {selectedProvider}
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : <LocalizedText text="Resend email" />}
               </button>
-            </form>
-
-            {/* Divider: Quick select demo profiles */}
-            <div className="relative my-3 text-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
-              </div>
-              <span className="relative bg-[#0B111E] px-3 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-                Or select demo {selectedProvider} account
-              </span>
-            </div>
-
-            {/* Quick-select account cards */}
-            <div className="space-y-2 mb-2">
-              {OAUTH_ACCOUNTS[selectedProvider].map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => handleSelectOAuthAccount(acc.email, acc.name, selectedProvider)}
-                  className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-cyan-400/40 transition-all cursor-pointer group text-left"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`h-9 w-9 rounded-full bg-gradient-to-br ${acc.avatarBg} flex items-center justify-center font-bold text-sm text-white shrink-0 shadow`}
-                    >
-                      {acc.avatarInitial}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-white group-hover:text-cyan-300 transition-colors truncate">
-                        {acc.name}
-                      </div>
-                      <div className="text-xs text-slate-400 font-mono truncate">{acc.email}</div>
-                    </div>
-                  </div>
-                  <span className="text-[9.5px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300 shrink-0 ml-2">
-                    {acc.role}
-                  </span>
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  handleTabSwitch("signin");
+                  backToEntry();
+                }}
+                className="min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <LocalizedText text="Back to sign in" />
+              </button>
             </div>
           </div>
         )}
 
-        <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-400">
-          By continuing, you agree to our <span className="underline">Terms of Service</span> and{" "}
-          <span className="underline">Privacy Policy</span>.
+        {step === "forgot" && (
+          <form onSubmit={handleForgotSubmit} className="space-y-4">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-foreground">
+                <LocalizedText text="Reset your password" />
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                <LocalizedText text="Enter your email and we'll send you a link to choose a new password." />
+              </p>
+            </div>
+            <input
+              type="email"
+              required
+              maxLength={254}
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-label={emailFieldLabel}
+              placeholder={emailPlaceholder}
+              className={inputClass}
+            />
+            <button type="submit" disabled={!isEmailValid || isSubmitting} className={primaryButtonClass(isEmailValid && !isSubmitting)}>
+              <LocalizedText text={isSubmitting ? "Sending…" : "Send reset link"} />
+            </button>
+            <button type="button" onClick={backToEntry} className="w-full min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
+              <LocalizedText text="Back to sign in" />
+            </button>
+          </form>
+        )}
+
+        {step === "reset_sent" && (
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-foreground">
+              <LocalizedText text="Check your email" />
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              <LocalizedText text="If an account exists for" />{" "}
+              <span className="font-mono text-cyan-300 break-all">{email.trim()}</span>,{" "}
+              <LocalizedText text="you'll get a link to choose a new password." />
+            </p>
+            <button type="button" onClick={backToEntry} className="mt-5 w-full min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
+              <LocalizedText text="Back to sign in" />
+            </button>
+          </div>
+        )}
+
+        <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
+          <LocalizedText text="By continuing, you agree to our Terms of Service and Privacy Policy." />
         </p>
       </div>
     </CosmicParallaxBg>
@@ -939,7 +788,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
         className="flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-slate-950/80 h-8 px-2 text-left backdrop-blur-xl transition hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] cursor-pointer shrink-0"
       >
         <div
-          className="relative flex h-6 w-6 items-center justify-center rounded-full font-mono text-[10px] font-bold text-slate-950 shadow-inner shrink-0"
+          className="relative flex h-6 w-6 items-center justify-center rounded-full font-mono text-xs font-bold text-muted-foreground shadow-inner shrink-0"
           style={{ backgroundColor: user.avatarColor || "#06B6D4" }}
         >
           {initials}
@@ -947,8 +796,8 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
         </div>
         <div className="hidden 2xl:block max-w-[100px] truncate">
           <div className="flex items-center gap-1">
-            <span className="text-xs font-semibold text-white truncate">{user.name}</span>
-            <span className="rounded bg-cyan-500/20 px-1 py-0.2 text-[8px] font-mono uppercase text-cyan-300 shrink-0">
+            <span className="text-xs font-semibold text-foreground truncate">{user.name}</span>
+            <span className="rounded-md bg-cyan-500/20 px-1 py-0.2 text-xs font-mono uppercase text-cyan-300 shrink-0">
               {user.provider}
             </span>
           </div>
@@ -957,16 +806,16 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
 
       {/* Quick Account Dropdown Menu */}
       {menuOpen && (
-        <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-cyan-500/25 bg-slate-950/95 p-4 text-slate-100 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)]">
+        <div className="absolute right-0 mt-2 w-72 rounded-xl border border-cyan-500/25 bg-slate-950/95 p-4 text-foreground backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)]">
           <div className="border-b border-white/10 pb-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">{user.name}</p>
-              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
-                ✓ VERIFIED
+              <p className="text-sm font-semibold text-foreground">{user.name}</p>
+              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-mono text-emerald-400">
+                {<LocalizedText text={"✓ VERIFIED"} />}
               </span>
             </div>
-            <p className="mt-0.5 text-xs font-mono text-slate-400 truncate">{user.email}</p>
-            <p className="mt-1 text-[11px] text-cyan-400">{user.role}</p>
+            <p className="mt-0.5 text-xs font-mono text-muted-foreground truncate">{user.email}</p>
+            <p className="mt-1 text-xs text-cyan-300">{user.role}</p>
           </div>
 
           <div className="py-2 space-y-1 text-xs">
@@ -976,10 +825,10 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                 setMenuOpen(false);
                 setSettingsOpen(true);
               }}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-slate-200 hover:bg-white/10 cursor-pointer"
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-foreground hover:bg-white/10 cursor-pointer"
             >
-              <span>⚙️ Account & Profile Settings</span>
-              <span className="text-slate-400">→</span>
+              <span>{<LocalizedText text={"⚙️ Account & Profile Settings"} />}</span>
+              <span className="text-muted-foreground">→</span>
             </button>
             <div
               onClick={() => {
@@ -988,16 +837,18 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                   setMenuOpen(false);
                 }
               }}
-              className="rounded-xl bg-slate-900/80 px-3 py-2 text-[11px] text-slate-400 cursor-pointer hover:bg-slate-900"
+              className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-muted-foreground cursor-pointer hover:bg-slate-900"
             >
-              <div className="font-mono uppercase text-[10px] text-slate-500 flex items-center justify-between">
-                <span>Home Base</span>
-                <span className="text-[9px] text-cyan-400">Lock</span>
+              <div className="font-mono uppercase text-xs text-muted-foreground flex items-center justify-between">
+                <span>{<LocalizedText text={"Home Base"} />}</span>
+                <span className="text-xs text-cyan-300">{<LocalizedText text={"Lock"} />}</span>
               </div>
-              <div className="text-slate-200 truncate">{user.homeLocation}</div>
+              <div className="text-foreground truncate">{user.homeLocation}</div>
             </div>
-            <div className="flex items-center justify-between rounded-xl bg-slate-900/80 px-3 py-2 text-[11px]">
-              <span className="text-slate-400">Default View / Layer</span>
+            <div className="flex items-center justify-between rounded-xl bg-slate-900/80 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">
+                {<LocalizedText text={"Default View / Layer"} />}
+              </span>
               <span className="font-mono text-cyan-300">
                 {user.defaultView} • {user.defaultLayer}
               </span>
@@ -1011,9 +862,9 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
               saveStoredUser(null);
               onLogout();
             }}
-            className="mt-2 w-full rounded-xl border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 cursor-pointer"
+            className="mt-2 w-full rounded-xl border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/20 cursor-pointer"
           >
-            Sign Out of Mission Control
+            {<LocalizedText text={"Sign Out of Mission Control"} />}
           </button>
         </div>
       )}
@@ -1021,18 +872,26 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
       {/* Full Account & Profile Settings Modal */}
       {settingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl border border-cyan-500/30 bg-[#0B111E] p-6 sm:p-8 text-white shadow-[0_0_60px_rgba(6,182,212,0.2)]">
+          <div className="w-full max-w-lg rounded-xl border border-cyan-500/30 bg-[#0B111E] p-6 sm:p-8 text-foreground shadow-[0_0_60px_rgba(6,182,212,0.2)]">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
-                <h3 className="text-lg font-semibold text-white">Operator Account & Settings</h3>
-                <p className="text-xs text-slate-400">
-                  Manage your profile name, verified Gmail, and default NASA telemetry settings
+                <h3 className="text-lg font-semibold text-foreground">
+                  {<LocalizedText text={"Operator Account & Settings"} />}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {
+                    <LocalizedText
+                      text={
+                        "Manage your profile name, verified Gmail, and default NASA telemetry settings"
+                      }
+                    />
+                  }
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(false)}
-                className="rounded-full p-1.5 text-slate-400 hover:bg-white/10 hover:text-white cursor-pointer"
+                className="rounded-full p-1.5 text-muted-foreground hover:bg-white/10 hover:text-foreground cursor-pointer"
               >
                 ✕
               </button>
@@ -1041,63 +900,64 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
             <form onSubmit={handleSaveSettings} className="mt-5 space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-mono uppercase text-slate-400 mb-1">
-                    Profile Name
+                  <label className="block font-mono uppercase text-muted-foreground mb-1">
+                    {<LocalizedText text={"Profile Name"} />}
                   </label>
                   <input
                     type="text"
                     required
                     value={formState.name}
                     onChange={(e) => setFormState({ ...formState, name: e.target.value })}
-                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block font-mono uppercase text-slate-400 mb-1">
-                    Mission Role / Title
+                  <label className="block font-mono uppercase text-muted-foreground mb-1">
+                    {<LocalizedText text={"Mission Role / Title"} />}
                   </label>
                   <input
                     type="text"
                     value={formState.role}
                     onChange={(e) => setFormState({ ...formState, role: e.target.value })}
-                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-mono uppercase text-slate-400 mb-1">
-                  Verified Gmail / Account Email ({formState.provider})
+                <label className="block font-mono uppercase text-muted-foreground mb-1">
+                  {<LocalizedText text={"Verified Gmail / Account Email ("} />}
+                  {formState.provider})
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="email"
                     disabled
                     value={formState.email}
-                    className="w-full rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-slate-400"
+                    className="w-full rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-muted-foreground"
                   />
-                  <span className="shrink-0 rounded-xl bg-emerald-500/20 px-3 py-2 font-mono text-[11px] text-emerald-300">
-                    ✓ Verified
+                  <span className="shrink-0 rounded-xl bg-emerald-500/20 px-3 py-2 font-mono text-xs text-emerald-400">
+                    {<LocalizedText text={"✓ Verified"} />}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block font-mono uppercase text-slate-400 mb-1">
-                  Default Home Base Coordinates
+                <label className="block font-mono uppercase text-muted-foreground mb-1">
+                  {<LocalizedText text={"Default Home Base Coordinates"} />}
                 </label>
                 <input
                   type="text"
                   value={formState.homeLocation}
                   onChange={(e) => setFormState({ ...formState, homeLocation: e.target.value })}
-                  className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                  className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-mono uppercase text-slate-400 mb-1">
-                    Default Globe Mode
+                  <label className="block font-mono uppercase text-muted-foreground mb-1">
+                    {<LocalizedText text={"Default Globe Mode"} />}
                   </label>
                   <select
                     value={formState.defaultView}
@@ -1107,39 +967,49 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                         defaultView: e.target.value as "3D" | "2D",
                       })
                     }
-                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground"
                   >
-                    <option value="3D">3D Orbital Globe</option>
-                    <option value="2D">2D Satellite Map</option>
+                    <option value="3D">{<LocalizedText text={"3D Orbital Globe"} />}</option>
+                    <option value="2D">{<LocalizedText text={"2D Satellite Map"} />}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-mono uppercase text-slate-400 mb-1">
-                    Default NASA Layer
+                  <label className="block font-mono uppercase text-muted-foreground mb-1">
+                    {<LocalizedText text={"Default NASA Layer"} />}
                   </label>
                   <select
                     value={formState.defaultLayer}
                     onChange={(e) => setFormState({ ...formState, defaultLayer: e.target.value })}
-                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-foreground"
                   >
-                    <option value="NDVI">NDVI Vegetation</option>
-                    <option value="EVI">EVI Canopy</option>
-                    <option value="LAI">LAI Leaf Index</option>
-                    <option value="ECOSTRESS ESI">ECOSTRESS ESI</option>
-                    <option value="SMAP Moisture">SMAP Soil Moisture</option>
-                    <option value="GPM Rain">GPM Precipitation</option>
-                    <option value="FIRMS Fires">FIRMS Thermal Fires</option>
-                    <option value="Smoke AOD">Smoke AOD</option>
+                    <option value="NDVI">{<LocalizedText text={"NDVI Vegetation"} />}</option>
+                    <option value="EVI">{<LocalizedText text={"EVI Canopy"} />}</option>
+                    <option value="LAI">{<LocalizedText text={"LAI Leaf Index"} />}</option>
+                    <option value="ECOSTRESS ESI">
+                      {<LocalizedText text={"ECOSTRESS ESI"} />}
+                    </option>
+                    <option value="SMAP Moisture">
+                      {<LocalizedText text={"SMAP Soil Moisture"} />}
+                    </option>
+                    <option value="GPM Rain">{<LocalizedText text={"GPM Precipitation"} />}</option>
+                    <option value="FIRMS Fires">
+                      {<LocalizedText text={"FIRMS Thermal Fires"} />}
+                    </option>
+                    <option value="Smoke AOD">{<LocalizedText text={"Smoke AOD"} />}</option>
                   </select>
                 </div>
               </div>
 
               <div className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/60 p-3">
                 <div>
-                  <div className="font-semibold text-white">Gmail Hazard & Drought Alerts</div>
-                  <div className="text-[11px] text-slate-400">
-                    Send alerts to {formState.email} when Cyclone or Drought thresholds trigger
+                  <div className="font-semibold text-foreground">
+                    {<LocalizedText text={"Gmail Hazard & Drought Alerts"} />}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {<LocalizedText text={"Send alerts to "} />}
+                    {formState.email}{" "}
+                    {<LocalizedText text={" when Cyclone or Drought thresholds trigger"} />}
                   </div>
                 </div>
                 <input
@@ -1154,15 +1024,15 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
                 <button
                   type="button"
                   onClick={() => setSettingsOpen(false)}
-                  className="rounded-xl border border-white/15 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 cursor-pointer"
+                  className="rounded-xl border border-white/15 px-4 py-2 text-xs font-semibold text-foreground hover:bg-white/10 cursor-pointer"
                 >
-                  Cancel
+                  {<LocalizedText text={"Cancel"} />}
                 </button>
                 <button
                   type="submit"
                   className="rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 text-xs font-semibold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.35)] cursor-pointer"
                 >
-                  Save Account Changes
+                  {<LocalizedText text={"Save Account Changes"} />}
                 </button>
               </div>
             </form>

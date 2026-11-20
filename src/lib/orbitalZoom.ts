@@ -12,47 +12,46 @@ export const GLOBE_FLY_TO_MIN_ZOOM = 11;
 export const GLOBE_ZOOM_DURATION_MS = 300;
 /** Cinematic fly-to length in milliseconds for location picks. */
 export const GLOBE_FLY_DURATION_MS = 2200;
-/** 1.0 km altitude threshold for automatic 2D flat map projection. */
-export const ALTITUDE_TRANSITION_KM = 1.0;
-/**
- * Zooming in to 1 km altitude (altitudeKmForZoom(15) = 1 km, or zoom >= 15)
- * smoothly morphs the 3D spherical globe into a flat 2D Mercator map.
- */
-export const GLOBE_FLAT_ZOOM = 15;
-/**
- * Zooming back out above 1 km altitude (e.g. into regional/continental view, zoom < 13.5, alt > 2 km)
- * smoothly restores the 3D spherical globe (hysteresis prevents flicker).
- */
-export const GLOBE_SPHERE_ZOOM = 13.5;
+/** Camera altitude (km) at which the sphere has fully flattened into a 2D field map. */
+export const GLOBE_FLAT_ALTITUDE_KM = 1;
+/** Zoom where the exact altitude 35000 / 2^zoom equals GLOBE_FLAT_ALTITUDE_KM (≈ 15.1). */
+export const GLOBE_FLAT_ZOOM = Math.log2(35000 / GLOBE_FLAT_ALTITUDE_KM);
+/** The morph from sphere to flat map starts this many zoom levels above the 1 km line (~1.5 km). */
+export const GLOBE_MORPH_SPAN = 0.6;
+export const GLOBE_MORPH_START_ZOOM = GLOBE_FLAT_ZOOM - GLOBE_MORPH_SPAN;
 
-export type GlobeProjectionId = "globe" | "mercator";
+/** globe = 3D sphere, morph = blending between the two, flat = 2D mercator field map. */
+export type GlobeProjectionMode = "globe" | "morph" | "flat";
 
-/**
- * Altitude-triggered auto-transition:
- * - When altitude <= 1.0 km (or zoom >= GLOBE_FLAT_ZOOM), switches from 3D globe to flat 2D mercator projection.
- * - When zooming back out past 1.0 km (altitude > 1.0 km and zoom < GLOBE_SPHERE_ZOOM), switches back to 3D globe.
- * - Keeps current projection in the hysteresis band so the view does not flicker or stutter.
- */
-export function projectionForZoom(zoom: number, current: GlobeProjectionId): GlobeProjectionId {
-  const alt = altitudeKmForZoom(zoom);
-  if (current === "globe" && (alt <= ALTITUDE_TRANSITION_KM || zoom >= GLOBE_FLAT_ZOOM)) {
-    return "mercator";
-  }
-  if (current === "mercator" && (alt > ALTITUDE_TRANSITION_KM && zoom < GLOBE_SPHERE_ZOOM)) {
-    return "globe";
-  }
-  return current;
+/** Projection mode for a zoom level; zooming back out reverses it at the same lines. */
+export function projectionModeForZoom(zoom: number): GlobeProjectionMode {
+  if (zoom >= GLOBE_FLAT_ZOOM) return "flat";
+  if (zoom > GLOBE_MORPH_START_ZOOM) return "morph";
+  return "globe";
 }
 
-/** Direct altitude-based projection check for camera altitude in km. */
-export function projectionForAltitude(altitudeKm: number, current: GlobeProjectionId): GlobeProjectionId {
-  if (current === "globe" && altitudeKm <= ALTITUDE_TRANSITION_KM) {
-    return "mercator";
-  }
-  if (current === "mercator" && altitudeKm > ALTITUDE_TRANSITION_KM) {
-    return "globe";
-  }
-  return current;
+/** 0 = fully spherical, 1 = fully flat. */
+export function flatnessForZoom(zoom: number): number {
+  if (zoom >= GLOBE_FLAT_ZOOM) return 1;
+  const t = (zoom - GLOBE_MORPH_START_ZOOM) / GLOBE_MORPH_SPAN;
+  return Math.min(1, Math.max(0, t));
+}
+
+/**
+ * MapLibre projection that morphs continuously with zoom: spherical globe above
+ * ~1.5 km, flat mercator at ≤ 1 km. Being a zoom expression, MapLibre blends every
+ * frame, so there is no snap, reload, or flicker in either direction.
+ */
+export function globeProjectionExpression() {
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    GLOBE_MORPH_START_ZOOM,
+    "vertical-perspective",
+    GLOBE_FLAT_ZOOM,
+    "mercator",
+  ] as const;
 }
 
 /** Ease-in-out cubic: starts gently, cruises, and decelerates onto the target. */
@@ -68,6 +67,14 @@ export function clampGlobeZoom(zoom: number): number {
 /** Approximate camera altitude in km for a web-mercator zoom level. */
 export function altitudeKmForZoom(zoom: number): number {
   return Math.round(35000 / Math.pow(2, zoom));
+}
+
+/** HUD altitude text: whole km from orbit, metres once below 10 km so field level never reads "0 km". */
+export function formatAltitude(zoom: number): string {
+  const km = 35000 / Math.pow(2, zoom);
+  if (km >= 10) return `${altitudeKmForZoom(zoom).toLocaleString("en-US")} km`;
+  if (km >= 1) return `${km.toFixed(1)} km`;
+  return `${Math.round(km * 1000).toLocaleString("en-US")} m`;
 }
 
 export type OrbitalStageId = "orbital" | "continental" | "regional" | "field";

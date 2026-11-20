@@ -12,15 +12,26 @@ const srcRel = candidates.find((dir) => fs.existsSync(path.resolve(cwd, dir, "in
 const dest = path.resolve(cwd, "dist");
 
 if (srcRel) {
-  const src = path.resolve(cwd, srcRel);
-  // Stage outside dist/ first: the source may itself live inside dist/.
-  const staging = fs.mkdtempSync(path.join(os.tmpdir(), "agrospace-dist-"));
-  fs.cpSync(src, staging, { recursive: true });
+  try {
+    const src = path.resolve(cwd, srcRel);
+    if (src !== dest) {
+      // Stage outside dist/ first: the source may itself live inside dist/.
+      const staging = fs.mkdtempSync(path.join(os.tmpdir(), "agrospace-dist-"));
+      fs.cpSync(src, staging, { recursive: true });
 
-  fs.rmSync(dest, { recursive: true, force: true });
-  fs.cpSync(staging, dest, { recursive: true });
-  fs.rmSync(staging, { recursive: true, force: true });
-  console.log(`[copy-to-dist] Copied ${srcRel} -> dist (${fs.readdirSync(dest).length} entries)`);
+      fs.rmSync(dest, { recursive: true, force: true });
+      fs.cpSync(staging, dest, { recursive: true });
+      fs.rmSync(staging, { recursive: true, force: true });
+      console.log(`[copy-to-dist] Copied ${srcRel} -> dist (${fs.readdirSync(dest).length} entries)`);
+    }
+  } catch (copyErr) {
+    console.warn(`[copy-to-dist] Warning: Failed copying from ${srcRel}: ${copyErr.message}`);
+    if (fs.existsSync(path.join(dest, "index.html"))) {
+      console.log(`[copy-to-dist] Falling back to pre-built dist (${fs.readdirSync(dest).length} entries)`);
+    } else {
+      throw copyErr;
+    }
+  }
 } else if (fs.existsSync(path.join(dest, "index.html"))) {
   console.log(`[copy-to-dist] Using committed pre-built dist (${fs.readdirSync(dest).length} entries)`);
 } else {

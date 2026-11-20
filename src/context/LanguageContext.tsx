@@ -1,19 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 
 export type LanguageCode =
-  | "en"
-  | "kn"
-  | "hi"
-  | "ta"
-  | "te"
-  | "ko"
-  | "ja"
-  | "es"
-  | "fr"
-  | "ar"
-  | "ru"
-  | "zh"
-  | "de";
+  "en" | "kn" | "hi" | "ta" | "te" | "ko" | "ja" | "es" | "fr" | "ar" | "ru" | "zh" | "de";
 
 export interface LanguageInfo {
   code: LanguageCode;
@@ -896,6 +884,25 @@ const LanguageContext = createContext<LanguageContextType | null>(null);
 
 const STORAGE_LANG_KEY = "agrospace_language";
 const TRANSLATION_CACHE_KEY = "agrospace_translation_cache_v1";
+const translationRequests = new Map<string, Promise<string>>();
+const LOCALIZED_ATTRIBUTES = [
+  "title",
+  "aria-label",
+  "aria-description",
+  "aria-roledescription",
+  "aria-placeholder",
+  "aria-valuetext",
+  "alt",
+  "placeholder",
+] as const;
+
+function humanizeKey(key: string) {
+  const readable = key
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return readable ? readable.charAt(0).toLocaleUpperCase() + readable.slice(1) : "—";
+}
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<LanguageCode>("en");
@@ -904,11 +911,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Load saved language on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(STORAGE_LANG_KEY) as LanguageCode | null;
-      if (saved && SUPPORTED_LANGUAGES.some((l) => l.code === saved)) {
-        setLanguageState(saved);
-      }
       try {
+        const saved = localStorage.getItem(STORAGE_LANG_KEY) as LanguageCode | null;
+        if (saved && SUPPORTED_LANGUAGES.some((l) => l.code === saved)) {
+          setLanguageState(saved);
+        }
         const cached = localStorage.getItem(TRANSLATION_CACHE_KEY);
         if (cached) {
           const parsed = JSON.parse(cached);
@@ -925,7 +932,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const setLanguage = useCallback((newLang: LanguageCode) => {
     setLanguageState(newLang);
     if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_LANG_KEY, newLang);
+      try {
+        localStorage.setItem(STORAGE_LANG_KEY, newLang);
+      } catch {
+        // Language changes still apply when storage is unavailable.
+      }
       document.documentElement.lang = newLang;
       document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
     }
@@ -942,19 +953,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Synchronous dictionary lookup
   const t = useCallback(
     (key: string, fallback?: string): string => {
-      const entry = NATIVE_DICTIONARY[key];
+      const normalizedKey = key.trim().toLocaleLowerCase();
+      const englishEntry = Object.values(NATIVE_DICTIONARY).find(
+        (candidate) => candidate.en?.trim().toLocaleLowerCase() === normalizedKey,
+      );
+      const entry = NATIVE_DICTIONARY[key] ?? englishEntry;
       if (entry && entry[language]) {
         return entry[language]!;
-      }
-      if (entry && entry.en) {
-        return entry.en;
       }
       // Check if the key itself has a cached online translation
       const cacheKey = `${language}:${key}`;
       if (cacheRef.current.has(cacheKey)) {
         return cacheRef.current.get(cacheKey)!;
       }
-      return fallback !== undefined ? fallback : key;
+      return fallback ?? entry?.en ?? humanizeKey(key);
     },
     [language],
   );
@@ -979,37 +991,120 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         return cacheRef.current.get(cacheKey)!;
       }
 
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const pending = translationRequests.get(cacheKey);
+      if (pending) return pending;
 
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${dest}&dt=t&q=${encodeURIComponent(text.trim())}`;
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
+      const request = (async () => {
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 3500);
 
-        if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json) && Array.isArray(json[0])) {
-            const translated = json[0].map((item: unknown[]) => item[0]).join("");
-            if (translated) {
-              cacheRef.current.set(cacheKey, translated);
-              try {
-                const cacheObj = Object.fromEntries(cacheRef.current);
-                localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cacheObj));
-              } catch {
-                // storage quota exceeded, ignore
+          const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${dest}&dt=t&q=${encodeURIComponent(text.trim())}`;
+          const res = await fetch(url, { signal: controller.signal });
+
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json) && Array.isArray(json[0])) {
+              const translated = json[0].map((item: unknown[]) => item[0]).join("");
+              if (translated) {
+                cacheRef.current.set(cacheKey, translated);
+                try {
+                  const cacheObj = Object.fromEntries(cacheRef.current);
+                  localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cacheObj));
+                } catch {
+                  // Storage quota exceeded or disabled; keep the in-memory value.
+                }
+                return translated;
               }
-              return translated;
             }
           }
+        } catch {
+          // Fall back to the original on network or storage errors.
+        } finally {
+          if (timeoutId) clearTimeout(timeoutId);
         }
-      } catch {
-        // Fall back to original on network error
+        return text;
+      })();
+
+      translationRequests.set(cacheKey, request);
+      try {
+        return await request;
+      } finally {
+        translationRequests.delete(cacheKey);
       }
-      return text;
     },
     [language],
   );
+
+  // Translate labels and descriptions on native elements as well as JSX text.
+  // Source/output markers let React keep updating dynamic labels while this
+  // observer handles title, placeholder, alt, and accessibility attributes.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let active = true;
+    const processElement = (element: Element) => {
+      for (const attribute of LOCALIZED_ATTRIBUTES) {
+        const sourceAttribute = `data-i18n-source-${attribute}`;
+        const outputAttribute = `data-i18n-output-${attribute}`;
+        const languageAttribute = `data-i18n-language-${attribute}`;
+        const current = element.getAttribute(attribute);
+        if (current === null || !current.trim()) continue;
+
+        const source = element.getAttribute(sourceAttribute);
+        const output = element.getAttribute(outputAttribute);
+        const currentLanguage = element.getAttribute(languageAttribute);
+        const text = source && current === output ? source : current;
+        if (source !== text) element.setAttribute(sourceAttribute, text);
+
+        if (language === "en") {
+          element.setAttribute(outputAttribute, text);
+          element.setAttribute(languageAttribute, language);
+          if (current !== text) element.setAttribute(attribute, text);
+          continue;
+        }
+        if (source && current === output && currentLanguage === language) continue;
+
+        void translateAsync(text, language).then((translated) => {
+          if (!active || !element.isConnected || element.getAttribute(sourceAttribute) !== text)
+            return;
+          element.setAttribute(outputAttribute, translated);
+          element.setAttribute(languageAttribute, language);
+          element.setAttribute(attribute, translated);
+        });
+      }
+    };
+    const processTree = (root: ParentNode) => {
+      if (root instanceof Element) processElement(root);
+      root
+        .querySelectorAll?.(LOCALIZED_ATTRIBUTES.map((attribute) => `[${attribute}]`).join(","))
+        .forEach(processElement);
+    };
+
+    processTree(document.body);
+    const observer = new MutationObserver((records) => {
+      for (const record of records) {
+        if (record.type === "attributes" && record.target instanceof Element) {
+          processElement(record.target);
+        } else if (record.type === "childList") {
+          record.addedNodes.forEach((node) => {
+            if (node instanceof Element) processTree(node);
+          });
+        }
+      }
+    });
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: [...LOCALIZED_ATTRIBUTES],
+    });
+
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [language, translateAsync]);
 
   return (
     <LanguageContext.Provider
@@ -1027,17 +1122,19 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const FALLBACK_LANGUAGE_CONTEXT = {
+  language: "en" as LanguageCode,
+  setLanguage: () => {},
+  t: (key: string, fallback?: string) => fallback ?? key,
+  translateAsync: async (text: string) => text,
+  isRtl: false,
+  languages: SUPPORTED_LANGUAGES,
+};
+
 export function useLanguage() {
   const ctx = useContext(LanguageContext);
   if (!ctx) {
-    return {
-      language: "en" as LanguageCode,
-      setLanguage: () => {},
-      t: (key: string, fallback?: string) => fallback ?? key,
-      translateAsync: async (text: string) => text,
-      isRtl: false,
-      languages: SUPPORTED_LANGUAGES,
-    };
+    return FALLBACK_LANGUAGE_CONTEXT;
   }
   return ctx;
 }

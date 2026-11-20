@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
+import { ForecastAtmospherePanel } from "@/components/hud/ZoomEarthSidebar";
 
 export type BasemapStyle =
   | "satellite"
@@ -228,6 +230,8 @@ export interface MapLayerSwitcherProps {
   enable3dTerrain?: boolean;
   onToggle3dTerrain?: (enable: boolean) => void;
   viewMode?: "3d" | "2d";
+  coordinates?: { lat: number; lon: number };
+  compact?: boolean;
   className?: string;
 }
 
@@ -242,11 +246,16 @@ export function MapLayerSwitcher({
   enable3dTerrain = true,
   onToggle3dTerrain,
   viewMode = "3d",
+  coordinates = { lat: 0, lon: 0 },
+  compact = false,
   className,
 }: MapLayerSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedOption, setExpandedOption] = useState<BasemapStyle | null>(currentStyle);
   const containerRef = useRef<HTMLDivElement>(null);
+  const changeBasemapTitle = useLocalizedValue("Change Basemap & Terrain Layers");
+  const closeMenuLabel = useLocalizedValue("Close basemap menu");
+  const layerInfoLabel = useLocalizedValue("Layer info");
 
   // Sync expanded section with active selection
   useEffect(() => {
@@ -281,7 +290,6 @@ export function MapLayerSwitcher({
   };
 
   const liveMaps = BASEMAP_OPTIONS.filter((o) => o.category === "live");
-  const atmosphericMaps = BASEMAP_OPTIONS.filter((o) => o.category === "atmospheric");
   const terrainMaps = BASEMAP_OPTIONS.filter((o) => o.category === "terrain");
 
   return (
@@ -295,26 +303,39 @@ export function MapLayerSwitcher({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          "group flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-mono font-semibold transition-all duration-300 shadow-2xl backdrop-blur-xl cursor-pointer",
+          "group flex items-center gap-2 border text-xs font-mono font-semibold transition-all duration-300 shadow-2xl backdrop-blur-xl cursor-pointer",
+          compact ? "h-8 justify-center rounded-full px-2.5" : "rounded-xl px-3 py-2",
           isOpen
             ? "border-cyan-400 bg-[#090D18]/95 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.35)]"
-            : "border-cyan-500/40 bg-[#080D1A]/90 text-slate-300 hover:border-cyan-400 hover:text-cyan-200 hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]",
+            : "border-cyan-500/40 bg-[#080D1A]/90 text-foreground hover:border-cyan-400 hover:text-cyan-300 hover:shadow-[0_0_15px_rgba(6,182,212,0.25)]",
         )}
-        title="Change Basemap & Terrain Layers"
+        title={changeBasemapTitle}
+        aria-label={changeBasemapTitle}
       >
-        <div className="relative flex size-6 shrink-0 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 group-hover:scale-105 transition-transform">
-          <Layers className="size-3.5" />
-          <span className="absolute -top-1 -right-1 size-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
-        </div>
-        <div className="flex flex-col text-left">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-cyan-400 transition-colors">
-            Basemap
-          </span>
-          <span className="text-xs font-bold text-foreground truncate max-w-28 flex items-center gap-1">
-            <span>{activeOption.emoji}</span>
-            <span>{activeOption.label}</span>
-          </span>
-        </div>
+        {compact ? (
+          <>
+            <Layers className="size-4 shrink-0 text-cyan-300" />
+            <span className="hidden max-w-24 truncate text-xs font-semibold text-foreground sm:inline">
+              {currentStyle === "satellite" ? "Satellite" : activeOption.label}
+            </span>
+          </>
+        ) : (
+          <>
+            <div className="relative flex size-6 shrink-0 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 group-hover:scale-105 transition-transform">
+              <Layers className="size-3.5" />
+              <span className="absolute -top-1 -right-1 size-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" />
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover:text-cyan-300 transition-colors">
+                {<LocalizedText text={"Basemap"} />}
+              </span>
+              <span className="text-xs font-bold text-foreground truncate max-w-28 flex items-center gap-1">
+                <span>{activeOption.emoji}</span>
+                <span><LocalizedText text={activeOption.label} /></span>
+              </span>
+            </div>
+          </>
+        )}
       </button>
 
       {/* ---------------- 2. EXPANDABLE ZOOM EARTH DARK-GLASS MAPS MENU ---------------- */}
@@ -325,25 +346,30 @@ export function MapLayerSwitcher({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ type: "spring", bounce: 0.2, duration: 0.25 }}
-            className="absolute left-0 bottom-12 mb-1 w-56 max-h-[440px] overflow-y-auto rounded-2xl bg-[#141821]/92 backdrop-blur-2xl border border-white/15 shadow-2xl p-2 select-none scrollbar-thin text-white"
+            className={cn(
+              "absolute z-40 w-56 overflow-y-auto rounded-xl border border-white/15 bg-[#141821]/95 p-2 text-foreground shadow-2xl backdrop-blur-2xl scrollbar-thin select-none",
+              compact
+                ? "bottom-full right-0 left-auto mb-2 max-h-[min(440px,max(200px,calc(58dvh-6rem)))] sm:max-h-[min(440px,calc(100dvh-13rem))]"
+                : "bottom-12 left-0 mb-1 max-h-[440px]",
+            )}
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2 px-1">
               <div className="flex items-center gap-1.5">
-                <Sparkles className="size-3 text-cyan-400" />
-                <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-cyan-300">
-                  Maps & Weather
+                <Sparkles className="size-3 text-cyan-300" />
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-cyan-300">
+                  {<LocalizedText text={"Maps & Weather"} />}
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="rounded bg-cyan-500/15 border border-cyan-400/30 px-1.5 py-0.2 font-mono text-[8.5px] font-bold text-cyan uppercase">
+                <span className="rounded-md bg-cyan-500/15 border border-cyan-400/30 px-1.5 py-0.2 font-mono text-xs font-bold text-cyan-300 uppercase">
                   {viewMode === "3d" ? "3D" : "2D"}
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-                  aria-label="Close basemap menu"
+                  className="rounded-lg p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors cursor-pointer"
+                  aria-label={closeMenuLabel}
                 >
                   <X className="size-3" />
                 </button>
@@ -352,8 +378,8 @@ export function MapLayerSwitcher({
 
             {/* SECTION 1: LIVE MAPS */}
             <div className="mb-2">
-              <div className="px-1 text-[8.5px] font-mono uppercase tracking-widest text-slate-400 mb-1 flex items-center justify-between">
-                <span>Live Maps</span>
+              <div className="px-1 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1 flex items-center justify-between">
+                <span>{<LocalizedText text={"Live Maps"} />}</span>
                 <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
               </div>
               <div className="space-y-1">{liveMaps.map((opt) => renderOptionItem(opt))}</div>
@@ -361,44 +387,48 @@ export function MapLayerSwitcher({
 
             {/* SECTION 2: ATMOSPHERIC & FORECAST BASEMAPS */}
             <div className="mb-2 pt-1 border-t border-white/10">
-              <div className="px-1 text-[8.5px] font-mono uppercase tracking-widest text-slate-400 mb-1">
-                Forecast & Atmosphere
+              <div className="px-1 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
+                {<LocalizedText text={"Forecast & Atmosphere"} />}
               </div>
-              <div className="space-y-1">{atmosphericMaps.map((opt) => renderOptionItem(opt))}</div>
+              <ForecastAtmospherePanel
+                coordinates={coordinates}
+                activeLayer={currentStyle as import("@/types/zoomEarthLayers").ZoomEarthLayerId}
+                onLayerChange={(layer) => onStyleChange(layer as BasemapStyle)}
+              />
             </div>
 
             {/* SECTION 3: TERRAIN & VECTOR */}
             <div className="mb-2 pt-1 border-t border-white/10">
-              <div className="px-1 text-[8.5px] font-mono uppercase tracking-widest text-slate-400 mb-1">
-                Terrain & Vector
+              <div className="px-1 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-1">
+                {<LocalizedText text={"Terrain & Vector"} />}
               </div>
               <div className="space-y-1">{terrainMaps.map((opt) => renderOptionItem(opt))}</div>
             </div>
 
             {/* ---------------- 3. TOGGLE CHECKBOXES ---------------- */}
-            <div className="pt-2 border-t border-white/10 flex flex-col gap-1.5 font-mono text-[10px] px-1">
+            <div className="pt-2 border-t border-white/10 flex flex-col gap-1.5 font-mono text-xs px-1">
               {/* Show Labels Toggle */}
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-cyan-200 transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer text-foreground hover:text-cyan-300 transition-colors">
                 <input
                   type="checkbox"
                   checked={showLabels}
                   onChange={(e) => onToggleLabels?.(e.target.checked)}
-                  className="size-3 rounded border-white/20 bg-slate-900 accent-cyan cursor-pointer"
+                  className="size-3 rounded-md border-white/20 bg-slate-900 accent-cyan cursor-pointer"
                 />
-                <Eye className="size-3 text-cyan-400" />
-                <span>Place Labels & Borders</span>
+                <Eye className="size-3 text-cyan-300" />
+                <span>{<LocalizedText text={"Place Labels & Borders"} />}</span>
               </label>
 
               {/* 3D Terrain Elevation Mesh Toggle */}
-              <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-emerald-200 transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer text-foreground hover:text-emerald-400 transition-colors">
                 <input
                   type="checkbox"
                   checked={enable3dTerrain}
                   onChange={(e) => onToggle3dTerrain?.(e.target.checked)}
-                  className="size-3 rounded border-white/20 bg-slate-900 accent-emerald cursor-pointer"
+                  className="size-3 rounded-md border-white/20 bg-slate-900 accent-emerald cursor-pointer"
                 />
                 <Box className="size-3 text-emerald-400" />
-                <span>3D Terrain Relief Mesh</span>
+                <span>{<LocalizedText text={"3D Terrain Relief Mesh"} />}</span>
               </label>
             </div>
           </motion.div>
@@ -420,13 +450,15 @@ export function MapLayerSwitcher({
           className={cn(
             "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-mono transition-all duration-150 cursor-pointer text-left",
             isSelected
-              ? "bg-white/15 border border-white/35 text-white font-semibold shadow-inner"
-              : "text-slate-300 hover:bg-white/5 hover:text-white border border-transparent",
+              ? "bg-white/15 border border-white/35 text-foreground font-semibold shadow-inner"
+              : "text-foreground hover:bg-white/5 hover:text-foreground border border-transparent",
           )}
         >
           <div className="flex items-center gap-2 truncate">
             <span className="text-sm shrink-0">{opt.emoji}</span>
-            <span className="truncate">{opt.label}</span>
+            <span className="truncate">
+              <LocalizedText text={opt.label} />
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -436,20 +468,20 @@ export function MapLayerSwitcher({
                   e.stopPropagation();
                   onOpenInfoModal(opt.id);
                 }}
-                className="p-0.5 rounded hover:bg-white/20 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
-                title="Layer info"
+                className="p-0.5 rounded-md hover:bg-white/20 text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
+                title={layerInfoLabel}
               >
                 <Info className="size-3" />
               </span>
             )}
             {hasSub ? (
               isExpanded ? (
-                <ChevronUp className="size-3 text-slate-400" />
+                <ChevronUp className="size-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="size-3 text-slate-400" />
+                <ChevronDown className="size-3 text-muted-foreground" />
               )
             ) : isSelected ? (
-              <Check className="size-3 text-cyan-400 stroke-[3]" />
+              <Check className="size-3 text-cyan-300 stroke-[3]" />
             ) : null}
           </div>
         </button>
@@ -472,20 +504,22 @@ export function MapLayerSwitcher({
                     onSubOptionChange?.(sub.id);
                   }}
                   className={cn(
-                    "w-full flex items-center justify-between px-2 py-1 rounded text-[11px] font-mono transition-all text-left cursor-pointer",
+                    "w-full flex items-center justify-between px-2 py-1 rounded-md text-xs font-mono transition-all text-left cursor-pointer",
                     isSubSelected
                       ? "text-cyan-300 font-bold bg-white/10"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/5",
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5",
                   )}
                   title={sub.description}
                 >
                   <span className="flex items-center gap-1.5 truncate">
                     {isSubSelected ? (
-                      <Check className="size-2.5 text-cyan-400 stroke-[3]" />
+                      <Check className="size-2.5 text-cyan-300 stroke-[3]" />
                     ) : (
                       <span className="size-2.5 inline-block" />
                     )}
-                    <span className="truncate">{sub.label}</span>
+                    <span className="truncate">
+                      <LocalizedText text={sub.label} />
+                    </span>
                   </span>
                 </button>
               );

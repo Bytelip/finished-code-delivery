@@ -29,11 +29,9 @@ import {
   FileText,
   CheckCircle2,
   Circle,
-  Languages,
   Check,
   AlertTriangle,
   ChevronDown,
-  ChevronUp,
   X,
   Gauge,
   Sparkles,
@@ -42,12 +40,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SEVERITY_STYLES, SeverityChip } from "@/components/agro/hud";
-import {
-  translations,
-  SUPPORTED_LANGUAGES,
-  type SupportedLanguage,
-  type HazardTranslation,
-} from "@/i18n/translations";
+import { useLanguage } from "@/context/LanguageContext";
+import { translations, type SupportedLanguage, type HazardTranslation } from "@/i18n/translations";
 import type { AgroTelemetry, HazardAlert, Severity } from "@/types/agroSpace";
 import {
   GLOBAL_CROP_ATLAS_600,
@@ -55,6 +49,7 @@ import {
   evaluateCrop600Suitability,
   getCropSuitabilityColor,
 } from "@/data/globalCropAtlas600";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export interface TacticalHazardItem {
   key:
@@ -92,20 +87,18 @@ export function HazardAlertCenter({
   telemetry,
   hazards,
   variant = "full",
-  initialLanguage = "en",
+  initialLanguage,
 }: HazardAlertCenterProps) {
-  const [language, setLanguage] = useState<SupportedLanguage>(initialLanguage);
+  const { language: appLanguage } = useLanguage();
+  const language = initialLanguage ?? appLanguage;
+  const translationLanguage: SupportedLanguage =
+    language === "hi" || language === "kn" ? language : "en";
   const [showBulletin, setShowBulletin] = useState(false);
   const [filterSeverity, setFilterSeverity] = useState<Severity | "all">("all");
-  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({
-    cyclone: true,
-    earthquake: true,
-    solarStorm: true,
-    flood: true,
-  });
   const [checkedSteps, setCheckedSteps] = useState<Record<string, boolean>>({});
 
-  const t = translations[language];
+  const t = translations[translationLanguage];
+  const localize = (text: string) => <LocalizedText text={text} />;
 
   // Derive the 8 tactical hazard feeds from telemetry or hazards prop
   const tacticalHazards: TacticalHazardItem[] = useMemo(() => {
@@ -330,10 +323,6 @@ export function HazardAlertCenter({
     return variant === "summary" ? list.slice(0, 4) : list;
   }, [tacticalHazards, filterSeverity, variant]);
 
-  const toggleCard = (key: string) => {
-    setExpandedCards((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const toggleStep = (stepId: string) => {
     setCheckedSteps((prev) => ({ ...prev, [stepId]: !prev[stepId] }));
   };
@@ -345,64 +334,37 @@ export function HazardAlertCenter({
         {/* Top Header: Title, Feeds, Language Selector & Bulletin Button */}
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-cyan/60 bg-cyan/15 text-cyan shadow-[0_0_15px_rgba(0,240,255,0.35)]">
+            <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-cyan/60 bg-cyan/15 text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.35)]">
               <ShieldAlert className="size-5 drop-shadow-[0_0_6px_#00f0ff]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold tracking-tight text-foreground">
-                  {t.hazards.matrixTitle}
+                  {localize(t.hazards.matrixTitle)}
                 </h3>
-                <span className="hidden items-center gap-1.5 rounded border border-cyan/50 bg-cyan/15 px-2 py-0.5 font-mono text-[9px] font-bold text-cyan sm:inline-flex shadow-[0_0_8px_rgba(0,240,255,0.2)]">
-                  <Radio className="size-2.5 animate-pulse text-cyan" /> 8 FEEDS LIVE
+                <span className="hidden items-center gap-1.5 rounded-md border border-cyan/50 bg-cyan/15 px-2 py-0.5 font-mono text-xs font-bold text-cyan-300 sm:inline-flex shadow-[0_0_8px_rgba(0,240,255,0.2)]">
+                  <Radio className="size-2.5 animate-pulse text-cyan-300" />{" "}
+                  {<LocalizedText text={" 8 FEEDS LIVE"} />}
                 </span>
               </div>
-              <p className="hud-label mt-0.5 text-xs text-cyan/70 tracking-wider">
-                {t.hazards.tacticalSubtitle}
+              <p className="hud-label mt-0.5 text-xs text-cyan-300 tracking-wider">
+                {localize(t.hazards.tacticalSubtitle)}
               </p>
             </div>
           </div>
 
           {/* Action Tools: Multi-language Toggle + Print/Advisory Bulletin Trigger */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Language Selector Pills */}
-            <div
-              className="inline-flex items-center rounded-lg border border-border/70 bg-background/60 p-0.5"
-              role="radiogroup"
-              aria-label="Language selection"
-            >
-              <div className="flex items-center gap-1 px-1.5 text-muted-foreground">
-                <Languages className="size-3.5" />
-              </div>
-              {SUPPORTED_LANGUAGES.map((lang) => (
-                <button
-                  key={lang.code}
-                  type="button"
-                  onClick={() => setLanguage(lang.code)}
-                  className={cn(
-                    "flex items-center gap-1 rounded-md px-2 py-1 font-mono text-xs transition-all",
-                    language === lang.code
-                      ? "bg-cyan/20 font-semibold text-cyan shadow-sm"
-                      : "text-muted-foreground hover:bg-background/80 hover:text-foreground",
-                  )}
-                  title={`Switch to ${lang.label}`}
-                >
-                  <span>{lang.flag}</span>
-                  <span>{lang.nativeName}</span>
-                </button>
-              ))}
-            </div>
-
             {/* Farmer Advisory Bulletin Modal Trigger */}
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={() => setShowBulletin(true)}
-              className="h-8 border-cyan/40 bg-cyan/10 font-mono text-xs text-cyan hover:bg-cyan/20 hover:text-cyan"
+              className="h-8 border-cyan/40 bg-cyan/10 font-mono text-xs text-cyan-300 hover:bg-cyan/20 hover:text-cyan-300"
             >
               <FileText className="mr-1.5 size-3.5" />
-              <span>{t.hazards.viewAdvisory}</span>
+              <span>{localize(t.hazards.viewAdvisory)}</span>
             </Button>
           </div>
         </header>
@@ -410,9 +372,12 @@ export function HazardAlertCenter({
         {/* Severity Metric Filter Chips */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="toggle"
               onClick={() => setFilterSeverity("all")}
+              aria-pressed={filterSeverity === "all"}
               className={cn(
                 "rounded-md border px-2 py-1 font-mono text-xs transition-colors",
                 filterSeverity === "all"
@@ -420,13 +385,16 @@ export function HazardAlertCenter({
                   : "border-transparent text-muted-foreground hover:bg-muted/50",
               )}
             >
-              All Alerts (8)
-            </button>
+              {<LocalizedText text={"All Alerts (8)"} />}
+            </Button>
             {(["critical", "warning", "watch", "nominal"] as Severity[]).map((s) => (
-              <button
+              <Button
                 key={s}
                 type="button"
+                size="sm"
+                variant="toggle"
                 onClick={() => setFilterSeverity(s)}
+                aria-pressed={filterSeverity === s}
                 className={cn(
                   "flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-xs transition-colors",
                   filterSeverity === s
@@ -435,30 +403,33 @@ export function HazardAlertCenter({
                 )}
               >
                 <span className={cn("size-2 rounded-full", SEVERITY_STYLES[s].dot)} />
-                <span className="capitalize">{s}</span>
-                <span className="ml-0.5 rounded-full bg-background/80 px-1.5 py-0.2 text-[10px] tabular-nums">
+                <span className="capitalize">{localize(s)}</span>
+                <span className="ml-0.5 rounded-full bg-background/80 px-1.5 py-0.2 text-xs tabular-nums">
                   {counts[s]}
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
 
-          <div className="font-mono text-[11px] text-muted-foreground">
-            {variant === "summary" ? "Top 4 Priority Alerts" : "8 Tactical Systems Monitored"}
+          <div className="font-mono text-xs text-muted-foreground">
+            {variant === "summary" ? (
+              <LocalizedText text="Top 4 Priority Alerts" />
+            ) : (
+              <LocalizedText text="8 Tactical Systems Monitored" />
+            )}
           </div>
         </div>
 
         {/* ---------------- 8 TACTICAL ALERT CARDS ---------------- */}
         <div
           className={cn(
-            "grid gap-3",
+            "grid gap-4 p-4",
             variant === "full" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 sm:grid-cols-2",
           )}
         >
           {filteredItems.map((item) => {
             const Icon = item.icon;
             const style = SEVERITY_STYLES[item.severity];
-            const isExpanded = Boolean(expandedCards[item.key]);
             const steps = item.translation.mitigationSteps;
             const completedCount = steps.filter((_, idx) =>
               Boolean(checkedSteps[`${item.key}-${idx}`]),
@@ -469,7 +440,7 @@ export function HazardAlertCenter({
                 key={item.key}
                 data-severity={item.severity}
                 className={cn(
-                  "relative flex flex-col justify-between rounded-lg border bg-background/60 p-4 transition-all duration-200 backdrop-blur-md overflow-hidden",
+                  "relative flex flex-col gap-3 rounded-lg border bg-background/60 p-4 transition-all duration-200 backdrop-blur-md overflow-hidden",
                   style.ring,
                   item.severity === "critical" &&
                     "border-crimson/70 bg-crimson/10 shadow-[0_0_20px_rgba(255,46,86,0.22)]",
@@ -507,10 +478,10 @@ export function HazardAlertCenter({
                       </div>
                       <div>
                         <h4 className="font-semibold text-foreground text-sm tracking-tight">
-                          {item.translation.title}
+                          {localize(item.translation.title)}
                         </h4>
-                        <div className="hud-label mt-0.5 text-[10px] text-muted-foreground/80">
-                          {item.source}
+                        <div className="hud-label mt-0.5 text-xs text-muted-foreground">
+                          {localize(item.source)}
                         </div>
                       </div>
                     </div>
@@ -518,9 +489,9 @@ export function HazardAlertCenter({
                   </div>
 
                   {/* Telemetry Metric Highlight */}
-                  <div className="mt-3 flex items-baseline justify-between rounded-md border border-border/50 bg-background/80 px-3 py-1.5">
+                  <div className="mt-3 flex flex-col gap-1 rounded-md border border-border/50 bg-background/80 px-3 py-2">
                     <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-                      TELEMETRY
+                      {<LocalizedText text={"TELEMETRY"} />}
                     </span>
                     <span
                       className={cn("font-mono text-sm font-semibold tabular-nums", style.text)}
@@ -531,73 +502,66 @@ export function HazardAlertCenter({
 
                   {/* Detail description */}
                   <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                    {item.detail}
+                    {localize(item.detail)}
                   </p>
                 </div>
 
                 {/* Tactical Farmer Mitigation Checklist */}
-                <div className="mt-3 border-t border-border/50 pt-2.5">
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => toggleCard(item.key)}
-                      className="flex items-center gap-1.5 font-mono text-[11px] font-medium text-cyan hover:text-cyan/80 transition-colors"
-                    >
-                      <span>{t.hazards.actionChecklist}</span>
-                      <span className="rounded-full bg-cyan/10 px-1.5 py-0.2 text-[10px] text-cyan">
-                        {completedCount}/{steps.length} {t.hazards.completed}
+                <details className="group mt-2.5 border-t border-border/50 pt-2.5">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-md text-sm font-mono font-medium text-cyan-300 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <span className="flex items-center gap-2">
+                      <span>{localize(t.hazards.actionChecklist)}</span>
+                      <span className="rounded-full bg-cyan/10 px-2 py-1 text-xs text-cyan-300">
+                        {completedCount}/{steps.length} {localize(t.hazards.completed)}
                       </span>
-                      {isExpanded ? (
-                        <ChevronUp className="size-3 text-cyan" />
-                      ) : (
-                        <ChevronDown className="size-3 text-cyan" />
-                      )}
-                    </button>
-
+                    </span>
                     {completedCount === steps.length && (
-                      <span className="flex items-center gap-1 font-mono text-[10px] text-emerald">
-                        <Check className="size-3" /> All Done
+                      <span className="flex items-center gap-1 font-mono text-xs text-emerald-400">
+                        <Check className="size-3.5" /> {<LocalizedText text={" All Done"} />}
                       </span>
                     )}
-                  </div>
+                    <ChevronDown
+                      className="size-4 shrink-0 text-cyan-300 transition-transform group-open:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <ul className="mt-2 space-y-2">
+                    {steps.map((step, idx) => {
+                      const stepKey = `${item.key}-${idx}`;
+                      const isDone = Boolean(checkedSteps[stepKey]);
 
-                  {/* Action Steps Checklist */}
-                  {isExpanded && (
-                    <ul className="mt-2 space-y-1.5">
-                      {steps.map((step, idx) => {
-                        const stepKey = `${item.key}-${idx}`;
-                        const isDone = Boolean(checkedSteps[stepKey]);
-
-                        return (
-                          <li
-                            key={stepKey}
+                      return (
+                        <li key={stepKey}>
+                          <button
+                            type="button"
+                            aria-pressed={isDone}
                             onClick={() => toggleStep(stepKey)}
                             className={cn(
-                              "flex cursor-pointer items-start gap-2 rounded-md border p-2 text-xs transition-colors",
+                              "flex min-h-11 w-full items-start gap-2 rounded-md border p-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                               isDone
                                 ? "border-emerald/30 bg-emerald/5 text-muted-foreground line-through"
                                 : "border-border/40 bg-background/40 text-foreground hover:bg-background/80",
                             )}
                           >
-                            <span className="mt-0.5 shrink-0 text-cyan">
+                            <span className="mt-0.5 shrink-0 text-cyan-300">
                               {isDone ? (
-                                <CheckCircle2 className="size-3.5 text-emerald" />
+                                <CheckCircle2 className="size-4 text-emerald-400" />
                               ) : (
-                                <Circle className="size-3.5 text-muted-foreground" />
+                                <Circle className="size-4 text-muted-foreground" />
                               )}
                             </span>
                             <span className="flex-1 leading-snug">
-                              <span className="mr-1 font-mono text-[10px] font-semibold text-muted-foreground/80">
+                              <span className="mr-1 font-mono text-xs font-semibold text-muted-foreground">
                                 {idx + 1}.
                               </span>
-                              {step}
+                              {localize(step)}
                             </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
               </article>
             );
           })}
@@ -610,8 +574,6 @@ export function HazardAlertCenter({
           telemetry={telemetry}
           tacticalHazards={tacticalHazards}
           checkedSteps={checkedSteps}
-          language={language}
-          onLanguageChange={setLanguage}
           onClose={() => setShowBulletin(false)}
         />
       )}
@@ -626,19 +588,19 @@ export function FarmerAdvisoryModal({
   telemetry,
   tacticalHazards,
   checkedSteps,
-  language,
-  onLanguageChange,
   onClose,
 }: {
   telemetry?: AgroTelemetry | undefined;
   tacticalHazards: TacticalHazardItem[];
   checkedSteps: Record<string, boolean>;
-  language: SupportedLanguage;
-  onLanguageChange: (lang: SupportedLanguage) => void;
   onClose: () => void;
 }) {
-  const t = translations[language];
+  const { language } = useLanguage();
+  const translationLanguage: SupportedLanguage =
+    language === "hi" || language === "kn" ? language : "en";
+  const t = translations[translationLanguage];
   const b = t.bulletin;
+  const localize = (text: string) => <LocalizedText text={text} />;
 
   const lat = telemetry?.input?.lat ?? 13.13;
   const lon = telemetry?.input?.lon ?? 78.13;
@@ -688,26 +650,7 @@ export function FarmerAdvisoryModal({
       <div className="relative my-auto w-full max-w-4xl rounded-xl border border-cyan/40 bg-card p-6 shadow-2xl printable-bulletin">
         {/* Floating Close & Print Actions (Hidden in Print View) */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3 no-print">
-          <div className="flex items-center gap-2">
-            <span className="hud-label text-cyan">{b.officialSubtitle}</span>
-            <div className="flex items-center gap-1 rounded border border-border/60 bg-background/50 p-0.5">
-              {SUPPORTED_LANGUAGES.map((l) => (
-                <button
-                  key={l.code}
-                  type="button"
-                  onClick={() => onLanguageChange(l.code)}
-                  className={cn(
-                    "rounded px-2 py-0.5 font-mono text-xs transition-colors",
-                    language === l.code
-                      ? "bg-cyan/20 text-cyan font-bold"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {l.nativeName}
-                </button>
-              ))}
-            </div>
-          </div>
+          <span className="hud-label text-cyan-300">{localize(b.officialSubtitle)}</span>
 
           <div className="flex items-center gap-2">
             <Button
@@ -717,12 +660,12 @@ export function FarmerAdvisoryModal({
               className="h-8 bg-cyan text-black hover:bg-cyan/90 font-mono text-xs font-semibold"
             >
               <Printer className="mr-1.5 size-3.5" />
-              {b.printAction}
+              {localize(b.printAction)}
             </Button>
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={onClose}
               className="h-8 border-border/60 text-xs"
             >
@@ -742,21 +685,27 @@ export function FarmerAdvisoryModal({
                 </div>
                 <div>
                   <h2 className="text-xl font-bold tracking-tight text-foreground">
-                    {b.officialTitle}
+                    {localize(b.officialTitle)}
                   </h2>
-                  <p className="font-mono text-xs text-muted-foreground">{b.governmentAuth}</p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {localize(b.governmentAuth)}
+                  </p>
                 </div>
               </div>
               <div className="text-right font-mono text-xs text-muted-foreground">
-                <div className="font-semibold text-primary">{b.bulletinRef}</div>
+                <div className="font-semibold text-primary">{localize(b.bulletinRef)}</div>
                 <div>
                   {new Date().toLocaleDateString(
-                    language === "kn" ? "kn-IN" : language === "hi" ? "hi-IN" : "en-US",
+                    `${language}-${language === "zh" ? "CN" : language === "ar" ? "SA" : language === "ru" ? "RU" : language === "ja" ? "JP" : language === "ko" ? "KR" : language === "de" ? "DE" : language === "fr" ? "FR" : language === "es" ? "ES" : "IN"}`,
                     { dateStyle: "long" },
                   )}
                 </div>
                 <div>
-                  GPS: {lat.toFixed(4)}°N, {lon.toFixed(4)}°E
+                  {<LocalizedText text={"GPS: "} />}
+                  {lat.toFixed(4)}
+                  {<LocalizedText text={"°N, "} />}
+                  {lon.toFixed(4)}
+                  {<LocalizedText text={"°E"} />}
                 </div>
               </div>
             </div>
@@ -765,34 +714,45 @@ export function FarmerAdvisoryModal({
           {/* Location & Field Health Vitals Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-border/60 bg-background/40 p-4">
             <div>
-              <div className="hud-label text-[10px]">{t.hud.climateZone}</div>
+              <div className="hud-label text-xs">{localize(t.hud.climateZone)}</div>
               <div className="font-semibold text-sm">{region}</div>
-              <div className="font-mono text-xs text-muted-foreground">{climateZone}</div>
-              <div className="font-mono text-[10px] text-primary mt-0.5">
-                Zone: {zoneInfo.zoneDisplay} · {zoneInfo.worldRegion}
+              <div className="font-mono text-xs text-muted-foreground">
+                <LocalizedText text={climateZone} />
+              </div>
+              <div className="font-mono text-xs text-primary mt-0.5">
+                {<LocalizedText text={"Zone: "} />}
+                {zoneInfo.zoneDisplay} · {zoneInfo.worldRegion}
               </div>
             </div>
             <div>
-              <div className="hud-label text-[10px]">{t.hud.recommendedCrop}</div>
-              <div className="font-semibold text-sm text-emerald">{cropTranslated}</div>
-              <div className="font-mono text-xs text-muted-foreground">Est. {yieldEst} T/ha</div>
+              <div className="hud-label text-xs">{localize(t.hud.recommendedCrop)}</div>
+              <div className="font-semibold text-sm text-emerald-400">
+                <LocalizedText text={cropTranslated} />
+              </div>
+              <div className="font-mono text-xs text-muted-foreground">
+                {<LocalizedText text={"Est. "} />}
+                {yieldEst} {<LocalizedText text={" T/ha"} />}
+              </div>
             </div>
             <div>
-              <div className="hud-label text-[10px]">{t.hud.fieldHealth}</div>
-              <div className="font-mono text-xl font-bold text-emerald">
+              <div className="hud-label text-xs">{localize(t.hud.fieldHealth)}</div>
+              <div className="font-mono text-xl font-bold text-emerald-400">
                 {healthScore}
                 <span className="text-xs text-muted-foreground">/100</span>
               </div>
-              <div className="font-mono text-[10px] text-muted-foreground">
-                NASA Satellite Ingest
+              <div className="font-mono text-xs text-muted-foreground">
+                {<LocalizedText text={"NASA Satellite Ingest"} />}
               </div>
             </div>
             <div>
-              <div className="hud-label text-[10px]">{t.hud.borewellYield}</div>
-              <div className="font-mono text-sm font-semibold text-cyan">
-                {borewellFlow.toLocaleString()} LPH
+              <div className="hud-label text-xs">{localize(t.hud.borewellYield)}</div>
+              <div className="font-mono text-sm font-semibold text-cyan-300">
+                {borewellFlow.toLocaleString()} {<LocalizedText text={" LPH"} />}
               </div>
-              <div className="font-mono text-xs text-muted-foreground">Deficit: {deficit} mm</div>
+              <div className="font-mono text-xs text-muted-foreground">
+                {<LocalizedText text={"Deficit: "} />}
+                {deficit} {<LocalizedText text={" mm"} />}
+              </div>
             </div>
           </div>
 
@@ -800,27 +760,35 @@ export function FarmerAdvisoryModal({
           <div className="rounded-lg border border-border/60 bg-background/30 p-4">
             <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-cyan" />
+                <Sparkles className="size-4 text-cyan-300" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Top 5 Climate-Resilient Recommended Crops (Global Atlas 600)
+                  {
+                    <LocalizedText
+                      text={"Top 5 Climate-Resilient Recommended Crops (Global Atlas 600)"}
+                    />
+                  }
                 </h3>
               </div>
-              <span className="font-mono text-[10px] text-muted-foreground">
-                ZONAL SUITABILITY ENGINE · GEO-RESOLVED
+              <span className="font-mono text-xs text-muted-foreground">
+                {<LocalizedText text={"ZONAL SUITABILITY ENGINE · GEO-RESOLVED"} />}
               </span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left font-mono text-xs">
                 <thead>
-                  <tr className="border-b border-border/40 text-[10px] text-muted-foreground uppercase">
+                  <tr className="border-b border-border/40 text-xs text-muted-foreground uppercase">
                     <th className="py-1.5 px-2">#</th>
-                    <th className="py-1.5 px-2">Crop & Botanical Name</th>
-                    <th className="py-1.5 px-2">Category</th>
-                    <th className="py-1.5 px-2">Suitability</th>
-                    <th className="py-1.5 px-2">Water Need</th>
-                    <th className="py-1.5 px-2">Cycle</th>
-                    <th className="py-1.5 px-2">Key Resilience Trait</th>
+                    <th className="py-1.5 px-2">
+                      {<LocalizedText text={"Crop & Botanical Name"} />}
+                    </th>
+                    <th className="py-1.5 px-2">{<LocalizedText text={"Category"} />}</th>
+                    <th className="py-1.5 px-2">{<LocalizedText text={"Suitability"} />}</th>
+                    <th className="py-1.5 px-2">{<LocalizedText text={"Water Need"} />}</th>
+                    <th className="py-1.5 px-2">{<LocalizedText text={"Cycle"} />}</th>
+                    <th className="py-1.5 px-2">
+                      {<LocalizedText text={"Key Resilience Trait"} />}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/20">
@@ -831,17 +799,17 @@ export function FarmerAdvisoryModal({
                         <td className="py-2 px-2 font-bold text-muted-foreground">{idx + 1}</td>
                         <td className="py-2 px-2">
                           <span className="font-bold text-foreground text-xs">{c.name}</span>
-                          <span className="block text-[10px] italic text-muted-foreground">
+                          <span className="block text-xs italic text-muted-foreground">
                             {c.botanicalName}
                           </span>
                         </td>
-                        <td className="py-2 px-2 text-muted-foreground text-[11px] capitalize">
-                          {c.category}
+                        <td className="py-2 px-2 text-muted-foreground text-xs capitalize">
+                          <LocalizedText text={c.category} />
                         </td>
                         <td className="py-2 px-2">
                           <span
                             className={cn(
-                              "inline-block rounded px-2 py-0.5 font-bold text-[11px]",
+                              "inline-block rounded-md px-2 py-0.5 font-bold text-xs",
                               color.text,
                               color.bg,
                               color.border,
@@ -851,14 +819,14 @@ export function FarmerAdvisoryModal({
                             {c.adjustedScore}/100
                           </span>
                         </td>
-                        <td className="py-2 px-2 text-cyan font-semibold">
-                          {c.waterRequirementMm} mm
+                        <td className="py-2 px-2 text-cyan-300 font-semibold">
+                          {c.waterRequirementMm} {<LocalizedText text={" mm"} />}
                         </td>
                         <td className="py-2 px-2 text-muted-foreground">
-                          {c.durationDays} days
+                          {c.durationDays} {<LocalizedText text={" days"} />}
                         </td>
-                        <td className="py-2 px-2 text-muted-foreground text-[10px] max-w-[200px] truncate">
-                          {c.agronomicNotes || "High zonal resilience"}
+                        <td className="py-2 px-2 text-muted-foreground text-xs max-w-[200px] truncate">
+                          <LocalizedText text={c.agronomicNotes || "High zonal resilience"} />
                         </td>
                       </tr>
                     );
@@ -871,7 +839,7 @@ export function FarmerAdvisoryModal({
           {/* Tactical Hazard Alerts & Action Checklists */}
           <div>
             <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-primary">
-              {b.hazardMitigationMatrix}
+              {localize(b.hazardMitigationMatrix)}
             </h3>
 
             <div className="space-y-4">
@@ -893,9 +861,11 @@ export function FarmerAdvisoryModal({
                         <span className="font-mono text-xs font-bold text-muted-foreground">
                           {idx + 1}.
                         </span>
-                        <h4 className="font-semibold text-sm">{item.translation.title}</h4>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          ({item.source})
+                        <h4 className="font-semibold text-sm">
+                          {localize(item.translation.title)}
+                        </h4>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          ({localize(item.source)})
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -907,13 +877,13 @@ export function FarmerAdvisoryModal({
                     </div>
 
                     <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
-                      {item.detail}
+                      {localize(item.detail)}
                     </p>
 
                     {/* Mitigation Checklist */}
                     <div className="mt-3">
-                      <div className="font-mono text-[11px] font-semibold text-primary mb-1.5">
-                        {t.hazards.actionChecklist}:
+                      <div className="font-mono text-xs font-semibold text-primary mb-1.5">
+                        {localize(t.hazards.actionChecklist)}:
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {steps.map((st, sIdx) => {
@@ -922,20 +892,20 @@ export function FarmerAdvisoryModal({
                             <div
                               key={sIdx}
                               className={cn(
-                                "flex items-start gap-1.5 rounded border p-1.5 text-xs",
+                                "flex items-start gap-1.5 rounded-md border p-1.5 text-xs",
                                 isDone
-                                  ? "border-emerald/40 bg-emerald/5 text-emerald font-medium"
+                                  ? "border-emerald/40 bg-emerald/5 text-emerald-400 font-medium"
                                   : "border-border/30 bg-background/50",
                               )}
                             >
                               <span className="mt-0.5 shrink-0">
                                 {isDone ? (
-                                  <Check className="size-3 text-emerald font-bold" />
+                                  <Check className="size-3 text-emerald-400 font-bold" />
                                 ) : (
-                                  <span className="block size-2.5 rounded-sm border border-muted-foreground" />
+                                  <span className="block size-2.5 rounded-md border border-muted-foreground" />
                                 )}
                               </span>
-                              <span className="leading-snug">{st}</span>
+                              <span className="leading-snug">{localize(st)}</span>
                             </div>
                           );
                         })}
@@ -952,21 +922,27 @@ export function FarmerAdvisoryModal({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center font-mono text-xs text-muted-foreground">
               <div className="border-t border-dashed border-border/80 pt-2">
                 <div className="h-8" />
-                <div className="font-medium text-foreground">{b.signatures.officerTitle}</div>
-              </div>
-              <div className="border-t border-dashed border-border/80 pt-2">
-                <div className="h-8" />
-                <div className="font-medium text-foreground">{b.signatures.leadAgronomist}</div>
-              </div>
-              <div className="border-t border-dashed border-border/80 pt-2">
-                <div className="h-8" />
                 <div className="font-medium text-foreground">
-                  {b.signatures.farmerAcknowledgment}
+                  {localize(b.signatures.officerTitle)}
                 </div>
               </div>
               <div className="border-t border-dashed border-border/80 pt-2">
                 <div className="h-8" />
-                <div className="font-medium text-foreground">{b.signatures.dateStamped}</div>
+                <div className="font-medium text-foreground">
+                  {localize(b.signatures.leadAgronomist)}
+                </div>
+              </div>
+              <div className="border-t border-dashed border-border/80 pt-2">
+                <div className="h-8" />
+                <div className="font-medium text-foreground">
+                  {localize(b.signatures.farmerAcknowledgment)}
+                </div>
+              </div>
+              <div className="border-t border-dashed border-border/80 pt-2">
+                <div className="h-8" />
+                <div className="font-medium text-foreground">
+                  {localize(b.signatures.dateStamped)}
+                </div>
               </div>
             </div>
           </div>

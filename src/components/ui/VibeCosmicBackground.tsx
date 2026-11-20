@@ -190,6 +190,9 @@ export function VibeCosmicBackground() {
         ctx.fill();
       }
 
+      if (typeof process !== "undefined" && process.env?.["NODE_ENV"] === "test") {
+        return;
+      }
       animationFrameId = requestAnimationFrame(render);
     };
 

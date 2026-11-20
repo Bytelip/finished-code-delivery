@@ -59,7 +59,7 @@ describe("CommandBar Location & Search", () => {
 
     render(<CommandBar {...defaultProps} />);
 
-    const searchInput = screen.getByPlaceholderText(/Search village, town, pincode/i);
+    const searchInput = screen.getByPlaceholderText(/Search/i);
     fireEvent.change(searchInput, { target: { value: "Kolar" } });
 
     // Wait for dropdown
@@ -89,7 +89,7 @@ describe("CommandBar Location & Search", () => {
 
     render(<CommandBar {...defaultProps} />);
 
-    const searchInput = screen.getByPlaceholderText(/Search village, town, pincode/i);
+    const searchInput = screen.getByPlaceholderText(/Search/i);
     fireEvent.change(searchInput, { target: { value: "Bengaluru" } });
 
     // Wait for dropdown

@@ -7,15 +7,14 @@
  * - 3D Orbital Globe: MapLibre GL globe projection (OrbitalSatelliteGlobe) with Esri World
  *   Imagery, Esri boundaries & places labels that appear country -> state -> district -> town
  *   as you zoom, and the active NASA GIBS WMTS layer overlaid with adjustable opacity.
- * - Floating Tactical HUD Zoom Control Bar: Zoom In (+), Zoom Out (-), interactive
- *   vertical range slider with live Z / ALT / FIELD readout badge, Target Farm (Z:15)
- *   and Full Orbit (Z:3) quick actions.
+ * - Compact right-edge map controls: 3D / 2D, live zoom readout, zoom in/out, target locate,
+ *   and full orbit reset.
  * - Floating HUD Color-Scale Legend: Active satellite sensor name, continuous color
  *   gradient bar with min/max scientific units, and layer glow/opacity slider (20%-100%).
  * - 2D Field GIS: Leaflet / react-leaflet high-zoom satellite imagery overlaid with live
  *   NASA GIBS WMTS raster tiles (maxNativeZoom + maxZoom 18 for crisp upscaling), reference
  *   boundaries, and 5 interactive warning/hazard markers + impact radius circles + polyline tracks.
- * - Map Hazard Legend & Filter Bar: Toggle hazards, filter by category, and "Fit All Hazards".
+ * - Bottom map dock: horizontal hazard filters, NASA satellite layers, and basemap selection.
  */
 import {
   Component,
@@ -30,10 +29,27 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import { Globe as GlobeIcon, Map as MapIcon, Layers, Radar, Radio, Plus, Minus, Crosshair, Flame, Wind, Activity, TriangleAlert as AlertTriangle, Eye, EyeOff, Compass, Satellite, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Globe as GlobeIcon,
+  Map as MapIcon,
+  Layers,
+  Radar,
+  Radio,
+  Plus,
+  Minus,
+  Crosshair,
+  Flame,
+  Wind,
+  Activity,
+  TriangleAlert as AlertTriangle,
+  Eye,
+  EyeOff,
+  Compass,
+  Satellite,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { formatCoord } from "@/components/agro/hud";
 import { cn } from "@/lib/utils";
 import { MAP_LAYERS, type AgroTelemetry, type MapLayer } from "@/types/agroSpace";
 import {
@@ -42,7 +58,6 @@ import {
   type SatelliteLayerMeta,
 } from "@/services/gibsLayers";
 import { toast } from "sonner";
-import { AnimatedBackground } from "@/components/core/animated-background";
 import {
   MapLayerSwitcher,
   type BasemapStyle,
@@ -67,18 +82,20 @@ import {
   GLOBE_FLY_TO_MIN_ZOOM,
   GLOBE_MAX_ZOOM,
   GLOBE_MIN_ZOOM,
-  ALTITUDE_TRANSITION_KM,
-  altitudeKmForZoom,
   clampGlobeZoom,
+  flatnessForZoom,
+  formatAltitude,
   orbitalStageForZoom,
+  projectionModeForZoom,
 } from "@/lib/orbitalZoom";
-import type { GlobeProjectionId } from "@/lib/orbitalZoom";
 import type { ZoomEarthLayerId } from "@/types/zoomEarthLayers";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 export { GIBS_LAYER_CONFIG, SATELLITE_LAYERS_CONFIG };
 export const TELEMETRY_TABS = MAP_LAYERS;
 
 interface LeafletMapInstance {
+  getCenter?: () => { lat: number; lng: number };
   panTo: (coords: [number, number], options?: { animate?: boolean }) => void;
   flyTo?: (
     coords: [number, number],
@@ -138,6 +155,10 @@ interface LeafletBundle {
     opacity?: number;
     zIndex?: number;
     attribution?: string;
+    eventHandlers?: {
+      loading?: () => void;
+      load?: () => void;
+    };
   }>;
   Marker: ComponentType<{
     position: [number, number];
@@ -179,6 +200,7 @@ interface LeafletBundle {
   useMapEvents: (handlers: {
     click?: (e: { latlng?: { lat: number; lng: number } }) => void;
     zoomend?: (e: { target: { getZoom: () => number } }) => void;
+    moveend?: (e: { target: { getCenter?: () => { lat: number; lng: number } } }) => void;
   }) => void;
   L: {
     DivIcon: new (options: {
@@ -263,7 +285,6 @@ interface GlobeHtmlMarkerItem {
   html: string;
 }
 
-
 /* ---------------- 3D SLEEK CIRCULAR HAZARD MARKERS WITH INTERACTIVE HOVER TOOLTIPS ---------------- */
 function renderCyclone3DMarker(metricText = "CYCLONE TRACK • 115 km/h"): string {
   return `
@@ -282,7 +303,7 @@ function renderCyclone3DMarker(metricText = "CYCLONE TRACK • 115 km/h"): strin
         </svg>
       </div>
       <div class="hazard-tooltip pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200" style="position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); white-space:nowrap; z-index:70;">
-        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #EF4444; color:#F8FAFC; font-family:monospace; font-size:9.5px; font-weight:700; box-shadow:0 0 16px rgba(239,68,68,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
+        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #EF4444; color:#F8FAFC; font-family:var(--font-mono); font-size:12px; font-weight:700; box-shadow:0 0 16px rgba(239,68,68,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
           <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#EF4444; box-shadow:0 0 6px #EF4444;"></span>
           <span>${metricText}</span>
         </div>
@@ -309,7 +330,7 @@ function renderFire3DMarker(metricText = "FIRMS FIRE • 42 MW"): string {
         </svg>
       </div>
       <div class="hazard-tooltip pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200" style="position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); white-space:nowrap; z-index:70;">
-        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #F59E0B; color:#F8FAFC; font-family:monospace; font-size:9.5px; font-weight:700; box-shadow:0 0 16px rgba(245,158,11,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
+        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #F59E0B; color:#F8FAFC; font-family:var(--font-mono); font-size:12px; font-weight:700; box-shadow:0 0 16px rgba(245,158,11,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
           <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#F59E0B; box-shadow:0 0 6px #F59E0B;"></span>
           <span>${metricText}</span>
         </div>
@@ -328,7 +349,7 @@ function renderSeismic3DMarker(metricText = "USGS EPICENTER • M4.6"): string {
         </svg>
       </div>
       <div class="hazard-tooltip pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200" style="position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); white-space:nowrap; z-index:70;">
-        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #10B981; color:#F8FAFC; font-family:monospace; font-size:9.5px; font-weight:700; box-shadow:0 0 16px rgba(16,185,129,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
+        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #10B981; color:#F8FAFC; font-family:var(--font-mono); font-size:12px; font-weight:700; box-shadow:0 0 16px rgba(16,185,129,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
           <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#10B981; box-shadow:0 0 6px #10B981;"></span>
           <span>${metricText}</span>
         </div>
@@ -350,7 +371,7 @@ function renderFarmReticle3DMarker(
         <span style="width:7px; height:7px; border-radius:50%; background:#00F0FF; box-shadow:0 0 8px #00F0FF;"></span>
       </div>
       <div class="hazard-tooltip pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200" style="position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); white-space:nowrap; z-index:70;">
-        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #00F0FF; color:#F8FAFC; font-family:monospace; font-size:9.5px; font-weight:700; box-shadow:0 0 16px rgba(0,240,255,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
+        <div style="display:flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; background:rgba(9,13,22,0.95); border:1px solid #00F0FF; color:#F8FAFC; font-family:var(--font-mono); font-size:12px; font-weight:700; box-shadow:0 0 16px rgba(0,240,255,0.6), 0 4px 14px rgba(0,0,0,0.9); backdrop-filter:blur(8px);">
           <span style="color:#00F0FF;">★</span>
           <span>${regionLabel || "Target Field"}:</span>
           <span style="color:#38BDF8;">${layerName} ${value} ${unit}</span>
@@ -368,6 +389,8 @@ export interface GlobeViewportProps {
   onOpacity: (o: number) => void;
   onPick: (lat: number, lon: number) => void;
   initialBasemapStyle?: BasemapStyle;
+  activeBasemapStyle?: BasemapStyle;
+  onBasemapStyleChange?: (style: BasemapStyle) => void;
   onInteraction?: () => void;
 }
 
@@ -379,6 +402,8 @@ export function GlobeViewport({
   onOpacity,
   onPick,
   initialBasemapStyle,
+  activeBasemapStyle,
+  onBasemapStyleChange,
   onInteraction,
 }: GlobeViewportProps) {
   const { lat, lon } = telemetry.input;
@@ -395,15 +420,10 @@ export function GlobeViewport({
     null,
   );
   const [leafletModule, setLeafletModule] = useState<LeafletBundle | null>(null);
+  const [tilesLoading, setTilesLoading] = useState(false);
   const [hover, setHover] = useState<{ lat: number; lon: number } | null>(null);
 
   // HUD Card Minimization States (Adaptive default based on screen width)
-  const [isReticleMinimized, setIsReticleMinimized] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth < 1440;
-    }
-    return false;
-  });
   const [isDockMinimized, setIsDockMinimized] = useState(false);
   const { t } = useLanguage();
 
@@ -422,11 +442,15 @@ export function GlobeViewport({
 
   // Basemap & Layer Switcher State (Zoom Earth Meteorological Modes)
   const [basemapStyle, setBasemapStyle] = useState<BasemapStyle>(
-    initialBasemapStyle || "satellite",
+    activeBasemapStyle || initialBasemapStyle || "satellite",
   );
   const [basemapSubOption, setBasemapSubOption] = useState<SubOptionId>("satellite_live");
-  const [showLabels, setShowLabels] = useState(true);
+  const [showLabels, setShowLabels] = useState(false);
   const [enable3dTerrain, setEnable3dTerrain] = useState(true);
+
+  useEffect(() => {
+    if (activeBasemapStyle) setBasemapStyle(activeBasemapStyle);
+  }, [activeBasemapStyle]);
 
   // Center Layer Info Modal
   const [showLayerInfoModal, setShowLayerInfoModal] = useState(false);
@@ -440,16 +464,24 @@ export function GlobeViewport({
 
   useEffect(() => {
     let active = true;
-    fetchMeteorologicalForecast(lat, lon).then((data) => {
-      if (active) setWeatherForecast(data);
-    });
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetchMeteorologicalForecast(lat, lon, controller.signal)
+        .then((data) => {
+          if (active) setWeatherForecast(data);
+        })
+        .catch(() => undefined);
+    }, 350);
     return () => {
       active = false;
+      window.clearTimeout(timer);
+      controller.abort();
     };
   }, [lat, lon]);
 
   const handleBasemapStyleChange = useCallback((newStyle: BasemapStyle) => {
     setBasemapStyle(newStyle);
+    onBasemapStyleChange?.(newStyle);
     const atmosphericModes = [
       "wind",
       "temperature",
@@ -463,15 +495,12 @@ export function GlobeViewport({
       setInfoModalLayerId(newStyle as ZoomEarthLayerId);
       setShowLayerInfoModal(true);
     }
-  }, []);
+  }, [onBasemapStyleChange]);
 
   // Zoom state: the 3D globe uses MapLibre zoom (1.5–19), the 2D map uses Leaflet zoom
   const [globeZoom, setGlobeZoom] = useState(GLOBE_DEFAULT_ZOOM);
   const [gisZoom, setGisZoom] = useState(12);
   const globeZoomRef = useRef(GLOBE_DEFAULT_ZOOM);
-  /** Current projection of the MapLibre globe (reported by OrbitalSatelliteGlobe). */
-  const [globeProjection, setGlobeProjection] = useState<GlobeProjectionId>("globe");
-
   const handleGlobeZoom = useCallback((z: number) => {
     globeZoomRef.current = z;
     setGlobeZoom(z);
@@ -487,7 +516,11 @@ export function GlobeViewport({
   const leafletMapRef = useRef<LeafletMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 500 });
-  const lastGlobeClickRef = useRef<{ time: number; lat: number; lon: number }>({ time: 0, lat: 0, lon: 0 });
+  const lastGlobeClickRef = useRef<{ time: number; lat: number; lon: number }>({
+    time: 0,
+    lat: 0,
+    lon: 0,
+  });
 
   // Safe client-side dynamic loading of WebGL & Leaflet to keep SSR 100% deterministic
   useEffect(() => {
@@ -526,7 +559,10 @@ export function GlobeViewport({
       import("@/components/globe/OrbitalSatelliteGlobe")
         .then((gMod) => {
           if (!active) return;
-          setGlobeModule(() => gMod.OrbitalSatelliteGlobe as unknown as ComponentType<OrbitalSatelliteGlobeProps>);
+          setGlobeModule(
+            () =>
+              gMod.OrbitalSatelliteGlobe as unknown as ComponentType<OrbitalSatelliteGlobeProps>,
+          );
         })
         .catch((err) => {
           console.warn("3D Globe load warning, defaulting to 2D:", err);
@@ -623,7 +659,18 @@ export function GlobeViewport({
   const overpassTimerStr = `${overpassMinutes}m ${overpassRemSec < 10 ? "0" : ""}${overpassRemSec}s`;
 
   // NASA GIBS WMTS URL definition for 2D Leaflet
-  const gibsTileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/{z}/{y}/{x}.${activeSatelliteConfig.format}`;
+  const atmosphereGibsLayers: Partial<Record<BasemapStyle, { layer: string; zoom: number }>> = {
+    precipitation: { layer: "IMERG_Precipitation_Rate", zoom: 6 },
+    wind: { layer: "MERRA2_Surface_Wind_Speed_Monthly", zoom: 6 },
+    temperature: { layer: "MODIS_Terra_Land_Surface_Temp_Day", zoom: 6 },
+    humidity: { layer: "AIRS_L2_RelativeHumidity_500hPa_Day", zoom: 6 },
+    pressure: { layer: "MERRA2_Surface_Pressure_Monthly", zoom: 6 },
+  };
+  const atmosphereGibs = atmosphereGibsLayers[basemapStyle];
+  const gibsMaxZoom = atmosphereGibs?.zoom ?? activeSatelliteConfig.maxZoom;
+  const gibsTileUrl = atmosphereGibs
+    ? `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${atmosphereGibs.layer}/default/default/GoogleMapsCompatible_Level${atmosphereGibs.zoom}/{z}/{y}/{x}.png`
+    : `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${activeSatelliteConfig.gibsLayerName}/default/${activeSatelliteConfig.defaultDate}/GoogleMapsCompatible_Level${activeSatelliteConfig.maxZoom}/{z}/{y}/{x}.${activeSatelliteConfig.format}`;
 
   // HTML target reticle + hazard markers (place names come from the Esri label tiles)
   const dynamicGlobeHtmlMarkers = useMemo(() => {
@@ -799,7 +846,6 @@ export function GlobeViewport({
   // Explicit view switchers: the globe keeps its last zoom, 2D inherits a field-level zoom
   const handleSwitchTo3D = useCallback(() => {
     if (!webGLSupported) return;
-    setGlobeProjection("globe");
     setViewMode("3d");
   }, [webGLSupported]);
 
@@ -809,46 +855,20 @@ export function GlobeViewport({
     setViewMode("2d");
   }, []);
 
-  // 2D map zoomed all the way out → auto hand-off to the 3D orbital globe with starfield
+  // 2D map zoomed all the way out hands off to the orbital globe
   const handleAutoTransitionTo3D = useCallback(() => {
     const now = Date.now();
     if (now - lastAutoTransitionRef.current < 400) return;
     lastAutoTransitionRef.current = now;
     if (!webGLSupported) return;
-    setGlobeProjection("globe");
     handleGlobeZoom(GLOBE_DEFAULT_ZOOM);
     setViewMode("3d");
-    toast.info("🌐 Entering 3D Orbital Overview", {
-      description: "Altitude > 1 km — Switched to the 3D spherical globe with starfield and atmospheric glow.",
+    toast.info(<LocalizedText text="Entering 3D Orbital Overview" />, {
+      description: (
+        <LocalizedText text="Zoomed out to the global view. Switched to the 3D satellite globe." />
+      ),
     });
   }, [webGLSupported, handleGlobeZoom]);
-
-  /**
-   * Altitude-triggered auto-transition: 3D Globe → 2D Flat Map.
-   * Fires when MapLibre globe's internal projection transitions to "mercator" (altitude ≤ 1 km).
-   * Smoothly hands off to the 2D Leaflet tactical map at field zoom level.
-   */
-  const handleAutoTransitionTo2D = useCallback(() => {
-    if (viewMode !== "3d") return;
-    const now = Date.now();
-    if (now - lastAutoTransitionRef.current < 600) return;
-    lastAutoTransitionRef.current = now;
-    const z = globeApiRef.current?.getZoom() ?? globeZoomRef.current;
-    setGisZoom(Math.max(13, Math.min(18, Math.round(z))));
-    setViewMode("2d");
-    toast.info("🗺️ Entering 2D Field Map", {
-      description: `Altitude ≤ ${ALTITUDE_TRANSITION_KM} km — Switched to high-resolution 2D Mercator tactical map.`,
-    });
-  }, [viewMode]);
-
-  /** Called by OrbitalSatelliteGlobe whenever projection auto-switches (globe ↔ mercator at 1 km). */
-  const handleProjectionChange = useCallback((proj: GlobeProjectionId) => {
-    setGlobeProjection(proj);
-    // Auto-transition to 2D Leaflet map when globe morphs to mercator (altitude ≤ 1 km)
-    if (proj === "mercator") {
-      handleAutoTransitionTo2D();
-    }
-  }, [handleAutoTransitionTo2D]);
 
   const handleZoomIn = useCallback(() => {
     if (viewMode === "3d") {
@@ -871,24 +891,6 @@ export function GlobeViewport({
     }
   }, [viewMode, gisZoom, handleAutoTransitionTo3D]);
 
-  const handleSliderChange = useCallback(
-    (newZoom: number) => {
-      if (viewMode === "3d") {
-        const z = clampGlobeZoom(newZoom);
-        globeApiRef.current?.zoomTo(z);
-        handleGlobeZoom(z);
-        return;
-      }
-      if (newZoom <= 2) {
-        handleAutoTransitionTo3D();
-        return;
-      }
-      leafletMapRef.current?.setZoom?.(newZoom, { animate: true });
-      setGisZoom(newZoom);
-    },
-    [viewMode, handleAutoTransitionTo3D, handleGlobeZoom],
-  );
-
   // Keyboard Shortcuts: +, -, R (reset), 0 (full orbit)
   useEffect(() => {
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
@@ -908,7 +910,7 @@ export function GlobeViewport({
         e.preventDefault();
         if (viewMode === "3d") {
           globeApiRef.current?.flyTo(lat, lon, GLOBE_FLY_TO_MIN_ZOOM);
-          toast.info("Target camera reset");
+          toast.info(<LocalizedText text="Target camera reset" />);
         } else {
           leafletMapRef.current?.flyTo?.([lat, lon], 13, { animate: true, duration: 0.8 });
         }
@@ -949,28 +951,42 @@ export function GlobeViewport({
     [onLayer],
   );
 
-  // 4-Stage Zoom HUD Status Information (syncs projection mode in real time)
+  // Globe → flat-map morph at 1 km altitude (reverses on zoom-out).
+  const projectionMode = projectionModeForZoom(globeZoom);
+  const globeFlatness = flatnessForZoom(globeZoom);
+  const projectionTag =
+    projectionMode === "flat"
+      ? "2D FLAT MAP"
+      : projectionMode === "morph"
+        ? "MORPHING"
+        : "3D GLOBE";
+
+  // 4-Stage Zoom HUD Status Information
   const zoomStageInfo = useMemo(() => {
     if (viewMode === "3d") {
       const s = orbitalStageForZoom(globeZoom);
-      const altKm = altitudeKmForZoom(globeZoom);
-      const projLabel = globeProjection === "globe" ? "GLOBE 3D" : "MERCATOR 2D";
+      const mode = projectionModeForZoom(globeZoom);
+      const label =
+        mode === "flat"
+          ? "FIELD LEVEL • 2D FLAT MAP"
+          : mode === "morph"
+            ? "DISTRICT / FIELD • FLATTENING TO 2D"
+            : s.label;
       const tone =
         s.id === "orbital"
-          ? { color: "#38BDF8", badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40" }
+          ? { color: "#38BDF8", badgeColor: "bg-sky-500/20 text-cyan-300 border-sky-400/40" }
           : s.id === "continental"
             ? { color: "#06B6D4", badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40" }
             : s.id === "regional"
-              ? { color: "#22D3EE", badgeColor: "bg-cyan-500/20 text-cyan-200 border-cyan-300/40" }
+              ? { color: "#22D3EE", badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-300/40" }
               : {
                   color: "#10B981",
-                  badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
+                  badgeColor: "bg-emerald-500/20 text-emerald-400 border-emerald-400/40",
                 };
       return {
         stage: s.stage,
-        label: s.label,
-        detail: `ALT: ${altKm.toLocaleString()} km • ${projLabel}`,
-        projection: projLabel,
+        label,
+        detail: `ALT: ${formatAltitude(globeZoom)}`,
         ...tone,
       };
     }
@@ -978,10 +994,9 @@ export function GlobeViewport({
       return {
         stage: "STAGE 4",
         label: "2D TACTICAL MAP • FIELD PARCEL GIS",
-        detail: `Zoom ${gisZoom} • Alt ≤ ${ALTITUDE_TRANSITION_KM} km`,
-        projection: "MERCATOR 2D",
+        detail: `Zoom ${gisZoom} • High-Res`,
         color: "#10B981",
-        badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-400/40",
+        badgeColor: "bg-emerald-500/20 text-emerald-400 border-emerald-400/40",
       };
     }
     if (gisZoom > 2) {
@@ -989,7 +1004,6 @@ export function GlobeViewport({
         stage: "STAGE 4",
         label: "2D TACTICAL MAP • REGIONAL OVERVIEW",
         detail: `Zoom ${gisZoom}`,
-        projection: "MERCATOR 2D",
         color: "#06B6D4",
         badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-400/40",
       };
@@ -998,11 +1012,10 @@ export function GlobeViewport({
       stage: "STAGE 1",
       label: "AUTO-HAND-OFF • 3D ORBITAL GLOBE",
       detail: `Zoom ${gisZoom} <= 2`,
-      projection: "GLOBE 3D",
       color: "#38BDF8",
-      badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/40",
+      badgeColor: "bg-sky-500/20 text-cyan-300 border-sky-400/40",
     };
-  }, [viewMode, globeZoom, gisZoom, globeProjection]);
+  }, [viewMode, globeZoom, gisZoom]);
 
   // Fit All Hazards in 2D View
   const handleFitAllHazards = () => {
@@ -1083,7 +1096,7 @@ export function GlobeViewport({
       {LON_TICKS.map((t) => (
         <span
           key={`lon-${t}`}
-          className="pointer-events-none absolute top-1 -translate-x-1/2 font-mono text-[9px] text-muted-foreground/70"
+          className="pointer-events-none absolute top-1 -translate-x-1/2 font-mono text-xs text-muted-foreground"
           style={{ left: `${toX(t)}%` }}
         >
           {t}°
@@ -1092,7 +1105,7 @@ export function GlobeViewport({
       {LAT_TICKS.map((t) => (
         <span
           key={`lat-${t}`}
-          className="pointer-events-none absolute right-1.5 -translate-y-1/2 font-mono text-[9px] text-muted-foreground/70"
+          className="pointer-events-none absolute right-1.5 -translate-y-1/2 font-mono text-xs text-muted-foreground"
           style={{ top: `${toY(t)}%` }}
         >
           {t}°
@@ -1111,7 +1124,7 @@ export function GlobeViewport({
       data-lon={lon}
       data-layer={activeLayer}
       onPointerDown={() => onInteraction?.()}
-      className="relative mx-auto w-full max-w-[1920px] h-[calc(100dvh-4.25rem)] min-h-[500px] max-h-[820px] rounded-2xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
+      className="relative mx-auto w-full max-w-[1920px] h-[calc(100dvh-9.5rem)] sm:h-[calc(100dvh-8rem)] min-h-[420px] sm:min-h-[440px] max-h-[820px] rounded-xl border border-white/[0.08] bg-[#03060d] overflow-hidden select-none shadow-[0_24px_60px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.18)] mb-4"
     >
       {/* Ambient Radiant Orbital Glows (Google Stitch) */}
       <div
@@ -1159,8 +1172,12 @@ export function GlobeViewport({
           onFailure={() => setViewMode("2d")}
         >
           <div className="absolute inset-0">
-            {/* Deep-space starfield behind the transparent globe canvas */}
-            <div className="cosmic-starfield-canvas">
+            {/* Deep-space starfield behind the transparent globe canvas; fades out as the
+                sphere flattens into the 2D field map and returns on zoom-out. */}
+            <div
+              className="cosmic-starfield-canvas transition-opacity duration-500"
+              style={{ opacity: 1 - globeFlatness }}
+            >
               <div className="cosmic-stars-1" />
               <div className="cosmic-stars-2" />
               <div className="cosmic-stars-3" />
@@ -1172,12 +1189,12 @@ export function GlobeViewport({
               basemapStyle={basemapStyle}
               showLabels={showLabels}
               overlayUrl={gibsTileUrl}
-              overlayMaxZoom={activeSatelliteConfig.maxZoom}
+              overlayMaxZoom={gibsMaxZoom}
               overlayOpacity={opacity / 100}
               markers={globeMarkers}
               onPick={onPick}
               onZoom={handleGlobeZoom}
-              onProjectionChange={handleProjectionChange}
+              onLoading={setTilesLoading}
               onReady={handleGlobeReady}
               onFailure={handleGlobeFailure}
             />
@@ -1193,16 +1210,17 @@ export function GlobeViewport({
             <span className="relative inline-flex rounded-full size-2 bg-cyan-400" />
           </span>
           <span className="font-bold text-cyan-300 tracking-wider">
-            [ TARGET LOCKED: {Math.abs(targetLockedBanner.lat).toFixed(4)}°{" "}
-            {targetLockedBanner.lat >= 0 ? "N" : "S"}, {Math.abs(targetLockedBanner.lon).toFixed(4)}
-            ° {targetLockedBanner.lon >= 0 ? "E" : "W"} ]
+            {<LocalizedText text={"[ TARGET LOCKED: "} />}
+            {Math.abs(targetLockedBanner.lat).toFixed(4)}° {targetLockedBanner.lat >= 0 ? "N" : "S"}
+            , {Math.abs(targetLockedBanner.lon).toFixed(4)}°{" "}
+            {targetLockedBanner.lon >= 0 ? "E" : "W"} ]
           </span>
         </div>
       )}
 
       {/* ---------------- 2D FIELD GIS MODE (LEAFLET + NASA GIBS + HAZARDS) ---------------- */}
       {viewMode === "2d" && LeafletComp && mounted ? (
-        <div className="absolute inset-0 z-0 w-full h-full rounded-2xl overflow-hidden">
+        <div className="absolute inset-0 z-0 w-full h-full rounded-xl overflow-hidden">
           <LeafletComp.MapContainer
             center={[lat, lon]}
             zoom={gisZoom}
@@ -1232,14 +1250,18 @@ export function GlobeViewport({
                         : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               }
               maxZoom={18}
+              eventHandlers={{
+                loading: () => setTilesLoading(true),
+                load: () => setTilesLoading(false),
+              }}
               attribution={
                 basemapStyle === "dark"
-                  ? "Tiles &copy; Esri &mdash; Esri Dark Canvas"
+                  ? "Tiles © Esri — Esri Dark Canvas"
                   : basemapStyle === "terrain"
-                    ? "Tiles &copy; Esri &mdash; World Topo Map & Elevation Contours"
+                    ? "Tiles © Esri — World Topo Map & Elevation Contours"
                     : basemapStyle === "default"
-                      ? "Tiles &copy; Esri &mdash; World Street Map"
-                      : "Tiles &copy; Esri &mdash; High-Resolution Farm Satellite"
+                      ? "Tiles © Esri — World Street Map"
+                      : "Tiles © Esri — High-Resolution Farm Satellite"
               }
             />
 
@@ -1283,11 +1305,15 @@ export function GlobeViewport({
             <LeafletComp.TileLayer
               key={`2d-nasa-overlay-${activeLayer}`}
               url={gibsTileUrl}
-              maxNativeZoom={activeSatelliteConfig.maxZoom}
+              maxNativeZoom={gibsMaxZoom}
               maxZoom={18}
               opacity={opacity / 100}
               zIndex={10}
               attribution="NASA GIBS WMTS"
+              eventHandlers={{
+                loading: () => setTilesLoading(true),
+                load: () => setTilesLoading(false),
+              }}
             />
 
             {/* Interactive & Draggable Farm Marker Pin */}
@@ -1320,19 +1346,21 @@ export function GlobeViewport({
               }
             >
               <LeafletComp.Popup className="hud-leaflet-popup">
-                <div className="font-mono text-xs p-1 text-slate-100">
-                  <div className="font-bold text-cyan flex items-center gap-1.5">
-                    <Radar className="size-3.5" /> FARM PIN RETICLE
+                <div className="font-mono text-xs p-1 text-foreground">
+                  <div className="font-bold text-cyan-300 flex items-center gap-1.5">
+                    <Radar className="size-3.5" /> {<LocalizedText text={" FARM PIN RETICLE"} />}
                   </div>
                   <div className="mt-1 text-muted-foreground">
-                    Lat: <span className="text-cyan">{lat.toFixed(4)}°</span> Lon:{" "}
-                    <span className="text-cyan">{lon.toFixed(4)}°</span>
+                    {<LocalizedText text={"Lat: "} />}
+                    <span className="text-cyan-300">{lat.toFixed(4)}°</span>{" "}
+                    {<LocalizedText text={" Lon:"} />}{" "}
+                    <span className="text-cyan-300">{lon.toFixed(4)}°</span>
                   </div>
                   <div className="mt-1 font-semibold" style={{ color: tone }}>
                     {activeLayer}: {reading.value} {reading.unit}
                   </div>
-                  <div className="mt-1 text-[10px] text-muted-foreground border-t border-border/50 pt-1">
-                    Drag pin or click map to reposition field pin.
+                  <div className="mt-1 text-xs text-muted-foreground border-t border-border/50 pt-1">
+                    {<LocalizedText text={"Drag pin or click map to reposition field pin."} />}
                   </div>
                 </div>
               </LeafletComp.Popup>
@@ -1401,33 +1429,33 @@ export function GlobeViewport({
                   }
                 >
                   <LeafletComp.Popup className="hud-leaflet-popup">
-                    <div className="font-mono text-xs p-1 text-slate-100 max-w-64">
+                    <div className="font-mono text-xs p-1 text-foreground max-w-64">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold truncate" style={{ color: hazard.color }}>
                           {hazard.name}
                         </span>
                         <span
                           className={cn(
-                            "rounded px-1.5 py-0.5 text-[9px] uppercase font-semibold",
+                            "rounded-md px-1.5 py-0.5 text-xs uppercase font-semibold",
                             hazard.severity === "critical"
-                              ? "bg-crimson/20 text-crimson border border-crimson/40"
+                              ? "bg-crimson/20 text-rose-400 border border-crimson/40"
                               : hazard.severity === "warning"
-                                ? "bg-amber/20 text-amber border border-amber/40"
-                                : "bg-emerald/20 text-emerald border border-emerald/40",
+                                ? "bg-amber/20 text-amber-400 border border-amber/40"
+                                : "bg-emerald/20 text-emerald-400 border border-emerald/40",
                           )}
                         >
                           {hazard.severity}
                         </span>
                       </div>
-                      <div className="mt-1 font-semibold text-cyan text-[11px]">
+                      <div className="mt-1 font-semibold text-cyan-300 text-xs">
                         {hazard.telemetry}
                       </div>
-                      <p className="mt-1 text-[10px] text-muted-foreground leading-relaxed">
+                      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                         {hazard.impact}
                       </p>
-                      <div className="mt-2 rounded bg-black/40 p-1.5 border border-border/50 text-[10px] text-emerald-300">
-                        <div className="font-semibold text-emerald uppercase text-[9px]">
-                          Farmer Action Checklist:
+                      <div className="mt-2 rounded-md bg-black/40 p-1.5 border border-border/50 text-xs text-emerald-400">
+                        <div className="font-semibold text-emerald-400 uppercase text-xs">
+                          {<LocalizedText text={"Farmer Action Checklist:"} />}
                         </div>
                         {hazard.action}
                       </div>
@@ -1446,12 +1474,14 @@ export function GlobeViewport({
               }}
               onZoomChange={setGisZoom}
               onAutoSwitchTo3D={handleAutoTransitionTo3D}
+              onCenterChange={onPick}
               useMap={LeafletComp.useMap}
               useMapEvents={LeafletComp.useMapEvents}
             />
           </LeafletComp.MapContainer>
         </div>
       ) : null}
+
 
       {/* ---------------- SSR & ENGINE LOADING FALLBACK GRID ---------------- */}
       {(!mounted ||
@@ -1470,446 +1500,260 @@ export function GlobeViewport({
         viewMode={viewMode}
       />
 
-      {/* ---------------- TOP UNIFIED HUD CONTROL HEADER ROW (ZERO COLLISION FLEXBOX) ---------------- */}
-      <div className="absolute top-3 inset-x-3 flex items-start justify-between pointer-events-none z-20 gap-2">
-        {/* Left: TARGET RETICLE LOCK CARD */}
+      {/* Compact map lock card and centered orbital status */}
+      <div className="pointer-events-none absolute left-3 top-3 z-20">
         <div
           data-hud-overlay="reticle"
           data-tour="reticle-lock"
-          className={cn(
-            "hud-card pointer-events-auto min-w-0 max-w-[calc(100vw-1.5rem)] backdrop-blur-xl bg-background/90 border border-cyan/40 shadow-[0_0_20px_rgba(0,0,0,0.7)] rounded-xl transition-all",
-            isReticleMinimized ? "w-40 p-2 sm:w-52" : "w-52 p-3 sm:w-64"
-          )}
+          className="pointer-events-auto w-max max-w-[calc(100vw-6.5rem)] sm:max-w-none rounded-xl border border-cyan-500/30 bg-[#071120]/90 p-2.5 shadow-lg backdrop-blur-md"
         >
-          <div className="flex items-center gap-2 border-b border-cyan/20 pb-1.5">
-            <Radar className="size-3.5 text-cyan animate-spin shrink-0" style={{ animationDuration: "8s" }} />
-            <span className="hud-label font-bold text-cyan/90 text-[10px] truncate">
-              {t("target_reticle_lock", "Target Reticle Lock")}
-            </span>
-            <span className="ml-auto size-2 rounded-full bg-emerald shadow-[0_0_8px_#00ff9d] animate-pulse shrink-0" />
-            <button
-              type="button"
-              onClick={() => setIsReticleMinimized((prev) => !prev)}
-              className="p-0.5 rounded text-white/50 hover:text-cyan hover:bg-white/10 cursor-pointer ml-1 shrink-0"
-              title={isReticleMinimized ? "Expand Target Reticle" : "Minimize Target Reticle"}
-            >
-              {isReticleMinimized ? <Plus className="size-3" /> : <Minus className="size-3" />}
-            </button>
+          <div className="flex items-center gap-2 text-xs font-semibold text-cyan-200">
+            <Radar className="size-4 shrink-0 text-cyan-300" />
+            <span>Target Lock</span>
+            <span className="size-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]" />
           </div>
-          {!isReticleMinimized ? (
-            <>
-              <div className="mt-2 grid grid-cols-2 gap-x-2.5 gap-y-1 font-mono text-[10.5px]">
-                <span className="text-muted-foreground/80 font-medium">
-                  {t("latitude", "LATITUDE")}
-                </span>
-                <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
-                  {formatCoord(lat, "lat")}
-                </span>
-                <span className="text-muted-foreground/80 font-medium">
-                  {t("longitude", "LONGITUDE")}
-                </span>
-                <span className="text-right tabular-nums text-cyan font-bold drop-shadow-[0_0_6px_#00f0ff]">
-                  {formatCoord(lon, "lon")}
-                </span>
-                <span className="text-muted-foreground/80 font-medium">
-                  {t("elevation", "ELEVATION")}
-                </span>
-                <span className="text-right tabular-nums font-semibold">{meta.elevationM} m ASL</span>
-                <span className="text-muted-foreground/80 font-medium">
-                  {t("satellite_pass", "PASS")}
-                </span>
-                <span className="text-right text-emerald font-semibold truncate">
-                  {meta.satellitePass}
-                </span>
-                <span className="text-muted-foreground/80 font-medium">
-                  {t("next_window", "NEXT WINDOW")}
-                </span>
-                <span className="text-right tabular-nums text-amber font-semibold">
-                  T-{meta.nextPassMin} min
-                </span>
-              </div>
-
-              {/* Integrated Sensor Metric Readout in Reticle Card (data-hud-overlay="layer-readout") */}
-              <div
+          <div className="mt-1 whitespace-nowrap font-mono text-xs font-medium tabular-nums text-foreground">
+            {Math.abs(lat).toFixed(2)}° {lat >= 0 ? "N" : "S"} · {Math.abs(lon).toFixed(2)}° {lon >= 0 ? "E" : "W"}
+          </div>
+          <div className="mt-1.5 flex items-center gap-1.5 font-mono text-xs">
+            <span className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
+              NDVI {telemetry.layers.NDVI.value} {telemetry.layers.NDVI.unit}
+            </span>
+            {activeLayer !== "NDVI" && (
+              <span
                 data-hud-overlay="layer-readout"
-                className="mt-2 pt-1.5 border-t border-cyan/20 flex items-center justify-between text-xs font-mono"
+                className="rounded-md border border-cyan-400/25 bg-cyan-500/10 px-1.5 py-0.5 text-cyan-200"
               >
-                <span className="text-cyan font-bold">{activeLayer}</span>
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="font-extrabold tabular-nums drop-shadow-[0_0_8px_currentColor]"
-                    style={{ color: tone }}
-                  >
-                    {reading.value} {reading.unit}
-                  </span>
-                  <span className="text-[9px] text-muted-foreground font-mono">
-                    [{activeSatelliteConfig.sensorName}]
-                  </span>
-                </div>
-              </div>
-
-              {/* 4-Day Adaptive Meteorological Mini-Forecast Strip */}
-              <div className="mt-2 pt-1.5 border-t border-cyan/20">
-                <div className="flex items-center justify-between text-[8.5px] font-mono text-muted-foreground uppercase mb-1">
-                  <span className="flex items-center gap-1 text-slate-300 font-semibold">
-                    <span>📅</span> {t("forecast_4day", "4-Day Forecast")}
-                  </span>
-                  <span className="text-cyan font-bold">
-                    {basemapStyle === "temperature"
-                      ? "MIN / MAX °C"
-                      : basemapStyle === "wind"
-                        ? "MIN / GUSTS km/h"
-                        : basemapStyle === "pressure"
-                          ? "PRESSURE hPa"
-                          : basemapStyle === "precipitation" || basemapStyle === "radar"
-                            ? "RAIN mm"
-                            : basemapStyle === "humidity"
-                              ? "RH %"
-                              : "TEMP °C"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-4 gap-1 text-center font-mono">
-                  {(weatherForecast?.daily || []).map((day) => {
-                    let displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
-                    if (basemapStyle === "temperature") {
-                      displayVal = `${Math.round(day.tempMin)}/${Math.round(day.tempMax)}°`;
-                    } else if (basemapStyle === "wind") {
-                      displayVal = `${Math.round(day.windSpeedMax)}/${Math.round(day.windGustsMax)}k`;
-                    } else if (basemapStyle === "pressure") {
-                      displayVal = `${day.pressure}`;
-                    } else if (basemapStyle === "precipitation" || basemapStyle === "radar") {
-                      displayVal = `${day.precipitationSum}mm`;
-                    } else if (basemapStyle === "humidity") {
-                      displayVal = `${Math.round(weatherForecast?.current?.relativeHumidity ?? 50)}%`;
-                    }
-
-                    return (
-                      <div
-                        key={day.date}
-                        className="bg-black/40 rounded px-1 py-0.5 border border-cyan-500/20"
-                      >
-                        <div className="text-[8px] text-slate-400 font-semibold">{day.label}</div>
-                        <div className="text-[9px] text-cyan-300 font-bold tracking-tight">
-                          {displayVal}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div
-              data-hud-overlay="layer-readout"
-              className="mt-1 pt-1 flex items-center justify-between text-[11px] font-mono"
-            >
-              <span className="text-cyan font-semibold">
-                {lat.toFixed(2)}°, {lon.toFixed(2)}°
+                {activeLayer} {reading.value} {reading.unit}
               </span>
-              <span className="font-bold text-emerald-400">
-                {reading.value} {reading.unit}
-              </span>
+            )}
+          </div>
+          {tilesLoading && (
+            <div className="mt-1.5 flex items-center gap-1.5 font-mono text-xs text-cyan-300" role="status" aria-live="polite">
+              <span className="inline-block size-1.5 shrink-0 animate-pulse rounded-full bg-cyan-300" />
+              <LocalizedText text={"Loading map tiles…"} />
             </div>
           )}
         </div>
-
-        {/* Center: STAGE 1 ORBITAL VIEW PILL */}
-        <div
-          data-hud-overlay="zoom-stage-pill"
-          className="pointer-events-auto hidden md:flex items-center gap-2 rounded-full border border-cyan-500/40 bg-[#090D16]/90 px-3.5 py-1.5 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(6,182,212,0.25)] text-xs font-mono select-none whitespace-nowrap transition-all duration-300 shrink-0"
-        >
-          <span
-            className="size-2 rounded-full animate-pulse shrink-0"
-            style={{ background: zoomStageInfo.color, boxShadow: `0 0 8px ${zoomStageInfo.color}` }}
-          />
-          <span
-            className={cn(
-              "rounded px-1.5 py-0.5 text-[9px] font-bold border tracking-wider uppercase",
-              zoomStageInfo.badgeColor,
-            )}
-          >
-            {zoomStageInfo.stage}
-          </span>
-          <span className="font-semibold text-slate-200 tracking-wide text-[11px]">
-            {zoomStageInfo.label}
-          </span>
-          <span className="text-[10px] text-muted-foreground tabular-nums">
-            ({zoomStageInfo.detail})
-          </span>
-        </div>
-
-        {/* Right: 3D ORBITAL | 2D FIELD GIS TOGGLE */}
-        <div
-          data-tour="view-toggle-dock"
-          className="pointer-events-auto flex items-center gap-1 rounded-lg border border-cyan/50 bg-background/90 p-1 backdrop-blur-xl shadow-[0_0_20px_rgba(0,0,0,0.7)] shrink-0"
-        >
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={!webGLSupported}
-            title={
-              webGLSupported
-                ? "3D Orbital Globe View"
-                : "3D WebGL is unavailable in your browser environment"
-            }
-            className={cn(
-              "h-7 px-3 font-mono text-xs transition-all",
-              viewMode === "3d"
-                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-                : "text-muted-foreground hover:text-foreground",
-              !webGLSupported && "opacity-50 cursor-not-allowed",
-            )}
-            aria-label="3D Orbital View"
-            onClick={handleSwitchTo3D}
-          >
-            <GlobeIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />{" "}
-            <span className="hidden md:inline">{t("view_3d_orbital", "3D Orbital")}</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className={cn(
-              "h-7 px-3 font-mono text-xs transition-all",
-              viewMode === "2d"
-                ? "bg-cyan/20 text-cyan border border-cyan/60 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            aria-label="2D Field GIS View"
-            onClick={handleSwitchTo2D}
-          >
-            <MapIcon className="mr-1.5 size-3.5 text-cyan drop-shadow-[0_0_6px_#00f0ff]" />{" "}
-            <span className="hidden md:inline">{t("view_2d_field_gis", "2D Field GIS")}</span>
-          </Button>
-        </div>
       </div>
 
-      {/* ---------------- FLOATING TACTICAL HUD ZOOM CONTROL BAR (RIGHT-DOCKED & VERTICALLY CENTERED) ---------------- */}
+      <div
+        data-hud-overlay="zoom-stage-pill"
+        className="pointer-events-none absolute left-1/2 top-3 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-cyan-500/30 bg-[#071120]/90 px-3 py-1.5 font-mono text-xs shadow-lg backdrop-blur-md md:flex"
+      >
+        <span className="size-2 shrink-0 animate-pulse rounded-full" style={{ background: zoomStageInfo.color, boxShadow: `0 0 8px ${zoomStageInfo.color}` }} />
+        <span className="font-semibold text-foreground">{zoomStageInfo.label}</span>
+        <span className="text-muted-foreground">{zoomStageInfo.detail}</span>
+        {viewMode === "3d" && <span className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-1.5 py-0.5 text-cyan-200">{projectionTag}</span>}
+      </div>
+
+      {/* Slim right-edge view, zoom, and location controls */}
       <div
         data-hud-overlay="zoom-controls"
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 rounded-xl border border-cyan-500/40 bg-[#0D1322]/90 p-1.5 backdrop-blur-md shadow-2xl select-none max-h-[calc(100%-9.5rem)] overflow-y-auto no-scrollbar py-2 pointer-events-auto"
+        className="pointer-events-auto absolute right-3 top-3 z-30 flex w-11 flex-col items-center gap-1 rounded-2xl border border-cyan-500/30 bg-[#071120]/90 p-1.5 shadow-lg backdrop-blur-md"
       >
-        {/* Live Altitude / Zoom Readout Badge directly above the + button */}
-        <div
-          className="rounded border border-cyan-500/40 bg-black/80 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-cyan-300 tabular-nums text-center whitespace-nowrap shadow-[0_0_8px_rgba(6,182,212,0.3)] mb-0.5"
-          title={
-            viewMode === "3d"
-              ? `Orbital Altitude: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`
-              : `Field Resolution: Zoom ${gisZoom}x`
-          }
-        >
-          {viewMode === "3d"
-            ? `ALT: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`
-            : `Zoom: ${gisZoom}x`}
+        <div data-tour="view-toggle-dock" role="group" aria-label="Map view controls" className="flex flex-col gap-1">
+          <Button
+            type="button"
+            size="icon"
+            variant="toggle"
+            disabled={!webGLSupported}
+            aria-label="3D Orbital View"
+            aria-pressed={viewMode === "3d"}
+            title="3D Orbital View"
+            className={cn("size-8 rounded-xl p-0", viewMode === "3d" ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200" : "text-muted-foreground", !webGLSupported && "opacity-50")}
+            onClick={handleSwitchTo3D}
+          >
+            <GlobeIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="toggle"
+            aria-label="2D Field GIS View"
+            aria-pressed={viewMode === "2d"}
+            title="2D Field GIS View"
+            className={cn("size-8 rounded-xl p-0", viewMode === "2d" ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200" : "text-muted-foreground")}
+            onClick={handleSwitchTo2D}
+          >
+            <MapIcon className="size-4" />
+          </Button>
         </div>
-
-        {/* Zoom In Button */}
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={handleZoomIn}
-          title="Zoom In (+)"
-          aria-label="Zoom In"
-          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
-        >
-          <Plus className="size-3.5" />
+        <div className="my-0.5 h-px w-full bg-cyan-500/25" />
+        <span className="w-full rounded-md border border-cyan-500/25 bg-black/40 py-1 text-center font-mono text-xs font-semibold tabular-nums text-cyan-200" title={viewMode === "3d" ? `Altitude: ${formatAltitude(globeZoom)}` : `Field zoom: ${gisZoom}`}>
+          Z:{viewMode === "3d" ? globeZoom.toFixed(1) : currentZoomLevel}
+        </span>
+        <Button type="button" size="icon" variant="secondary" onClick={handleZoomIn} title="Zoom in" aria-label="Zoom in" className="size-8 rounded-xl text-cyan-200 hover:bg-cyan-500/15">
+          <Plus className="size-4" />
         </Button>
-
-        {/* Vertical Range Slider */}
-        <div className="relative py-1 flex flex-col items-center">
-          <input
-            type="range"
-            min={viewMode === "3d" ? GLOBE_MIN_ZOOM : 1}
-            max={viewMode === "3d" ? GLOBE_MAX_ZOOM : 18}
-            step={viewMode === "3d" ? 0.1 : 1}
-            value={currentZoomLevel}
-            onChange={(e) => handleSliderChange(Number(e.target.value))}
-            aria-label="Zoom Level Slider"
-            className="h-16 sm:h-20 w-2 cursor-pointer appearance-none rounded-full bg-slate-800 accent-cyan [writing-mode:vertical-lr] [direction:rtl]"
-          />
-        </div>
-
-        {/* Zoom Out Button */}
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={handleZoomOut}
-          title="Zoom Out (-)"
-          aria-label="Zoom Out"
-          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
-        >
-          <Minus className="size-3.5" />
+        <Button type="button" size="icon" variant="secondary" onClick={handleZoomOut} title="Zoom out" aria-label="Zoom out" className="size-8 rounded-xl text-cyan-200 hover:bg-cyan-500/15">
+          <Minus className="size-4" />
         </Button>
-
-        {/* Live Readout Badge */}
-        <div
-          className="rounded border border-cyan-500/30 bg-black/60 px-1 py-0.5 font-mono text-[8px] text-cyan tabular-nums text-center w-full"
-          title={
-            viewMode === "3d"
-              ? `Orbital Altitude: ${altitudeKmForZoom(globeZoom).toLocaleString()} km`
-              : `Field Resolution: Zoom ${gisZoom}`
-          }
-        >
-          Z:{viewMode === "3d" ? globeZoom.toFixed(2) : currentZoomLevel}
-        </div>
-
-        <div className="w-full h-px bg-cyan-500/30 my-0.5" />
-
-        {/* Quick Action: Target Farm (Z:15) */}
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={handleTargetFarm}
-          title="Target Farm (Z:15)"
-          aria-label="Target Farm"
-          className="size-9 sm:size-7 rounded-lg text-emerald hover:bg-emerald-500/20 hover:text-emerald-300 cursor-pointer"
-        >
-          <Crosshair className="size-3.5" />
+        <div className="my-0.5 h-px w-full bg-cyan-500/25" />
+        <Button type="button" size="icon" variant="secondary" onClick={handleTargetFarm} title="Center on target coordinates" aria-label="Locate target coordinates" className="size-8 rounded-xl text-emerald-300 hover:bg-emerald-500/15">
+          <Crosshair className="size-4" />
         </Button>
-
-        {/* Quick Action: Full Orbit (Z:3) */}
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          onClick={handleFullOrbit}
-          title="Full Orbit (Z:3)"
-          aria-label="Full Orbit"
-          className="size-9 sm:size-7 rounded-lg text-cyan hover:bg-cyan-500/20 hover:text-cyan-300 cursor-pointer"
-        >
-          <Compass className="size-3.5" />
+        <Button type="button" size="icon" variant="secondary" onClick={handleFullOrbit} title="Full orbit" aria-label="Reset to full orbit" className="size-8 rounded-xl text-cyan-200 hover:bg-cyan-500/15">
+          <Compass className="size-4" />
         </Button>
       </div>
 
-      {/* ---------------- 2D MAP HAZARD LEGEND & FILTER BAR ---------------- */}
+      {/* Unified bottom map dock: hazards, satellite layers, and basemap */}
       <div
-        data-hud-overlay="hazard-filter"
-        className="absolute left-3 right-3 bottom-[9rem] sm:left-4 sm:right-auto sm:bottom-16 sm:max-w-[calc(100%-2rem)] max-h-28 overflow-y-auto z-20 flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/40 bg-[#0D1322]/95 px-3 py-1.5 backdrop-blur-md shadow-2xl text-xs font-mono"
+        data-hud-overlay="layer-switcher"
+        data-tour="nasa-telemetry-dock"
+        className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 pr-12"
       >
-        <div className="flex items-center gap-1.5 pr-1 border-r border-cyan-500/30">
-          <AlertTriangle className="size-3.5 text-amber-400 shrink-0 animate-pulse" />
-          <Button
+        {isDockMinimized ? (
+          <button
             type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => setHazardsVisible((v) => !v)}
-            className={cn(
-              "h-6 px-1.5 text-[10px] font-mono font-bold transition-all",
-              hazardsVisible ? "text-amber-300 bg-amber-500/10" : "text-muted-foreground opacity-60",
-            )}
-            title="Toggle Hazard Overlays"
+            onClick={() => setIsDockMinimized(false)}
+            className="pointer-events-auto flex h-9 items-center gap-2 rounded-full border border-cyan-500/30 bg-[#071120]/95 px-3 font-mono text-xs font-semibold text-cyan-200 shadow-lg backdrop-blur-md"
+            title="Open map controls (L)"
           >
-            {hazardsVisible ? (
-              <Eye className="size-3 mr-1 text-amber-400" />
-            ) : (
-              <EyeOff className="size-3 mr-1" />
-            )}
-            Hazards: {hazardsVisible ? "ON" : "OFF"}
-          </Button>
-        </div>
+            <Satellite className="size-4" />
+            {activeLayer} · {reading.value} {reading.unit}
+            <ChevronUp className="size-3.5" />
+          </button>
+        ) : (
+          <div className="pointer-events-auto flex w-full min-w-0 flex-col gap-1.5 rounded-2xl border border-cyan-500/25 bg-[#071120]/90 p-2 shadow-lg backdrop-blur-md">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="toggle"
+                  aria-pressed={hazardsVisible}
+                  aria-label={hazardsVisible ? "Turn hazard overlays off" : "Turn hazard overlays on"}
+                  onClick={() => setHazardsVisible((visible) => !visible)}
+                  title={hazardsVisible ? "Turn hazard overlays off" : "Turn hazard overlays on"}
+                  className={cn(
+                    "h-8 shrink-0 gap-1.5 rounded-full border px-2.5 font-mono text-xs",
+                    hazardsVisible
+                      ? "border-amber-400/30 bg-amber-500/10 text-amber-200"
+                      : "border-white/10 text-muted-foreground",
+                  )}
+                >
+                  <AlertTriangle className="size-3.5" />
+                  Hazards
+                </Button>
+                {hazardsVisible && (
+                  <span className="hidden rounded-full border border-amber-400/25 bg-amber-500/10 px-2 py-1 font-mono text-xs text-amber-200 sm:inline-flex">
+                    {activeMapHazards.length} active
+                  </span>
+                )}
+              </div>
+              <div
+                data-hud-overlay="hazard-filter"
+                aria-label="Hazard filters"
+                className="relative min-w-0 flex-1 overflow-hidden"
+              >
+              <div
+                className="flex snap-x snap-mandatory items-center gap-1.5 overflow-x-auto no-scrollbar px-2 py-1"
+                style={{ maskImage: "linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent)" }}
+              >
+                {([
+                  ["all", "All"],
+                  ["fire", "Fires"],
+                  ["wind", "Wind"],
+                  ["cyclone", "Storms"],
+                  ["earthquake", "Seismic"],
+                ] as const).map(([filter, label]) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    aria-pressed={hazardFilter === filter}
+                    onClick={() => setHazardFilter(filter)}
+                    className={cn(
+                      "snap-start shrink-0 rounded-full border px-3 py-1.5 font-mono text-xs transition-colors",
+                      hazardFilter === filter
+                        ? "border-cyan-400/40 bg-cyan-500/15 text-cyan-100"
+                        : "border-white/10 bg-white/[0.03] text-muted-foreground hover:border-cyan-500/30 hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleFitAllHazards}
+                  className="snap-start shrink-0 rounded-full border border-white/10 px-3 py-1.5 font-mono text-xs text-muted-foreground hover:border-cyan-500/30 hover:text-cyan-100"
+                >
+                  Fit All
+                </button>
+              </div>
+              </div>
+              <div data-tour="basemap-switcher" className="shrink-0">
+                <MapLayerSwitcher
+                  currentStyle={basemapStyle}
+                  onStyleChange={handleBasemapStyleChange}
+                  activeSubOption={basemapSubOption}
+                  onSubOptionChange={setBasemapSubOption}
+                  onOpenInfoModal={(style) => {
+                    setInfoModalLayerId(style as ZoomEarthLayerId);
+                    setShowLayerInfoModal(true);
+                  }}
+                  showLabels={showLabels}
+                  onToggleLabels={setShowLabels}
+                  enable3dTerrain={enable3dTerrain}
+                  onToggle3dTerrain={setEnable3dTerrain}
+                  viewMode={viewMode}
+                  coordinates={{ lat, lon }}
+                  compact
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDockMinimized(true)}
+                aria-label="Collapse map controls"
+                title="Collapse map controls (L)"
+                className="hidden size-8 shrink-0 place-items-center rounded-full border border-white/10 text-muted-foreground hover:border-cyan-400/30 hover:text-cyan-200 sm:grid"
+              >
+                <ChevronDown className="size-4" />
+              </button>
+            </div>
 
-        {hazardsVisible && (
-          <>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("all")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "all"
-                  ? "bg-cyan/25 text-cyan font-bold border border-cyan/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
+            <div
+              role="radiogroup"
+              aria-label="Satellite map layers"
+              className="relative min-w-0 overflow-hidden"
             >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("fire")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "fire"
-                  ? "bg-amber/25 text-amber font-bold border border-amber/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              🔥 Fires
-            </button>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("wind")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "wind"
-                  ? "bg-amber/25 text-amber font-bold border border-amber/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              💨 Wind
-            </button>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("cyclone")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "cyclone"
-                  ? "bg-crimson/25 text-crimson font-bold border border-crimson/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              🌀 Storms
-            </button>
-            <button
-              type="button"
-              onClick={() => setHazardFilter("earthquake")}
-              className={cn(
-                "rounded px-2 py-0.5 text-[10px] transition-all",
-                hazardFilter === "earthquake"
-                  ? "bg-emerald/25 text-emerald font-bold border border-emerald/40"
-                  : "text-muted-foreground hover:text-slate-200",
-              )}
-            >
-              ⚡ Seismic
-            </button>
-
-            <div className="h-3 w-px bg-cyan-500/30" />
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={handleFitAllHazards}
-              className="h-6 px-2 text-[10px] text-cyan hover:bg-cyan-500/20 font-mono"
-              title="Fit viewport to encompass all active hazards"
-            >
-              🎯 Fit All Hazards
-            </Button>
-          </>
+              <div
+                className="flex snap-x snap-mandatory items-center gap-1.5 overflow-x-auto no-scrollbar px-2 py-1"
+                style={{ maskImage: "linear-gradient(to right, transparent, black 14px, black calc(100% - 14px), transparent)" }}
+              >
+                {([
+                  ["NDVI", "MODIS Terra"],
+                  ["ECOSTRESS ESI", "ECOSTRESS"],
+                  ["SMAP Moisture", "SMAP Moisture"],
+                  ["GPM Rain", "GPM IMERG"],
+                ] as const).map(([layer, label]) => {
+                  const selected = activeLayer === layer;
+                  return (
+                    <button
+                      key={layer}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={label}
+                      onClick={() => handleSelectTelemetryLayer(layer)}
+                      className={cn(
+                        "snap-start shrink-0 rounded-full border px-3 py-1.5 font-mono text-xs transition-colors",
+                        selected
+                          ? "border-cyan-400/40 bg-cyan-500/15 text-cyan-100"
+                          : "border-white/10 bg-white/[0.03] text-muted-foreground hover:border-cyan-500/30 hover:text-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* ---------------- FLOATING BASEMAP & TERRAIN SWITCHER (BOTTOM-LEFT ALIGNED) ---------------- */}
-      <div data-tour="basemap-switcher" className="absolute left-3 bottom-3 z-30">
-        <MapLayerSwitcher
-          currentStyle={basemapStyle}
-          onStyleChange={handleBasemapStyleChange}
-          activeSubOption={basemapSubOption}
-          onSubOptionChange={setBasemapSubOption}
-          onOpenInfoModal={(style) => {
-            setInfoModalLayerId(style as ZoomEarthLayerId);
-            setShowLayerInfoModal(true);
-          }}
-          showLabels={showLabels}
-          onToggleLabels={setShowLabels}
-          enable3dTerrain={enable3dTerrain}
-          onToggle3dTerrain={setEnable3dTerrain}
-          viewMode={viewMode}
-        />
-      </div>
-
-      {/* ---------------- DYNAMIC COLOR SCALE STRIP (AUTOMATICALLY ADAPTS TO METEOROLOGICAL BASEMAP) ---------------- */}
       {(basemapStyle === "wind" ||
         basemapStyle === "temperature" ||
         basemapStyle === "humidity" ||
@@ -1932,154 +1776,9 @@ export function GlobeViewport({
                     ? weatherForecast?.current?.pressure
                     : weatherForecast?.current?.precipitation
           }
-          className="absolute left-3 bottom-14 sm:bottom-3 sm:left-[116px] z-20"
+          className="absolute left-3 top-28 z-20 hidden lg:block"
         />
       )}
-
-      {/* ---------------- UNIFIED 2-TIER BOTTOM TELEMETRY DOCK ---------------- */}
-      <div
-        data-hud-overlay="layer-switcher"
-        data-tour="nasa-telemetry-dock"
-        className="absolute bottom-14 inset-x-3 sm:inset-x-auto sm:bottom-3 sm:left-1/2 sm:-translate-x-1/2 z-20 flex flex-col items-center gap-1.5 max-w-full sm:max-w-[calc(100%-240px)] w-auto pointer-events-none select-none py-1 px-3"
-      >
-        {/* Minimized Compact Floating Capsule Pill */}
-        {isDockMinimized && (
-          <button
-            type="button"
-            onClick={() => setIsDockMinimized(false)}
-            className="pointer-events-auto h-8 px-3.5 rounded-full bg-[#0D1322]/95 backdrop-blur-2xl border border-cyan-500/40 text-cyan-200 font-mono text-xs flex items-center gap-2 shadow-[0_8px_25px_rgba(0,0,0,0.85)] hover:border-cyan-400 hover:bg-[#0f172a] transition-all cursor-pointer animate-in fade-in zoom-in-95 duration-200"
-            title="Open Orbital Layers Dock (L)"
-          >
-            <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-            <span className="font-semibold text-white">
-              {activeLayer}: {reading.value} {reading.unit}
-            </span>
-            <span className="text-white/30">•</span>
-            <span className="text-cyan-400 font-bold flex items-center gap-1">
-              <ChevronUp className="size-3.5" /> {t("open_orbital_layers", "Telemetry Dock")}
-            </span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-black/50 border border-white/10 text-[9px] text-white/50 font-sans">
-              L
-            </kbd>
-          </button>
-        )}
-
-        <div
-          className={cn(
-            "pointer-events-auto transition-all duration-300 flex flex-col items-center gap-1.5",
-            isDockMinimized
-              ? "max-h-0 opacity-0 pointer-events-none overflow-hidden scale-95"
-              : "max-h-[220px] opacity-100 scale-100",
-          )}
-        >
-          {/* Tier 1: Upper Slim Row (Clean Essential Telemetry Bar, max height 38px) */}
-          <div className="h-[38px] max-h-[38px] max-w-full overflow-hidden py-1.5 px-3.5 sm:px-4 rounded-full border border-cyan-500/40 bg-[#0D1322]/95 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3 text-xs font-mono">
-            {/* Left Side: Sensor title + Color scale ramp + FIELD readout + GLOW opacity slider */}
-            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-              {/* Sensor Title */}
-              <div className="flex items-center gap-1.5 font-bold text-cyan">
-                <Radio className="size-3 text-emerald animate-pulse shrink-0" />
-                <span className="truncate max-w-28 sm:max-w-40">
-                  {activeSatelliteConfig.sensorName}
-                </span>
-              </div>
-
-              {/* Color Scale Ramp */}
-              <div className="hidden md:flex items-center gap-1 shrink-0">
-                <span className="text-[9px] text-muted-foreground font-mono">
-                  {activeSatelliteConfig.colorRamp.minLabel}
-                </span>
-                <div
-                  className="h-1.5 w-16 sm:w-24 rounded-full border border-white/10 shadow-inner"
-                  style={{ background: activeSatelliteConfig.colorRamp.gradient }}
-                />
-                <span className="text-[9px] text-muted-foreground font-mono">
-                  {activeSatelliteConfig.colorRamp.maxLabel}
-                </span>
-              </div>
-
-              {/* FIELD Readout */}
-              <span className="px-2 py-0.5 rounded bg-black/60 font-semibold border border-cyan-500/40 text-cyan text-[10.5px] tabular-nums shrink-0">
-                FIELD: {reading.value} {reading.unit}
-              </span>
-
-              {/* GLOW Opacity Slider */}
-              <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                <span className="text-[9px] text-muted-foreground font-mono">GLOW</span>
-                <Slider
-                  aria-label="Layer opacity"
-                  className="w-14 sm:w-18"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={[opacity]}
-                  onValueChange={([v]) => v !== undefined && onOpacity(v)}
-                />
-                <span className="text-[10px] text-cyan tabular-nums w-7 text-right font-bold">
-                  {opacity}%
-                </span>
-              </div>
-            </div>
-
-            {/* 1px Vertical Divider */}
-            <div className="h-4 w-px bg-cyan-500/30 shrink-0" />
-
-            {/* Right Side: Collapse/Minimize button cleanly nested INSIDE the border container */}
-            <button
-              type="button"
-              onClick={() => setIsDockMinimized(true)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 hover:text-cyan-100 transition-all cursor-pointer shrink-0"
-              title="Minimize Telemetry Dock (L)"
-            >
-              <ChevronDown className="size-3 text-cyan-400" />
-              <span className="hidden sm:inline">{t("minimize_dock", "Minimize")}</span>
-            </button>
-          </div>
-
-          {/* Tier 2: Lower Slim Row (The 8 NASA Layer Pills with AnimatedBackground) */}
-          <div
-            role="radiogroup"
-            aria-label="Map layer"
-            className="flex flex-row items-center gap-1 whitespace-nowrap overflow-x-auto no-scrollbar rounded-full border border-cyan-500/25 bg-[#050B14]/90 p-1 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)] max-w-full"
-          >
-            <AnimatedBackground
-              defaultValue={activeLayer}
-              className="rounded-full bg-cyan-500/15 border border-cyan-400/50 shadow-[0_0_16px_rgba(34,211,238,0.3)]"
-              transition={{
-                type: "spring",
-                bounce: 0.2,
-                duration: 0.3,
-              }}
-              enableHover
-            >
-              {TELEMETRY_TABS.map((tab) => {
-                const isSelected = activeLayer === tab;
-                return (
-                  <button
-                    key={tab}
-                    data-id={tab}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    aria-label={tab}
-                    onClick={() => handleSelectTelemetryLayer(tab)}
-                    className={`px-2.5 sm:px-3 py-1 font-mono text-[11px] sm:text-xs tracking-wider rounded-full transition-colors duration-200 cursor-pointer flex items-center gap-1.5 ${
-                      isSelected
-                        ? "text-cyan-300 font-semibold border border-cyan-400/40 bg-cyan-500/10"
-                        : "text-slate-400 hover:text-cyan-100 border border-white/5"
-                    }`}
-                  >
-                    {isSelected && (
-                      <span className="size-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee] animate-pulse" />
-                    )}
-                    <span>{tab}</span>
-                  </button>
-                );
-              })}
-            </AnimatedBackground>
-          </div>
-        </div>
-      </div>
 
       {/* ---------------- CENTER LAYER EXPLANATION MODAL (WITH BLUE "OK" BUTTON) ---------------- */}
       <LayerInfoModal
@@ -2152,12 +1851,14 @@ function LeafletBridge({
   setMapInstance,
   onZoomChange,
   onAutoSwitchTo3D,
+  onCenterChange,
   useMap,
   useMapEvents,
 }: {
   setMapInstance: (m: LeafletMapInstance | null) => void;
   onZoomChange: (z: number) => void;
   onAutoSwitchTo3D?: () => void;
+  onCenterChange?: (lat: number, lon: number) => void;
   useMap: LeafletBundle["useMap"];
   useMapEvents: LeafletBundle["useMapEvents"];
 }) {
@@ -2188,6 +1889,14 @@ function LeafletBridge({
           onAutoSwitchTo3D();
         }
       }
+    },
+    moveend(e) {
+      const center = e?.target?.getCenter?.();
+      if (center)
+        onCenterChange?.(
+          Math.round(center.lat * 10000) / 10000,
+          Math.round(center.lng * 10000) / 10000,
+        );
     },
   });
   return null;

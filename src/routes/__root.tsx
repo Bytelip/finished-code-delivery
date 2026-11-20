@@ -15,22 +15,25 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          {<LocalizedText text={"Page not found"} />}
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          {<LocalizedText text={"The page you're looking for doesn't exist or has been moved."} />}
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            {<LocalizedText text={"Go home"} />}
           </Link>
         </div>
       </div>
@@ -49,10 +52,14 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          {<LocalizedText text={"This page didn't load"} />}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {
+            <LocalizedText
+              text={"Something went wrong on our end. You can try refreshing or head back home."}
+            />
+          }
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -62,13 +69,13 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            {<LocalizedText text={"Try again"} />}
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            {<LocalizedText text={"Go home"} />}
           </a>
         </div>
       </div>
@@ -95,7 +102,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:site_name", content: "AgroSpace Nexus" },
       { property: "og:image", content: `${import.meta.env.BASE_URL}satellite.svg` },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "AgroSpace Nexus — NASA Orbital Agricultural Intelligence" },
+      {
+        name: "twitter:title",
+        content: "AgroSpace Nexus — NASA Orbital Agricultural Intelligence",
+      },
       {
         name: "twitter:description",
         content:
@@ -113,7 +123,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap",
       },
       {
         rel: "stylesheet",
@@ -163,7 +173,10 @@ function RootComponent() {
       window.location.reload();
     };
     window.addEventListener("vite:preloadError", onPreloadError);
-    const clearFlag = window.setTimeout(() => sessionStorage.removeItem("agrospace:chunk-reload"), 10000);
+    const clearFlag = window.setTimeout(
+      () => sessionStorage.removeItem("agrospace:chunk-reload"),
+      10000,
+    );
     return () => {
       window.removeEventListener("vite:preloadError", onPreloadError);
       window.clearTimeout(clearFlag);
@@ -172,7 +185,11 @@ function RootComponent() {
 
   // Register PWA Service Worker in production
   useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator && !window.location.hostname.includes("localhost")) {
+    if (
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator &&
+      !window.location.hostname.includes("localhost")
+    ) {
       navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
         // Silently ignore registration error on unsupported hosts
       });

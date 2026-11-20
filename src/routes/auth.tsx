@@ -1,19 +1,21 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { CosmicAuthPage } from "@/components/CosmicAuthPage";
-import { saveStoredProfile, type UserProfile } from "@/types/userProfile";
-import { processIncomingAuthCallback } from "@/services/authService";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Mission Control Sign In — AgroSpace Nexus" },
+      { title: "Sign In — AgroSpace Nexus" },
       {
         name: "description",
-        content:
-          "Sign in to AgroSpace Nexus Mission Control for orbital telemetry and farm intelligence.",
+        content: "Sign in or create your AgroSpace Nexus account to see your farm's satellite insights.",
       },
+      { property: "og:title", content: "Sign In — AgroSpace Nexus" },
+      {
+        property: "og:description",
+        content: "Sign in or create your AgroSpace Nexus account to see your farm's satellite insights.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AuthRouteComponent,
@@ -21,31 +23,12 @@ export const Route = createFileRoute("/auth")({
 
 function AuthRouteComponent() {
   const navigate = useNavigate();
-
-  // Detect incoming OAuth session or fragment tokens on page load
-  useEffect(() => {
-    processIncomingAuthCallback().then((user) => {
-      if (user) {
-        saveStoredProfile(user);
-        toast.success(`Welcome, ${user.fullName}`, {
-          description: `Authenticated via ${user.provider}. Clearance Level: ${user.role}.`,
-        });
-        navigate({ to: "/" });
-      }
-    });
-  }, [navigate]);
-
-  const handleSuccess = (profile: UserProfile) => {
-    saveStoredProfile(profile);
-    toast.success(`Welcome, ${profile.fullName}`, {
-      description: `Authenticated via ${profile.provider}. Clearance Level: ${profile.role}.`,
-    });
-    navigate({ to: "/" });
-  };
-
-  const handleClose = () => {
-    navigate({ to: "/" });
-  };
-
-  return <CosmicAuthPage onSuccess={handleSuccess} onClose={handleClose} />;
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname === "/auth/callback") return <Outlet />;
+  return (
+    <CosmicAuthPage
+      onSuccess={() => navigate({ to: "/", replace: true })}
+      onClose={() => navigate({ to: "/" })}
+    />
+  );
 }

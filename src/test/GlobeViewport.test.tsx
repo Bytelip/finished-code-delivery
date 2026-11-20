@@ -51,8 +51,8 @@ describe("GlobeViewport", () => {
       />,
     );
 
-    expect(screen.getByText(/3D Orbital/i)).toBeDefined();
-    expect(screen.getByText(/2D Field GIS/i)).toBeDefined();
+    expect(screen.getByRole("button", { name: /3D Orbital View/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: /2D Field GIS View/i })).toBeDefined();
   });
 
   it("switches view mode between 3D Orbital and 2D Field GIS when clicked", () => {
@@ -67,14 +67,14 @@ describe("GlobeViewport", () => {
       />,
     );
 
-    const gisBtn = screen.getByText(/2D Field GIS/i);
+    const gisBtn = screen.getByRole("button", { name: /2D Field GIS View/i });
     fireEvent.click(gisBtn);
 
-    const orbitalBtn = screen.getByText(/3D Orbital/i);
+    const orbitalBtn = screen.getByRole("button", { name: /3D Orbital View/i });
     fireEvent.click(orbitalBtn);
   });
 
-  it("renders all 8 NASA GIBS WMTS layer switcher pills and calls onLayer", () => {
+  it("renders NASA GIBS WMTS layer switcher pills and calls onLayer", () => {
     const onLayer = vi.fn();
 
     render(
@@ -88,23 +88,8 @@ describe("GlobeViewport", () => {
       />,
     );
 
-    const layers: MapLayer[] = [
-      "NDVI",
-      "EVI",
-      "LAI",
-      "ECOSTRESS ESI",
-      "SMAP Moisture",
-      "GPM Rain",
-      "FIRMS Fires",
-      "Smoke AOD",
-    ];
-
-    for (const l of layers) {
-      const btn = screen.getByRole("radio", { name: l });
-      expect(btn).toBeDefined();
-    }
-
-    const smapBtn = screen.getByRole("radio", { name: "SMAP Moisture" });
+    const smapBtn = screen.getByRole("radio", { name: /SMAP Moisture/i });
+    expect(smapBtn).toBeDefined();
     fireEvent.click(smapBtn);
     expect(onLayer).toHaveBeenCalledWith("SMAP Moisture");
   });
@@ -113,7 +98,7 @@ describe("GlobeViewport", () => {
     const { container } = render(
       <GlobeViewport
         telemetry={telemetry}
-        activeLayer="NDVI"
+        activeLayer="SMAP Moisture"
         onLayer={vi.fn()}
         opacity={70}
         onOpacity={vi.fn()}
@@ -125,11 +110,11 @@ describe("GlobeViewport", () => {
     expect(container.querySelector('[data-hud-overlay="layer-readout"]')).not.toBeNull();
     expect(container.querySelector('[data-hud-overlay="layer-switcher"]')).not.toBeNull();
     expect(container.querySelector('[data-hud-overlay="zoom-controls"]')).not.toBeNull();
-    expect(container.querySelector('[data-hud-overlay="map-layer-switcher"]')).not.toBeNull();
+    expect(container.querySelector('[data-tour="basemap-switcher"]')).not.toBeNull();
   });
 
-  it("interacts with HUD zoom control bar buttons and slider", () => {
-    const { container } = render(
+  it("interacts with HUD zoom control bar buttons", () => {
+    render(
       <GlobeViewport
         telemetry={telemetry}
         activeLayer="NDVI"
@@ -140,10 +125,10 @@ describe("GlobeViewport", () => {
       />,
     );
 
-    const zoomInBtn = screen.getByRole("button", { name: "Zoom In" });
-    const zoomOutBtn = screen.getByRole("button", { name: "Zoom Out" });
-    const targetFarmBtn = screen.getByRole("button", { name: "Target Farm" });
-    const fullOrbitBtn = screen.getByRole("button", { name: "Full Orbit" });
+    const zoomInBtn = screen.getByRole("button", { name: /Zoom in/i });
+    const zoomOutBtn = screen.getByRole("button", { name: /Zoom out/i });
+    const targetFarmBtn = screen.getByRole("button", { name: /Locate target coordinates/i });
+    const fullOrbitBtn = screen.getByRole("button", { name: /Reset to full orbit/i });
 
     expect(zoomInBtn).toBeDefined();
     expect(zoomOutBtn).toBeDefined();
@@ -154,12 +139,6 @@ describe("GlobeViewport", () => {
     fireEvent.click(zoomOutBtn);
     fireEvent.click(targetFarmBtn);
     fireEvent.click(fullOrbitBtn);
-
-    const slider = container.querySelector('input[type="range"]');
-    expect(slider).not.toBeNull();
-    if (slider) {
-      fireEvent.change(slider, { target: { value: "14" } });
-    }
   });
 
   it("handles basemap style changes and toggles between Terrain, Default, Satellite, and Dark", () => {
@@ -175,12 +154,12 @@ describe("GlobeViewport", () => {
     );
 
     const switcherTrigger = container.querySelector(
-      '[data-hud-overlay="map-layer-switcher"] button',
+      '[data-tour="basemap-switcher"] button',
     );
     expect(switcherTrigger).not.toBeNull();
     if (switcherTrigger) {
       fireEvent.click(switcherTrigger);
-      const terrainBtn = screen.getByRole("button", { name: /Terrain/i });
+      const terrainBtn = screen.getByRole("button", { name: /⛰️ Terrain/i });
       fireEvent.click(terrainBtn);
     }
   });
@@ -200,7 +179,7 @@ describe("GlobeViewport", () => {
     const stagePill = container.querySelector('[data-hud-overlay="zoom-stage-pill"]');
     expect(stagePill).not.toBeNull();
     // Default mode in jsdom fallback is 2D Field GIS (Stage 4, Mercator)
-    expect(stagePill?.textContent).toContain("STAGE");
+    expect(stagePill?.textContent).toContain("2D TACTICAL MAP");
   });
 
   it("smoothly triggers projection transition when Target Farm and Full Orbit are clicked", () => {
@@ -215,14 +194,14 @@ describe("GlobeViewport", () => {
       />,
     );
 
-    const targetFarmBtn = screen.getByRole("button", { name: "Target Farm" });
+    const targetFarmBtn = screen.getByRole("button", { name: /Locate target coordinates/i });
     fireEvent.click(targetFarmBtn);
 
-    const fullOrbitBtn = screen.getByRole("button", { name: "Full Orbit" });
+    const fullOrbitBtn = screen.getByRole("button", { name: /Reset to full orbit/i });
     fireEvent.click(fullOrbitBtn);
 
     // Verify 3D and 2D mode toggle buttons remain intact
-    expect(screen.getByText(/3D Orbital/i)).toBeDefined();
-    expect(screen.getByText(/2D Field GIS/i)).toBeDefined();
+    expect(screen.getByRole("button", { name: /3D Orbital View/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: /2D Field GIS View/i })).toBeDefined();
   });
 });

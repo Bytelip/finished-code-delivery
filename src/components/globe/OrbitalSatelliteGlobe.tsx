@@ -8,6 +8,7 @@
 import { memo, useEffect, useRef } from "react";
 import maplibregl, {
   type Map as MaplibreMap,
+  type ProjectionSpecification,
   type RasterTileSource,
   type StyleSpecification,
 } from "maplibre-gl";
@@ -26,8 +27,8 @@ import {
   clampGlobeZoom,
   easeInOutCubic,
   flyToZoomFor,
-  projectionForZoom,
-  type GlobeProjectionId,
+  globeProjectionExpression,
+  projectionModeForZoom,
 } from "@/lib/orbitalZoom";
 
 export interface OrbitalGlobeApi {
@@ -36,8 +37,6 @@ export interface OrbitalGlobeApi {
   zoomTo: (zoom: number) => void;
   flyTo: (lat: number, lon: number, zoom?: number) => void;
   getZoom: () => number;
-  getProjection: () => GlobeProjectionId;
-  setProjection: (projection: GlobeProjectionId) => void;
 }
 
 export interface OrbitalGlobeMarker {
@@ -60,7 +59,7 @@ export interface OrbitalSatelliteGlobeProps {
   markers: OrbitalGlobeMarker[];
   onPick: (lat: number, lon: number) => void;
   onZoom: (zoom: number) => void;
-  onProjectionChange?: (projection: GlobeProjectionId) => void;
+  onLoading?: (loading: boolean) => void;
   onReady: (api: OrbitalGlobeApi | null) => void;
   onFailure?: () => void;
 }
@@ -80,7 +79,10 @@ function cinematicFlight(lat: number, lon: number, zoom: number) {
 function buildStyle(p: OrbitalSatelliteGlobeProps): StyleSpecification {
   return {
     version: 8,
-    projection: { type: "globe" },
+    // Sphere in orbit, morphing into a flat mercator field map at 1 km altitude (and back).
+    projection: {
+      type: globeProjectionExpression() as unknown as NonNullable<ProjectionSpecification["type"]>,
+    },
     sky: {
       "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 1, 8, 0],
     },
@@ -98,18 +100,22 @@ function buildStyle(p: OrbitalSatelliteGlobeProps): StyleSpecification {
         tileSize: 256,
         maxzoom: p.overlayMaxZoom,
       },
-      labels: {
-        type: "raster",
-        tiles: [globeLabelsTileUrl(p.basemapStyle)],
-        tileSize: 256,
-        maxzoom: 19,
-      },
-      roads: {
-        type: "raster",
-        tiles: [globeTransportationTileUrl()],
-        tileSize: 256,
-        maxzoom: 19,
-      },
+      ...(p.showLabels
+        ? {
+            labels: {
+              type: "raster" as const,
+              tiles: [globeLabelsTileUrl(p.basemapStyle)],
+              tileSize: 256,
+              maxzoom: 19,
+            },
+            roads: {
+              type: "raster" as const,
+              tiles: [globeTransportationTileUrl()],
+              tileSize: 256,
+              maxzoom: 19,
+            },
+          }
+        : {}),
     },
     layers: [
       { id: "space", type: "background", paint: { "background-color": "#02040a" } },
@@ -120,20 +126,18 @@ function buildStyle(p: OrbitalSatelliteGlobeProps): StyleSpecification {
         source: "gibs",
         paint: { "raster-opacity": p.overlayOpacity, "raster-fade-duration": 200 },
       },
-      {
-        id: "roads",
-        type: "raster",
-        source: "roads",
-        minzoom: 11,
-        layout: { visibility: p.showLabels ? "visible" : "none" },
-        paint: { "raster-opacity": 0.85 },
-      },
-      {
-        id: "labels",
-        type: "raster",
-        source: "labels",
-        layout: { visibility: p.showLabels ? "visible" : "none" },
-      },
+      ...(p.showLabels
+        ? [
+            {
+              id: "roads",
+              type: "raster" as const,
+              source: "roads",
+              minzoom: 11,
+              paint: { "raster-opacity": 0.85 },
+            },
+            { id: "labels", type: "raster" as const, source: "labels" },
+          ]
+        : []),
     ],
   };
 }
@@ -174,33 +178,45 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     }
     mapRef.current = map;
 
+    // Keep the credits collapsed to the small (i) button so the bottom map dock never covers them.
+    map.once("load", () => {
+      el.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+    });
+
     // Missing tiles (ocean gaps, GIBS dates) are expected; keep them out of the error log.
     map.on("error", (e) => {
       const msg = String((e as { error?: { message?: string } }).error?.message ?? "");
       if (!/tile|Failed to fetch|AJAXError|404/i.test(msg)) console.warn("Globe:", msg);
     });
 
-    let projection: GlobeProjectionId = "globe";
-    const syncProjection = () => {
-      const next = projectionForZoom(map.getZoom(), projection);
-      if (next === projection) return;
-      projection = next;
-      map.setProjection({ type: next });
-      propsRef.current.onProjectionChange?.(next);
+    // The projection itself morphs via the zoom expression; this only tags the DOM
+    // so styles (starfield fade) and tests can read the current tier.
+    const tagProjection = () => {
+      el.dataset["projection"] = projectionModeForZoom(map.getZoom());
     };
-    map.on("style.load", syncProjection);
+    tagProjection();
 
     let raf = 0;
     let lastSent = Number.NaN;
+    let lastZoomUpdateAt = 0;
+    const updateTileState = () => propsRef.current.onLoading?.(true);
+    const finishTileState = () => propsRef.current.onLoading?.(false);
+    map.on("dataloading", updateTileState);
+    map.on("idle", finishTileState);
     map.on("zoom", () => {
-      syncProjection();
+      tagProjection();
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
         if (mapRef.current !== map) return;
         const z = map.getZoom();
-        if (Number.isNaN(lastSent) || Math.abs(z - lastSent) >= 0.01) {
+        const now = performance.now();
+        if (
+          (Number.isNaN(lastSent) || Math.abs(z - lastSent) >= 0.01) &&
+          now - lastZoomUpdateAt >= 100
+        ) {
           lastSent = z;
+          lastZoomUpdateAt = now;
           propsRef.current.onZoom(z);
         }
       });
@@ -209,7 +225,6 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     // Exact value once an animation settles (rAF sampling can stop at 10.99 instead of 11).
     map.on("zoomend", () => {
       if (mapRef.current !== map) return;
-      syncProjection();
       lastSent = map.getZoom();
       propsRef.current.onZoom(lastSent);
     });
@@ -222,6 +237,21 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
       propsRef.current.onPick(lat, lon);
     });
 
+    // Keep the locked reticle and coordinate-driven data aligned with a deliberate pan.
+    map.on("moveend", () => {
+      if (mapRef.current !== map) return;
+      const center = map.getCenter();
+      const lat = round4(center.lat);
+      const lon = round4(center.lng);
+      if (
+        Math.abs(lastTargetRef.current.lat - lat) > 0.0005 ||
+        Math.abs(lastTargetRef.current.lon - lon) > 0.0005
+      ) {
+        lastTargetRef.current = { lat, lon };
+        propsRef.current.onPick(lat, lon);
+      }
+    });
+
     const api: OrbitalGlobeApi = {
       zoomIn: () => map.zoomIn({ duration: GLOBE_ZOOM_DURATION_MS }),
       zoomOut: () => map.zoomOut({ duration: GLOBE_ZOOM_DURATION_MS }),
@@ -231,12 +261,6 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
         map.flyTo(cinematicFlight(lat, lon, clampGlobeZoom(zoom ?? flyToZoomFor(map.getZoom()))));
       },
       getZoom: () => map.getZoom(),
-      getProjection: () => projection,
-      setProjection: (p) => {
-        if (p === projection) return;
-        projection = p;
-        map.setProjection({ type: p });
-      },
     };
     initial.onReady(api);
     initial.onZoom(map.getZoom());
@@ -252,6 +276,8 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
 
     return () => {
       ro?.disconnect();
+      map.off("dataloading", updateTileState);
+      map.off("idle", finishTileState);
       if (raf) cancelAnimationFrame(raf);
       for (const m of markersRef.current) m.remove();
       markersRef.current = [];
@@ -291,9 +317,42 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
-      const v = props.showLabels ? "visible" : "none";
-      if (map.getLayer("labels")) map.setLayoutProperty("labels", "visibility", v);
-      if (map.getLayer("roads")) map.setLayoutProperty("roads", "visibility", v);
+      if (props.showLabels) {
+        if (!map.getSource("labels")) {
+          map.addSource("labels", {
+            type: "raster",
+            tiles: [globeLabelsTileUrl(props.basemapStyle)],
+            tileSize: 256,
+            maxzoom: 19,
+          });
+        }
+        if (!map.getSource("roads")) {
+          map.addSource("roads", {
+            type: "raster",
+            tiles: [globeTransportationTileUrl()],
+            tileSize: 256,
+            maxzoom: 19,
+          });
+        }
+        if (!map.getLayer("roads"))
+          map.addLayer(
+            {
+              id: "roads",
+              type: "raster",
+              source: "roads",
+              minzoom: 11,
+              paint: { "raster-opacity": 0.85 },
+            },
+            "gibs",
+          );
+        if (!map.getLayer("labels"))
+          map.addLayer({ id: "labels", type: "raster", source: "labels" });
+      } else {
+        if (map.getLayer("labels")) map.removeLayer("labels");
+        if (map.getLayer("roads")) map.removeLayer("roads");
+        if (map.getSource("labels")) map.removeSource("labels");
+        if (map.getSource("roads")) map.removeSource("roads");
+      }
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
@@ -319,7 +378,7 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
           source: "gibs",
           paint: { "raster-opacity": propsRef.current.overlayOpacity, "raster-fade-duration": 200 },
         },
-        "roads",
+        map.getLayer("roads") ? "roads" : undefined,
       );
     };
     if (map.isStyleLoaded()) apply();
