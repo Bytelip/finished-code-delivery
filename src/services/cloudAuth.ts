@@ -11,7 +11,7 @@ import type { UserProfile } from "@/components/CosmicAuthPage";
 
 export type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
-export type SocialProvider = "google" | "microsoft" | "lovable";
+export type SocialProvider = "google" | "microsoft" | "apple";
 
 export interface AuthOutcome {
   ok: boolean;

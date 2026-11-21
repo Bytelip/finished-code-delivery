@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { LovableMark } from "@lovable.dev/cloud-auth-js/react";
 import {
   MIN_PASSWORD_LENGTH,
   fetchSignedInProfile,
@@ -545,12 +544,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               <button
                 type="button"
                 disabled={loadingOAuth !== null}
-                onClick={() => handleSocialOAuth("lovable")}
-                className={`${providerButtonClass} border-white/12 bg-white/[0.06] text-foreground hover:border-cyan-400/40 hover:bg-white/[0.11]`}
+                onClick={() => handleSocialOAuth("apple")}
+                className={`${providerButtonClass} border-white bg-white font-[system-ui] text-black hover:brightness-95`}
               >
-                <LovableMark className="absolute left-4 h-[18px] w-[18px]" />
                 <span>
-                  {loadingOAuth === "lovable" ? "Opening Lovable…" : "Continue with Lovable"}
+                  {loadingOAuth === "apple" ? "Opening Apple…" : "Continue with Apple"}
                 </span>
               </button>
             </div>
