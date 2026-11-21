@@ -6,6 +6,8 @@ import { fetchSignedInProfile, saveProfile, signOut } from "@/services/cloudAuth
 import { toast } from "sonner";
 import { syncUrlCoords } from "@/utils/preciseLocation";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
+import { sessionNeedsEmailCode } from "@/lib/googleOtp";
+import { GoogleEmailCodeStep } from "@/components/auth/GoogleEmailCodeStep";
 
 interface AuthGateProps {
   children: (props: {
@@ -21,6 +23,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
   // (it lives in browser storage), so the server and the first browser render match.
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [codeEmail, setCodeEmail] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -34,11 +37,19 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     };
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
+        setCodeEmail(null);
         setCurrentUser(null);
         saveStoredUser(null);
         setSessionChecked(true);
         return;
       }
+      if (sessionNeedsEmailCode(session.access_token, session.user.app_metadata?.["provider"] as string | undefined)) {
+        setCurrentUser(null);
+        setCodeEmail(session.user.email ?? null);
+        setSessionChecked(true);
+        return;
+      }
+      setCodeEmail(null);
       if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
         // Defer so the auth client finishes its own work before we query the profile.
         setTimeout(() => void refresh(), 0);
@@ -188,6 +199,10 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
 
   if (!sessionChecked) {
     return <div className="min-h-[100dvh] w-full bg-background" aria-busy="true" />;
+  }
+
+  if (codeEmail) {
+    return <GoogleEmailCodeStep email={codeEmail} onCancel={() => void signOut()} />;
   }
 
   if (!currentUser) {
