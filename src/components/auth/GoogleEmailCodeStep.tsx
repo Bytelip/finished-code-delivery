@@ -18,7 +18,7 @@ export function GoogleEmailCodeStep({ email, onCancel }: { email: string; onCanc
     else { setMsg(`We sent a 6-digit code to ${email}.`); setCooldown(45); }
   };
   useEffect(() => { if (!sent.current) { sent.current = true; void send(); } }, []);
-  useEffect(() => { if (cooldown > 0) { const t = setTimeout(() => setCooldown((c) => c - 1), 1000); return () => clearTimeout(t); } }, [cooldown]);
+  useEffect(() => { if (cooldown > 0) { const t = setTimeout(() => setCooldown((c) => c - 1), 1000); return () => clearTimeout(t); } return undefined; }, [cooldown]);
 
   const verify = async (e: React.FormEvent) => {
     e.preventDefault();
