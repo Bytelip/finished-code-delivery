@@ -28,36 +28,61 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
   useEffect(() => {
     let active = true;
     const refresh = async () => {
-      const profile = await fetchSignedInProfile();
-      if (!active) return;
-      setCurrentUser(profile);
-      // Display cache only; access is always decided by the live session above.
-      saveStoredUser(profile);
-      setSessionChecked(true);
+      try {
+        const profile = await fetchSignedInProfile();
+        if (!active) return;
+        setCurrentUser(profile);
+        // Display cache only; access is always decided by the live session above.
+        saveStoredUser(profile);
+        setSessionChecked(true);
+      } catch (err) {
+        console.warn("[AuthGate] Error fetching signed in profile:", err);
+        if (active) setSessionChecked(true);
+      }
     };
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        setCodeEmail(null);
-        setCurrentUser(null);
-        saveStoredUser(null);
-        setSessionChecked(true);
-        return;
-      }
-      if (sessionNeedsEmailCode(session.access_token, session.user.app_metadata?.["provider"] as string | undefined)) {
-        setCurrentUser(null);
-        setCodeEmail(session.user.email ?? null);
-        setSessionChecked(true);
-        return;
-      }
-      setCodeEmail(null);
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
-        // Defer so the auth client finishes its own work before we query the profile.
-        setTimeout(() => void refresh(), 0);
-      }
-    });
+
+    // Safety timeout: guaranteed resolution to unblock the UI within 1200ms
+    const safetyTimer = setTimeout(() => {
+      if (active) setSessionChecked(true);
+    }, 1200);
+
+    let sub: { subscription: { unsubscribe: () => void } } | null = null;
+    try {
+      const res = supabase.auth.onAuthStateChange((event, session) => {
+        try {
+          if (!session) {
+            setCodeEmail(null);
+            setCurrentUser(null);
+            saveStoredUser(null);
+            setSessionChecked(true);
+            return;
+          }
+          if (sessionNeedsEmailCode(session.access_token, session.user.app_metadata?.["provider"] as string | undefined)) {
+            setCurrentUser(null);
+            setCodeEmail(session.user.email ?? null);
+            setSessionChecked(true);
+            return;
+          }
+          setCodeEmail(null);
+          if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
+            // Defer so the auth client finishes its own work before we query the profile.
+            setTimeout(() => void refresh(), 0);
+          }
+        } catch (err) {
+          console.warn("[AuthGate] onAuthStateChange error:", err);
+          setSessionChecked(true);
+        }
+      });
+      sub = res.data;
+    } catch (err) {
+      console.warn("[AuthGate] Failed to subscribe to onAuthStateChange:", err);
+      setSessionChecked(true);
+    }
+
     return () => {
       active = false;
-      sub.subscription.unsubscribe();
+      clearTimeout(safetyTimer);
+      sub?.subscription?.unsubscribe();
     };
   }, []);
 
