@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   MIN_PASSWORD_LENGTH,
   fetchSignedInProfile,
+  getLastUsedProvider,
   resendConfirmation,
   resendOtp,
   sendPasswordReset,
@@ -283,8 +284,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
 };
 
 // ==========================================
-// ==========================================
-// 3. LOGIN / SIGNUP + 6-DIGIT EMAIL OTP MODAL
+// 3. LOGIN / SIGNUP + BASE44 SPLIT-SCREEN AUTH
 // ==========================================
 export interface CosmicAuthPageProps {
   onAuthComplete?: (user: UserProfile) => void;
@@ -293,17 +293,17 @@ export interface CosmicAuthPageProps {
   initialMode?: "signin" | "signup";
 }
 
-type AuthStep = "entry" | "verify_otp" | "forgot" | "reset_sent";
+type AuthStep = "entry" | "password" | "verify_otp" | "forgot" | "reset_sent";
 
 const inputClass =
-  "w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none";
+  "w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 transition-all";
 const providerButtonClass =
-  "relative flex min-h-11 w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition disabled:opacity-50 cursor-pointer";
+  "relative flex min-h-11 w-full items-center justify-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition disabled:opacity-50 cursor-pointer shadow-sm";
 const primaryButtonClass = (enabled: boolean) =>
   `w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
     enabled
-      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
-      : "cursor-not-allowed bg-white/15 text-muted-foreground"
+      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110 active:scale-[0.99]"
+      : "cursor-not-allowed bg-white/10 text-muted-foreground"
   }`;
 
 export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
@@ -322,13 +322,31 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">(initialMode);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
-  const [otpCode, setOtpCode] = useState<string>("");
   const [otpType, setOtpType] = useState<"signup" | "email">("signup");
   const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
   const [useOtpSignIn, setUseOtpSignIn] = useState<boolean>(false);
+  const [lastUsedProvider, setLastUsedProvider] = useState<SocialProvider | null>(null);
+
+  // 6 separate numeric OTP input boxes
+  const [otpValues, setOtpValues] = useState<string[]>(["", "", "", "", "", ""]);
+  const otpInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    setLastUsedProvider(getLastUsedProvider());
+  }, []);
+
+  useEffect(() => {
+    if (step === "verify_otp") {
+      const timer = setTimeout(() => {
+        otpInputRefs.current[0]?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [step]);
 
   const namePlaceholder = useLocalizedValue("Your name (e.g., Naren Kumar)");
-  const emailPlaceholder = useLocalizedValue("Enter your email address");
+  const emailPlaceholder = useLocalizedValue("name@example.com");
   const passwordPlaceholder = useLocalizedValue(
     authMode === "signup"
       ? `Create password (min ${MIN_PASSWORD_LENGTH} characters)`
@@ -345,7 +363,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     authMode === "signup"
       ? password.length >= MIN_PASSWORD_LENGTH && password.length <= 72
       : password.length > 0 && password.length <= 72;
-  const canSubmit =
+
+  const canSubmitPasswordStep =
     isEmailValid &&
     (useOtpSignIn && authMode === "signin"
       ? !isSubmitting
@@ -378,7 +397,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setAuthError("");
     setLoadingOAuth(null);
     setIsSubmitting(false);
-    setOtpCode("");
+    setOtpValues(["", "", "", "", "", ""]);
     setUseOtpSignIn(false);
   };
 
@@ -400,6 +419,15 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     }
   };
 
+  const handleContinueWithEmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!isEmailValid) {
+      return showError("Please enter a valid email address.");
+    }
+    setStep("password");
+  };
+
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
@@ -411,17 +439,17 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         const result = await sendSignInOtp(email);
         if (!result.ok) return showError(result.error || "Could not send verification code.");
         setOtpType("email");
-        setOtpCode("");
+        setOtpValues(["", "", "", "", "", ""]);
         setResendCooldown(60);
         setStep("verify_otp");
-        toast.info(<LocalizedText text="Verification code sent to your email" />);
+        toast.info(<LocalizedText text="We sent a 6-digit verification code to your email." />);
       } finally {
         setIsSubmitting(false);
       }
       return;
     }
 
-    if (!canSubmit) return;
+    if (!canSubmitPasswordStep) return;
     setIsSubmitting(true);
     try {
       if (authMode === "signin") {
@@ -430,7 +458,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           if (result.needsConfirmation) {
             await resendOtp(email, "signup");
             setOtpType("signup");
-            setOtpCode("");
+            setOtpValues(["", "", "", "", "", ""]);
             setResendCooldown(60);
             setStep("verify_otp");
             toast.info(
@@ -444,12 +472,12 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         return;
       }
 
-      // Create Account (Sign-up) flow: sends real 6-digit confirmation code
+      // Create Account flow: calls signUp and prompts for mandatory 6-digit code
       const result = await signUpWithEmail(name, email, password);
       if (!result.ok) return showError(result.error || "Could not create your account.");
       setPassword("");
       setOtpType("signup");
-      setOtpCode("");
+      setOtpValues(["", "", "", "", "", ""]);
       setResendCooldown(60);
       setStep("verify_otp");
       toast.info(<LocalizedText text="We sent a 6-digit verification code to your email." />);
@@ -460,16 +488,55 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     }
   };
 
+  const handleOtpBoxChange = (index: number, val: string) => {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const updated = [...otpValues];
+    updated[index] = digit;
+    setOtpValues(updated);
+
+    if (digit && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      if (!otpValues[index] && index > 0) {
+        const updated = [...otpValues];
+        updated[index - 1] = "";
+        setOtpValues(updated);
+        otpInputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const clean = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!clean) return;
+    const updated = ["", "", "", "", "", ""];
+    for (let i = 0; i < 6; i++) {
+      updated[i] = clean[i] || "";
+    }
+    setOtpValues(updated);
+    const nextIdx = Math.min(clean.length, 5);
+    otpInputRefs.current[nextIdx]?.focus();
+  };
+
   const handleVerifyOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    const clean = otpCode.trim().replace(/\D/g, "");
-    if (clean.length !== 6) {
-      return showError("Please enter the complete 6-digit verification code.");
+    const cleanCode = otpValues.join("").trim();
+    if (cleanCode.length !== 6) {
+      return showError("Please enter all 6 digits of your verification code.");
     }
     setIsVerifyingOtp(true);
     try {
-      const result = await verifyEmailOtp(email, clean, otpType);
+      const result = await verifyEmailOtp(email, cleanCode, otpType);
       if (!result.ok) {
         return showError(result.error || "Invalid or expired verification code.");
       }
@@ -487,7 +554,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setIsSubmitting(true);
     try {
       const result = await resendOtp(email, otpType);
-      if (!result.ok) return showError(result.error || "Could not resend the verification code.");
+      if (!result.ok) return showError(result.error || "Could not resend verification code.");
       setResendCooldown(60);
       toast.success(<LocalizedText text="A fresh 6-digit verification code has been sent." />);
     } finally {
@@ -502,7 +569,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setIsSubmitting(true);
     try {
       const result = await sendPasswordReset(email);
-      if (!result.ok) return showError(result.error || "Could not send the reset email.");
+      if (!result.ok) return showError(result.error || "Could not send password reset email.");
       setStep("reset_sent");
     } finally {
       setIsSubmitting(false);
@@ -512,41 +579,52 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const backToEntry = () => {
     setStep("entry");
     setAuthError("");
-    setOtpCode("");
+    setOtpValues(["", "", "", "", "", ""]);
   };
 
-  return (
-    <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-[#0B111E]/90 p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-foreground">
+  // Base44 split-screen card layout
+  const authCardContent = (
+    <div className="flex w-full flex-col justify-between p-6 sm:p-10 lg:w-[48%] xl:w-[46%] lg:p-12 xl:p-14 z-10 overflow-y-auto">
+      {/* Top Brand Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/35 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
+            <svg className="h-5 w-5 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <circle cx="12" cy="12" r="4" />
+              <ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-30 12 12)" />
+            </svg>
+          </div>
+          <div className="flex flex-col">
+            <span className="font-mono text-xs font-bold tracking-wider text-foreground">AGROSPACE NEXUS</span>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">Earth Observation HUD</span>
+          </div>
+        </div>
+
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-foreground cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/10 hover:text-foreground cursor-pointer"
           >
             ✕
           </button>
         )}
+      </div>
 
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
-          <svg className="h-7 w-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <circle cx="12" cy="12" r="4" />
-            <ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-30 12 12)" />
-          </svg>
-        </div>
-
+      {/* Main Form Box */}
+      <div className="my-auto py-6 max-w-sm w-full mx-auto">
         {authError && (
-          <div role="alert" className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
-            <p>
-              <LocalizedText text={authError} />
-            </p>
+          <div role="alert" className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400 animate-in fade-in duration-200">
+            <LocalizedText text={authError} />
           </div>
         )}
 
+        {/* STEP 1: ENTRY (Social + Email input) */}
         {step === "entry" && (
-          <>
-            <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-900/90 p-1 border border-white/10">
+          <div className="space-y-5">
+            {/* Sign In vs Create Account Mode Switcher */}
+            <div className="grid grid-cols-2 rounded-xl bg-slate-900/90 p-1 border border-white/10">
               {(["signin", "signup"] as const).map((mode) => (
                 <button
                   key={mode}
@@ -563,41 +641,151 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               ))}
             </div>
 
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                <LocalizedText text={authMode === "signin" ? "Sign in to AgroSpace" : "Create your AgroSpace account"} />
+            <div className="text-left space-y-1">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                <LocalizedText text={authMode === "signin" ? "Welcome back" : "Create your account"} />
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 <LocalizedText
                   text={
                     authMode === "signin"
-                      ? "Use the account you signed up with"
-                      : "Your farm profile and map settings are saved to your account"
+                      ? "Sign in to access your satellite telemetry & farm HUD."
+                      : "Get real-time orbital intelligence for your crops."
                   }
                 />
               </p>
             </div>
 
-            <div className="space-y-2.5">
+            {/* Social OAuth Buttons */}
+            <div className="space-y-2.5 pt-1">
+              {/* Google OAuth Button */}
               <button
                 type="button"
                 disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("google")}
-                className={`${providerButtonClass} border-[#8E918F] bg-[#131314] text-[#E3E3E3] hover:brightness-125`}
+                className={`${providerButtonClass} border-white/12 bg-white/[0.05] hover:bg-white/[0.1] text-foreground hover:border-cyan-400/40`}
               >
-                <svg aria-hidden="true" className="absolute left-4 h-[18px] w-[18px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
-                <span>
+                <svg aria-hidden="true" className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" />
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z" />
+                  <path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z" />
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" />
+                </svg>
+                <span className="font-medium text-xs sm:text-sm">
                   <LocalizedText text={loadingOAuth === "google" ? "Opening Google…" : "Continue with Google"} />
                 </span>
+                {lastUsedProvider === "google" && (
+                  <span className="ml-auto rounded-full border border-cyan-400/40 bg-cyan-400/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-cyan-300">
+                    Last Used
+                  </span>
+                )}
+              </button>
+
+              {/* Microsoft OAuth Button */}
+              <button
+                type="button"
+                disabled={loadingOAuth !== null}
+                onClick={() => handleSocialOAuth("microsoft")}
+                className={`${providerButtonClass} border-white/12 bg-white/[0.05] hover:bg-white/[0.1] text-foreground hover:border-cyan-400/40`}
+              >
+                <svg aria-hidden="true" className="h-4 w-4 shrink-0" viewBox="0 0 21 21">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+                </svg>
+                <span className="font-medium text-xs sm:text-sm">
+                  <LocalizedText text={loadingOAuth === "microsoft" ? "Opening Microsoft…" : "Continue with Microsoft"} />
+                </span>
+                {lastUsedProvider === "microsoft" && (
+                  <span className="ml-auto rounded-full border border-cyan-400/40 bg-cyan-400/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-cyan-300">
+                    Last Used
+                  </span>
+                )}
               </button>
             </div>
 
-            <div className="my-5 flex items-center gap-4">
+            {/* OR Divider */}
+            <div className="my-5 flex items-center gap-3">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-medium text-muted-foreground">
-                <LocalizedText text="Or" />
+              <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                <LocalizedText text="Or continue with email" />
               </span>
               <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            {/* Email Input Step 1 */}
+            <form onSubmit={handleContinueWithEmail} className="space-y-3">
+              <div>
+                <input
+                  type="email"
+                  required
+                  maxLength={254}
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-label={emailFieldLabel}
+                  placeholder={emailPlaceholder}
+                  className={inputClass}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!isEmailValid}
+                className={primaryButtonClass(isEmailValid)}
+              >
+                <LocalizedText text="Continue with email" />
+              </button>
+            </form>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => handleTabSwitch(authMode === "signin" ? "signup" : "signin")}
+                className="text-xs text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
+              >
+                {authMode === "signin" ? (
+                  <LocalizedText text="Don't have an account? Create account" />
+                ) : (
+                  <LocalizedText text="Already have an account? Sign in" />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: PASSWORD / DETAILS STEP */}
+        {step === "password" && (
+          <div className="space-y-4">
+            <div className="text-left space-y-1">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                <LocalizedText text={authMode === "signin" ? "Enter your password" : "Complete your profile"} />
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                <LocalizedText
+                  text={
+                    authMode === "signin"
+                      ? "Enter your account password to proceed."
+                      : "Set a strong password for your AgroSpace account."
+                  }
+                />
+              </p>
+            </div>
+
+            {/* Email Chip with Edit Button */}
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs text-muted-foreground">Email:</span>
+                <span className="font-mono text-xs font-medium text-cyan-300 truncate">{email}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep("entry")}
+                className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:underline px-1 cursor-pointer shrink-0"
+              >
+                <LocalizedText text="Edit" />
+              </button>
             </div>
 
             <form onSubmit={handleEmailPasswordSubmit} className="space-y-3">
@@ -615,18 +803,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   className={inputClass}
                 />
               )}
-
-              <input
-                type="email"
-                required
-                maxLength={254}
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                aria-label={emailFieldLabel}
-                placeholder={emailPlaceholder}
-                className={inputClass}
-              />
 
               {!(authMode === "signin" && useOtpSignIn) && (
                 <div className="relative flex items-center">
@@ -663,7 +839,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               )}
 
               {authMode === "signin" && (
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-xs pt-1">
                   <button
                     type="button"
                     onClick={() => setUseOtpSignIn((prev) => !prev)}
@@ -686,13 +862,17 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                       }}
                       className="text-muted-foreground hover:text-cyan-300 hover:underline cursor-pointer"
                     >
-                      <LocalizedText text="Forgot password?" />
+                      <LocalizedText text="Forgot your password?" />
                     </button>
                   )}
                 </div>
               )}
 
-              <button type="submit" disabled={!canSubmit} className={primaryButtonClass(canSubmit)}>
+              <button
+                type="submit"
+                disabled={!canSubmitPasswordStep}
+                className={primaryButtonClass(canSubmitPasswordStep)}
+              >
                 <LocalizedText
                   text={
                     isSubmitting
@@ -706,64 +886,88 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 />
               </button>
             </form>
-          </>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleTabSwitch(authMode === "signin" ? "signup" : "signin");
+                  setStep("entry");
+                }}
+                className="text-xs text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
+              >
+                {authMode === "signin" ? (
+                  <LocalizedText text="Don't have an account? Create account" />
+                ) : (
+                  <LocalizedText text="Already have an account? Sign in" />
+                )}
+              </button>
+            </div>
+          </div>
         )}
 
+        {/* STEP 3: MANDATORY 6-DIGIT EMAIL OTP VERIFICATION */}
         {step === "verify_otp" && (
-          <div className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-400 border border-cyan-400/30">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/35 bg-cyan-500/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
+              <svg className="h-6 w-6 text-cyan-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-foreground">
-              <LocalizedText text="Verify Your Email" />
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              <LocalizedText text="We sent a 6-digit verification code to" />{" "}
-              <span className="font-mono font-medium text-cyan-300 break-all">{email.trim()}</span>.{" "}
-              <LocalizedText text="Enter the code to verify ownership and access your dashboard." />
-            </p>
 
-            <form onSubmit={handleVerifyOtpSubmit} className="mt-6 space-y-4">
-              <div>
-                <input
-                  id="otp-input"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  autoComplete="one-time-code"
-                  autoFocus
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  onPaste={(e) => {
-                    const text = e.clipboardData.getData("text").trim().replace(/\D/g, "").slice(0, 6);
-                    if (text.length > 0) {
-                      e.preventDefault();
-                      setOtpCode(text);
-                    }
-                  }}
-                  placeholder="••••••"
-                  className="w-full rounded-xl border border-cyan-400/30 bg-slate-900/90 py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-cyan-300 placeholder-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.15)]"
-                  aria-label="6-digit verification code"
-                />
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                <LocalizedText text="Verify your email" />
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                <LocalizedText text="We sent a 6-digit verification code to" />{" "}
+                <span className="font-mono font-medium text-cyan-300 break-all">{email.trim()}</span>.
+                <button
+                  type="button"
+                  onClick={() => setStep("entry")}
+                  className="ml-1 text-cyan-400 hover:text-cyan-300 hover:underline font-semibold cursor-pointer"
+                >
+                  <LocalizedText text="Edit" />
+                </button>
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifyOtpSubmit} className="space-y-4 pt-2">
+              {/* 6 Individual Numeric OTP Input Boxes */}
+              <div className="flex items-center justify-center gap-2 sm:gap-2.5" onPaste={handleOtpPaste}>
+                {otpValues.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => {
+                      otpInputRefs.current[idx] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpBoxChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    aria-label={`Digit ${idx + 1} of verification code`}
+                    className="h-12 w-10 sm:h-14 sm:w-12 rounded-xl border border-white/15 bg-slate-900/90 text-center font-mono text-xl sm:text-2xl font-bold text-cyan-300 shadow-inner transition-all focus:border-cyan-400 focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                  />
+                ))}
               </div>
 
               <button
                 type="submit"
-                disabled={otpCode.trim().length !== 6 || isVerifyingOtp}
-                className={primaryButtonClass(otpCode.trim().length === 6 && !isVerifyingOtp)}
+                disabled={otpValues.join("").length !== 6 || isVerifyingOtp}
+                className={primaryButtonClass(otpValues.join("").length === 6 && !isVerifyingOtp)}
               >
-                <LocalizedText text={isVerifyingOtp ? "Verifying code…" : "Verify Code & Continue"} />
+                <LocalizedText text={isVerifyingOtp ? "Verifying code…" : "Verify & Continue"} />
               </button>
 
-              <div className="flex flex-col gap-2 pt-2">
+              <div className="flex flex-col gap-2 pt-2 text-xs">
                 <button
                   type="button"
                   onClick={handleResend}
                   disabled={resendCooldown > 0 || isSubmitting}
-                  className="min-h-10 rounded-lg border border-white/10 text-xs font-medium text-cyan-300 hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  className="text-cyan-400 hover:text-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
                 >
                   {resendCooldown > 0 ? (
                     `Resend code in ${resendCooldown}s`
@@ -774,7 +978,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 <button
                   type="button"
                   onClick={backToEntry}
-                  className="text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors py-1"
+                  className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors py-1"
                 >
                   <LocalizedText text="Use a different email address" />
                 </button>
@@ -783,13 +987,14 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           </div>
         )}
 
+        {/* STEP 4: FORGOT PASSWORD */}
         {step === "forgot" && (
           <form onSubmit={handleForgotSubmit} className="space-y-4">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-foreground">
+            <div className="text-left space-y-1">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
                 <LocalizedText text="Reset your password" />
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 <LocalizedText text="Enter your email and we'll send you a link to choose a new password." />
               </p>
             </div>
@@ -804,36 +1009,143 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               placeholder={emailPlaceholder}
               className={inputClass}
             />
-            <button type="submit" disabled={!isEmailValid || isSubmitting} className={primaryButtonClass(isEmailValid && !isSubmitting)}>
+            <button
+              type="submit"
+              disabled={!isEmailValid || isSubmitting}
+              className={primaryButtonClass(isEmailValid && !isSubmitting)}
+            >
               <LocalizedText text={isSubmitting ? "Sending…" : "Send reset link"} />
             </button>
-            <button type="button" onClick={backToEntry} className="w-full min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
+            <button
+              type="button"
+              onClick={backToEntry}
+              className="w-full text-center text-xs text-muted-foreground hover:text-foreground cursor-pointer pt-2"
+            >
               <LocalizedText text="Back to sign in" />
             </button>
           </form>
         )}
 
+        {/* STEP 5: RESET SENT CONFIRMATION */}
         {step === "reset_sent" && (
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-foreground">
+          <div className="text-center space-y-4">
+            <h2 className="text-xl font-bold text-foreground">
               <LocalizedText text="Check your email" />
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               <LocalizedText text="If an account exists for" />{" "}
               <span className="font-mono text-cyan-300 break-all">{email.trim()}</span>,{" "}
               <LocalizedText text="you'll get a link to choose a new password." />
             </p>
-            <button type="button" onClick={backToEntry} className="mt-5 w-full min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
-              <LocalizedText text="Back to sign in" />
-            </button>
+            <div className="pt-3 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleForgotSubmit}
+                disabled={resendCooldown > 0 || isSubmitting}
+                className="text-xs text-cyan-400 hover:text-cyan-300 disabled:opacity-40 cursor-pointer"
+              >
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : <LocalizedText text="Resend email" />}
+              </button>
+              <button
+                type="button"
+                onClick={backToEntry}
+                className="w-full rounded-xl border border-white/10 py-2.5 text-xs font-semibold text-foreground hover:bg-white/5 cursor-pointer mt-2"
+              >
+                <LocalizedText text="Go to Sign In" />
+              </button>
+            </div>
           </div>
         )}
-
-        <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
-          <LocalizedText text="By continuing, you agree to our Terms of Service and Privacy Policy." />
-        </p>
       </div>
-    </CosmicParallaxBg>
+
+      {/* Bottom Security Footer */}
+      <div className="pt-4 text-[11px] text-muted-foreground font-mono flex items-center justify-between border-t border-white/5">
+        <span className="truncate">NASA-LANCE AG-INTEL READY</span>
+        <span className="text-emerald-400 shrink-0">● 256-BIT ENCRYPTION</span>
+      </div>
+    </div>
+  );
+
+  // Right-side orbital / telemetry showcase
+  const visualShowcaseContent = (
+    <div className="hidden lg:flex relative flex-1 flex-col justify-between overflow-hidden border-l border-white/10 bg-gradient-to-br from-[#060D1E] via-[#09152B] to-[#040814] p-10 xl:p-14 select-none">
+      {/* Cosmic background glow and rings */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(56,189,248,0.18),rgba(255,255,255,0))]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full border border-cyan-500/10 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[850px] rounded-full border border-blue-500/5 pointer-events-none" />
+
+      {/* Top telemetry status pill */}
+      <div className="relative z-10 flex items-center justify-between">
+        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-950/40 px-3 py-1 text-xs font-mono text-cyan-300 backdrop-blur-md">
+          <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
+          ORBITAL TELEMETRY FEED: 41.2° INCLINATION
+        </div>
+        <div className="text-xs font-mono text-muted-foreground">EO-OPS-CORE-V4.9</div>
+      </div>
+
+      {/* Center Showcase Content */}
+      <div className="relative z-10 space-y-6 max-w-lg">
+        <div className="space-y-2">
+          <span className="text-[11px] font-mono uppercase tracking-widest text-cyan-400">MISSION-CRITICAL AGRICULTURE</span>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground xl:text-4xl leading-tight">
+            Earth observation intelligence for 600+ crop varieties.
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Real-time satellite feeds from Sentinel-1, Landsat-9, and NASA LANCE calibrated for plant health, soil moisture, and hyper-local hazard defense.
+          </p>
+        </div>
+
+        {/* Floating Telemetry Metrics Strip */}
+        <div className="grid grid-cols-3 gap-3 pt-1">
+          <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3.5 backdrop-blur-md shadow-lg">
+            <div className="text-[10px] font-mono text-muted-foreground uppercase">NDVI Vigor</div>
+            <div className="text-xl font-bold text-emerald-400 font-mono mt-0.5">0.78</div>
+            <div className="text-[10px] text-emerald-400/80">Optimal Vigor</div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3.5 backdrop-blur-md shadow-lg">
+            <div className="text-[10px] font-mono text-muted-foreground uppercase">Root Moisture</div>
+            <div className="text-xl font-bold text-cyan-400 font-mono mt-0.5">38.4%</div>
+            <div className="text-[10px] text-cyan-400/80">60m Borewell</div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3.5 backdrop-blur-md shadow-lg">
+            <div className="text-[10px] font-mono text-muted-foreground uppercase">Active Hazards</div>
+            <div className="text-xl font-bold text-amber-400 font-mono mt-0.5">0 CRIT</div>
+            <div className="text-[10px] text-muted-foreground">Nominal Pass</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom mission badge */}
+      <div className="relative z-10 flex items-center gap-4 rounded-xl border border-white/10 bg-slate-950/40 p-4 backdrop-blur-md">
+        <div className="flex size-10 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-300 font-mono text-base font-bold shadow-inner">
+          🛰️
+        </div>
+        <div className="text-xs">
+          <div className="font-semibold text-foreground">Global Agro-Climatic Atlas</div>
+          <div className="text-muted-foreground mt-0.5">Supporting farmers, agronomists, and planetary scientists worldwide.</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // If rendered as a modal overlay (e.g. from navbar / CommandBar)
+  if (onClose) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-6 bg-black/85 backdrop-blur-xl overflow-y-auto">
+        <div className="relative flex flex-col lg:flex-row w-full max-w-5xl min-h-[580px] rounded-2xl border border-white/15 bg-[#070D1E]/95 shadow-[0_30px_100px_rgba(0,0,0,0.9)] overflow-hidden text-foreground">
+          {authCardContent}
+          {visualShowcaseContent}
+        </div>
+      </div>
+    );
+  }
+
+  // Standalone full-page route (/login, /signup, /auth)
+  return (
+    <div className="relative flex flex-col lg:flex-row w-full min-h-[100dvh] bg-[#050914] text-foreground overflow-hidden">
+      {authCardContent}
+      {visualShowcaseContent}
+    </div>
   );
 };
 

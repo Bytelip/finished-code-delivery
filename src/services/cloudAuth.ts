@@ -317,18 +317,24 @@ export async function updatePassword(password: string): Promise<AuthOutcome> {
   return error ? { ok: false, error: friendlyAuthError(error.message) } : { ok: true };
 }
 
+export function getLastUsedProvider(): SocialProvider | null {
+  if (typeof window === "undefined") return null;
+  return (localStorage.getItem("agro_last_auth_provider") as SocialProvider) || null;
+}
+
 export async function signInWithProvider(provider: SocialProvider): Promise<AuthOutcome> {
   const callbackUrl = `${window.location.origin}/auth/callback`;
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem("agro_last_auth_provider", provider);
+  }
 
   // Try via Lovable OAuth gateway first
   try {
     const result = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: callbackUrl,
     });
-    if (result.error) {
-      // Fall through to direct Supabase OAuth below
-      console.warn("[OAuth] Gateway error, falling back to direct Supabase:", result.error);
-    } else {
+    if (!result.error) {
       if ("redirected" in result && result.redirected) return { ok: true, redirected: true };
       return { ok: true };
     }
@@ -336,12 +342,28 @@ export async function signInWithProvider(provider: SocialProvider): Promise<Auth
     console.warn("[OAuth] Gateway exception, attempting direct Supabase:", err);
   }
 
+  // Map provider to Supabase's native identifiers: Microsoft uses 'azure'
+  const supabaseProvider: "google" | "azure" | "apple" =
+    provider === "microsoft" ? "azure" : provider === "apple" ? "apple" : "google";
+
+  const options: {
+    redirectTo: string;
+    queryParams?: Record<string, string>;
+    scopes?: string;
+  } = {
+    redirectTo: callbackUrl,
+  };
+
+  if (supabaseProvider === "google") {
+    options.queryParams = { prompt: "select_account" };
+  } else if (supabaseProvider === "azure") {
+    options.scopes = "email profile openid";
+  }
+
   // Direct Supabase OAuth with PKCE flow
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: provider === "lovable" ? "google" : provider,
-    options: {
-      redirectTo: callbackUrl,
-    },
+    provider: supabaseProvider,
+    options,
   });
 
   if (error) {
