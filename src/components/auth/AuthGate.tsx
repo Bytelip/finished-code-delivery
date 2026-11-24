@@ -157,7 +157,9 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
       hasAcquiredInitialGps.current = true;
       try {
         window.sessionStorage?.setItem("agro_initial_gps_done", "true");
-      } catch {}
+      } catch {
+        // Session storage can be unavailable (private mode); the in-memory ref still guards.
+      }
 
       if (typeof window === "undefined" || !navigator.geolocation) {
         toast.info(<LocalizedText text={`Welcome, ${userName}`} />, {
@@ -259,7 +261,9 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     hasAcquiredInitialGps.current = false;
     try {
       window.sessionStorage?.removeItem("agro_initial_gps_done");
-    } catch {}
+    } catch {
+      // Session storage can be unavailable (private mode); nothing to clean up then.
+    }
     await signOut();
     saveStoredUser(null);
     setCurrentUser(null);

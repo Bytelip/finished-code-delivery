@@ -278,24 +278,25 @@ export async function resendOtp(
   type: "signup" | "email" = "signup",
 ): Promise<AuthOutcome> {
   const cleanEmail = email.trim().toLowerCase();
-  const { error } = await supabase.auth.resend({
-    type,
-    email: cleanEmail,
-    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-  });
+  const emailRedirectTo = `${window.location.origin}/auth/callback`;
 
-  if (error) {
-    // If resend failed, try signInWithOtp as fallback
-    const fallback = await supabase.auth.signInWithOtp({
+  // supabase.auth.resend only supports the sign-up confirmation type; a passwordless
+  // sign-in code is re-sent with signInWithOtp (also the fallback when resend fails).
+  if (type === "signup") {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
       email: cleanEmail,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { emailRedirectTo },
     });
-    if (fallback.error) {
-      return { ok: false, error: friendlyAuthError(fallback.error.message) };
-    }
+    if (!error) return { ok: true };
+  }
+
+  const fallback = await supabase.auth.signInWithOtp({
+    email: cleanEmail,
+    options: { shouldCreateUser: type === "signup", emailRedirectTo },
+  });
+  if (fallback.error) {
+    return { ok: false, error: friendlyAuthError(fallback.error.message) };
   }
 
   return { ok: true };

@@ -14,8 +14,8 @@ export function GlobeContainer(props: GlobeViewportProps) {
     setMounted(true);
   }, []);
 
-  const lat = props.telemetry.location.lat;
-  const lon = props.telemetry.location.lon;
+  const lat = props.telemetry.meta.lat;
+  const lon = props.telemetry.meta.lon;
   const activeLayer = props.activeLayer;
 
   const fallback = (
