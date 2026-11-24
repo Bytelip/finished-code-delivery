@@ -6,6 +6,8 @@ import { fetchSignedInProfile, saveProfile, signOut } from "@/services/cloudAuth
 import { toast } from "sonner";
 import { syncUrlCoords } from "@/utils/preciseLocation";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
+import { sessionNeedsEmailCode } from "@/lib/googleOtp";
+import { GoogleEmailCodeStep } from "@/components/auth/GoogleEmailCodeStep";
 
 interface AuthGateProps {
   children: (props: {
@@ -21,17 +23,28 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
   // (it lives in browser storage), so the server and the first browser render match.
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [codeEmail, setCodeEmail] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     const refresh = async () => {
-      const profile = await fetchSignedInProfile();
-      if (!active) return;
-      setCurrentUser(profile);
-      // Display cache only; access is always decided by the live session above.
-      saveStoredUser(profile);
-      setSessionChecked(true);
+      try {
+        const profile = await fetchSignedInProfile();
+        if (!active) return;
+        setCurrentUser(profile);
+        // Display cache only; access is always decided by the live session above.
+        saveStoredUser(profile);
+        setSessionChecked(true);
+      } catch (err) {
+        console.warn("[AuthGate] Error fetching signed in profile:", err);
+        if (active) setSessionChecked(true);
+      }
     };
+
+    // Safety timeout: guaranteed resolution to unblock the UI within 1200ms
+    const safetyTimer = setTimeout(() => {
+      if (active) setSessionChecked(true);
+    }, 1200);
 
     const initializeAuth = async () => {
       // Check for OAuth PKCE callback parameters in URL (e.g. ?code=...)
@@ -55,37 +68,77 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
       if (!active) return;
 
       if (sessionData.session) {
+        if (
+          sessionNeedsEmailCode(
+            sessionData.session.access_token,
+            sessionData.session.user.app_metadata?.["provider"] as string | undefined,
+          )
+        ) {
+          setCurrentUser(null);
+          setCodeEmail(sessionData.session.user.email ?? null);
+          setSessionChecked(true);
+          return;
+        }
+        setCodeEmail(null);
         await refresh();
       } else {
-        // If no active session, wait for onAuthStateChange to confirm or settle
-        setSessionChecked(true);
+        const hasPendingCode =
+          typeof window !== "undefined" && new URLSearchParams(window.location.search).has("code");
+        if (!hasPendingCode) {
+          setSessionChecked(true);
+        }
       }
     };
 
     void initializeAuth();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!active) return;
-      if (!session) {
-        // Only mark session unchecked/logged out if we aren't currently exchanging a code in the URL
-        const hasPendingCode =
-          typeof window !== "undefined" && new URLSearchParams(window.location.search).has("code");
-        if (!hasPendingCode) {
-          setCurrentUser(null);
-          saveStoredUser(null);
-          setSessionChecked(true);
+    let sub: { subscription: { unsubscribe: () => void } } | null = null;
+    try {
+      const res = supabase.auth.onAuthStateChange((event, session) => {
+        try {
+          if (!active) return;
+          if (!session) {
+            const hasPendingCode =
+              typeof window !== "undefined" && new URLSearchParams(window.location.search).has("code");
+            if (!hasPendingCode) {
+              setCodeEmail(null);
+              setCurrentUser(null);
+              saveStoredUser(null);
+              setSessionChecked(true);
+            }
+            return;
+          }
+          if (
+            sessionNeedsEmailCode(
+              session.access_token,
+              session.user.app_metadata?.["provider"] as string | undefined,
+            )
+          ) {
+            setCurrentUser(null);
+            setCodeEmail(session.user.email ?? null);
+            setSessionChecked(true);
+            return;
+          }
+          setCodeEmail(null);
+          if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
+            // Defer so the auth client finishes its own work before we query the profile.
+            setTimeout(() => void refresh(), 0);
+          }
+        } catch (err) {
+          console.warn("[AuthGate] onAuthStateChange error:", err);
+          if (active) setSessionChecked(true);
         }
-        return;
-      }
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
-        // Defer so the auth client finishes its own work before we query the profile.
-        setTimeout(() => void refresh(), 0);
-      }
-    });
+      });
+      sub = res.data;
+    } catch (err) {
+      console.warn("[AuthGate] Failed to subscribe to onAuthStateChange:", err);
+      if (active) setSessionChecked(true);
+    }
 
     return () => {
       active = false;
-      sub.subscription.unsubscribe();
+      clearTimeout(safetyTimer);
+      sub?.subscription?.unsubscribe();
     };
   }, []);
 
@@ -227,6 +280,10 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
 
   if (!sessionChecked) {
     return <div className="min-h-[100dvh] w-full bg-background" aria-busy="true" />;
+  }
+
+  if (codeEmail) {
+    return <GoogleEmailCodeStep email={codeEmail} onCancel={() => void signOut()} />;
   }
 
   if (!currentUser) {

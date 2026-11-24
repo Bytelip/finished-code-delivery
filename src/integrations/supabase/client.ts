@@ -64,7 +64,7 @@ export function getSupabaseCredentials() {
   const url =
     (typeof import.meta !== 'undefined' && import.meta.env?.['VITE_SUPABASE_URL']) ||
     (typeof process !== 'undefined' ? process.env?.['VITE_SUPABASE_URL'] || process.env?.['SUPABASE_URL'] : undefined) ||
-    'https://ljfzjfwtejwmhjpjyjbw.supabase.co';
+    'https://enutgngbsatwgpemwzgx.supabase.co';
 
   const key =
     (typeof import.meta !== 'undefined' &&
@@ -75,7 +75,7 @@ export function getSupabaseCredentials() {
         process.env?.['SUPABASE_PUBLISHABLE_KEY'] ||
         process.env?.['SUPABASE_ANON_KEY']
       : undefined) ||
-    '';
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVudXRnbmdic2F0d2dwZW13emd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3MjM0MTEsImV4cCI6MjExMDI5OTQxMX0.0IaWgZGSfTyy1Qe6ipZtrHBAVLDJ_anskVOp8i6ST8Y';
 
   return { url: url.replace(/\/+$/, ''), key };
 }
@@ -83,10 +83,13 @@ export function getSupabaseCredentials() {
 function createSupabaseClient() {
   const { url: SUPABASE_URL, key: SUPABASE_PUBLISHABLE_KEY } = getSupabaseCredentials();
 
-  if (!SUPABASE_PUBLISHABLE_KEY) {
-    console.warn(
-      '[Supabase] Warning: VITE_SUPABASE_ANON_KEY or VITE_SUPABASE_PUBLISHABLE_KEY is not defined. Authentication calls will require a valid Supabase API key.'
-    );
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    const missing = [
+      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
+      ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
+    ];
+    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
+    console.warn(`[Supabase] ${message}`);
   }
 
   // Use a fallback publishable key shape if empty so createClient initializes cleanly

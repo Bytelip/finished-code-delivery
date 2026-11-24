@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { LovableMark } from "@lovable.dev/cloud-auth-js/react";
 import {
   MIN_PASSWORD_LENGTH,
   fetchSignedInProfile,

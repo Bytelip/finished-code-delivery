@@ -48,6 +48,13 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -61,6 +68,11 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             />
           }
         </p>
+        {errorMessage && (
+          <div className="mt-4 p-3 rounded-lg bg-red-950/40 border border-red-500/20 text-xs font-mono text-red-300 text-left overflow-auto max-h-32">
+            {errorMessage}
+          </div>
+        )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
