@@ -157,18 +157,30 @@ async function loadProfileRow(user: User): Promise<ProfileRow | null> {
     (user.user_metadata?.["name"] as string | undefined) ||
     user.email?.split("@")[0] ||
     "";
-  const { data: created } = await supabase
+  // Two callers can load the profile at the same time, so ignore the duplicate
+  // row instead of failing the second one with a primary-key error.
+  const { error: insertError } = await supabase
     .from("profiles")
-    .insert({ id: user.id, full_name: fallbackName.slice(0, 80) })
-    .select("*")
-    .maybeSingle();
+    .upsert(
+      { id: user.id, full_name: fallbackName.slice(0, 80) },
+      { onConflict: "id", ignoreDuplicates: true },
+    );
+  if (insertError) return null;
+  const { data: created } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
   return created ?? null;
 }
 
 /** The signed-in farmer with their saved profile, or null when nobody is signed in. */
 export async function fetchSignedInProfile(): Promise<UserProfile | null> {
   const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
+  if (error) {
+    // A stored token for an account that no longer exists (or was revoked) would
+    // otherwise be retried on every load; drop it so the farmer signs in again.
+    const status = (error as { status?: number }).status;
+    if (status === 401 || status === 403) await supabase.auth.signOut({ scope: "local" });
+    return null;
+  }
+  if (!data.user) return null;
   const row = await loadProfileRow(data.user);
   return profileFromRow(data.user, row);
 }
