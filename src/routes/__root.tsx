@@ -18,6 +18,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 function NotFoundComponent() {
+  const router = useRouter();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -28,13 +29,21 @@ function NotFoundComponent() {
         <p className="mt-2 text-sm text-muted-foreground">
           {<LocalizedText text={"The page you're looking for doesn't exist or has been moved."} />}
         </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        <div className="mt-6 flex justify-center">
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              try {
+                void router.navigate({ to: "/", replace: true });
+              } catch {
+                window.location.href = "/";
+              }
+            }}
+            className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 shadow-[0_0_20px_rgba(34,211,238,0.3)] cursor-pointer"
           >
             {<LocalizedText text={"Go home"} />}
-          </Link>
+          </a>
         </div>
       </div>
     </div>

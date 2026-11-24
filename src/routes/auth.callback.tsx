@@ -29,6 +29,29 @@ function AuthCallbackRoute() {
         return;
       }
 
+      // Check for hash parameters (implicit flow fallback or invite/recovery tokens)
+      if (typeof window !== "undefined" && window.location.hash && window.location.hash.includes("access_token")) {
+        setStatusMessage("Restoring secure session…");
+        const hash = window.location.hash.replace(/^#/, "");
+        const hashParams = new URLSearchParams(hash);
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        if (accessToken) {
+          try {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || "",
+            });
+            if (!sessionError) {
+              if (mounted) navigate({ to: "/", replace: true });
+              return;
+            }
+          } catch (err) {
+            console.warn("[OAuth] Hash token exchange:", err);
+          }
+        }
+      }
+
       // If PKCE authorization code is present in URL, exchange it for session
       if (code) {
         setStatusMessage("Exchanging authentication token…");

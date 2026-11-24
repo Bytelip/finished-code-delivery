@@ -11,7 +11,26 @@ describe("App routing", () => {
     const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
 
     const matches = router.matchRoutes("/");
-
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
+  });
+
+  it("matches all essential application and authentication routes", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    const routesToCheck = [
+      "/",
+      "/auth",
+      "/login",
+      "/signup",
+      "/auth/callback",
+      "/dashboard",
+      "/console",
+      "/reset-password",
+    ];
+
+    for (const path of routesToCheck) {
+      const matches = router.matchRoutes(path);
+      expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
+    }
   });
 });
