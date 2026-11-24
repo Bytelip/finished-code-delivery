@@ -32,11 +32,49 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
       saveStoredUser(profile);
       setSessionChecked(true);
     };
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        setCurrentUser(null);
-        saveStoredUser(null);
+
+    const initializeAuth = async () => {
+      // Check for OAuth PKCE callback parameters in URL (e.g. ?code=...)
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get("code");
+        if (code) {
+          try {
+            await supabase.auth.exchangeCodeForSession(code);
+            // Clean code parameter from URL without triggering a reload
+            const cleanUrl = window.location.pathname + (window.location.hash || "");
+            window.history.replaceState({}, document.title, cleanUrl);
+          } catch (err) {
+            console.warn("[AuthGate] OAuth code exchange:", err);
+          }
+        }
+      }
+
+      // Check current session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!active) return;
+
+      if (sessionData.session) {
+        await refresh();
+      } else {
+        // If no active session, wait for onAuthStateChange to confirm or settle
         setSessionChecked(true);
+      }
+    };
+
+    void initializeAuth();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      if (!session) {
+        // Only mark session unchecked/logged out if we aren't currently exchanging a code in the URL
+        const hasPendingCode =
+          typeof window !== "undefined" && new URLSearchParams(window.location.search).has("code");
+        if (!hasPendingCode) {
+          setCurrentUser(null);
+          saveStoredUser(null);
+          setSessionChecked(true);
+        }
         return;
       }
       if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
@@ -44,6 +82,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
         setTimeout(() => void refresh(), 0);
       }
     });
+
     return () => {
       active = false;
       sub.subscription.unsubscribe();

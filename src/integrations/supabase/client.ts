@@ -18,7 +18,7 @@ function serverSupabaseUrl(publicUrl: string, supabaseKey: string): string | und
 function createSupabaseFetch(supabaseUrl: string, supabaseKey: string): typeof fetch {
   const publicUrl = supabaseUrl.replace(/\/+$/, '');
   const serverUrl = serverSupabaseUrl(publicUrl, supabaseKey);
-  return (input, init) => {
+  return async (input, init) => {
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
     );
@@ -33,43 +33,75 @@ function createSupabaseFetch(supabaseUrl: string, supabaseKey: string): typeof f
     }
 
     headers.set('apikey', supabaseKey);
-    if (serverUrl) {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (url.startsWith(`${publicUrl}/`)) {
-        const target = serverUrl + url.slice(publicUrl.length);
-        const request = typeof input === 'string' || input instanceof URL ? target : new Request(target, input);
-        return fetch(request, { ...init, headers });
+    let requestUrl: string = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+
+    if (serverUrl && requestUrl.startsWith(`${publicUrl}/`)) {
+      const target = serverUrl + requestUrl.slice(publicUrl.length);
+      const request = typeof input === 'string' || input instanceof URL ? target : new Request(target, input);
+      try {
+        return await fetch(request, { ...init, headers });
+      } catch (err) {
+        console.warn(`[Supabase] Server URL request failed, falling back to public URL:`, err);
       }
     }
-    return fetch(input, { ...init, headers });
+
+    try {
+      return await fetch(input, { ...init, headers });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[Supabase Fetch Error] ${errMsg} targeting ${requestUrl}`);
+      if (errMsg.toLowerCase().includes('failed to fetch') || errMsg.toLowerCase().includes('networkerror')) {
+        throw new TypeError(
+          `Unable to connect to Supabase at ${publicUrl} (Failed to fetch). Verify your internet connection, confirm that your Supabase project is active (not paused), and verify CORS/URL configuration in Supabase Dashboard.`
+        );
+      }
+      throw err;
+    }
   };
 }
 
+export function getSupabaseCredentials() {
+  const url =
+    (typeof import.meta !== 'undefined' && import.meta.env?.['VITE_SUPABASE_URL']) ||
+    (typeof process !== 'undefined' ? process.env?.['VITE_SUPABASE_URL'] || process.env?.['SUPABASE_URL'] : undefined) ||
+    'https://ljfzjfwtejwmhjpjyjbw.supabase.co';
+
+  const key =
+    (typeof import.meta !== 'undefined' &&
+      (import.meta.env?.['VITE_SUPABASE_PUBLISHABLE_KEY'] || import.meta.env?.['VITE_SUPABASE_ANON_KEY'])) ||
+    (typeof process !== 'undefined'
+      ? process.env?.['VITE_SUPABASE_PUBLISHABLE_KEY'] ||
+        process.env?.['VITE_SUPABASE_ANON_KEY'] ||
+        process.env?.['SUPABASE_PUBLISHABLE_KEY'] ||
+        process.env?.['SUPABASE_ANON_KEY']
+      : undefined) ||
+    '';
+
+  return { url: url.replace(/\/+$/, ''), key };
+}
 
 function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
+  const { url: SUPABASE_URL, key: SUPABASE_PUBLISHABLE_KEY } = getSupabaseCredentials();
 
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
+  if (!SUPABASE_PUBLISHABLE_KEY) {
+    console.warn(
+      '[Supabase] Warning: VITE_SUPABASE_ANON_KEY or VITE_SUPABASE_PUBLISHABLE_KEY is not defined. Authentication calls will require a valid Supabase API key.'
+    );
   }
 
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  // Use a fallback publishable key shape if empty so createClient initializes cleanly
+  const activeKey = SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_placeholder_configure_in_env';
+
+  return createClient<Database>(SUPABASE_URL, activeKey, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY),
+      fetch: createSupabaseFetch(SUPABASE_URL, activeKey),
     },
     auth: {
       storage: brokeredPreviewStorage(),
       persistSession: true,
       autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
     },
   });
 }

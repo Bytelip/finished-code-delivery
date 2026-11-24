@@ -11,12 +11,12 @@ import type { UserProfile } from "@/components/CosmicAuthPage";
 
 export type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
-export type SocialProvider = "google" | "microsoft" | "lovable";
+export type SocialProvider = "google" | "lovable";
 
 export interface AuthOutcome {
   ok: boolean;
   error?: string;
-  /** Sign-up succeeded but the farmer must click the link in their inbox first. */
+  /** Sign-up succeeded but the farmer must verify with the 6-digit code. */
   needsConfirmation?: boolean;
   /** The browser is leaving for the provider's sign-in page. */
   redirected?: boolean;
@@ -26,9 +26,6 @@ export const MIN_PASSWORD_LENGTH = 8;
 
 const PROVIDER_LABELS: Record<string, UserProfile["provider"]> = {
   google: "Google",
-  azure: "Microsoft",
-  microsoft: "Microsoft",
-  apple: "Apple",
   lovable: "Lovable",
   email: "Email",
 };
@@ -133,15 +130,21 @@ export function rowFromProfile(profile: UserProfile): ProfileUpdate {
 /** Turns Cloud auth errors into plain sentences for farmers. */
 export function friendlyAuthError(message: string | undefined): string {
   const m = (message ?? "").toLowerCase();
+  if (m.includes("failed to fetch") || m.includes("networkerror") || m.includes("unable to connect"))
+    return "Unable to connect to the authentication service. Please check your internet connection and verify that your Supabase project is active (not paused).";
   if (m.includes("invalid login credentials")) return "Wrong email or password.";
   if (m.includes("email not confirmed"))
-    return "Please confirm your email first — check your inbox for the link we sent.";
+    return "Please confirm your email first — we sent a 6-digit verification code to your inbox.";
   if (m.includes("already registered") || m.includes("already been registered"))
     return "An account with this email already exists. Sign in instead.";
   if (m.includes("password") && (m.includes("weak") || m.includes("pwned") || m.includes("leaked")))
-    return "That password is too easy to guess. Please choose a stronger one.";
+    return "That password is too easy to guess. Please choose a stronger one (minimum 8 characters).";
   if (m.includes("rate limit") || m.includes("too many"))
     return "Too many attempts. Please wait a minute and try again.";
+  if (m.includes("token has expired") || m.includes("otp expired"))
+    return "Verification code has expired. Please request a new 6-digit code.";
+  if (m.includes("invalid token") || m.includes("token is invalid") || m.includes("token not found"))
+    return "Incorrect verification code. Please double-check the 6 digits sent to your email.";
   return message || "Something went wrong. Please try again.";
 }
 
@@ -182,11 +185,12 @@ export async function signUpWithEmail(
   email: string,
   password: string,
 ): Promise<AuthOutcome> {
+  const cleanEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.auth.signUp({
-    email: email.trim().toLowerCase(),
+    email: cleanEmail,
     password,
     options: {
-      emailRedirectTo: window.location.origin,
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
       data: { full_name: name.trim().slice(0, 80) },
     },
   });
@@ -195,24 +199,110 @@ export async function signUpWithEmail(
   if (data.user && data.user.identities && data.user.identities.length === 0) {
     return { ok: false, error: friendlyAuthError("already registered") };
   }
+  // When email confirmation is enabled, a 6-digit OTP code is sent to the email
   return { ok: true, needsConfirmation: !data.session };
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthOutcome> {
+  const cleanEmail = email.trim().toLowerCase();
   const { error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
+    email: cleanEmail,
     password,
+  });
+  if (error) {
+    // If the email is unconfirmed, tell the caller so they can prompt for OTP verification
+    if (error.message.toLowerCase().includes("email not confirmed")) {
+      return { ok: false, error: friendlyAuthError(error.message), needsConfirmation: true };
+    }
+    return { ok: false, error: friendlyAuthError(error.message) };
+  }
+  return { ok: true };
+}
+
+/** Sends a 6-digit OTP to the user's email for passwordless sign-in / verification */
+export async function sendSignInOtp(email: string): Promise<AuthOutcome> {
+  const cleanEmail = email.trim().toLowerCase();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: cleanEmail,
+    options: {
+      shouldCreateUser: false,
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+    },
   });
   return error ? { ok: false, error: friendlyAuthError(error.message) } : { ok: true };
 }
 
-export async function resendConfirmation(email: string): Promise<AuthOutcome> {
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email: email.trim().toLowerCase(),
-    options: { emailRedirectTo: window.location.origin },
+/** Verifies a 6-digit email OTP (for sign-up confirmation or email verification) */
+export async function verifyEmailOtp(
+  email: string,
+  token: string,
+  preferredType: "signup" | "email" = "signup",
+): Promise<AuthOutcome & { user?: User | null }> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanToken = token.trim().replace(/\D/g, "");
+
+  if (cleanToken.length !== 6) {
+    return { ok: false, error: "Please enter all 6 digits of your verification code." };
+  }
+
+  // Attempt verification with the primary type ('signup' or 'email')
+  let result = await supabase.auth.verifyOtp({
+    email: cleanEmail,
+    token: cleanToken,
+    type: preferredType,
   });
-  return error ? { ok: false, error: friendlyAuthError(error.message) } : { ok: true };
+
+  // If primary type failed (e.g. signup vs magic link / email otp), try the other type
+  if (result.error) {
+    const alternateType: "signup" | "email" = preferredType === "signup" ? "email" : "signup";
+    const altResult = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: cleanToken,
+      type: alternateType,
+    });
+    if (!altResult.error) {
+      result = altResult;
+    }
+  }
+
+  if (result.error) {
+    return { ok: false, error: friendlyAuthError(result.error.message) };
+  }
+
+  return { ok: true, user: result.data?.user ?? null };
+}
+
+/** Resends the 6-digit confirmation or OTP code to the email */
+export async function resendOtp(
+  email: string,
+  type: "signup" | "email" = "signup",
+): Promise<AuthOutcome> {
+  const cleanEmail = email.trim().toLowerCase();
+  const { error } = await supabase.auth.resend({
+    type,
+    email: cleanEmail,
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+  });
+
+  if (error) {
+    // If resend failed, try signInWithOtp as fallback
+    const fallback = await supabase.auth.signInWithOtp({
+      email: cleanEmail,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (fallback.error) {
+      return { ok: false, error: friendlyAuthError(fallback.error.message) };
+    }
+  }
+
+  return { ok: true };
+}
+
+export async function resendConfirmation(email: string): Promise<AuthOutcome> {
+  return resendOtp(email, "signup");
 }
 
 export async function sendPasswordReset(email: string): Promise<AuthOutcome> {
@@ -228,13 +318,41 @@ export async function updatePassword(password: string): Promise<AuthOutcome> {
 }
 
 export async function signInWithProvider(provider: SocialProvider): Promise<AuthOutcome> {
-  const result = await lovable.auth.signInWithOAuth(provider, {
-    redirect_uri: window.location.origin,
-  });
-  if (result.error) {
-    return { ok: false, error: friendlyAuthError(result.error.message) };
+  const callbackUrl = `${window.location.origin}/auth/callback`;
+
+  // Try via Lovable OAuth gateway first
+  try {
+    const result = await lovable.auth.signInWithOAuth(provider, {
+      redirect_uri: callbackUrl,
+    });
+    if (result.error) {
+      // Fall through to direct Supabase OAuth below
+      console.warn("[OAuth] Gateway error, falling back to direct Supabase:", result.error);
+    } else {
+      if ("redirected" in result && result.redirected) return { ok: true, redirected: true };
+      return { ok: true };
+    }
+  } catch (err) {
+    console.warn("[OAuth] Gateway exception, attempting direct Supabase:", err);
   }
-  if ("redirected" in result && result.redirected) return { ok: true, redirected: true };
+
+  // Direct Supabase OAuth with PKCE flow
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: provider === "lovable" ? "google" : provider,
+    options: {
+      redirectTo: callbackUrl,
+    },
+  });
+
+  if (error) {
+    return { ok: false, error: friendlyAuthError(error.message) };
+  }
+
+  if (data?.url) {
+    window.location.href = data.url;
+    return { ok: true, redirected: true };
+  }
+
   return { ok: true };
 }
 

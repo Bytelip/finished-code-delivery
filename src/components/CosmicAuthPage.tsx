@@ -4,10 +4,13 @@ import {
   MIN_PASSWORD_LENGTH,
   fetchSignedInProfile,
   resendConfirmation,
+  resendOtp,
   sendPasswordReset,
+  sendSignInOtp,
   signInWithEmail,
   signInWithProvider,
   signUpWithEmail,
+  verifyEmailOtp,
   type SocialProvider,
 } from "@/services/cloudAuth";
 import { toast } from "sonner";
@@ -291,7 +294,7 @@ export interface CosmicAuthPageProps {
   initialMode?: "signin" | "signup";
 }
 
-type AuthStep = "entry" | "check_email" | "forgot" | "reset_sent";
+type AuthStep = "entry" | "verify_otp" | "forgot" | "reset_sent";
 
 const inputClass =
   "w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none";
@@ -320,6 +323,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">(initialMode);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const [otpCode, setOtpCode] = useState<string>("");
+  const [otpType, setOtpType] = useState<"signup" | "email">("signup");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
+  const [useOtpSignIn, setUseOtpSignIn] = useState<boolean>(false);
+
   const namePlaceholder = useLocalizedValue("Your name (e.g., Naren Kumar)");
   const emailPlaceholder = useLocalizedValue("Enter your email address");
   const passwordPlaceholder = useLocalizedValue(
@@ -339,7 +347,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
       ? password.length >= MIN_PASSWORD_LENGTH && password.length <= 72
       : password.length > 0 && password.length <= 72;
   const canSubmit =
-    isEmailValid && isPasswordValid && (authMode === "signin" || isNameValid) && !isSubmitting;
+    isEmailValid &&
+    (useOtpSignIn && authMode === "signin"
+      ? !isSubmitting
+      : isPasswordValid && (authMode === "signin" || isNameValid) && !isSubmitting);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -368,6 +379,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setAuthError("");
     setLoadingOAuth(null);
     setIsSubmitting(false);
+    setOtpCode("");
+    setUseOtpSignIn(false);
   };
 
   const handleSocialOAuth = async (provider: SocialProvider) => {
@@ -391,28 +404,81 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
+
+    if (useOtpSignIn && authMode === "signin") {
+      if (!isEmailValid) return showError("Please enter a valid email address.");
+      setIsSubmitting(true);
+      try {
+        const result = await sendSignInOtp(email);
+        if (!result.ok) return showError(result.error || "Could not send verification code.");
+        setOtpType("email");
+        setOtpCode("");
+        setResendCooldown(60);
+        setStep("verify_otp");
+        toast.info(<LocalizedText text="Verification code sent to your email" />);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (!canSubmit) return;
     setIsSubmitting(true);
     try {
       if (authMode === "signin") {
         const result = await signInWithEmail(email, password);
-        if (!result.ok) return showError(result.error || "Wrong email or password.");
+        if (!result.ok) {
+          if (result.needsConfirmation) {
+            await resendOtp(email, "signup");
+            setOtpType("signup");
+            setOtpCode("");
+            setResendCooldown(60);
+            setStep("verify_otp");
+            toast.info(
+              <LocalizedText text="Please verify your email with the 6-digit code sent to your inbox." />,
+            );
+            return;
+          }
+          return showError(result.error || "Wrong email or password.");
+        }
         await finishSignIn();
         return;
       }
+
+      // Create Account (Sign-up) flow: sends real 6-digit confirmation code
       const result = await signUpWithEmail(name, email, password);
       if (!result.ok) return showError(result.error || "Could not create your account.");
-      if (result.needsConfirmation) {
-        setPassword("");
-        setResendCooldown(45);
-        setStep("check_email");
-        return;
-      }
-      await finishSignIn();
+      setPassword("");
+      setOtpType("signup");
+      setOtpCode("");
+      setResendCooldown(60);
+      setStep("verify_otp");
+      toast.info(<LocalizedText text="We sent a 6-digit verification code to your email." />);
     } catch (err: unknown) {
       showError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    const clean = otpCode.trim().replace(/\D/g, "");
+    if (clean.length !== 6) {
+      return showError("Please enter the complete 6-digit verification code.");
+    }
+    setIsVerifyingOtp(true);
+    try {
+      const result = await verifyEmailOtp(email, clean, otpType);
+      if (!result.ok) {
+        return showError(result.error || "Invalid or expired verification code.");
+      }
+      await finishSignIn();
+    } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : "Verification failed. Please try again.");
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -421,10 +487,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
     setAuthError("");
     setIsSubmitting(true);
     try {
-      const result = await resendConfirmation(email);
-      if (!result.ok) return showError(result.error || "Could not resend the email.");
-      setResendCooldown(45);
-      toast.success(<LocalizedText text="Confirmation email sent again" />);
+      const result = await resendOtp(email, otpType);
+      if (!result.ok) return showError(result.error || "Could not resend the verification code.");
+      setResendCooldown(60);
+      toast.success(<LocalizedText text="A fresh 6-digit verification code has been sent." />);
     } finally {
       setIsSubmitting(false);
     }
@@ -447,6 +513,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   const backToEntry = () => {
     setStep("entry");
     setAuthError("");
+    setOtpCode("");
   };
 
   return (
@@ -524,35 +591,6 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   <LocalizedText text={loadingOAuth === "google" ? "Opening Google…" : "Continue with Google"} />
                 </span>
               </button>
-
-              <button
-                type="button"
-                disabled={loadingOAuth !== null}
-                onClick={() => handleSocialOAuth("microsoft")}
-                className={`${providerButtonClass} border-white/12 bg-white/[0.06] text-foreground hover:border-cyan-400/40 hover:bg-white/[0.11]`}
-              >
-                <svg aria-hidden="true" className="absolute left-4 h-4 w-4" viewBox="0 0 23 23">
-                  <path fill="#f35325" d="M1 1h10v10H1z" />
-                  <path fill="#81bc06" d="M12 1h10v10H12z" />
-                  <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                  <path fill="#ffba08" d="M12 12h10v10H12z" />
-                </svg>
-                <span>
-                  <LocalizedText text={loadingOAuth === "microsoft" ? "Opening Microsoft…" : "Continue with Microsoft"} />
-                </span>
-              </button>
-
-              <button
-                type="button"
-                disabled={loadingOAuth !== null}
-                onClick={() => handleSocialOAuth("lovable")}
-                className={`${providerButtonClass} border-white/12 bg-white/[0.06] text-foreground hover:border-cyan-400/40 hover:bg-white/[0.11]`}
-              >
-                <LovableMark className="absolute left-4 h-[18px] w-[18px]" />
-                <span>
-                  {loadingOAuth === "lovable" ? "Opening Lovable…" : "Continue with Lovable"}
-                </span>
-              </button>
             </div>
 
             <div className="my-5 flex items-center gap-4">
@@ -591,50 +629,67 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 className={inputClass}
               />
 
-              <div className="relative flex items-center">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={authMode === "signup" ? MIN_PASSWORD_LENGTH : 1}
-                  maxLength={72}
-                  autoComplete={authMode === "signup" ? "new-password" : "current-password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  aria-label={passwordFieldLabel}
-                  placeholder={passwordPlaceholder}
-                  className={`${inputClass} pr-11`}
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 p-1 text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
-                  title={passwordToggleLabel}
-                  aria-label={passwordToggleLabel}
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    {showPassword ? (
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
-                    ) : (
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    )}
-                  </svg>
-                </button>
-              </div>
-
-              {authMode === "signin" && (
-                <div className="text-right">
+              {!(authMode === "signin" && useOtpSignIn) && (
+                <div className="relative flex items-center">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={authMode === "signup" ? MIN_PASSWORD_LENGTH : 1}
+                    maxLength={72}
+                    autoComplete={authMode === "signup" ? "new-password" : "current-password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-label={passwordFieldLabel}
+                    placeholder={passwordPlaceholder}
+                    className={`${inputClass} pr-11`}
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      setAuthError("");
-                      setStep("forgot");
-                    }}
-                    className="text-xs font-medium text-cyan-300 hover:underline cursor-pointer"
+                    tabIndex={-1}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 p-1 text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
+                    title={passwordToggleLabel}
+                    aria-label={passwordToggleLabel}
                   >
-                    <LocalizedText text="Forgot password?" />
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      {showPassword ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      )}
+                    </svg>
                   </button>
+                </div>
+              )}
+
+              {authMode === "signin" && (
+                <div className="flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setUseOtpSignIn((prev) => !prev)}
+                    className="text-cyan-400 hover:underline cursor-pointer"
+                  >
+                    <LocalizedText
+                      text={
+                        useOtpSignIn
+                          ? "Use password instead"
+                          : "Sign in with 6-digit email code"
+                      }
+                    />
+                  </button>
+                  {!useOtpSignIn && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthError("");
+                        setStep("forgot");
+                      }}
+                      className="text-muted-foreground hover:text-cyan-300 hover:underline cursor-pointer"
+                    >
+                      <LocalizedText text="Forgot password?" />
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -644,8 +699,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     isSubmitting
                       ? "Please wait…"
                       : authMode === "signin"
-                        ? "Sign In"
-                        : "Create Account"
+                        ? useOtpSignIn
+                          ? "Send 6-digit code"
+                          : "Sign In"
+                        : "Create Account & Send Code"
                   }
                 />
               </button>
@@ -653,36 +710,77 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
           </>
         )}
 
-        {step === "check_email" && (
+        {step === "verify_otp" && (
           <div className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-400 border border-cyan-400/30">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
             <h2 className="text-xl font-semibold text-foreground">
-              <LocalizedText text="Check your email" />
+              <LocalizedText text="Verify Your Email" />
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              <LocalizedText text="We sent a confirmation link to" />{" "}
-              <span className="font-mono text-cyan-300 break-all">{email.trim()}</span>.{" "}
-              <LocalizedText text="Open it to finish creating your account, then sign in." />
+              <LocalizedText text="We sent a 6-digit verification code to" />{" "}
+              <span className="font-mono font-medium text-cyan-300 break-all">{email.trim()}</span>.{" "}
+              <LocalizedText text="Enter the code to verify ownership and access your dashboard." />
             </p>
-            <div className="mt-5 flex flex-col gap-2">
+
+            <form onSubmit={handleVerifyOtpSubmit} className="mt-6 space-y-4">
+              <div>
+                <input
+                  id="otp-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  autoFocus
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData("text").trim().replace(/\D/g, "").slice(0, 6);
+                    if (text.length > 0) {
+                      e.preventDefault();
+                      setOtpCode(text);
+                    }
+                  }}
+                  placeholder="••••••"
+                  className="w-full rounded-xl border border-cyan-400/30 bg-slate-900/90 py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-cyan-300 placeholder-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.15)]"
+                  aria-label="6-digit verification code"
+                />
+              </div>
+
               <button
-                type="button"
-                onClick={handleResend}
-                disabled={resendCooldown > 0 || isSubmitting}
-                className="min-h-11 rounded-xl border border-white/12 text-sm font-medium text-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                type="submit"
+                disabled={otpCode.trim().length !== 6 || isVerifyingOtp}
+                className={primaryButtonClass(otpCode.trim().length === 6 && !isVerifyingOtp)}
               >
-                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : <LocalizedText text="Resend email" />}
+                <LocalizedText text={isVerifyingOtp ? "Verifying code…" : "Verify Code & Continue"} />
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleTabSwitch("signin");
-                  backToEntry();
-                }}
-                className="min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <LocalizedText text="Back to sign in" />
-              </button>
-            </div>
+
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0 || isSubmitting}
+                  className="min-h-10 rounded-lg border border-white/10 text-xs font-medium text-cyan-300 hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                >
+                  {resendCooldown > 0 ? (
+                    `Resend code in ${resendCooldown}s`
+                  ) : (
+                    <LocalizedText text="Didn't get a code? Resend" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={backToEntry}
+                  className="text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors py-1"
+                >
+                  <LocalizedText text="Use a different email address" />
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
