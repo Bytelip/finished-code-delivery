@@ -47,23 +47,34 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     }, 1200);
 
     const initializeAuth = async () => {
-      // Check for OAuth PKCE callback parameters in URL (e.g. ?code=...)
-      if (typeof window !== "undefined") {
+      // Check current session first (awaits detectSessionInUrl PKCE exchange if ?code= is in URL)
+      const { data: initialSessionData } = await supabase.auth.getSession();
+      if (!active) return;
+
+      // Fallback manual exchange if ?code= was present and not auto-exchanged
+      if (!initialSessionData.session && typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get("code");
         if (code) {
           try {
             await supabase.auth.exchangeCodeForSession(code);
-            // Clean code parameter from URL without triggering a reload
-            const cleanUrl = window.location.pathname + (window.location.hash || "");
-            window.history.replaceState({}, document.title, cleanUrl);
           } catch (err) {
             console.warn("[AuthGate] OAuth code exchange:", err);
           }
         }
       }
 
-      // Check current session
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has("code")) {
+          urlParams.delete("code");
+          const qs = urlParams.toString();
+          const cleanUrl =
+            window.location.pathname + (qs ? `?${qs}` : "") + (window.location.hash || "");
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      }
+
       const { data: sessionData } = await supabase.auth.getSession();
       if (!active) return;
 
@@ -99,7 +110,8 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
           if (!active) return;
           if (!session) {
             const hasPendingCode =
-              typeof window !== "undefined" && new URLSearchParams(window.location.search).has("code");
+              typeof window !== "undefined" &&
+              new URLSearchParams(window.location.search).has("code");
             if (!hasPendingCode) {
               setCodeEmail(null);
               setCurrentUser(null);

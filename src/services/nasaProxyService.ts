@@ -36,10 +36,15 @@ export async function fetchNasaProxy(
   vpd = 1.2,
   soilMoisturePct = 40,
 ): Promise<NasaProxyResponse | null> {
-  const supabaseUrl =
-    (typeof process !== "undefined" && process.env?.["VITE_SUPABASE_URL"]) ||
-    (typeof import.meta !== "undefined" &&
-      (import.meta as unknown as { env?: Record<string, string> }).env?.["VITE_SUPABASE_URL"]);
+  const rawUrl =
+    (typeof import.meta !== "undefined" && import.meta.env
+      ? import.meta.env.VITE_SUPABASE_URL
+      : undefined) ||
+    (typeof process !== "undefined" && process.env
+      ? process.env["VITE_SUPABASE_URL"]
+      : undefined) ||
+    "";
+  const supabaseUrl = rawUrl.trim().replace(/\/+$/, "");
 
   if (!supabaseUrl) {
     // If Supabase is not deployed or configured locally, return the keyless fallback directly

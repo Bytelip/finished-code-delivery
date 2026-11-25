@@ -14,6 +14,7 @@ const isHttps = process.env["VITE_HTTPS"] === "true";
 const basePath = process.env["VITE_BASE_PATH"] || "/";
 // Never enable HTTPS plugin during production builds — it breaks Vercel/Netlify bundling
 const isDev = process.env["NODE_ENV"] !== "production";
+const isVercel = Boolean(process.env["VERCEL"]);
 
 export default defineConfig({
   tanstackStart: {
@@ -21,6 +22,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  ...(isVercel ? { nitro: { preset: "cloudflare-module" } } : {}),
   vite: {
     base: basePath,
     plugins: isHttps && isDev ? [basicSsl()] : [],
@@ -31,17 +33,6 @@ export default defineConfig({
     },
     build: {
       chunkSizeWarningLimit: 2500,
-    },
-    define: {
-      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
-        process.env["VITE_SUPABASE_URL"] ||
-        "https://enutgngbsatwgpemwzgx.supabase.co"
-      ),
-      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
-        process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-        process.env["VITE_SUPABASE_ANON_KEY"] ||
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVudXRnbmdic2F0d2dwZW13emd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3MjM0MTEsImV4cCI6MjExMDI5OTQxMX0.0IaWgZGSfTyy1Qe6ipZtrHBAVLDJ_anskVOp8i6ST8Y"
-      ),
     },
   },
 });
