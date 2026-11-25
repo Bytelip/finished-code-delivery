@@ -7,12 +7,14 @@ export const Route = createFileRoute("/auth")({
       { title: "Sign In — AgroSpace Nexus" },
       {
         name: "description",
-        content: "Sign in or create your AgroSpace Nexus account to see your farm's satellite insights.",
+        content:
+          "Sign in or create your AgroSpace Nexus account to see your farm's satellite insights.",
       },
       { property: "og:title", content: "Sign In — AgroSpace Nexus" },
       {
         property: "og:description",
-        content: "Sign in or create your AgroSpace Nexus account to see your farm's satellite insights.",
+        content:
+          "Sign in or create your AgroSpace Nexus account to see your farm's satellite insights.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -24,7 +26,7 @@ export const Route = createFileRoute("/auth")({
 function AuthRouteComponent() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  if (pathname === "/auth/callback") return <Outlet />;
+  if (pathname.replace(/\/+$/, "").endsWith("/auth/callback")) return <Outlet />;
   return (
     <CosmicAuthPage
       onSuccess={() => navigate({ to: "/", replace: true })}

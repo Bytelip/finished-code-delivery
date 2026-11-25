@@ -15,6 +15,7 @@ import {
 } from "@/services/cloudAuth";
 import { toast } from "sonner";
 import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
+import { MISSING_SUPABASE_ENV_MESSAGE, isSupabaseConfigured } from "@/integrations/supabase/client";
 
 // ==========================================
 // 1. TYPES & USER PROFILE MODEL
@@ -354,6 +355,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   useEffect(() => {
     setLastUsed(getLastUsedProvider());
+    if (!isSupabaseConfigured()) {
+      setAuthError(MISSING_SUPABASE_ENV_MESSAGE);
+    }
   }, []);
 
   useEffect(() => {
@@ -380,7 +384,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   const handleTabSwitch = (newMode: "signin" | "signup") => {
     setAuthMode(newMode);
-    setAuthError("");
+    setAuthError(isSupabaseConfigured() ? "" : MISSING_SUPABASE_ENV_MESSAGE);
     setLoadingOAuth(null);
     setIsSubmitting(false);
     setOtpCode("");
@@ -516,7 +520,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   const backToEntry = () => {
     setStep("entry");
-    setAuthError("");
+    setAuthError(isSupabaseConfigured() ? "" : MISSING_SUPABASE_ENV_MESSAGE);
     setOtpCode("");
   };
 

@@ -1,17 +1,20 @@
 /**
- * Real account system backed by Lovable Cloud.
- * Sessions come from the Cloud auth client; each account's farmer profile lives in the
+ * Direct Supabase authentication and profile storage.
+ * Sessions come directly from Supabase Auth; each user's profile lives in the
  * `profiles` table (one row per user, readable/editable only by its owner).
  */
 import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import {
+  MISSING_SUPABASE_ENV_MESSAGE,
+  isSupabaseConfigured,
+  supabase,
+} from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { UserProfile } from "@/components/CosmicAuthPage";
 
 export type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
-export type SocialProvider = "google" | "microsoft" | "apple" | "lovable";
+export type SocialProvider = "google" | "microsoft";
 
 export interface AuthOutcome {
   ok: boolean;
@@ -26,14 +29,14 @@ export const MIN_PASSWORD_LENGTH = 8;
 
 const PROVIDER_LABELS: Record<string, UserProfile["provider"]> = {
   google: "Google",
-  lovable: "Lovable",
+  azure: "Microsoft",
+  microsoft: "Microsoft",
   email: "Email",
 };
 
 export function providerLabel(user: Pick<User, "app_metadata">): UserProfile["provider"] {
   const raw = String(user.app_metadata?.provider ?? "email").toLowerCase();
   if (PROVIDER_LABELS[raw]) return PROVIDER_LABELS[raw];
-  if (raw.includes("lovable")) return "Lovable";
   return "Email";
 }
 
@@ -130,7 +133,12 @@ export function rowFromProfile(profile: UserProfile): ProfileUpdate {
 /** Turns Cloud auth errors into plain sentences for farmers. */
 export function friendlyAuthError(message: string | undefined): string {
   const m = (message ?? "").toLowerCase();
-  if (m.includes("failed to fetch") || m.includes("networkerror") || m.includes("unable to connect"))
+  if (m.includes("missing supabase environment variables")) return MISSING_SUPABASE_ENV_MESSAGE;
+  if (
+    m.includes("failed to fetch") ||
+    m.includes("networkerror") ||
+    m.includes("unable to connect")
+  )
     return "Unable to connect to the authentication service. Please check your internet connection and verify that your Supabase project is active (not paused).";
   if (m.includes("invalid login credentials")) return "Wrong email or password.";
   if (m.includes("email not confirmed"))
@@ -143,7 +151,11 @@ export function friendlyAuthError(message: string | undefined): string {
     return "Too many attempts. Please wait a minute and try again.";
   if (m.includes("token has expired") || m.includes("otp expired"))
     return "Verification code has expired. Please request a new 6-digit code.";
-  if (m.includes("invalid token") || m.includes("token is invalid") || m.includes("token not found"))
+  if (
+    m.includes("invalid token") ||
+    m.includes("token is invalid") ||
+    m.includes("token not found")
+  )
     return "Incorrect verification code. Please double-check the 6 digits sent to your email.";
   return message || "Something went wrong. Please try again.";
 }
@@ -167,6 +179,7 @@ async function loadProfileRow(user: User): Promise<ProfileRow | null> {
 
 /** The signed-in farmer with their saved profile, or null when nobody is signed in. */
 export async function fetchSignedInProfile(): Promise<UserProfile | null> {
+  if (!isSupabaseConfigured()) return null;
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
   const row = await loadProfileRow(data.user);
@@ -174,9 +187,13 @@ export async function fetchSignedInProfile(): Promise<UserProfile | null> {
 }
 
 export async function saveProfile(profile: UserProfile): Promise<AuthOutcome> {
+  if (!isSupabaseConfigured()) return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
   const { data } = await supabase.auth.getUser();
   if (!data.user) return { ok: false, error: "Please sign in again to save your profile." };
-  const { error } = await supabase.from("profiles").update(rowFromProfile(profile)).eq("id", data.user.id);
+  const { error } = await supabase
+    .from("profiles")
+    .update(rowFromProfile(profile))
+    .eq("id", data.user.id);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
@@ -185,6 +202,7 @@ export async function signUpWithEmail(
   email: string,
   password: string,
 ): Promise<AuthOutcome> {
+  if (!isSupabaseConfigured()) return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
   const cleanEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.auth.signUp({
     email: cleanEmail,
@@ -204,6 +222,7 @@ export async function signUpWithEmail(
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthOutcome> {
+  if (!isSupabaseConfigured()) return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
   const cleanEmail = email.trim().toLowerCase();
   const { error } = await supabase.auth.signInWithPassword({
     email: cleanEmail,
@@ -221,6 +240,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
 /** Sends a 6-digit OTP to the user's email for passwordless sign-in / verification */
 export async function sendSignInOtp(email: string): Promise<AuthOutcome> {
+  if (!isSupabaseConfigured()) return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
   const cleanEmail = email.trim().toLowerCase();
   const { error } = await supabase.auth.signInWithOtp({
     email: cleanEmail,
@@ -238,6 +258,7 @@ export async function verifyEmailOtp(
   token: string,
   preferredType: "signup" | "email" = "signup",
 ): Promise<AuthOutcome & { user?: User | null }> {
+  if (!isSupabaseConfigured()) return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
   const cleanEmail = email.trim().toLowerCase();
   const cleanToken = token.trim().replace(/\D/g, "");
 
@@ -277,9 +298,15 @@ export async function resendOtp(
   email: string,
   type: "signup" | "email" = "signup",
 ): Promise<AuthOutcome> {
+  if (!isSupabaseConfigured()) return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
   const cleanEmail = email.trim().toLowerCase();
+
+  if (type === "email") {
+    return sendSignInOtp(cleanEmail);
+  }
+
   const { error } = await supabase.auth.resend({
-    type,
+    type: "signup",
     email: cleanEmail,
     options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
   });
@@ -306,6 +333,7 @@ export async function resendConfirmation(email: string): Promise<AuthOutcome> {
 }
 
 export async function sendPasswordReset(email: string): Promise<AuthOutcome> {
+  if (!isSupabaseConfigured()) return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
     redirectTo: `${window.location.origin}/reset-password`,
   });
@@ -313,58 +341,45 @@ export async function sendPasswordReset(email: string): Promise<AuthOutcome> {
 }
 
 export async function updatePassword(password: string): Promise<AuthOutcome> {
+  if (!isSupabaseConfigured()) return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
   const { error } = await supabase.auth.updateUser({ password });
   return error ? { ok: false, error: friendlyAuthError(error.message) } : { ok: true };
 }
 
 export function getLastUsedProvider(): SocialProvider | null {
   if (typeof window === "undefined") return null;
-  return (localStorage.getItem("agro_last_auth_provider") as SocialProvider) || null;
+  const saved = localStorage.getItem("agro_last_auth_provider");
+  return saved === "google" || saved === "microsoft" ? saved : null;
 }
 
 export async function signInWithProvider(provider: SocialProvider): Promise<AuthOutcome> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: MISSING_SUPABASE_ENV_MESSAGE };
+  }
+
   const callbackUrl = `${window.location.origin}/auth/callback`;
 
   if (typeof window !== "undefined") {
     localStorage.setItem("agro_last_auth_provider", provider);
   }
 
-  // Try via Lovable OAuth gateway first
-  try {
-    const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: callbackUrl,
-    });
-    if (!result.error) {
-      if ("redirected" in result && result.redirected) return { ok: true, redirected: true };
-      return { ok: true };
-    }
-  } catch (err) {
-    console.warn("[OAuth] Gateway exception, attempting direct Supabase:", err);
-  }
-
-  // Map provider to Supabase's native identifiers: Microsoft uses 'azure'
-  const supabaseProvider: "google" | "azure" | "apple" =
-    provider === "microsoft" ? "azure" : provider === "apple" ? "apple" : "google";
-
-  const options: {
-    redirectTo: string;
-    queryParams?: Record<string, string>;
-    scopes?: string;
-  } = {
-    redirectTo: callbackUrl,
-  };
-
-  if (supabaseProvider === "google") {
-    options.queryParams = { prompt: "select_account" };
-  } else if (supabaseProvider === "azure") {
-    options.scopes = "email profile openid";
-  }
-
   // Direct Supabase OAuth with PKCE flow
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: supabaseProvider,
-    options,
-  });
+  const { data, error } =
+    provider === "microsoft"
+      ? await supabase.auth.signInWithOAuth({
+          provider: "azure",
+          options: {
+            scopes: "email profile openid",
+            redirectTo: callbackUrl,
+          },
+        })
+      : await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: callbackUrl,
+            queryParams: { prompt: "select_account" },
+          },
+        });
 
   if (error) {
     return { ok: false, error: friendlyAuthError(error.message) };

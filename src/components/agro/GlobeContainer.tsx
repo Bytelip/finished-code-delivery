@@ -4,7 +4,7 @@ import type { GlobeViewportProps } from "@/components/GlobeViewport";
 export type { GlobeViewportProps };
 
 const LazyGlobeViewport = lazy(() =>
-  import("@/components/GlobeViewport").then((m) => ({ default: m.GlobeViewport }))
+  import("@/components/GlobeViewport").then((m) => ({ default: m.GlobeViewport })),
 );
 
 export function GlobeContainer(props: GlobeViewportProps) {
@@ -14,8 +14,8 @@ export function GlobeContainer(props: GlobeViewportProps) {
     setMounted(true);
   }, []);
 
-  const lat = props.telemetry.location.lat;
-  const lon = props.telemetry.location.lon;
+  const lat = props.telemetry.input.lat;
+  const lon = props.telemetry.input.lon;
   const activeLayer = props.activeLayer;
 
   const fallback = (
