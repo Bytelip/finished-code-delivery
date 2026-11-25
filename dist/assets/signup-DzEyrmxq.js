@@ -1,1 +1,0 @@
-import{t as e}from"./jsx-runtime-NZYk81nU.js";import{t}from"./useNavigate-CXYF6C7b.js";import{t as n}from"./CosmicAuthPage-DlfNlYc3.js";var r=e();function i(){let e=t();return(0,r.jsx)(n,{initialMode:`signup`,onClose:()=>e({to:`/`}),onSuccess:()=>e({to:`/`,replace:!0})})}export{i as component};
