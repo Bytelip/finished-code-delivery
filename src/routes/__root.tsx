@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeStudioModal } from "@/components/theme/ThemeStudioModal";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 
@@ -162,7 +163,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-const THEME_BOOT_SCRIPT = `(function(){try{var r=document.documentElement;var m=localStorage.getItem('agrospace-mode');var t=localStorage.getItem('agrospace-theme');var vt=['orbital-emerald','solar-harvest','midnight-nebula','arctic-telemetry'];var th=vt.indexOf(t)!==-1?t:'orbital-emerald';var md=m==='light'||m==='dark'?m:'dark';r.setAttribute('data-theme',th);if(md==='light'){r.classList.remove('dark');r.classList.add('light');r.style.colorScheme='light';}else{r.classList.add('dark');r.classList.remove('light');r.style.colorScheme='dark';}}catch(e){}})();`;
+const THEME_BOOT_SCRIPT = `(function(){try{var r=document.documentElement;var m=localStorage.getItem('agrospace-mode');var t=localStorage.getItem('agrospace-theme');var vt=['orbital-emerald','solar-harvest','midnight-nebula','arctic-telemetry'];var th=vt.indexOf(t)!==-1?t:'orbital-emerald';var md=m==='light'||m==='dark'?m:'dark';r.setAttribute('data-theme',th);if(md==='light'){r.classList.remove('dark');r.classList.add('light');r.style.colorScheme='light';}else{r.classList.add('dark');r.classList.remove('light');r.style.colorScheme='dark';}var raw=localStorage.getItem('agrospace-custom-theme-draft');if(raw){var c=JSON.parse(raw);var hx=/^#[0-9a-fA-F]{6}$/;var rm={sharp:['0.25rem','0.15rem','0.25rem','0.35rem','0.5rem','0.625rem'],balanced:['0.5rem','0.375rem','0.5rem','0.75rem','1rem','1.25rem'],rounded:['0.875rem','0.625rem','0.875rem','1.25rem','1.75rem','2rem']};var rs=rm[c.cornerRadius]||rm.balanced;r.style.setProperty('--radius',rs[0]);r.style.setProperty('--ui-radius-sm',rs[1]);r.style.setProperty('--ui-radius-md',rs[2]);r.style.setProperty('--ui-radius-lg',rs[3]);r.style.setProperty('--ui-radius-xl',rs[4]);r.style.setProperty('--ui-radius-2xl',rs[5]);if(typeof c.blurPx==='number'){r.style.setProperty('--hud-blur',Math.min(32,Math.max(0,Math.round(c.blurPx)))+'px');}var hexRgb=function(h){var v=parseInt(h.slice(1),16);return[(v>>16)&255,(v>>8)&255,v&255];};var lum=function(h){var rgb=hexRgb(h).map(function(x){var s=x/255;return s<=0.03928?s/12.92:Math.pow((s+0.055)/1.055,2.4);});return 0.2126*rgb[0]+0.7152*rgb[1]+0.0722*rgb[2];};if(hx.test(c.accent||'')){r.style.setProperty('--accent',c.accent);r.style.setProperty('--primary',c.accent);r.style.setProperty('--ring',c.accent);r.style.setProperty('--primary-foreground',lum(c.accent)>0.36?'#041019':'#FFFFFF');}if(hx.test(c.canvas||'')){r.style.setProperty('--bg-canvas',c.canvas);r.style.setProperty('--background',c.canvas);}if(hx.test(c.surface||'')){r.style.setProperty('--bg-surface',c.surface);r.style.setProperty('--popover',c.surface);var rgb=hexRgb(c.surface);var op=typeof c.glassOpacity==='number'?Math.min(0.96,Math.max(0.35,c.glassOpacity)):0.82;var g='rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+','+op+')';r.style.setProperty('--bg-glass',g);r.style.setProperty('--card',g);}if(hx.test(c.textOverride||'')){r.style.setProperty('--text-primary',c.textOverride);r.style.setProperty('--foreground',c.textOverride);}}}catch(e){}})();`;
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
@@ -222,6 +223,7 @@ function RootComponent() {
         <LanguageProvider>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
+          <ThemeStudioModal />
           {/* Toaster positioned at bottom-right in dark obsidian glass */}
           <Toaster position="bottom-right" duration={2500} className="bottom-20 right-5 z-50" />
         </LanguageProvider>

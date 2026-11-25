@@ -15,7 +15,7 @@
  * Includes multi-language toggle (English | हिंदी | ಕನ್ನಡ) and Print/PDF Farmer Advisory Bulletin.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Wind,
   Mountain,
@@ -640,14 +640,30 @@ export function FarmerAdvisoryModal({
       .slice(0, 5);
   }, [lat, lon, zoneInfo, deficit, telemetry]);
 
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   const handlePrint = () => {
     window.print();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
       {/* Modal Card */}
-      <div className="relative my-auto w-full max-w-4xl rounded-xl border border-cyan/40 bg-card p-6 shadow-2xl printable-bulletin">
+      <div
+        className="relative my-auto w-full max-w-4xl rounded-xl border border-cyan/40 bg-card p-6 shadow-2xl printable-bulletin"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Floating Close & Print Actions (Hidden in Print View) */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3 no-print">
           <span className="hud-label text-cyan-300">{localize(b.officialSubtitle)}</span>

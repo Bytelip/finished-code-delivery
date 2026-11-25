@@ -6,7 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchSignedInProfile, saveProfile, signOut } from "@/services/cloudAuth";
 import { getMfaAssuranceLevel } from "@/services/mfaAuth";
 import { toast } from "sonner";
-import { syncUrlCoords } from "@/utils/preciseLocation";
+import {
+  capturePendingUrlCoords,
+  getUrlCoords,
+  peekPendingUrlCoords,
+  syncUrlCoords,
+} from "@/utils/preciseLocation";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 
 interface AuthGateProps {
@@ -279,7 +284,17 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
   );
 
   useEffect(() => {
+    // Preserve any shared deep-link coordinates (?lat=...&lon=...) before login/OAuth redirects
+    capturePendingUrlCoords();
+  }, []);
+
+  useEffect(() => {
     if (currentUser && !hasAcquiredInitialGps.current) {
+      // Never overwrite explicit URL or restored OAuth deep-link coordinates with hardware GPS
+      if (getUrlCoords() || peekPendingUrlCoords()) {
+        hasAcquiredInitialGps.current = true;
+        return;
+      }
       triggerAutoGpsTracking(currentUser.fullName || currentUser.name || "Farmer");
     }
   }, [currentUser, triggerAutoGpsTracking]);

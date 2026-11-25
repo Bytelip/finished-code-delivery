@@ -49,10 +49,11 @@ body,
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-display: "Space Grotesk", sans-serif;
 
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --radius-sm: var(--ui-radius-sm);
+  --radius-md: var(--ui-radius-md);
+  --radius-lg: var(--ui-radius-lg);
+  --radius-xl: var(--ui-radius-xl);
+  --radius-2xl: var(--ui-radius-2xl);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -97,6 +98,12 @@ body,
 
 :root {
   --radius: 0.5rem;
+  --ui-radius-sm: 0.375rem;
+  --ui-radius-md: 0.5rem;
+  --ui-radius-lg: 0.75rem;
+  --ui-radius-xl: 1rem;
+  --ui-radius-2xl: 1.25rem;
+  --hud-blur: 16px;
 
   /* Core Theme Semantic Properties (Orbital Emerald Dark Default) */
   --bg-canvas: #090d12;
@@ -403,6 +410,15 @@ html.light[data-theme="arctic-telemetry"] {
     background: color-mix(in srgb, var(--accent) 70%, transparent);
     box-shadow: 0 0 10px var(--accent-glow);
   }
+}
+
+/* Custom Theme Studio runtime glass blur & corner radius cascade overrides */
+.hud-card,
+.hud-card-emerald,
+.hud-card-crimson {
+  backdrop-filter: blur(var(--hud-blur, 16px));
+  -webkit-backdrop-filter: blur(var(--hud-blur, 16px));
+  border-radius: var(--ui-radius-lg, 0.75rem);
 }
 
 /* Light-mode HUD contrast safeguards (keeps 3D globe & 2D satellite map canvases crisp and untouched) */

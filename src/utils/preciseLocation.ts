@@ -281,10 +281,21 @@ export async function resolvePreciseLocation(options?: {
             enableHighAccuracy: true,
             maximumAge: 60000,
             timeout: 8000,
-          }
+          },
         );
-      } else if (typeof (navigator.geolocation as unknown as Record<string, unknown>)["watchPosition"] === "function") {
-        watchId = ((navigator.geolocation as unknown as { watchPosition: Function }).watchPosition)(
+      } else if (
+        typeof (navigator.geolocation as unknown as Record<string, unknown>)["watchPosition"] ===
+        "function"
+      ) {
+        watchId = (
+          navigator.geolocation as unknown as {
+            watchPosition: (
+              successCallback: PositionCallback,
+              errorCallback?: PositionErrorCallback | null,
+              options?: PositionOptions,
+            ) => number;
+          }
+        ).watchPosition(
           (pos: GeolocationPosition) => {
             onPosition(pos);
             finishWithBest();
@@ -294,7 +305,7 @@ export async function resolvePreciseLocation(options?: {
             enableHighAccuracy: true,
             maximumAge: 60000,
             timeout: 8000,
-          }
+          },
         );
       } else {
         finishWithBest();
@@ -320,7 +331,12 @@ function cachePlaceResults(key: string, places: PlaceSearchResult[]) {
   placeSearchCache.set(key, { expiresAt: Date.now() + 5 * 60_000, places });
 }
 
-async function fetchLocationRequest(url: string, timeoutMs: number, signal?: AbortSignal, headers?: HeadersInit) {
+async function fetchLocationRequest(
+  url: string,
+  timeoutMs: number,
+  signal?: AbortSignal,
+  headers?: HeadersInit,
+) {
   const controller = new AbortController();
   const relayAbort = () => controller.abort(signal?.reason);
   if (signal?.aborted) relayAbort();
@@ -334,7 +350,10 @@ async function fetchLocationRequest(url: string, timeoutMs: number, signal?: Abo
   }
 }
 
-export async function searchDualProviderPlaces(query: string, signal?: AbortSignal): Promise<PlaceSearchResult[]> {
+export async function searchDualProviderPlaces(
+  query: string,
+  signal?: AbortSignal,
+): Promise<PlaceSearchResult[]> {
   const q = query.trim();
   if (q.length < 2) return [];
   const cacheKey = q.toLowerCase();
@@ -390,8 +409,8 @@ export async function searchDualProviderPlaces(query: string, signal?: AbortSign
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&addressdetails=1`;
     const res = await fetchLocationRequest(url, 4500, signal, {
-        Accept: "application/json",
-        "User-Agent": "AgroSpace-Nexus-Precision-Agriculture/2.0",
+      Accept: "application/json",
+      "User-Agent": "AgroSpace-Nexus-Precision-Agriculture/2.0",
     });
 
     if (res.ok) {
@@ -515,8 +534,8 @@ export async function reverseGeocodeAndElevation(
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12&addressdetails=1`;
     const res = await fetchLocationRequest(url, 4000, signal, {
-        Accept: "application/json",
-        "User-Agent": "AgroSpace-Nexus-Precision-Agriculture/2.0",
+      Accept: "application/json",
+      "User-Agent": "AgroSpace-Nexus-Precision-Agriculture/2.0",
     });
 
     if (res.ok) {
@@ -636,6 +655,18 @@ export async function reverseGeocodeAndElevation(
 
 /** LocalStorage and URL query helpers */
 
+export const PENDING_URL_COORDS_KEY = "agrospace_pending_url_coords";
+const PENDING_COORDS_TTL_MS = 30 * 60 * 1000;
+
+export function clampCoords(lat: number, lon: number): { lat: number; lon: number } {
+  const safeLat = Number.isFinite(lat) ? Math.min(90, Math.max(-90, lat)) : 12.6622;
+  const safeLon = Number.isFinite(lon) ? Math.min(180, Math.max(-180, lon)) : 77.4503;
+  return {
+    lat: Math.round(safeLat * 10000) / 10000,
+    lon: Math.round(safeLon * 10000) / 10000,
+  };
+}
+
 export function getStoredLocation(): { lat: number; lon: number; label?: string } | null {
   if (typeof window === "undefined") return null;
   try {
@@ -645,10 +676,15 @@ export function getStoredLocation(): { lat: number; lon: number; label?: string 
     if (
       typeof parsed?.lat === "number" &&
       typeof parsed?.lon === "number" &&
-      !isNaN(parsed.lat) &&
-      !isNaN(parsed.lon)
+      Number.isFinite(parsed.lat) &&
+      Number.isFinite(parsed.lon) &&
+      parsed.lat >= -90 &&
+      parsed.lat <= 90 &&
+      parsed.lon >= -180 &&
+      parsed.lon <= 180
     ) {
-      return { lat: parsed.lat, lon: parsed.lon, label: parsed.label };
+      const clamped = clampCoords(parsed.lat, parsed.lon);
+      return { lat: clamped.lat, lon: clamped.lon, label: parsed.label };
     }
   } catch {
     // ignore json parse error
@@ -659,11 +695,12 @@ export function getStoredLocation(): { lat: number; lon: number; label?: string 
 export function saveStoredLocation(lat: number, lon: number, label?: string): void {
   if (typeof window === "undefined") return;
   try {
+    const clamped = clampCoords(lat, lon);
     localStorage.setItem(
       SAVED_LOCATION_KEY,
       JSON.stringify({
-        lat: Math.round(lat * 10000) / 10000,
-        lon: Math.round(lon * 10000) / 10000,
+        lat: clamped.lat,
+        lon: clamped.lon,
         label,
         updatedAt: Date.now(),
       }),
@@ -673,36 +710,119 @@ export function saveStoredLocation(lat: number, lon: number, label?: string): vo
   }
 }
 
-export function getUrlCoords(): { lat: number; lon: number } | null {
-  if (typeof window === "undefined") return null;
+export function parseUrlCoords(search?: string): { lat: number; lon: number } | null {
+  if (search === undefined && typeof window === "undefined") return null;
   try {
-    const params = new URLSearchParams(window.location.search);
-    const latStr = params.get("lat");
-    const lonStr = params.get("lon");
-    if (latStr && lonStr) {
-      const lat = parseFloat(latStr);
-      const lon = parseFloat(lonStr);
-      if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-        return {
-          lat: Math.round(lat * 10000) / 10000,
-          lon: Math.round(lon * 10000) / 10000,
-        };
-      }
+    const rawSearch = search ?? window.location.search;
+    const params = new URLSearchParams(rawSearch);
+    const rawLat = params.get("lat")?.trim() ?? "";
+    const rawLon = params.get("lon")?.trim() ?? "";
+    if (!rawLat || !rawLon) return null;
+    const lat = Number(rawLat);
+    const lon = Number(rawLon);
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lon) ||
+      lat < -90 ||
+      lat > 90 ||
+      lon < -180 ||
+      lon > 180
+    ) {
+      return null;
     }
+    return clampCoords(lat, lon);
   } catch {
-    // ignore
+    return null;
   }
-  return null;
+}
+
+export function getUrlCoords(): { lat: number; lon: number } | null {
+  return parseUrlCoords();
 }
 
 export function syncUrlCoords(lat: number, lon: number): void {
   if (typeof window === "undefined") return;
   try {
+    const clamped = clampCoords(lat, lon);
     const url = new URL(window.location.href);
-    url.searchParams.set("lat", (Math.round(lat * 10000) / 10000).toString());
-    url.searchParams.set("lon", (Math.round(lon * 10000) / 10000).toString());
+    url.searchParams.set("lat", clamped.lat.toString());
+    url.searchParams.set("lon", clamped.lon.toString());
     window.history.replaceState({}, "", url.toString());
   } catch {
     // ignore
   }
+}
+
+export function capturePendingUrlCoords(search?: string): { lat: number; lon: number } | null {
+  if (typeof window === "undefined") return null;
+  const coords = parseUrlCoords(search);
+  if (!coords) return null;
+  const payload = JSON.stringify({ lat: coords.lat, lon: coords.lon, ts: Date.now() });
+  try {
+    window.sessionStorage?.setItem(PENDING_URL_COORDS_KEY, payload);
+  } catch {
+    // ignore sessionStorage restrictions
+  }
+  try {
+    window.localStorage?.setItem(PENDING_URL_COORDS_KEY, payload);
+  } catch {
+    // ignore localStorage restrictions
+  }
+  return coords;
+}
+
+export function peekPendingUrlCoords(): { lat: number; lon: number } | null {
+  if (typeof window === "undefined") return null;
+  const readFrom = (storage: Storage | undefined): { lat: number; lon: number } | null => {
+    if (!storage) return null;
+    try {
+      const raw = storage.getItem(PENDING_URL_COORDS_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { lat?: unknown; lon?: unknown; ts?: unknown };
+      if (
+        typeof parsed.lat !== "number" ||
+        typeof parsed.lon !== "number" ||
+        !Number.isFinite(parsed.lat) ||
+        !Number.isFinite(parsed.lon) ||
+        parsed.lat < -90 ||
+        parsed.lat > 90 ||
+        parsed.lon < -180 ||
+        parsed.lon > 180
+      ) {
+        return null;
+      }
+      if (typeof parsed.ts === "number" && Date.now() - parsed.ts > PENDING_COORDS_TTL_MS) {
+        return null;
+      }
+      return clampCoords(parsed.lat, parsed.lon);
+    } catch {
+      return null;
+    }
+  };
+  return readFrom(window.sessionStorage) ?? readFrom(window.localStorage);
+}
+
+export function consumePendingUrlCoords(): { lat: number; lon: number } | null {
+  const coords = peekPendingUrlCoords();
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage?.removeItem(PENDING_URL_COORDS_KEY);
+    } catch {
+      // ignore
+    }
+    try {
+      window.localStorage?.removeItem(PENDING_URL_COORDS_KEY);
+    } catch {
+      // ignore
+    }
+  }
+  return coords;
+}
+
+export function buildShareableLocationUrl(lat: number, lon: number, origin?: string): string {
+  const clamped = clampCoords(lat, lon);
+  const baseOrigin =
+    origin ??
+    (typeof window !== "undefined" ? window.location.origin : "https://argospacenexus.vercel.app");
+  return `${baseOrigin.replace(/\/+$/, "")}/?lat=${clamped.lat}&lon=${clamped.lon}`;
 }

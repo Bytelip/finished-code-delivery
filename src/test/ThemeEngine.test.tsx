@@ -8,6 +8,8 @@ import {
   THEME_STORAGE_KEY,
 } from "@/context/ThemeContext";
 import { ThemeSwitcher, ThemeSettingsCard } from "@/components/theme/ThemeSwitcher";
+import { ThemeStudioModal } from "@/components/theme/ThemeStudioModal";
+import { contrastRatio, pickReadableForeground, sanitizeCustomThemeConfig } from "@/lib/themeUtils";
 import { AnimatedThemeSwitch } from "@/components/theme/AnimatedThemeSwitch";
 
 function TestConsumer() {
@@ -225,5 +227,66 @@ describe("Premium 4-Theme System & Animated Light/Dark Switch", () => {
     fireEvent.click(solarBtn);
 
     expect(document.documentElement.getAttribute("data-theme")).toBe("solar-harvest");
+  });
+
+  it("supports Customizable Theme Studio colors, blur/opacity/radius, WCAG auto-contrast, save/delete, JSON import/export & Escape close", () => {
+    // 1. WCAG foreground contrast guard verification
+    const brightFg = pickReadableForeground("#FACC15");
+    expect(brightFg.hex).toBe("#041019");
+    expect(brightFg.ratio).toBeGreaterThanOrEqual(4.5);
+
+    const darkFg = pickReadableForeground("#1E3A8A");
+    expect(darkFg.hex).toBe("#FFFFFF");
+    expect(darkFg.ratio).toBeGreaterThanOrEqual(4.5);
+
+    expect(contrastRatio("#FFFFFF", "#090D12")).toBeGreaterThan(15);
+    expect(sanitizeCustomThemeConfig({ blurPx: 99, glassOpacity: 0.1 }).blurPx).toBe(32);
+
+    render(
+      <ThemeProvider>
+        <ThemeSettingsCard />
+        <ThemeStudioModal />
+      </ThemeProvider>,
+    );
+
+    // Open Theme Studio via Settings card button
+    const customizeBtn = screen.getByRole("button", { name: /Customize Theme/i });
+    fireEvent.click(customizeBtn);
+
+    expect(screen.getByRole("dialog", { name: /Customizable Theme Studio/i })).toBeInTheDocument();
+
+    // Update Accent hex input to bright yellow (#FACC15) -> auto-contrast picks #041019 foreground
+    const accentHex = screen.getByLabelText(/Accent Color hex value/i);
+    fireEvent.change(accentHex, { target: { value: "#FACC15" } });
+    expect(document.documentElement.style.getPropertyValue("--accent")).toBe("#FACC15");
+    expect(document.documentElement.style.getPropertyValue("--primary-foreground")).toBe("#041019");
+
+    // Update glass opacity & blur sliders + rounded corners
+    fireEvent.change(screen.getByLabelText(/HUD Glass Opacity/i), { target: { value: "64" } });
+    fireEvent.change(screen.getByLabelText(/Backdrop Blur Intensity/i), {
+      target: { value: "24" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "rounded" }));
+
+    expect(document.documentElement.style.getPropertyValue("--hud-blur")).toBe("24px");
+    expect(document.documentElement.style.getPropertyValue("--ui-radius-lg")).toBe("1.25rem");
+    expect(document.documentElement.style.getPropertyValue("--bg-glass")).toContain("0.64)");
+
+    // Save named custom theme & verify persistence
+    fireEvent.change(screen.getByLabelText(/Custom theme name/i), {
+      target: { value: "Solar Harvest Gold" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Save as Custom Theme/i }));
+    expect(screen.getAllByText("Solar Harvest Gold").length).toBeGreaterThan(0);
+
+    // Reset to default clears overrides
+    fireEvent.click(screen.getByRole("button", { name: /Reset to Default/i }));
+    expect(document.documentElement.style.getPropertyValue("--accent")).toBe("");
+
+    // Escape closes the studio dialog
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(
+      screen.queryByRole("dialog", { name: /Customizable Theme Studio/i }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   User,
@@ -57,6 +57,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     "profile" | "mission" | "appearance" | "notifications" | "security"
   >("profile");
+
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   // Editable Profile States
   const [fullName, setFullName] = useState(profile.fullName ?? profile.name ?? "");
@@ -144,8 +152,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] backdrop-blur-2xl">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Operator Profile Settings"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] backdrop-blur-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Glowing Top Frame Accent */}
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-blue-500" />
 
@@ -442,7 +459,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <select
                       value={defaultViewMode}
                       onChange={(e) => setDefaultViewMode(e.target.value as "3d" | "2d")}
-                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-foreground focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
                     >
                       <option value="3d">{<LocalizedText text={"3D Orbital Globe"} />}</option>
                       <option value="2d">{<LocalizedText text={"2D Satellite Map"} />}</option>
@@ -456,7 +473,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <select
                       value={defaultActiveLayer}
                       onChange={(e) => setDefaultActiveLayer(e.target.value)}
-                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-foreground focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
                     >
                       {MAP_LAYERS.map((layer) => (
                         <option key={layer} value={layer}>
@@ -473,7 +490,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <select
                       value={units}
                       onChange={(e) => setUnits(e.target.value as "metric" | "imperial")}
-                      className="w-full rounded-xl border border-white/12 bg-[#0c1424] px-3 py-2 font-mono text-xs text-foreground focus:border-cyan-400 focus:outline-none"
+                      className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
                     >
                       <option value="metric">
                         {<LocalizedText text={"Metric (°C / km / mm)"} />}
@@ -706,9 +723,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </div>
 
           {/* Modal Footer Actions */}
-          <div className="flex items-center justify-between border-t border-white/10 px-6 py-4 bg-black/40">
-            <div className="font-mono text-xs text-muted-foreground flex items-center gap-1.5">
-              <Sparkles className="size-3 text-cyan-300" />
+          <div className="flex items-center justify-between border-t border-[var(--border-subtle)] px-6 py-4 bg-black/10 dark:bg-black/40">
+            <div className="font-mono text-xs text-[var(--text-muted)] flex items-center gap-1.5">
+              <Sparkles className="size-3 text-[var(--accent)]" />
               <span>{<LocalizedText text={"Real-time local state synchronization active"} />}</span>
             </div>
 
@@ -716,13 +733,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl border border-white/15 px-4 py-2 font-mono text-xs font-semibold text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+                className="rounded-xl border border-[var(--border-subtle)] px-4 py-2 font-mono text-xs font-semibold text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
                 {<LocalizedText text={"Cancel"} />}
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 font-mono text-xs font-bold text-muted-foreground shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2 font-mono text-xs font-bold text-[var(--primary-foreground)] shadow-[0_0_20px_var(--accent-glow)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <Save className="size-3.5" />
                 <span>{<LocalizedText text={"Save Changes"} />}</span>

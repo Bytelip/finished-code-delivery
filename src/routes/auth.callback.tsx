@@ -8,6 +8,7 @@ import {
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 import { toast } from "sonner";
 import { friendlyAuthError } from "@/services/cloudAuth";
+import { peekPendingUrlCoords, syncUrlCoords } from "@/utils/preciseLocation";
 
 export const Route = createFileRoute("/auth/callback")({ component: AuthCallbackRoute });
 
@@ -39,6 +40,14 @@ function AuthCallbackRoute() {
         return;
       }
 
+      const goAuthenticatedHome = () => {
+        if (!mounted) return;
+        const pending = peekPendingUrlCoords();
+        void navigate({ to: "/", replace: true }).then(() => {
+          if (pending) syncUrlCoords(pending.lat, pending.lon);
+        });
+      };
+
       // Check for hash parameters (implicit flow fallback or invite/recovery tokens)
       if (window.location.hash && window.location.hash.includes("access_token")) {
         setStatusMessage("Restoring secure session…");
@@ -53,7 +62,7 @@ function AuthCallbackRoute() {
               refresh_token: refreshToken || "",
             });
             if (!sessionError) {
-              if (mounted) navigate({ to: "/", replace: true });
+              goAuthenticatedHome();
               return;
             }
           } catch (err) {
@@ -65,7 +74,7 @@ function AuthCallbackRoute() {
       // First await getSession() so detectSessionInUrl: true finishes any automatic PKCE exchange
       const { data: initialSessionData } = await supabase.auth.getSession();
       if (initialSessionData.session) {
-        if (mounted) navigate({ to: "/", replace: true });
+        goAuthenticatedHome();
         return;
       }
 
@@ -78,7 +87,7 @@ function AuthCallbackRoute() {
             console.warn("[OAuth] Code exchange warning:", exchangeError.message);
             const { data: currentSession } = await supabase.auth.getSession();
             if (currentSession.session) {
-              if (mounted) navigate({ to: "/", replace: true });
+              goAuthenticatedHome();
               return;
             }
             toast.error(friendlyAuthError(exchangeError.message));
@@ -87,7 +96,7 @@ function AuthCallbackRoute() {
           }
 
           if (data?.session) {
-            if (mounted) navigate({ to: "/", replace: true });
+            goAuthenticatedHome();
             return;
           }
         } catch (err: unknown) {
@@ -98,7 +107,7 @@ function AuthCallbackRoute() {
       // Listen for onAuthStateChange to settle
       const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
         if (session) {
-          if (mounted) navigate({ to: "/", replace: true });
+          goAuthenticatedHome();
         } else if (event === "SIGNED_OUT") {
           if (mounted) navigate({ to: "/login", replace: true });
         }
@@ -108,7 +117,11 @@ function AuthCallbackRoute() {
       const timer = setTimeout(() => {
         if (mounted) {
           void supabase.auth.getSession().then(({ data }) => {
-            navigate({ to: data.session ? "/" : "/login", replace: true });
+            if (data.session) {
+              goAuthenticatedHome();
+            } else {
+              navigate({ to: "/login", replace: true });
+            }
           });
         }
       }, 3000);

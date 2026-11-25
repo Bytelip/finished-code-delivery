@@ -34,9 +34,12 @@ import { GuidedTourOverlay, TOUR_STORAGE_KEY } from "@/components/tutorial/Guide
 import { VibeCosmicBackground } from "@/components/ui/VibeCosmicBackground";
 import { SpotlightCard } from "@/components/ui/SpotlightCard";
 import {
+  clampCoords,
   computeKoppenClimateZone,
+  consumePendingUrlCoords,
   getStoredLocation,
   getUrlCoords,
+  peekPendingUrlCoords,
   reverseGeocodeAndElevation,
   saveStoredLocation,
   syncUrlCoords,
@@ -135,8 +138,20 @@ function AgroSpaceDashboard({
     }
   }, [isPinned]);
 
-  const [lat, setLat] = useState(12.6622);
-  const [lon, setLon] = useState(77.4503);
+  const [initialCoords] = useState<{ lat: number; lon: number; label?: string }>(() => {
+    if (typeof window !== "undefined") {
+      const urlCoords = getUrlCoords();
+      if (urlCoords) return urlCoords;
+      const pendingCoords = peekPendingUrlCoords();
+      if (pendingCoords) return pendingCoords;
+      const stored = getStoredLocation();
+      if (stored) return stored;
+    }
+    return { lat: 12.6622, lon: 77.4503 };
+  });
+
+  const [lat, setLat] = useState(initialCoords.lat);
+  const [lon, setLon] = useState(initialCoords.lon);
   const [borewellDepth, setBorewellDepth] = useState(60);
   const [irrigation, setIrrigation] = useState<Irrigation>("Borewell");
   const [season, setSeason] = useState<Season>("Kharif");
@@ -187,46 +202,52 @@ function AgroSpaceDashboard({
     if (isMobile) setCollapsed(true);
   }, [isMobile]);
 
-  // Synchronize initial location from URL query (?lat=...&lon=...) or localStorage
+  // Synchronize initial location from URL query (?lat=...&lon=...) / pending OAuth deep-link / localStorage + popstate
   useEffect(() => {
-    const urlCoords = getUrlCoords();
-    if (urlCoords) {
-      setLat(urlCoords.lat);
-      setLon(urlCoords.lon);
-      const synZone = computeKoppenClimateZone(urlCoords.lat, urlCoords.lon);
+    const applyDeepLink = (coords: { lat: number; lon: number }, labelHint?: string) => {
+      setLat(coords.lat);
+      setLon(coords.lon);
+      const synZone = computeKoppenClimateZone(coords.lat, coords.lon);
       const stored = getStoredLocation();
       const existingFriendly =
-        stored &&
+        labelHint ||
+        (stored &&
         stored.label &&
         !stored.label.startsWith("Field ") &&
-        Math.abs(stored.lat - urlCoords.lat) < 0.05 &&
-        Math.abs(stored.lon - urlCoords.lon) < 0.05
+        Math.abs(stored.lat - coords.lat) < 0.05 &&
+        Math.abs(stored.lon - coords.lon) < 0.05
           ? stored.label
-          : null;
+          : null);
       setLocationMeta({
         label:
           existingFriendly ||
-          `Field ${Math.abs(urlCoords.lat).toFixed(4)}°${urlCoords.lat >= 0 ? "N" : "S"}, ${Math.abs(urlCoords.lon).toFixed(4)}°${urlCoords.lon >= 0 ? "E" : "W"}`,
+          `Field ${Math.abs(coords.lat).toFixed(4)}°${coords.lat >= 0 ? "N" : "S"}, ${Math.abs(coords.lon).toFixed(4)}°${coords.lon >= 0 ? "E" : "W"}`,
         zone: synZone,
         elevationM: 500,
       });
-      saveStoredLocation(urlCoords.lat, urlCoords.lon, existingFriendly || undefined);
+      saveStoredLocation(coords.lat, coords.lon, existingFriendly || undefined);
+      syncUrlCoords(coords.lat, coords.lon);
+    };
+
+    const pending = consumePendingUrlCoords();
+    const urlCoords = getUrlCoords() ?? pending;
+    if (urlCoords) {
+      applyDeepLink(urlCoords);
     } else {
       const stored = getStoredLocation();
       if (stored) {
-        setLat(stored.lat);
-        setLon(stored.lon);
-        const synZone = computeKoppenClimateZone(stored.lat, stored.lon);
-        setLocationMeta({
-          label:
-            stored.label ||
-            `Field ${Math.abs(stored.lat).toFixed(4)}°${stored.lat >= 0 ? "N" : "S"}, ${Math.abs(stored.lon).toFixed(4)}°${stored.lon >= 0 ? "E" : "W"}`,
-          zone: synZone,
-          elevationM: 500,
-        });
-        syncUrlCoords(stored.lat, stored.lon);
+        applyDeepLink({ lat: stored.lat, lon: stored.lon }, stored.label);
       }
     }
+
+    const onPopState = () => {
+      const nextUrlCoords = getUrlCoords();
+      if (nextUrlCoords) {
+        applyDeepLink(nextUrlCoords);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   // Dynamic reverse-geocoding, elevation, and Köppen climate zone calculation on lat/lon changes
@@ -265,11 +286,14 @@ function AgroSpaceDashboard({
   const [liveTelemetry, setLiveTelemetry] = useState<AgroTelemetry | null>(null);
   const [liveStatus, setLiveStatus] = useState<LiveApiStatus | null>(null);
   const [isLoadingLive, setIsLoadingLive] = useState(false);
+  const [liveFetchError, setLiveFetchError] = useState(false);
+  const [liveRetryTick, setLiveRetryTick] = useState(0);
 
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
     setIsLoadingLive(true);
+    setLiveFetchError(false);
     setLiveTelemetry(null);
 
     const timer = window.setTimeout(() => {
@@ -281,11 +305,13 @@ function AgroSpaceDashboard({
           if (!active) return;
           setLiveTelemetry(res.telemetry);
           setLiveStatus(res.status);
+          setLiveFetchError(false);
           setIsLoadingLive(false);
         })
         .catch(() => {
-          if (!active) return;
+          if (!active || controller.signal.aborted) return;
           setLiveTelemetry(null);
+          setLiveFetchError(true);
           setIsLoadingLive(false);
         });
     }, 350);
@@ -295,7 +321,7 @@ function AgroSpaceDashboard({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [lat, lon, borewellDepth, season, scenario, irrigation, activeLayer, tab]);
+  }, [lat, lon, borewellDepth, season, scenario, irrigation, activeLayer, tab, liveRetryTick]);
 
   const baseTelemetry = liveTelemetry ?? fallbackTelemetry;
 
@@ -314,8 +340,7 @@ function AgroSpaceDashboard({
   }, [baseTelemetry, locationMeta]);
 
   const setLocation = (la: number, lo: number, label?: string) => {
-    const fixedLat = Math.round(la * 10000) / 10000;
-    const fixedLon = Math.round(lo * 10000) / 10000;
+    const { lat: fixedLat, lon: fixedLon } = clampCoords(la, lo);
     const dLat = Math.abs(fixedLat - lat);
     const dLon = Math.abs(fixedLon - lon);
     const isSignificantMove = dLat > 0.05 || dLon > 0.05;
@@ -571,11 +596,43 @@ function AgroSpaceDashboard({
                 }
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[var(--status-ok)] animate-pulse" />
-              <span className="text-[var(--text-primary)] font-semibold">
-                {<LocalizedText text={"NASA-LANCE AG-INTEL READY"} />}
-              </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {isLoadingLive ? (
+                <>
+                  <RefreshCw className="size-3.5 animate-spin text-[var(--accent)]" />
+                  <span className="text-[var(--accent)] font-semibold">
+                    {<LocalizedText text={"Syncing NASA Telemetry…"} />}
+                  </span>
+                </>
+              ) : liveFetchError || (liveStatus?.failedFeeds?.length ?? 0) > 0 ? (
+                <>
+                  <span className="size-2 rounded-full bg-[var(--status-warn)]" />
+                  <span className="text-[var(--status-warn)] font-semibold">
+                    {liveFetchError ? (
+                      <LocalizedText text={"Live feed unavailable · fallback active"} />
+                    ) : (
+                      <LocalizedText
+                        text={`Partial feed (${liveStatus?.failedFeeds.length} fallback)`}
+                      />
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLiveRetryTick((n) => n + 1)}
+                    className="inline-flex items-center gap-1 rounded-md border border-[var(--border-subtle)] bg-black/10 dark:bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="size-3" />
+                    <LocalizedText text="Retry" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="size-2 rounded-full bg-[var(--status-ok)] animate-pulse" />
+                  <span className="text-[var(--text-primary)] font-semibold">
+                    {<LocalizedText text={"NASA-LANCE AG-INTEL READY"} />}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 

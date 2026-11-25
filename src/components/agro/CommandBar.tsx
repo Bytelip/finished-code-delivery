@@ -16,6 +16,7 @@ import {
   Satellite,
   Rocket,
   GraduationCap,
+  Share2,
 } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { AnimatedThemeSwitch } from "@/components/theme/AnimatedThemeSwitch";
@@ -45,6 +46,7 @@ import {
   type Season,
 } from "@/types/agroSpace";
 import {
+  buildShareableLocationUrl,
   isInsecureLanContext,
   resolvePreciseLocation,
   searchDualProviderPlaces,
@@ -191,7 +193,22 @@ export function CommandBar({
 
   // Advanced field controls drawer (closed by default)
   const [isParamsDrawerOpen, setIsParamsDrawerOpen] = useState(false);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
   const paramsDrawerRef = useRef<HTMLDivElement>(null);
+
+  const handleCopyShareLink = async () => {
+    const shareUrl = buildShareableLocationUrl(lat, lon);
+    try {
+      await navigator.clipboard?.writeText(shareUrl);
+    } catch {
+      // Clipboard API may be unavailable in restricted contexts; toast still exposes the URL
+    }
+    setCopiedShareLink(true);
+    window.setTimeout(() => setCopiedShareLink(false), 2000);
+    toast.success(<LocalizedText text="Shareable location link copied" />, {
+      description: shareUrl,
+    });
+  };
 
   useEffect(() => {
     const handleKey = (e: globalThis.KeyboardEvent) => {
@@ -603,6 +620,21 @@ export function CommandBar({
             <span className="h-6 w-px shrink-0 bg-white/10" />
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void handleCopyShareLink()}
+              aria-label="Copy shareable location link"
+              title="Copy shareable location link"
+              className={cn(
+                "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors cursor-pointer",
+                copiedShareLink
+                  ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-400"
+                  : "border-transparent text-[var(--text-muted)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent-surface)] hover:text-[var(--accent)]",
+              )}
+            >
+              {copiedShareLink ? <Check className="size-4" /> : <Share2 className="size-4" />}
+            </button>
+            <button
+              type="button"
               data-params-trigger="true"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
@@ -838,6 +870,23 @@ export function CommandBar({
                 <Crosshair className="size-3 mr-1 text-cyan-300 drop-shadow-[0_0_6px_#00f0ff]" />
               )}
               {<LocalizedText text={"GPS"} />}
+            </Button>
+
+            {/* Copy Shareable Location Link */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void handleCopyShareLink()}
+              aria-label="Share current coordinates link"
+              className="h-7 px-2.5 text-xs font-mono font-semibold shrink-0"
+              title="Copy shareable link for current field coordinates"
+            >
+              {copiedShareLink ? (
+                <Check className="size-3 mr-1 text-emerald-400" />
+              ) : (
+                <Share2 className="size-3 mr-1 text-[var(--accent)]" />
+              )}
+              <LocalizedText text={copiedShareLink ? "Copied" : "Share Link"} />
             </Button>
           </div>
 

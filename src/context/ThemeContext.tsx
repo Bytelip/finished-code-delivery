@@ -1,313 +1,500 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  applyCustomThemeCssVars,
+  clearCustomThemeCssVars,
+  CUSTOM_ACTIVE_ID_STORAGE_KEY,
+  CUSTOM_DRAFT_STORAGE_KEY,
+  CUSTOM_SAVED_THEMES_STORAGE_KEY,
+  DEFAULT_CUSTOM_THEME_CONFIG,
+  deriveThemeCssVars,
+  isCustomThemeModified,
+  parseImportedCustomTheme,
+  PRESET_MODE_PALETTES,
+  sanitizeCustomThemeConfig,
+  serializeCustomTheme,
+  type CustomThemeConfig,
+  type SavedCustomTheme,
+  type ThemeContrastMetrics,
+  type ThemeId,
+  type ThemeMode,
+} from "@/lib/themeUtils";
 
-export type ThemeId = "orbital-emerald" | "solar-harvest" | "midnight-nebula" | "arctic-telemetry";
+export type {
+  ThemeId,
+  ThemeMode,
+  CustomThemeConfig,
+  SavedCustomTheme,
+  ThemeContrastMetrics,
+} from "@/lib/themeUtils";
 
-export type ThemeMode = "dark" | "light";
-
-export interface ThemePalette {
-  canvas: string;
-  surface: string;
-  glass: string;
-  border: string;
-  text: string;
-  muted: string;
-  accent: string;
-  accentGlow: string;
-}
+export const THEME_STORAGE_KEY = "agrospace-theme";
+export const MODE_STORAGE_KEY = "agrospace-mode";
 
 export interface ThemeConfig {
   id: ThemeId;
   name: string;
   badge: string;
   description: string;
-  isDark: boolean;
-  dark: ThemePalette;
-  light: ThemePalette;
+  dark: {
+    canvas: string;
+    surface: string;
+    accent: string;
+  };
+  light: {
+    canvas: string;
+    surface: string;
+    accent: string;
+  };
   swatch: {
     primary: string;
     secondary: string;
-    accent: string;
   };
 }
 
-export const THEME_STORAGE_KEY = "agrospace-theme";
-export const MODE_STORAGE_KEY = "agrospace-mode";
-export const DEFAULT_THEME: ThemeId = "orbital-emerald";
-export const DEFAULT_MODE: ThemeMode = "dark";
-
-interface BaseThemeDefinition {
-  id: ThemeId;
-  name: string;
-  badge: string;
-  description: string;
-  dark: ThemePalette;
-  light: ThemePalette;
-}
-
-export const THEME_CONFIGS: Record<ThemeId, BaseThemeDefinition> = {
-  "orbital-emerald": {
+export const THEME_CONFIGS: ThemeConfig[] = [
+  {
     id: "orbital-emerald",
     name: "Orbital Emerald",
-    badge: "Default",
-    description: "Deep telemetry obsidian paired with calibrated biosphere emerald accents",
-    dark: {
-      canvas: "#090D12",
-      surface: "#101720",
-      glass: "rgba(16, 23, 32, 0.86)",
-      border: "rgba(16, 185, 129, 0.24)",
-      text: "#F1F5F9",
-      muted: "#94A3B8",
-      accent: "#10B981",
-      accentGlow: "rgba(16, 185, 129, 0.35)",
-    },
-    light: {
-      canvas: "#F6F8FA",
-      surface: "#FFFFFF",
-      glass: "rgba(255, 255, 255, 0.88)",
-      border: "rgba(15, 23, 42, 0.12)",
-      text: "#0F172A",
-      muted: "#475569",
-      accent: "#059669",
-      accentGlow: "rgba(5, 150, 105, 0.22)",
-    },
+    badge: "NASA DEFAULT",
+    description: "Deep slate aerospace cockpit paired with laser-emerald vegetation accents.",
+    dark: PRESET_MODE_PALETTES["orbital-emerald"].dark,
+    light: PRESET_MODE_PALETTES["orbital-emerald"].light,
+    swatch: { primary: "#10B981", secondary: "#090D12" },
   },
-  "solar-harvest": {
+  {
     id: "solar-harvest",
     name: "Solar Harvest",
-    badge: "Agri-Solar",
-    description: "Warm dark loam and sunlit parchment surfaces with amber telemetry highlights",
-    dark: {
-      canvas: "#141210",
-      surface: "#1E1A16",
-      glass: "rgba(30, 26, 22, 0.88)",
-      border: "rgba(245, 158, 11, 0.24)",
-      text: "#FAF7F2",
-      muted: "#B8AFA4",
-      accent: "#F59E0B",
-      accentGlow: "rgba(245, 158, 11, 0.32)",
-    },
-    light: {
-      canvas: "#FBF8F3",
-      surface: "#FFFFFF",
-      glass: "rgba(255, 253, 249, 0.88)",
-      border: "rgba(28, 25, 23, 0.12)",
-      text: "#1C1917",
-      muted: "#57534E",
-      accent: "#B45309",
-      accentGlow: "rgba(180, 83, 9, 0.20)",
-    },
+    badge: "AGRI-AMBER",
+    description: "Warm obsidian and harvest amber built for crop thermal and solar telemetry.",
+    dark: PRESET_MODE_PALETTES["solar-harvest"].dark,
+    light: PRESET_MODE_PALETTES["solar-harvest"].light,
+    swatch: { primary: "#F59E0B", secondary: "#141210" },
   },
-  "midnight-nebula": {
+  {
     id: "midnight-nebula",
     name: "Midnight Nebula",
-    badge: "Deep Orbit",
-    description: "Cosmic indigo twilight with high-definition orbital violet and indigo accents",
-    dark: {
-      canvas: "#0B1021",
-      surface: "#131A33",
-      glass: "rgba(19, 26, 51, 0.88)",
-      border: "rgba(139, 92, 246, 0.26)",
-      text: "#F3F4F6",
-      muted: "#9CA3AF",
-      accent: "#8B5CF6",
-      accentGlow: "rgba(139, 92, 246, 0.34)",
-    },
-    light: {
-      canvas: "#F7F7FC",
-      surface: "#FFFFFF",
-      glass: "rgba(255, 255, 255, 0.88)",
-      border: "rgba(30, 27, 75, 0.12)",
-      text: "#1E1B4B",
-      muted: "#4B5563",
-      accent: "#4F46E5",
-      accentGlow: "rgba(79, 70, 229, 0.20)",
-    },
+    badge: "DEEP SPACE",
+    description: "High-altitude violet cosmos and deep indigo glass for atmospheric overlays.",
+    dark: PRESET_MODE_PALETTES["midnight-nebula"].dark,
+    light: PRESET_MODE_PALETTES["midnight-nebula"].light,
+    swatch: { primary: "#8B5CF6", secondary: "#0B1021" },
   },
-  "arctic-telemetry": {
+  {
     id: "arctic-telemetry",
     name: "Arctic Telemetry",
-    badge: "High-Vis",
-    description: "Crisp steel polar console with ice-sky telemetry cyan for maximum clarity",
-    dark: {
-      canvas: "#0E1318",
-      surface: "#151D26",
-      glass: "rgba(21, 29, 38, 0.88)",
-      border: "rgba(56, 189, 248, 0.25)",
-      text: "#F0F6FC",
-      muted: "#94A3B8",
-      accent: "#38BDF8",
-      accentGlow: "rgba(56, 189, 248, 0.34)",
-    },
-    light: {
-      canvas: "#F8FAFC",
-      surface: "#FFFFFF",
-      glass: "rgba(255, 255, 255, 0.88)",
-      border: "rgba(15, 23, 42, 0.12)",
-      text: "#0F172A",
-      muted: "#475569",
-      accent: "#0284C7",
-      accentGlow: "rgba(2, 132, 199, 0.20)",
-    },
+    badge: "HIGH CONTRAST",
+    description:
+      "Crisp GitHub-slate charcoal and cyan telemetry lines for sharp instrument reading.",
+    dark: PRESET_MODE_PALETTES["arctic-telemetry"].dark,
+    light: PRESET_MODE_PALETTES["arctic-telemetry"].light,
+    swatch: { primary: "#38BDF8", secondary: "#0E1318" },
   },
-};
+];
 
-function buildThemeConfig(def: BaseThemeDefinition, mode: ThemeMode): ThemeConfig {
-  const palette = mode === "dark" ? def.dark : def.light;
-  return {
-    ...def,
-    isDark: mode === "dark",
-    swatch: {
-      primary: palette.accent,
-      secondary: palette.canvas,
-      accent: palette.surface,
-    },
-  };
-}
+const VALID_THEME_IDS: ReadonlyArray<ThemeId> = THEME_CONFIGS.map((t) => t.id);
 
-export const AVAILABLE_THEMES: ThemeConfig[] = Object.values(THEME_CONFIGS).map((def) =>
-  buildThemeConfig(def, DEFAULT_MODE),
-);
-
-function isValidThemeId(value: string | null): value is ThemeId {
-  return Boolean(value && value in THEME_CONFIGS);
-}
-
-function isValidThemeMode(value: string | null): value is ThemeMode {
-  return value === "dark" || value === "light";
-}
-
-export function applyThemeToDocument(theme: ThemeId, mode: ThemeMode): void {
+export function applyThemeToDocument(themeId: ThemeId, mode: ThemeMode): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  root.setAttribute("data-theme", theme);
-  if (mode === "dark") {
-    root.classList.add("dark");
-    root.classList.remove("light");
-  } else {
+  root.setAttribute("data-theme", themeId);
+  if (mode === "light") {
     root.classList.remove("dark");
     root.classList.add("light");
+    root.style.colorScheme = "light";
+  } else {
+    root.classList.add("dark");
+    root.classList.remove("light");
+    root.style.colorScheme = "dark";
   }
-  root.style.colorScheme = mode;
+}
+
+function safeReadJson<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function safeWriteStorage(key: string, value: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage quota errors
+  }
 }
 
 interface ThemeContextType {
   theme: ThemeId;
-  setTheme: (theme: ThemeId) => void;
+  setTheme: (id: ThemeId) => void;
   mode: ThemeMode;
+  isDark: boolean;
   setMode: (mode: ThemeMode) => void;
   toggleMode: () => void;
-  isDark: boolean;
   currentConfig: ThemeConfig;
   availableThemes: ThemeConfig[];
+  customConfig: CustomThemeConfig;
+  hasCustomOverrides: boolean;
+  savedCustomThemes: SavedCustomTheme[];
+  activeCustomThemeId: string | null;
+  contrastMetrics: ThemeContrastMetrics;
+  isStudioOpen: boolean;
+  setIsStudioOpen: (open: boolean) => void;
+  updateCustomConfig: (patch: Partial<CustomThemeConfig>) => void;
+  resetCustomConfig: () => void;
+  saveCustomTheme: (name: string) => SavedCustomTheme;
+  applySavedCustomTheme: (id: string) => void;
+  deleteSavedCustomTheme: (id: string) => void;
+  exportThemeJson: (name?: string) => string;
+  importThemeJson: (raw: string) => { ok: true; name: string } | { ok: false; error: string };
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeId>(DEFAULT_THEME);
-  const [mode, setModeState] = useState<ThemeMode>(DEFAULT_MODE);
+  // Deterministic initial defaults ensure identical SSR & initial client hydration
+  const [theme, setThemeState] = useState<ThemeId>("orbital-emerald");
+  const [mode, setModeState] = useState<ThemeMode>("dark");
+  const [customConfig, setCustomConfig] = useState<CustomThemeConfig>(DEFAULT_CUSTOM_THEME_CONFIG);
+  const [savedCustomThemes, setSavedCustomThemes] = useState<SavedCustomTheme[]>([]);
+  const [activeCustomThemeId, setActiveCustomThemeId] = useState<string | null>(null);
+  const [isStudioOpen, setIsStudioOpen] = useState(false);
 
+  // Hydrate persisted preset, mode & custom theme overrides cleanly on client mount
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    let initialTheme: ThemeId = "orbital-emerald";
+    let initialMode: ThemeMode = "dark";
+    let initialCustom: CustomThemeConfig = DEFAULT_CUSTOM_THEME_CONFIG;
+    let initialSaved: SavedCustomTheme[] = [];
+    let initialActiveId: string | null = null;
+
     try {
-      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-      const storedMode = localStorage.getItem(MODE_STORAGE_KEY);
+      const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeId | null;
+      const savedMode = window.localStorage.getItem(MODE_STORAGE_KEY) as ThemeMode | null;
+      if (savedTheme && VALID_THEME_IDS.includes(savedTheme)) {
+        initialTheme = savedTheme;
+      }
+      if (savedMode === "light" || savedMode === "dark") {
+        initialMode = savedMode;
+      }
 
-      const resolvedTheme = isValidThemeId(storedTheme) ? storedTheme : DEFAULT_THEME;
-      const resolvedMode = isValidThemeMode(storedMode) ? storedMode : DEFAULT_MODE;
+      const rawDraft = safeReadJson<Partial<CustomThemeConfig>>(CUSTOM_DRAFT_STORAGE_KEY);
+      if (rawDraft) {
+        initialCustom = sanitizeCustomThemeConfig(rawDraft);
+      }
 
-      setThemeState(resolvedTheme);
-      setModeState(resolvedMode);
-      applyThemeToDocument(resolvedTheme, resolvedMode);
+      const rawSavedList = safeReadJson<SavedCustomTheme[]>(CUSTOM_SAVED_THEMES_STORAGE_KEY);
+      if (Array.isArray(rawSavedList)) {
+        initialSaved = rawSavedList
+          .filter((item) => item && typeof item.id === "string" && typeof item.name === "string")
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            baseTheme: VALID_THEME_IDS.includes(item.baseTheme)
+              ? item.baseTheme
+              : "orbital-emerald",
+            config: sanitizeCustomThemeConfig(item.config),
+            updatedAt:
+              typeof item.updatedAt === "string" ? item.updatedAt : new Date().toISOString(),
+          }));
+      }
+
+      const rawActiveId = window.localStorage.getItem(CUSTOM_ACTIVE_ID_STORAGE_KEY);
+      if (rawActiveId && initialSaved.some((s) => s.id === rawActiveId)) {
+        initialActiveId = rawActiveId;
+      }
     } catch {
-      applyThemeToDocument(DEFAULT_THEME, DEFAULT_MODE);
+      // Ignore storage errors
+    }
+
+    setThemeState(initialTheme);
+    setModeState(initialMode);
+    setCustomConfig(initialCustom);
+    setSavedCustomThemes(initialSaved);
+    setActiveCustomThemeId(initialActiveId);
+
+    applyThemeToDocument(initialTheme, initialMode);
+    if (isCustomThemeModified(initialCustom)) {
+      applyCustomThemeCssVars(initialTheme, initialMode, initialCustom);
+    } else {
+      clearCustomThemeCssVars();
     }
   }, []);
 
-  const setTheme = useCallback(
-    (nextTheme: ThemeId) => {
-      if (!isValidThemeId(nextTheme)) return;
-      setThemeState(nextTheme);
-      applyThemeToDocument(nextTheme, mode);
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-      } catch {
-        // Ignore storage errors in restricted browser contexts
+  const syncCustomToDom = useCallback(
+    (nextTheme: ThemeId, nextMode: ThemeMode, nextConfig: CustomThemeConfig) => {
+      applyThemeToDocument(nextTheme, nextMode);
+      if (isCustomThemeModified(nextConfig)) {
+        applyCustomThemeCssVars(nextTheme, nextMode, nextConfig);
+        safeWriteStorage(CUSTOM_DRAFT_STORAGE_KEY, JSON.stringify(nextConfig));
+      } else {
+        clearCustomThemeCssVars();
+        safeWriteStorage(CUSTOM_DRAFT_STORAGE_KEY, null);
       }
     },
-    [mode],
+    [],
+  );
+
+  const setTheme = useCallback(
+    (id: ThemeId) => {
+      setThemeState(id);
+      setActiveCustomThemeId(null);
+      safeWriteStorage(THEME_STORAGE_KEY, id);
+      safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
+      syncCustomToDom(id, mode, customConfig);
+    },
+    [mode, customConfig, syncCustomToDom],
   );
 
   const setMode = useCallback(
     (nextMode: ThemeMode) => {
-      if (!isValidThemeMode(nextMode)) return;
       setModeState(nextMode);
-      applyThemeToDocument(theme, nextMode);
-      try {
-        localStorage.setItem(MODE_STORAGE_KEY, nextMode);
-      } catch {
-        // Ignore storage errors in restricted browser contexts
-      }
+      safeWriteStorage(MODE_STORAGE_KEY, nextMode);
+      syncCustomToDom(theme, nextMode, customConfig);
     },
-    [theme],
+    [theme, customConfig, syncCustomToDom],
   );
 
   const toggleMode = useCallback(() => {
-    setModeState((prev) => {
-      const next: ThemeMode = prev === "dark" ? "light" : "dark";
-      applyThemeToDocument(theme, next);
-      try {
-        localStorage.setItem(MODE_STORAGE_KEY, next);
-      } catch {
-        // Ignore storage errors
-      }
-      return next;
-    });
-  }, [theme]);
+    const nextMode: ThemeMode = mode === "dark" ? "light" : "dark";
+    setModeState(nextMode);
+    safeWriteStorage(MODE_STORAGE_KEY, nextMode);
+    syncCustomToDom(theme, nextMode, customConfig);
+  }, [mode, theme, customConfig, syncCustomToDom]);
 
-  useEffect(() => {
+  const updateCustomConfig = useCallback(
+    (patch: Partial<CustomThemeConfig>) => {
+      setCustomConfig((prev) => {
+        const merged = sanitizeCustomThemeConfig({ ...prev, ...patch });
+        setActiveCustomThemeId(null);
+        safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
+        syncCustomToDom(theme, mode, merged);
+        return merged;
+      });
+    },
+    [theme, mode, syncCustomToDom],
+  );
+
+  const resetCustomConfig = useCallback(() => {
+    setCustomConfig(DEFAULT_CUSTOM_THEME_CONFIG);
+    setActiveCustomThemeId(null);
+    safeWriteStorage(CUSTOM_DRAFT_STORAGE_KEY, null);
+    safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
+    clearCustomThemeCssVars();
     applyThemeToDocument(theme, mode);
   }, [theme, mode]);
 
-  const availableThemes = useMemo(
-    () => Object.values(THEME_CONFIGS).map((def) => buildThemeConfig(def, mode)),
-    [mode],
+  const saveCustomTheme = useCallback(
+    (name: string): SavedCustomTheme => {
+      const cleanName = name.trim().slice(0, 48) || "Custom Theme";
+      const entry: SavedCustomTheme = {
+        id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: cleanName,
+        baseTheme: theme,
+        config: sanitizeCustomThemeConfig(customConfig),
+        updatedAt: new Date().toISOString(),
+      };
+      setSavedCustomThemes((prev) => {
+        const filtered = prev.filter((item) => item.name.toLowerCase() !== cleanName.toLowerCase());
+        const nextList = [entry, ...filtered];
+        safeWriteStorage(CUSTOM_SAVED_THEMES_STORAGE_KEY, JSON.stringify(nextList));
+        return nextList;
+      });
+      setActiveCustomThemeId(entry.id);
+      safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, entry.id);
+      return entry;
+    },
+    [theme, customConfig],
   );
 
-  const currentConfig = useMemo(
-    () => buildThemeConfig(THEME_CONFIGS[theme] || THEME_CONFIGS[DEFAULT_THEME], mode),
-    [theme, mode],
+  const applySavedCustomTheme = useCallback(
+    (id: string) => {
+      const found = savedCustomThemes.find((item) => item.id === id);
+      if (!found) return;
+      const clean = sanitizeCustomThemeConfig(found.config);
+      setThemeState(found.baseTheme);
+      setCustomConfig(clean);
+      setActiveCustomThemeId(found.id);
+      safeWriteStorage(THEME_STORAGE_KEY, found.baseTheme);
+      safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, found.id);
+      syncCustomToDom(found.baseTheme, mode, clean);
+    },
+    [savedCustomThemes, mode, syncCustomToDom],
   );
+
+  const deleteSavedCustomTheme = useCallback((id: string) => {
+    setSavedCustomThemes((prev) => {
+      const nextList = prev.filter((item) => item.id !== id);
+      safeWriteStorage(CUSTOM_SAVED_THEMES_STORAGE_KEY, JSON.stringify(nextList));
+      return nextList;
+    });
+    setActiveCustomThemeId((curr) => {
+      if (curr === id) {
+        safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
+        return null;
+      }
+      return curr;
+    });
+  }, []);
+
+  const exportThemeJson = useCallback(
+    (name?: string) => {
+      const activeSaved = savedCustomThemes.find((s) => s.id === activeCustomThemeId);
+      const exportName = name || activeSaved?.name || `${theme}-custom`;
+      return serializeCustomTheme(exportName, theme, customConfig);
+    },
+    [savedCustomThemes, activeCustomThemeId, theme, customConfig],
+  );
+
+  const importThemeJson = useCallback(
+    (raw: string): { ok: true; name: string } | { ok: false; error: string } => {
+      const parsed = parseImportedCustomTheme(raw);
+      if (!parsed.ok) return parsed;
+      setThemeState(parsed.baseTheme);
+      setCustomConfig(parsed.config);
+      setActiveCustomThemeId(null);
+      safeWriteStorage(THEME_STORAGE_KEY, parsed.baseTheme);
+      safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
+      syncCustomToDom(parsed.baseTheme, mode, parsed.config);
+      return { ok: true, name: parsed.name };
+    },
+    [mode, syncCustomToDom],
+  );
+
+  const derived = useMemo(
+    () => deriveThemeCssVars(theme, mode, customConfig),
+    [theme, mode, customConfig],
+  );
+
+  const hasCustomOverrides = useMemo(() => isCustomThemeModified(customConfig), [customConfig]);
+
+  const currentConfig = useMemo<ThemeConfig>(() => {
+    const base = THEME_CONFIGS.find((t) => t.id === theme) ?? THEME_CONFIGS[0]!;
+    const activeSaved = savedCustomThemes.find((s) => s.id === activeCustomThemeId);
+    const modePalette = PRESET_MODE_PALETTES[theme][mode];
+    if (!hasCustomOverrides && !activeSaved) {
+      return {
+        ...base,
+        swatch: {
+          primary: modePalette.accent,
+          secondary: modePalette.canvas,
+        },
+      };
+    }
+    return {
+      ...base,
+      name: activeSaved?.name ?? (hasCustomOverrides ? `${base.name} (Custom)` : base.name),
+      dark: {
+        canvas: customConfig.canvas ?? base.dark.canvas,
+        surface: customConfig.surface ?? base.dark.surface,
+        accent: customConfig.accent ?? base.dark.accent,
+      },
+      light: {
+        canvas: customConfig.canvas ?? base.light.canvas,
+        surface: customConfig.surface ?? base.light.surface,
+        accent: customConfig.accent ?? base.light.accent,
+      },
+      swatch: {
+        primary: customConfig.accent ?? modePalette.accent,
+        secondary: customConfig.canvas ?? modePalette.canvas,
+      },
+    };
+  }, [theme, mode, customConfig, hasCustomOverrides, savedCustomThemes, activeCustomThemeId]);
+
+  const isDark = mode === "dark";
 
   const value = useMemo(
     () => ({
       theme,
       setTheme,
       mode,
+      isDark,
       setMode,
       toggleMode,
-      isDark: mode === "dark",
       currentConfig,
-      availableThemes,
+      availableThemes: THEME_CONFIGS,
+      customConfig,
+      hasCustomOverrides,
+      savedCustomThemes,
+      activeCustomThemeId,
+      contrastMetrics: derived.contrast,
+      isStudioOpen,
+      setIsStudioOpen,
+      updateCustomConfig,
+      resetCustomConfig,
+      saveCustomTheme,
+      applySavedCustomTheme,
+      deleteSavedCustomTheme,
+      exportThemeJson,
+      importThemeJson,
     }),
-    [theme, setTheme, mode, setMode, toggleMode, currentConfig, availableThemes],
+    [
+      theme,
+      setTheme,
+      mode,
+      isDark,
+      setMode,
+      toggleMode,
+      currentConfig,
+      customConfig,
+      hasCustomOverrides,
+      savedCustomThemes,
+      activeCustomThemeId,
+      derived.contrast,
+      isStudioOpen,
+      updateCustomConfig,
+      resetCustomConfig,
+      saveCustomTheme,
+      applySavedCustomTheme,
+      deleteSavedCustomTheme,
+      exportThemeJson,
+      importThemeJson,
+    ],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+const FALLBACK_THEME_CONTEXT: ThemeContextType = {
+  theme: "orbital-emerald",
+  setTheme: () => undefined,
+  mode: "dark",
+  isDark: true,
+  setMode: () => undefined,
+  toggleMode: () => undefined,
+  currentConfig: THEME_CONFIGS[0]!,
+  availableThemes: THEME_CONFIGS,
+  customConfig: DEFAULT_CUSTOM_THEME_CONFIG,
+  hasCustomOverrides: false,
+  savedCustomThemes: [],
+  activeCustomThemeId: null,
+  contrastMetrics: deriveThemeCssVars("orbital-emerald", "dark", DEFAULT_CUSTOM_THEME_CONFIG)
+    .contrast,
+  isStudioOpen: false,
+  setIsStudioOpen: () => undefined,
+  updateCustomConfig: () => undefined,
+  resetCustomConfig: () => undefined,
+  saveCustomTheme: (name: string) => ({
+    id: "fallback-custom",
+    name,
+    baseTheme: "orbital-emerald",
+    config: DEFAULT_CUSTOM_THEME_CONFIG,
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  }),
+  applySavedCustomTheme: () => undefined,
+  deleteSavedCustomTheme: () => undefined,
+  exportThemeJson: (name?: string) =>
+    serializeCustomTheme(name ?? "orbital-emerald", "orbital-emerald", DEFAULT_CUSTOM_THEME_CONFIG),
+  importThemeJson: () => ({ ok: false, error: "ThemeProvider unavailable" }),
+};
+
 export function useTheme(): ThemeContextType {
   const context = useContext(ThemeContext);
-  if (!context) {
-    return {
-      theme: DEFAULT_THEME,
-      setTheme: () => {},
-      mode: DEFAULT_MODE,
-      setMode: () => {},
-      toggleMode: () => {},
-      isDark: true,
-      currentConfig: buildThemeConfig(THEME_CONFIGS[DEFAULT_THEME], DEFAULT_MODE),
-      availableThemes: AVAILABLE_THEMES,
-    };
-  }
-  return context;
+  return context ?? FALLBACK_THEME_CONTEXT;
 }

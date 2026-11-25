@@ -1,6 +1,7 @@
 import React from "react";
-import { Check, ChevronDown, Palette } from "lucide-react";
+import { Check, ChevronDown, Palette, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { PRESET_MODE_PALETTES } from "@/lib/themeUtils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,7 +50,18 @@ export function ThemeSwatch({
 }
 
 export function ThemeSwitcher({ className, variant = "navbar" }: ThemeSwitcherProps) {
-  const { theme, setTheme, currentConfig, availableThemes, mode } = useTheme();
+  const {
+    theme,
+    setTheme,
+    currentConfig,
+    availableThemes,
+    mode,
+    savedCustomThemes,
+    activeCustomThemeId,
+    applySavedCustomTheme,
+    setIsStudioOpen,
+    hasCustomOverrides,
+  } = useTheme();
 
   return (
     <DropdownMenu>
@@ -133,6 +145,52 @@ export function ThemeSwitcher({ className, variant = "navbar" }: ThemeSwitcherPr
             );
           })}
         </div>
+
+        {savedCustomThemes.length > 0 && (
+          <>
+            <DropdownMenuSeparator className="bg-[var(--border-subtle)] my-1.5" />
+            <div className="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">
+              Saved Custom Themes
+            </div>
+            <div className="space-y-1 max-h-36 overflow-y-auto">
+              {savedCustomThemes.map((saved) => {
+                const active = saved.id === activeCustomThemeId;
+                const p = saved.config.accent ?? PRESET_MODE_PALETTES[saved.baseTheme][mode].accent;
+                const s = saved.config.canvas ?? PRESET_MODE_PALETTES[saved.baseTheme][mode].canvas;
+                return (
+                  <DropdownMenuItem
+                    key={saved.id}
+                    onClick={() => applySavedCustomTheme(saved.id)}
+                    className={cn(
+                      "flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs",
+                      active
+                        ? "bg-[var(--accent-surface)] text-[var(--text-primary)] font-semibold border border-[var(--accent)]/45"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-black/5 dark:hover:bg-white/5 border border-transparent",
+                    )}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ThemeSwatch primary={p} secondary={s} size={15} />
+                      <span className="truncate">{saved.name}</span>
+                    </div>
+                    {active && <Check className="size-3.5 text-[var(--accent)] shrink-0" />}
+                  </DropdownMenuItem>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <DropdownMenuSeparator className="bg-[var(--border-subtle)] my-1.5" />
+        <DropdownMenuItem
+          onClick={() => setIsStudioOpen(true)}
+          className="flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer text-xs font-semibold bg-[var(--accent-surface)] text-[var(--accent)] hover:brightness-110"
+        >
+          <span className="flex items-center gap-2">
+            <SlidersHorizontal className="size-3.5" />
+            <LocalizedText text="Customize Theme…" />
+          </span>
+          {hasCustomOverrides && <Sparkles className="size-3.5" />}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -142,7 +200,18 @@ export function ThemeSwitcher({ className, variant = "navbar" }: ThemeSwitcherPr
  * Full 4-theme card selector for Settings -> Appearance
  */
 export function ThemeSettingsCard() {
-  const { theme, setTheme, availableThemes, mode } = useTheme();
+  const {
+    theme,
+    setTheme,
+    availableThemes,
+    mode,
+    setIsStudioOpen,
+    hasCustomOverrides,
+    resetCustomConfig,
+    savedCustomThemes,
+    activeCustomThemeId,
+    applySavedCustomTheme,
+  } = useTheme();
 
   return (
     <div className="space-y-3">
@@ -203,6 +272,66 @@ export function ThemeSettingsCard() {
             </button>
           );
         })}
+      </div>
+
+      {/* Custom Theme Studio & Saved Themes Actions */}
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.03] p-3 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+              <SlidersHorizontal className="size-3.5 text-[var(--accent)]" />
+              <LocalizedText text="Custom Theme Studio" />
+            </div>
+            <div className="text-[11px] text-[var(--text-muted)]">
+              <LocalizedText text="Customize colors, glass blur, corner roundness & WCAG contrast." />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {hasCustomOverrides && (
+              <button
+                type="button"
+                onClick={resetCustomConfig}
+                className="inline-flex items-center gap-1 rounded-lg border border-[var(--border-subtle)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                <RotateCcw className="size-3" /> Reset
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsStudioOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-1.5 font-mono text-xs font-bold text-[var(--primary-foreground)] shadow-sm hover:brightness-110 transition-all cursor-pointer"
+            >
+              <Palette className="size-3.5" />
+              <LocalizedText text="Customize Theme…" />
+            </button>
+          </div>
+        </div>
+
+        {savedCustomThemes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--border-subtle)]">
+            {savedCustomThemes.map((saved) => {
+              const active = saved.id === activeCustomThemeId;
+              const p = saved.config.accent ?? PRESET_MODE_PALETTES[saved.baseTheme][mode].accent;
+              const s = saved.config.canvas ?? PRESET_MODE_PALETTES[saved.baseTheme][mode].canvas;
+              return (
+                <button
+                  key={saved.id}
+                  type="button"
+                  onClick={() => applySavedCustomTheme(saved.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all cursor-pointer",
+                    active
+                      ? "border-[var(--accent)] bg-[var(--accent-surface)] font-semibold text-[var(--text-primary)]"
+                      : "border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]",
+                  )}
+                >
+                  <ThemeSwatch primary={p} secondary={s} size={12} />
+                  <span>{saved.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

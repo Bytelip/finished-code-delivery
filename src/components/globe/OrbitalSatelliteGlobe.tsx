@@ -156,6 +156,7 @@ function OrbitalSatelliteGlobeImpl(props: OrbitalSatelliteGlobeProps) {
     const el = containerRef.current;
     if (!el) return;
     const initial = propsRef.current;
+    lastTargetRef.current = { lat: initial.lat, lon: initial.lon };
 
     let map: MaplibreMap;
     try {

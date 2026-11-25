@@ -1,5 +1,11 @@
 import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { CosmicAuthPage } from "@/components/CosmicAuthPage";
+import {
+  capturePendingUrlCoords,
+  peekPendingUrlCoords,
+  syncUrlCoords,
+} from "@/utils/preciseLocation";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -26,11 +32,15 @@ export const Route = createFileRoute("/auth")({
 function AuthRouteComponent() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  useEffect(() => {
+    capturePendingUrlCoords();
+  }, []);
   if (pathname.replace(/\/+$/, "").endsWith("/auth/callback")) return <Outlet />;
-  return (
-    <CosmicAuthPage
-      onSuccess={() => navigate({ to: "/", replace: true })}
-      onClose={() => navigate({ to: "/" })}
-    />
-  );
+  const goHomePreservingCoords = () => {
+    const pending = peekPendingUrlCoords();
+    void navigate({ to: "/", replace: true }).then(() => {
+      if (pending) syncUrlCoords(pending.lat, pending.lon);
+    });
+  };
+  return <CosmicAuthPage onSuccess={goHomePreservingCoords} onClose={goHomePreservingCoords} />;
 }

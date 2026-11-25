@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Rocket,
   X,
@@ -32,10 +32,25 @@ export function NasaMissionBriefModal({
     "satellites",
   );
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-label="AgroSpace Nexus Mission Architecture Brief"
+      onClick={onClose}
+    >
       <div
         className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
