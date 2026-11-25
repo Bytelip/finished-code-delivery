@@ -384,7 +384,7 @@ function AgroSpaceDashboard({
   const tabLabel = TABS.find((t) => t.id === tab)?.label;
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full max-w-full overflow-x-hidden">
+    <div className="relative flex min-h-[100dvh] w-full max-w-full overflow-x-clip">
       {/* GitHub + Linear + DeepMind GPU-Accelerated Cosmic Background */}
       <VibeCosmicBackground />
 
@@ -405,7 +405,7 @@ function AgroSpaceDashboard({
         onOpenSettings={() => setShowSettingsModal(true)}
       />
 
-      <main className="min-w-0 w-full flex-1 overflow-x-hidden pb-20 md:pb-0">
+      <main className="min-w-0 w-full flex-1 overflow-x-clip pb-20 md:pb-0">
         <h1 className="sr-only">
           {<LocalizedText text={"AgroSpace Nexus — Precision Agriculture & Multi-Hazard HUD"} />}
         </h1>
@@ -456,7 +456,7 @@ function AgroSpaceDashboard({
           className="min-w-0 space-y-2.5 p-2 sm:p-3 lg:p-4"
           style={{ paddingLeft: isMobile ? 8 : collapsed ? 80 : 256 }}
         >
-          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(380px,0.8fr)] xl:items-start">
+          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.8fr)] xl:items-start">
             <GlobeContainer
               telemetry={telemetry}
               activeLayer={activeLayer}

@@ -16,6 +16,7 @@ import {
 } from "@/services/cloudAuth";
 import { getMfaAssuranceLevel } from "@/services/mfaAuth";
 import { TwoFactorChallengeForm } from "@/components/auth/TwoFactorChallengeScreen";
+import { SegmentedCodeInput } from "@/components/auth/SegmentedCodeInput";
 import { toast } from "sonner";
 import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
 import { MISSING_SUPABASE_ENV_MESSAGE, isSupabaseConfigured } from "@/integrations/supabase/client";
@@ -310,7 +311,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
         </div>
       )}
 
-      <div className="relative z-10 w-full max-w-[420px] px-4">{children}</div>
+      <div className="relative z-10 w-full max-w-[420px] px-3 sm:px-4">{children}</div>
     </div>
   );
 };
@@ -564,7 +565,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[var(--shadow-hud)] text-[var(--text-primary)]">
+      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto overflow-x-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] p-4 sm:mx-auto sm:p-7 backdrop-blur-2xl shadow-[var(--shadow-hud)] text-[var(--text-primary)]">
         {onClose && (
           <button
             type="button"
@@ -870,30 +871,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
             <form onSubmit={handleVerifyOtpSubmit} className="mt-6 space-y-4">
               <div>
-                <input
+                <SegmentedCodeInput
                   id="otp-input"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  autoComplete="one-time-code"
-                  autoFocus
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  onPaste={(e) => {
-                    const text = e.clipboardData
-                      .getData("text")
-                      .trim()
-                      .replace(/\D/g, "")
-                      .slice(0, 6);
-                    if (text.length > 0) {
-                      e.preventDefault();
-                      setOtpCode(text);
-                    }
-                  }}
-                  placeholder="••••••"
-                  className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)]"
-                  aria-label="6-digit verification code"
+                  onChange={setOtpCode}
+                  ariaLabel="6-digit verification code"
                 />
               </div>
 
@@ -1076,7 +1058,7 @@ export const UserProfileNavbarWidget: React.FC<UserProfileNavbarWidgetProps> = (
 
       {/* Quick Account Dropdown Menu */}
       {menuOpen && (
-        <div className="absolute right-0 mt-2 w-72 rounded-xl border border-cyan-500/25 bg-slate-950/95 p-4 text-foreground backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)]">
+        <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] sm:w-72 rounded-xl border border-cyan-500/25 bg-slate-950/95 p-4 text-foreground backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.85)]">
           <div className="border-b border-white/10 pb-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">{user.name}</p>

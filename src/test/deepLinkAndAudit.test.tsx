@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   buildShareableLocationUrl,
   capturePendingUrlCoords,
@@ -9,6 +9,7 @@ import {
   peekPendingUrlCoords,
 } from "@/utils/preciseLocation";
 import { AuthGate } from "@/components/auth/AuthGate";
+import { SegmentedCodeInput } from "@/components/auth/SegmentedCodeInput";
 
 const getUserMock = vi.fn();
 const getSessionMock = vi.fn();
@@ -145,5 +146,28 @@ describe("URL deep-linking, bounds validation & AuthGate protection", () => {
     expect(peekPendingUrlCoords()).toEqual({ lat: 47.1988, lon: 111.196 });
 
     (window as unknown as { location: unknown }).location = origLocation;
+  });
+
+  it("renders responsive 6-digit SegmentedCodeInput cells with flexible sizing and paste sanitization", () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <SegmentedCodeInput
+        id="test-otp"
+        value="123"
+        onChange={onChange}
+        ariaLabel="6-digit test code"
+      />,
+    );
+
+    const cells = container.querySelectorAll("[aria-hidden='true'] > div");
+    expect(cells).toHaveLength(6);
+    expect(cells[0]?.className).toContain("flex-1");
+    expect(cells[0]?.className).toContain("max-w-[44px]");
+
+    const input = screen.getByLabelText("6-digit test code");
+    fireEvent.paste(input, {
+      clipboardData: { getData: () => " 654-321 " },
+    });
+    expect(onChange).toHaveBeenCalledWith("654321");
   });
 });

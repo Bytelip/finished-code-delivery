@@ -26,25 +26,25 @@ export function CropEngineSlot({ crop }: { crop: CropRecommendation }) {
         icon={<Sprout />}
         className="border-cyan/40 shadow-[0_0_30px_rgba(0,0,0,0.6)]"
       >
-        <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border/40 pb-3">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl font-bold tracking-tight text-emerald-400 drop-shadow-[0_0_10px_rgba(0,255,157,0.5)]">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 sm:gap-3 border-b border-border/40 pb-3">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="text-lg sm:text-xl font-bold tracking-tight text-emerald-400 break-words drop-shadow-[0_0_10px_rgba(0,255,157,0.5)]">
               {crop.crop}
             </span>
-            <span className="rounded-md border border-emerald/50 bg-emerald/15 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+            <span className="rounded-md border border-emerald/50 bg-emerald/15 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-400 uppercase tracking-wider shrink-0">
               {<LocalizedText text={"Recommended Sow"} />}
             </span>
           </div>
-          <div className="font-mono text-xs text-cyan-300 bg-cyan/10 border border-cyan/30 px-2 py-0.5 rounded-md">
+          <div className="font-mono text-xs text-cyan-300 bg-cyan/10 border border-cyan/30 px-2 py-0.5 rounded-md max-w-full truncate">
             {<LocalizedText text={"Window: Sow "} />}
             {crop.sowingWindow}
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-1 min-[380px]:grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-4">
           <Readout
             label="Yield est."
-            value={crop.yieldTPerHa}
+            value={Number(crop.yieldTPerHa.toFixed(2))}
             unit="t/ha"
             tone="text-emerald-400 drop-shadow-[0_0_6px_#00ff9d]"
           />
@@ -55,7 +55,7 @@ export function CropEngineSlot({ crop }: { crop: CropRecommendation }) {
           />
           <Readout
             label="Deficit"
-            value={crop.deficitMm}
+            value={Math.round(crop.deficitMm)}
             unit="mm"
             tone={
               crop.deficitMm > 0
@@ -65,21 +65,22 @@ export function CropEngineSlot({ crop }: { crop: CropRecommendation }) {
           />
           <Readout
             label="Borewell yield"
-            value={crop.borewellYieldLph.toLocaleString("en-US")}
+            value={Math.round(crop.borewellYieldLph).toLocaleString("en-US")}
             unit="L/h"
             tone="text-cyan-300 drop-shadow-[0_0_6px_#00f0ff]"
           />
         </div>
 
         {/* Budget Coverage Meter */}
-        <div className="mt-4 rounded-lg border border-border/40 bg-background/50 p-3 backdrop-blur-sm">
-          <div className="mb-2 flex items-center justify-between font-mono text-xs">
-            <span className="flex items-center gap-1.5 text-muted-foreground font-semibold">
-              <Droplets className="size-3 text-cyan-300" />{" "}
-              {<LocalizedText text={" Water Budget Coverage"} />}
+        <div className="mt-4 min-w-0 overflow-hidden rounded-lg border border-border/40 bg-background/50 p-3 backdrop-blur-sm">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5 font-mono text-xs">
+            <span className="flex items-center gap-1.5 text-muted-foreground font-semibold min-w-0">
+              <Droplets className="size-3 shrink-0 text-cyan-300" />{" "}
+              {<LocalizedText text={"Water Budget Coverage"} />}
             </span>
             <span className={cn("tabular-nums font-bold", stressTone)}>
-              {crop.seasonalAvailable} / {crop.seasonalETc} {<LocalizedText text={" mm · "} />}
+              {Math.round(crop.seasonalAvailable)} / {Math.round(crop.seasonalETc)}{" "}
+              {<LocalizedText text={" mm · "} />}
               {coverage}%
             </span>
           </div>

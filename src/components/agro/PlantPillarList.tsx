@@ -32,14 +32,19 @@ export function PlantPillarList({ health }: { health: PlantHealth }) {
         {health.pillars.map((p) => (
           <li
             key={p.key}
-            className="rounded-lg border border-border/30 bg-background/40 p-2.5 backdrop-blur-sm transition-all hover:border-cyan/40 hover:bg-background/60"
+            className="min-w-0 overflow-hidden rounded-lg border border-border/30 bg-background/40 p-2.5 backdrop-blur-sm transition-all hover:border-cyan/40 hover:bg-background/60"
           >
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-sm font-semibold text-foreground">
+            <div className="flex items-baseline justify-between gap-2 sm:gap-3 min-w-0">
+              <span className="min-w-0 truncate text-sm font-semibold text-foreground">
                 <LocalizedText text={p.label} />
               </span>
-              <span className={cn("font-mono text-base font-bold tabular-nums", text(p.score))}>
-                {p.score}
+              <span
+                className={cn(
+                  "shrink-0 font-mono text-sm sm:text-base font-bold tabular-nums",
+                  text(p.score),
+                )}
+              >
+                {Math.round(p.score)}
                 <span className="text-xs font-normal text-muted-foreground">/100</span>
               </span>
             </div>
@@ -49,11 +54,11 @@ export function PlantPillarList({ health }: { health: PlantHealth }) {
                 style={{ width: `${p.score}%` }}
               />
             </div>
-            <div className="mt-1.5 flex justify-between gap-3 font-mono text-xs text-muted-foreground">
-              <span>
+            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 font-mono text-xs text-muted-foreground">
+              <span className="min-w-0 break-words">
                 <LocalizedText text={p.note} />
               </span>
-              <span className="truncate text-cyan-300 font-semibold">
+              <span className="truncate text-cyan-300 font-semibold max-w-full">
                 <LocalizedText text={p.source} />
               </span>
             </div>

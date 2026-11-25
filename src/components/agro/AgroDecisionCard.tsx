@@ -320,8 +320,8 @@ export function AgroDecisionCard({
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="font-mono text-3xl font-black text-foreground tabular-nums tracking-tight">
-                  {healthScore}
+                <span className="font-mono text-2xl sm:text-3xl font-black text-foreground tabular-nums tracking-tight">
+                  {Math.round(healthScore)}
                 </span>
                 <span className="font-mono text-xs uppercase tracking-wider text-emerald-400 font-bold mt-0.5">
                   {<LocalizedText text={"HEALTH SCORE"} />}
@@ -345,13 +345,13 @@ export function AgroDecisionCard({
           </div>
 
           {/* Sub-Metrics Micro Meters */}
-          <div className="flex flex-col gap-2">
-            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1">
-              <div className="flex justify-between font-mono text-xs">
-                <span className="text-muted-foreground">
+          <div className="flex flex-col gap-2 min-w-0">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1 min-w-0 overflow-hidden">
+              <div className="flex flex-wrap items-baseline justify-between gap-1 font-mono text-[11px] sm:text-xs">
+                <span className="text-muted-foreground min-w-0 truncate">
                   {<LocalizedText text={"N-P-K NUTRIENT BALANCE INDEX"} />}
                 </span>
-                <span className="text-[var(--accent)] font-bold">
+                <span className="text-[var(--accent)] font-bold tabular-nums shrink-0">
                   {<LocalizedText text={"OPTIMAL (91.4%)"} />}
                 </span>
               </div>
@@ -363,12 +363,12 @@ export function AgroDecisionCard({
               </div>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1">
-              <div className="flex justify-between font-mono text-xs">
-                <span className="text-muted-foreground">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1 min-w-0 overflow-hidden">
+              <div className="flex flex-wrap items-baseline justify-between gap-1 font-mono text-[11px] sm:text-xs">
+                <span className="text-muted-foreground min-w-0 truncate">
                   {<LocalizedText text={"IRRIGATION WATER OPTIMIZATION"} />}
                 </span>
-                <span className="text-[var(--status-ok)] font-bold">
+                <span className="text-[var(--status-ok)] font-bold tabular-nums shrink-0">
                   {<LocalizedText text={"94.2% RATIO"} />}
                 </span>
               </div>
@@ -380,12 +380,12 @@ export function AgroDecisionCard({
               </div>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1">
-              <div className="flex justify-between font-mono text-xs">
-                <span className="text-muted-foreground">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1 min-w-0 overflow-hidden">
+              <div className="flex flex-wrap items-baseline justify-between gap-1 font-mono text-[11px] sm:text-xs">
+                <span className="text-muted-foreground min-w-0 truncate">
                   {<LocalizedText text={"FROST RISK INVERSION (7-DAY)"} />}
                 </span>
-                <span className="text-[var(--status-warn)] font-bold">
+                <span className="text-[var(--status-warn)] font-bold tabular-nums shrink-0">
                   {<LocalizedText text={"LOW (2.0%)"} />}
                 </span>
               </div>
@@ -399,13 +399,13 @@ export function AgroDecisionCard({
           </div>
 
           {/* 4 Satellite Metric Tiles (Zero-Undefined Guarantee) */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75">
-              <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                <Sprout className="size-3 text-[var(--status-ok)]" />
-                <span>{<LocalizedText text={"NDVI Vigor"} />}</span>
+          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
+            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1 text-muted-foreground font-mono text-[11px] sm:text-xs">
+                <Sprout className="size-3 shrink-0 text-[var(--status-ok)]" />
+                <span className="truncate">{<LocalizedText text={"NDVI Vigor"} />}</span>
               </div>
-              <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
+              <div className="mt-0.5 font-mono text-sm font-bold text-foreground tabular-nums">
                 {ndviValue.toFixed(2)}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
                   {<LocalizedText text={"index"} />}
@@ -416,13 +416,13 @@ export function AgroDecisionCard({
               </div>
             </div>
 
-            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75">
-              <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                <Droplets className="size-3 text-[var(--accent)]" />
-                <span>{<LocalizedText text={"Root Moisture"} />}</span>
+            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1 text-muted-foreground font-mono text-[11px] sm:text-xs">
+                <Droplets className="size-3 shrink-0 text-[var(--accent)]" />
+                <span className="truncate">{<LocalizedText text={"Root Moisture"} />}</span>
               </div>
-              <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
-                {soilMoisturePct}%
+              <div className="mt-0.5 font-mono text-sm font-bold text-foreground tabular-nums">
+                {soilMoisturePct.toFixed(1)}%
                 <span className="text-xs font-normal text-muted-foreground ml-1">
                   {<LocalizedText text={"vol"} />}
                 </span>
@@ -432,13 +432,13 @@ export function AgroDecisionCard({
               </div>
             </div>
 
-            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75">
-              <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                <Sun className="size-3 text-[var(--status-warn)]" />
-                <span>{<LocalizedText text={"Evapo ESI"} />}</span>
+            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1 text-muted-foreground font-mono text-[11px] sm:text-xs">
+                <Sun className="size-3 shrink-0 text-[var(--status-warn)]" />
+                <span className="truncate">{<LocalizedText text={"Evapo ESI"} />}</span>
               </div>
-              <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
-                {esiRatio}
+              <div className="mt-0.5 font-mono text-sm font-bold text-foreground tabular-nums">
+                {esiRatio.toFixed(2)}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
                   {<LocalizedText text={"ratio"} />}
                 </span>
@@ -448,13 +448,13 @@ export function AgroDecisionCard({
               </div>
             </div>
 
-            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75">
-              <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                <CloudRain className="size-3 text-[var(--accent)]" />
-                <span>{<LocalizedText text={"Rainfall"} />}</span>
+            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75 min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1 text-muted-foreground font-mono text-[11px] sm:text-xs">
+                <CloudRain className="size-3 shrink-0 text-[var(--accent)]" />
+                <span className="truncate">{<LocalizedText text={"Rainfall"} />}</span>
               </div>
-              <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
-                {rainMm}
+              <div className="mt-0.5 font-mono text-sm font-bold text-foreground tabular-nums">
+                {Math.round(rainMm)}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
                   {<LocalizedText text={"mm/mo"} />}
                 </span>
@@ -979,7 +979,7 @@ export function AgroDecisionCard({
       {/* ========================================================================= */}
       <Dialog open={!!modalCrop} onOpenChange={(open) => !open && setModalCrop(null)}>
         {modalCrop && (
-          <DialogContent className="max-w-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] backdrop-blur-2xl text-[var(--text-primary)] p-6 rounded-xl shadow-[var(--shadow-hud)]">
+          <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[90dvh] overflow-y-auto overflow-x-hidden bg-[var(--bg-surface)] border border-[var(--border-subtle)] backdrop-blur-2xl text-[var(--text-primary)] p-4 sm:p-6 rounded-xl shadow-[var(--shadow-hud)]">
             <DialogHeader className="border-b border-white/10 pb-4">
               <div className="flex items-center gap-2 text-cyan-300 font-mono text-xs uppercase tracking-wider">
                 <Scale className="size-4 text-cyan-300" />

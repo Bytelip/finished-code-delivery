@@ -94,9 +94,13 @@ export function GranuleInspector({ telemetry }: { telemetry: AgroTelemetry }) {
                   <span className="size-1.5 rounded-full bg-cyan shadow-[0_0_4px_#00f0ff]" />
                   {l}
                 </dt>
-                <dd className="font-mono text-xs font-bold tabular-nums text-foreground">
+                <dd className="shrink-0 font-mono text-xs font-bold tabular-nums text-foreground">
                   <span className="text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.3)]">
-                    {r.value}
+                    {typeof r.value === "number" && Number.isFinite(r.value)
+                      ? Number.isInteger(r.value)
+                        ? r.value
+                        : Number(r.value.toFixed(2))
+                      : r.value}
                   </span>{" "}
                   <span className="text-muted-foreground font-normal">{r.unit}</span>
                 </dd>

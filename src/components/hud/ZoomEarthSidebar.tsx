@@ -93,7 +93,7 @@ export function ZoomEarthSidebar({
     <div
       data-hud-overlay="zoom-earth-sidebar"
       className={cn(
-        "absolute left-3 top-16 md:top-14 z-40 w-56 rounded-xl bg-[#181C24]/92 backdrop-blur-2xl border border-white/12 shadow-[0_8px_32px_rgba(0,0,0,0.65)] p-2.5 text-foreground select-none transition-all duration-300 max-h-[82vh] overflow-y-auto scrollbar-thin scrollbar-thumb-white/20",
+        "absolute left-2.5 sm:left-3 top-14 z-40 w-[min(calc(100vw-5rem),14rem)] sm:w-56 rounded-xl bg-[#181C24]/92 backdrop-blur-2xl border border-white/12 shadow-[0_8px_32px_rgba(0,0,0,0.65)] p-2.5 text-foreground select-none transition-all duration-300 max-h-[82vh] overflow-y-auto scrollbar-thin scrollbar-thumb-white/20",
         className,
       )}
     >
@@ -322,18 +322,18 @@ export function ForecastAtmospherePanel({
     color: string;
     expandable?: boolean;
   }[] = [
-    { id: "precipitation", label: "Precipitation", icon: CloudRain, color: "text-cyan-300" },
-    { id: "wind", label: "Wind", icon: Wind, color: "text-emerald-400", expandable: true },
-    {
-      id: "temperature",
-      label: "Temperature",
-      icon: Thermometer,
-      color: "text-amber-400",
-      expandable: true,
-    },
-    { id: "humidity", label: "Humidity", icon: Droplets, color: "text-sky-300", expandable: true },
-    { id: "pressure", label: "Pressure", icon: Gauge, color: "text-indigo-300" },
-  ];
+      { id: "precipitation", label: "Precipitation", icon: CloudRain, color: "text-cyan-300" },
+      { id: "wind", label: "Wind", icon: Wind, color: "text-emerald-400", expandable: true },
+      {
+        id: "temperature",
+        label: "Temperature",
+        icon: Thermometer,
+        color: "text-amber-400",
+        expandable: true,
+      },
+      { id: "humidity", label: "Humidity", icon: Droplets, color: "text-sky-300", expandable: true },
+      { id: "pressure", label: "Pressure", icon: Gauge, color: "text-indigo-300" },
+    ];
   const valueFor = (id: AtmosphereMetricId): number | null => {
     if (!data) return null;
     if (id === "wind")

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ShieldCheck, KeyRound, LogOut, Loader2 } from "lucide-react";
 import { CosmicParallaxBg } from "@/components/CosmicAuthPage";
 import { sanitizeTotpCode, verifyActiveTotpChallenge } from "@/services/mfaAuth";
+import { SegmentedCodeInput } from "@/components/auth/SegmentedCodeInput";
 import { supabase } from "@/integrations/supabase/client";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 import { toast } from "sonner";
@@ -102,26 +103,11 @@ export const TwoFactorChallengeForm: React.FC<TwoFactorChallengeFormProps> = ({
 
       <form onSubmit={(e) => void handleSubmit(e)} className="mt-6 space-y-4">
         <div>
-          <input
+          <SegmentedCodeInput
             id="mfa-totp-input"
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={6}
-            autoComplete="one-time-code"
-            autoFocus
             value={code}
-            onChange={(e) => setCode(sanitizeTotpCode(e.target.value))}
-            onPaste={(e) => {
-              const pasted = sanitizeTotpCode(e.clipboardData.getData("text"));
-              if (pasted.length > 0) {
-                e.preventDefault();
-                setCode(pasted);
-              }
-            }}
-            placeholder="••••••"
-            aria-label="6-digit two-factor authentication code"
-            className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)]"
+            onChange={(val) => setCode(sanitizeTotpCode(val))}
+            ariaLabel="6-digit two-factor authentication code"
           />
         </div>
 
@@ -171,7 +157,7 @@ export const TwoFactorChallengeScreen: React.FC<TwoFactorChallengeScreenProps> =
 }) => {
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[var(--shadow-hud)] text-[var(--text-primary)]">
+      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto overflow-x-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] p-4 sm:mx-auto sm:p-7 backdrop-blur-2xl shadow-[var(--shadow-hud)] text-[var(--text-primary)]">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--accent)]/35 bg-[var(--accent-surface)] shadow-[0_0_20px_var(--accent-glow)]">
           <svg
             className="h-7 w-7 text-[var(--accent)]"

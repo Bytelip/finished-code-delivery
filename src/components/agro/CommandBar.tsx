@@ -138,8 +138,6 @@ export function CommandBar({
   onOpenMissionBrief,
   onOpenTour,
   onSearchDestination,
-  isMobile = false,
-  sidebarCollapsed = true,
 }: {
   lat: number;
   lon: number;
@@ -194,6 +192,7 @@ export function CommandBar({
   // Advanced field controls drawer (closed by default)
   const [isParamsDrawerOpen, setIsParamsDrawerOpen] = useState(false);
   const [copiedShareLink, setCopiedShareLink] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const paramsDrawerRef = useRef<HTMLDivElement>(null);
 
   const handleCopyShareLink = async () => {
@@ -214,13 +213,15 @@ export function CommandBar({
     const handleKey = (e: globalThis.KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        searchInputRef.current?.focus();
+        setMobileSearchOpen(true);
+        window.setTimeout(() => searchInputRef.current?.focus(), 10);
         setSearchPanelOpen(true);
       }
       if (e.key === "Escape") {
         setSearchPanelOpen(false);
         setDropdownOpen(false);
         setIsParamsDrawerOpen(false);
+        setMobileSearchOpen(false);
       }
     };
     window.addEventListener("keydown", handleKey);
@@ -261,6 +262,7 @@ export function CommandBar({
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
         setSearchPanelOpen(false);
+        setMobileSearchOpen(false);
         setSelectedIndex(-1);
       }
     };
@@ -306,6 +308,7 @@ export function CommandBar({
     setSearchQuery(place.name);
     setDropdownOpen(false);
     setSearchPanelOpen(false);
+    setMobileSearchOpen(false);
     setSelectedIndex(-1);
     setAccuracyBadge({ text: "PINNED / SEARCH", type: "pinned" });
     toast.success(
@@ -407,7 +410,6 @@ export function CommandBar({
 
   const alert = scenario !== "Nominal";
   const host = typeof window !== "undefined" ? window.location.host : "192.168.0.3:8080";
-  const railInset = isMobile ? 0 : sidebarCollapsed ? 80 : 256;
 
   const quickSearchSuggestions = [
     {
@@ -481,13 +483,13 @@ export function CommandBar({
   };
 
   return (
-    <div className="sticky top-0 z-[100] border-b border-border/80 bg-background/85 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
+    <div className="sticky top-0 z-[100] overflow-visible border-b border-[var(--border-subtle)] bg-[var(--bg-glass)] backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.45)]">
       {/* ---------------- INSECURE LAN HOST BANNER ---------------- */}
       {showInsecureBanner && !bannerDismissed && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2 font-mono text-xs text-amber-400">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 bg-amber-500/15 px-3 py-2 font-mono text-xs text-amber-400 sm:px-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <AlertTriangle className="size-4 shrink-0 text-amber-400" />
-            <span>
+            <span className="break-words">
               {<LocalizedText text={"Browsers block hardware GPS on insecure LAN HTTP ("} />}
               <code>http://{host}</code>
               {<LocalizedText text={"). Approximate location used."} />}
@@ -516,61 +518,44 @@ export function CommandBar({
         </div>
       )}
 
-      {/* ---------------- SINGLE-ROW GLASS HEADER ---------------- */}
-      <div className="sticky top-0 z-40 flex h-14 w-full max-w-full flex-nowrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-glass)] px-3 backdrop-blur-2xl">
-        <div className="flex min-w-0 shrink items-center gap-2 whitespace-nowrap">
+      {/* ---------------- UNIFIED SINGLE-ROW GLASS HEADER (3-Zone Layout) ---------------- */}
+      <div className="relative z-40 flex h-14 w-full max-w-full flex-nowrap items-center justify-between gap-2 md:gap-3 overflow-visible px-2.5 sm:px-3">
+        {/* Zone 1 (Left): Brand */}
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
           <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-[var(--accent)]/40 bg-[var(--accent-surface)] text-[var(--accent)] shadow-sm">
             <Satellite className="size-4 animate-pulse" />
           </div>
-          <div className="flex min-w-0 flex-col leading-none sm:flex-row sm:items-center sm:gap-2">
-            <span className="truncate font-display text-sm font-bold tracking-tight text-[var(--text-primary)] sm:text-base">
+          <div className="flex flex-col leading-none sm:flex-row sm:items-center sm:gap-1.5">
+            <span className="font-display text-sm font-bold tracking-tight text-[var(--text-primary)] sm:text-base">
               AgroSpace
             </span>
-            <div className="mt-0.5 flex items-center gap-1.5 sm:mt-0">
-              <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[var(--status-ok)]">
+            <div className="mt-0.5 flex items-center gap-1 sm:mt-0">
+              <span className="font-mono text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-[var(--status-ok)]">
                 Nexus
               </span>
-              <span className="shrink-0 rounded-full border border-[var(--accent)]/35 bg-[var(--accent-surface)] px-1.5 font-mono text-xs font-semibold leading-4 text-[var(--accent)]">
+              <span className="hidden xl:inline-flex shrink-0 rounded-full border border-[var(--accent)]/35 bg-[var(--accent-surface)] px-1.5 font-mono text-xs font-semibold leading-4 text-[var(--accent)]">
                 v2.4
               </span>
             </div>
           </div>
         </div>
 
+        {/* Zone 2 (Center): Inline Top-Bar Search (desktop/laptop) / Expandable Overlay (mobile) */}
         <div
-          data-tour="top-right-controls"
-          className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap"
+          ref={searchContainerRef}
+          className={cn(
+            "min-w-0 overflow-visible",
+            mobileSearchOpen
+              ? "fixed inset-x-2 top-2 z-[1100] flex flex-col md:relative md:inset-auto md:flex-1 md:max-w-md lg:max-w-xl md:mx-2"
+              : "relative hidden md:flex md:flex-1 md:max-w-md lg:max-w-xl md:mx-2",
+          )}
         >
-          <LanguageSelector compact />
-          <ThemeSwitcher variant="compact" />
-          <AnimatedThemeSwitch />
-          <div className="shrink-0">
-            <OperatorProfileDropdown
-              profile={profile ?? null}
-              compact={!profile}
-              onOpenAuth={onOpenAuth || (() => {})}
-              onOpenSettings={onOpenSettings || (() => {})}
-              onNavigateHome={onNavigateHome}
-              onSignOut={onSignOut || (() => {})}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Centered location and insight search */}
-      <div
-        className="w-full px-3 py-3 sm:px-4"
-        style={
-          isMobile ? undefined : { marginLeft: railInset, width: `calc(100% - ${railInset}px)` }
-        }
-      >
-        <div ref={searchContainerRef} className="relative mx-auto w-full max-w-4xl">
-          <div className="group flex h-12 items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 shadow-[var(--shadow-hud)] backdrop-blur-xl transition-all duration-200 focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent-glow)] sm:px-4">
-            <span className="grid size-8 shrink-0 place-items-center text-[var(--accent)]">
+          <div className="group flex h-9 md:h-9 w-full items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 shadow-sm transition-all duration-200 focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent-glow)]">
+            <span className="grid size-6 shrink-0 place-items-center text-[var(--accent)]">
               {searching ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-3.5 animate-spin" />
               ) : (
-                <Search className="size-4 drop-shadow-[0_0_8px_rgba(34,211,238,0.65)]" />
+                <Search className="size-3.5" />
               )}
             </span>
             <Input
@@ -595,8 +580,8 @@ export function CommandBar({
                 isInputFocused.current = false;
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search districts, villages, farms, coordinates or agricultural insights..."
-              className="h-full min-w-0 flex-1 border-0 bg-transparent px-0 font-sans text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/80 focus-visible:ring-0 focus-visible:ring-offset-0"
+              placeholder="Search place, farm, or lat/lon…"
+              className="h-full min-w-0 flex-1 border-0 bg-transparent px-0 font-sans text-xs sm:text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/80 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             {searchQuery && (
               <button
@@ -612,12 +597,29 @@ export function CommandBar({
                 }}
                 aria-label="Clear search"
                 title="Clear search"
-                className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-cyan-200"
+                className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-cyan-200"
               >
-                <X className="size-4" />
+                <X className="size-3.5" />
               </button>
             )}
-            <span className="h-6 w-px shrink-0 bg-white/10" />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={locate}
+              disabled={locating}
+              aria-label="Acquire high-precision GPS location"
+              title="Acquire high-precision GPS lock"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-transparent px-1.5 font-mono text-[11px] font-semibold text-[var(--accent)] transition-colors hover:border-[var(--accent)]/40 hover:bg-[var(--accent-surface)] cursor-pointer disabled:opacity-50"
+            >
+              {locating ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Crosshair className="size-3.5" />
+              )}
+              <span className="hidden lg:inline">
+                <LocalizedText text="GPS" />
+              </span>
+            </button>
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
@@ -625,13 +627,13 @@ export function CommandBar({
               aria-label="Copy shareable location link"
               title="Copy shareable location link"
               className={cn(
-                "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors cursor-pointer",
+                "hidden sm:grid size-7 shrink-0 place-items-center rounded-lg border transition-colors cursor-pointer",
                 copiedShareLink
                   ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-400"
                   : "border-transparent text-[var(--text-muted)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent-surface)] hover:text-[var(--accent)]",
               )}
             >
-              {copiedShareLink ? <Check className="size-4" /> : <Share2 className="size-4" />}
+              {copiedShareLink ? <Check className="size-3.5" /> : <Share2 className="size-3.5" />}
             </button>
             <button
               type="button"
@@ -639,20 +641,34 @@ export function CommandBar({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setSearchPanelOpen(false);
+                setMobileSearchOpen(false);
                 setIsParamsDrawerOpen((prev) => !prev);
               }}
               aria-label="Open advanced field search and filters"
               aria-expanded={isParamsDrawerOpen}
               title="Advanced search and field filters"
               className={cn(
-                "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors",
+                "grid size-7 shrink-0 place-items-center rounded-lg border transition-colors cursor-pointer",
                 isParamsDrawerOpen
                   ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
                   : "border-transparent text-muted-foreground hover:border-cyan-400/30 hover:bg-cyan-500/10 hover:text-cyan-200",
               )}
             >
-              <SlidersHorizontal className="size-4" />
+              <SlidersHorizontal className="size-3.5" />
             </button>
+            {mobileSearchOpen && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileSearchOpen(false);
+                  setSearchPanelOpen(false);
+                }}
+                aria-label="Close mobile search"
+                className="grid md:hidden size-7 shrink-0 place-items-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
           </div>
 
           {searchPanelOpen && (
@@ -660,7 +676,7 @@ export function CommandBar({
               id="agrospace-search-suggestions"
               role="region"
               aria-label="Search suggestions"
-              className="absolute left-0 right-0 top-full z-[1000] mt-2 max-h-[min(70dvh,30rem)] overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 shadow-[var(--shadow-hud)] backdrop-blur-2xl sm:p-3"
+              className="absolute left-0 right-0 top-full z-[1100] mt-2 max-h-[min(70dvh,30rem)] w-full max-w-[calc(100vw-1rem)] overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 shadow-[var(--shadow-hud)] backdrop-blur-2xl sm:p-3"
             >
               {searchResults.length > 0 && dropdownOpen && (
                 <div className="mb-2">
@@ -752,13 +768,61 @@ export function CommandBar({
             </div>
           )}
         </div>
+
+        {/* Zone 3 (Right): Compact Controls */}
+        <div
+          data-tour="top-right-controls"
+          className="flex shrink-0 items-center justify-end gap-1 sm:gap-1.5 whitespace-nowrap"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSearchOpen(true);
+              setSearchPanelOpen(true);
+              setIsParamsDrawerOpen(false);
+              window.setTimeout(() => searchInputRef.current?.focus(), 20);
+            }}
+            aria-label="Open location search"
+            title="Search location or coordinates"
+            className="grid md:hidden size-8 shrink-0 place-items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--accent)] hover:border-[var(--accent)] cursor-pointer"
+          >
+            <Search className="size-4" />
+          </button>
+          <button
+            type="button"
+            data-params-trigger="true"
+            onClick={() => {
+              setMobileSearchOpen(false);
+              setSearchPanelOpen(false);
+              setIsParamsDrawerOpen((prev) => !prev);
+            }}
+            aria-label="Toggle field parameters"
+            title="Field parameters"
+            className="grid md:hidden size-8 shrink-0 place-items-center rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer"
+          >
+            <SlidersHorizontal className="size-4" />
+          </button>
+          <LanguageSelector compact />
+          <ThemeSwitcher variant="compact" />
+          <AnimatedThemeSwitch />
+          <div className="shrink-0">
+            <OperatorProfileDropdown
+              profile={profile ?? null}
+              compact={!profile}
+              onOpenAuth={onOpenAuth || (() => {})}
+              onOpenSettings={onOpenSettings || (() => {})}
+              onNavigateHome={onNavigateHome}
+              onSignOut={onSignOut || (() => {})}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ---------------- 2. FLOATING FIELD PARAMETERS DRAWER OVERLAY (ABSOLUTE POPOVER) ---------------- */}
       <div
         ref={paramsDrawerRef}
         className={cn(
-          "transition-all duration-300 z-50 absolute top-[8.25rem] left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-xl bg-[var(--bg-surface)] backdrop-blur-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-hud)] p-4",
+          "transition-all duration-300 z-[900] absolute top-[3.75rem] left-1/2 -translate-x-1/2 w-[min(calc(100vw-1rem),56rem)] rounded-xl bg-[var(--bg-surface)] backdrop-blur-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-hud)] p-3 sm:p-4 max-h-[calc(100dvh-5rem)] overflow-y-auto overflow-x-hidden",
           isParamsDrawerOpen
             ? "opacity-100 scale-100 pointer-events-auto visible"
             : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0",
@@ -860,7 +924,7 @@ export function CommandBar({
               size="sm"
               onClick={locate}
               disabled={locating}
-              aria-label="Acquire high-precision GPS location"
+              aria-label="Calibrate high-precision field GPS"
               className="h-7 px-2.5 text-xs font-mono font-semibold shrink-0"
               title="Acquire multi-sample high-precision GPS lock"
             >

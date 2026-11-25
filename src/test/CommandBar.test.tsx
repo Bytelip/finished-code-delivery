@@ -125,4 +125,16 @@ describe("CommandBar Location & Search", () => {
 
     expect(screen.getByText(/chrome:\/\/flags/i)).toBeInTheDocument();
   });
+
+  it("renders a single unified top bar containing the search combobox and expandable mobile trigger", () => {
+    render(<CommandBar {...defaultProps} />);
+
+    // Only one location search input exists inside the unified top bar (no secondary search row)
+    const searchInputs = screen.getAllByPlaceholderText(/Search place, farm, or lat\/lon/i);
+    expect(searchInputs).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /Open location search/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Copy shareable location link/i }),
+    ).toBeInTheDocument();
+  });
 });

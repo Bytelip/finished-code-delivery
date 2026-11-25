@@ -344,7 +344,7 @@ export function FieldShiftCropAdvisor({
         <div className="mt-4 p-3 rounded-xl border border-white/10 bg-[#060c18]/90 flex flex-col gap-3">
           {/* Primary toolbar: search and frequently used crop filters */}
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-background/30 p-2.5">
-            <div className="relative min-w-[220px] flex-1 basis-full md:basis-60">
+            <div className="relative min-w-0 w-full flex-1 basis-full md:basis-60">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
@@ -638,12 +638,12 @@ export function FieldShiftCropAdvisor({
                   </p>
                 </div>
 
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <div className="text-xs font-mono text-muted-foreground">
                     {<LocalizedText text={"NASA Match"} />}
                   </div>
                   <div
-                    className="font-mono text-2xl font-extrabold drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]"
+                    className="font-mono text-lg sm:text-2xl font-extrabold tabular-nums drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]"
                     style={{ color: selectedCrop.tierColorHex }}
                   >
                     {selectedCrop.adjustedScore.toFixed(1)}%
@@ -895,31 +895,31 @@ export function FieldShiftCropAdvisor({
             </div>
 
             {/* Water Savings Metric */}
-            <div className="rounded-lg border border-emerald-500/40 bg-emerald-950/20 p-3 flex flex-col justify-between">
+            <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-500/40 bg-emerald-950/20 p-3 flex flex-col justify-between">
               <div className="text-xs font-mono text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                <TrendingUp className="size-3 text-emerald-400" />{" "}
+                <TrendingUp className="size-3 shrink-0 text-emerald-400" />{" "}
                 {<LocalizedText text={" Water-Use Efficiency"} />}
               </div>
               <div className="mt-1">
-                <div className="font-mono text-2xl font-extrabold text-emerald-400 drop-shadow-[0_0_10px_rgba(0,255,157,0.4)]">
-                  +{waterSavingsPct}%
+                <div className="font-mono text-lg sm:text-2xl font-extrabold tabular-nums text-emerald-400 drop-shadow-[0_0_10px_rgba(0,255,157,0.4)]">
+                  +{Math.round(waterSavingsPct)}%
                 </div>
-                <div className="text-xs font-mono text-emerald-400">
+                <div className="text-xs font-mono text-emerald-400 break-words">
                   {<LocalizedText text={"Saves "} />}
-                  {waterSavingsMm} {<LocalizedText text={" mm groundwater/ha"} />}
+                  {Math.round(waterSavingsMm)} {<LocalizedText text={" mm groundwater/ha"} />}
                 </div>
               </div>
             </div>
 
             {/* Capital / Upkeep Safety Metric */}
-            <div className="rounded-lg border border-cyan-500/40 bg-cyan-950/20 p-3 flex flex-col justify-between">
+            <div className="min-w-0 overflow-hidden rounded-lg border border-cyan-500/40 bg-cyan-950/20 p-3 flex flex-col justify-between">
               <div className="text-xs font-mono text-cyan-300 uppercase tracking-wider flex items-center gap-1">
-                <ShieldCheck className="size-3 text-cyan-300" />{" "}
+                <ShieldCheck className="size-3 shrink-0 text-cyan-300" />{" "}
                 {<LocalizedText text={" Capital & Debt Safety"} />}
               </div>
               <div className="mt-1">
-                <div className="font-mono text-2xl font-extrabold text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]">
-                  +{capitalSafetyGain > 0 ? capitalSafetyGain : 35}%
+                <div className="font-mono text-lg sm:text-2xl font-extrabold tabular-nums text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]">
+                  +{Math.round(capitalSafetyGain > 0 ? capitalSafetyGain : 35)}%
                 </div>
                 <div className="text-xs font-mono text-cyan-300">
                   {<LocalizedText text={"Reduced fertilizer/pumping risks"} />}

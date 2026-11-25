@@ -19,7 +19,12 @@ export function HudCard({
   className?: string;
 }) {
   return (
-    <div className={cn("hud-card p-4.5 transition-all duration-200", className)}>
+    <div
+      className={cn(
+        "hud-card min-w-0 overflow-hidden p-3 sm:p-4.5 transition-all duration-200",
+        className,
+      )}
+    >
       <header className="mb-3.5 flex items-start justify-between gap-3 border-b border-border/40 pb-2.5">
         <div className="flex min-w-0 items-start gap-2.5">
           {icon && (
@@ -115,15 +120,27 @@ export function Readout({
   unit?: string;
   tone?: string;
 }) {
+  const formattedValue =
+    typeof value === "number" && Number.isFinite(value)
+      ? Number.isInteger(value)
+        ? value
+        : Number(value.toFixed(2))
+      : value;
+
   return (
-    <div className="min-w-0 rounded-md border border-border/30 bg-background/30 p-2 backdrop-blur-sm">
-      <div className="hud-label truncate text-xs text-muted-foreground">
+    <div className="min-w-0 overflow-hidden rounded-md border border-border/30 bg-background/30 p-2 backdrop-blur-sm">
+      <div className="hud-label truncate text-[11px] sm:text-xs text-muted-foreground">
         <LocalizedText text={label} />
       </div>
-      <div className={cn("mt-1 truncate font-mono text-lg font-semibold tabular-nums", tone)}>
-        {value}
+      <div
+        className={cn(
+          "mt-1 font-mono text-base sm:text-lg font-semibold leading-tight tabular-nums break-words",
+          tone,
+        )}
+      >
+        {formattedValue}
         {unit && (
-          <span className="ml-1 text-xs font-normal text-muted-foreground">
+          <span className="ml-1 text-[11px] sm:text-xs font-normal text-muted-foreground">
             <LocalizedText text={unit} />
           </span>
         )}

@@ -247,8 +247,8 @@ export function PlantHealthRadar({
       icon={<Leaf />}
       className="border-cyan/35 shadow-[0_0_25px_rgba(0,0,0,0.5)]"
       right={
-        <div className="font-mono text-3xl font-extrabold tabular-nums text-emerald-400 drop-shadow-[0_0_8px_#00ff9d]">
-          {health.overall}
+        <div className="font-mono text-lg sm:text-2xl md:text-3xl font-extrabold tabular-nums text-emerald-400 drop-shadow-[0_0_8px_#00ff9d]">
+          {Math.round(health.overall)}
           <span className="text-xs font-normal text-muted-foreground">/100</span>
         </div>
       }
