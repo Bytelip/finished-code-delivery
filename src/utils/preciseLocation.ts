@@ -284,7 +284,15 @@ export async function resolvePreciseLocation(options?: {
           }
         );
       } else if (typeof (navigator.geolocation as unknown as Record<string, unknown>)["watchPosition"] === "function") {
-        watchId = ((navigator.geolocation as unknown as { watchPosition: Function }).watchPosition)(
+        watchId = (
+          navigator.geolocation as unknown as {
+            watchPosition: (
+              success: PositionCallback,
+              error?: PositionErrorCallback | null,
+              options?: PositionOptions,
+            ) => number;
+          }
+        ).watchPosition(
           (pos: GeolocationPosition) => {
             onPosition(pos);
             finishWithBest();

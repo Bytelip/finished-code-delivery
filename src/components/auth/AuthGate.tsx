@@ -142,7 +142,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
       try {
         window.sessionStorage?.setItem("agro_initial_gps_done", "true");
       } catch {
-        // Ignore sessionStorage errors in restricted browser modes
+        // Session storage can be unavailable (private mode); the in-memory ref still guards.
       }
 
       if (typeof window === "undefined" || !navigator.geolocation) {
@@ -246,7 +246,7 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     try {
       window.sessionStorage?.removeItem("agro_initial_gps_done");
     } catch {
-      // Ignore sessionStorage errors in restricted browser modes
+      // Session storage can be unavailable (private mode); nothing to clean up then.
     }
     await signOut();
     saveStoredUser(null);
