@@ -28,6 +28,7 @@ import type { UserProfile } from "@/types/userProfile";
 import { resolvePreciseLocation } from "@/utils/preciseLocation";
 import { ThemeSettingsCard } from "@/components/theme/ThemeSwitcher";
 import { LanguageSelector } from "@/components/i18n/LanguageSelector";
+import { TwoFactorSettingsCard } from "./TwoFactorSettingsCard";
 import { cn } from "@/lib/utils";
 
 export interface ConsoleSettingsViewProps {
@@ -356,8 +357,8 @@ export const ConsoleSettingsView: React.FC<ConsoleSettingsViewProps> = ({
         </section>
       </div>
 
-      {/* Operator Account & Localization */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Operator Account, 2FA Security & Localization */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-white/[0.08] bg-[#1c1c1c] p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -403,16 +404,18 @@ export const ConsoleSettingsView: React.FC<ConsoleSettingsViewProps> = ({
           </div>
         </section>
 
-        <section className="rounded-lg border border-white/[0.08] bg-[#1c1c1c] p-5 space-y-4 lg:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-[#ededed]">
-              Interface Theme & Language Preferences
-            </h2>
-            <LanguageSelector />
-          </div>
-          <ThemeSettingsCard />
-        </section>
+        <TwoFactorSettingsCard />
       </div>
+
+      <section className="rounded-lg border border-white/[0.08] bg-[#1c1c1c] p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-[#ededed]">
+            Interface Theme & Language Preferences
+          </h2>
+          <LanguageSelector />
+        </div>
+        <ThemeSettingsCard />
+      </section>
     </div>
   );
 };

@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { CosmicAuthPage, saveStoredUser } from "@/components/CosmicAuthPage";
+import { TwoFactorChallengeScreen } from "@/components/auth/TwoFactorChallengeScreen";
 import type { UserProfile } from "@/types/userProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchSignedInProfile, saveProfile, signOut } from "@/services/cloudAuth";
+import { getMfaAssuranceLevel } from "@/services/mfaAuth";
 import { toast } from "sonner";
 import { syncUrlCoords } from "@/utils/preciseLocation";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
@@ -20,14 +22,53 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
   // The signed-in account comes directly from Supabase Auth; the session is restored after mount
   // (it lives in browser storage), so the server and the first browser render match.
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaEmail, setMfaEmail] = useState<string | undefined>(undefined);
   const [sessionChecked, setSessionChecked] = useState(false);
+
+  const syncSessionAndAssurance = useCallback(async () => {
+    const assurance = await getMfaAssuranceLevel();
+    if (assurance.currentLevel === "aal1" && assurance.nextLevel === "aal2") {
+      const userRes = await supabase.auth.getUser().catch(() => null);
+      setMfaEmail(userRes?.data?.user?.email ?? undefined);
+      setCurrentUser(null);
+      saveStoredUser(null);
+      setMfaRequired(true);
+      setSessionChecked(true);
+      return;
+    }
+
+    const profile = await fetchSignedInProfile();
+    setMfaRequired(false);
+    setMfaEmail(undefined);
+    setCurrentUser(profile);
+    // Display cache only; access is always decided by the live session above.
+    saveStoredUser(profile);
+    setSessionChecked(true);
+  }, []);
 
   useEffect(() => {
     let active = true;
     const refresh = async () => {
       try {
+        const assurance = await getMfaAssuranceLevel();
+        if (!active) return;
+
+        if (assurance.currentLevel === "aal1" && assurance.nextLevel === "aal2") {
+          const userRes = await supabase.auth.getUser().catch(() => null);
+          if (!active) return;
+          setMfaEmail(userRes?.data?.user?.email ?? undefined);
+          setCurrentUser(null);
+          saveStoredUser(null);
+          setMfaRequired(true);
+          setSessionChecked(true);
+          return;
+        }
+
         const profile = await fetchSignedInProfile();
         if (!active) return;
+        setMfaRequired(false);
+        setMfaEmail(undefined);
         setCurrentUser(profile);
         // Display cache only; access is always decided by the live session above.
         saveStoredUser(profile);
@@ -98,14 +139,21 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
               typeof window !== "undefined" &&
               new URLSearchParams(window.location.search).has("code");
             if (!hasPendingCode) {
+              setMfaRequired(false);
+              setMfaEmail(undefined);
               setCurrentUser(null);
               saveStoredUser(null);
               setSessionChecked(true);
             }
             return;
           }
-          if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
-            // Defer so the auth client finishes its own work before we query the profile.
+          if (
+            event === "INITIAL_SESSION" ||
+            event === "SIGNED_IN" ||
+            event === "USER_UPDATED" ||
+            event === "MFA_CHALLENGE_VERIFIED"
+          ) {
+            // Defer so the auth client finishes its own work before we query assurance & profile.
             setTimeout(() => void refresh(), 0);
           }
         } catch (err) {
@@ -236,9 +284,23 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     }
   }, [currentUser, triggerAutoGpsTracking]);
 
-  const handleAuthSuccess = (user: UserProfile) => {
+  const handleAuthSuccess = async (user: UserProfile) => {
+    const assurance = await getMfaAssuranceLevel();
+    if (assurance.currentLevel === "aal1" && assurance.nextLevel === "aal2") {
+      setMfaEmail(user.email || undefined);
+      setCurrentUser(null);
+      saveStoredUser(null);
+      setMfaRequired(true);
+      return;
+    }
+    setMfaRequired(false);
+    setMfaEmail(undefined);
     setCurrentUser(user);
     saveStoredUser(user);
+  };
+
+  const handleMfaVerified = async () => {
+    await syncSessionAndAssurance();
   };
 
   const handleSignOut = async () => {
@@ -250,6 +312,8 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     }
     await signOut();
     saveStoredUser(null);
+    setMfaRequired(false);
+    setMfaEmail(undefined);
     setCurrentUser(null);
     toast.info(<LocalizedText text="Signed out" />);
   };
@@ -270,8 +334,18 @@ export function AuthGate({ children, onLiveLocationAcquired }: AuthGateProps) {
     return <div className="min-h-[100dvh] w-full bg-background" aria-busy="true" />;
   }
 
+  if (mfaRequired) {
+    return (
+      <TwoFactorChallengeScreen
+        email={mfaEmail}
+        onVerified={handleMfaVerified}
+        onSignOut={handleSignOut}
+      />
+    );
+  }
+
   if (!currentUser) {
-    return <CosmicAuthPage onSuccess={handleAuthSuccess} />;
+    return <CosmicAuthPage onSuccess={(u) => void handleAuthSuccess(u)} />;
   }
 
   return (

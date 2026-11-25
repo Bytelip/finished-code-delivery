@@ -1,0 +1,196 @@
+import React, { useState } from "react";
+import { ShieldCheck, KeyRound, LogOut, Loader2 } from "lucide-react";
+import { CosmicParallaxBg } from "@/components/CosmicAuthPage";
+import { sanitizeTotpCode, verifyActiveTotpChallenge } from "@/services/mfaAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { LocalizedText } from "@/components/i18n/LocalizedText";
+import { toast } from "sonner";
+
+export interface TwoFactorChallengeFormProps {
+  email?: string | undefined;
+  onVerified: () => Promise<void> | void;
+  onSignOut: () => Promise<void> | void;
+}
+
+export const TwoFactorChallengeForm: React.FC<TwoFactorChallengeFormProps> = ({
+  email,
+  onVerified,
+  onSignOut,
+}) => {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = sanitizeTotpCode(code);
+    if (clean.length !== 6) {
+      setError("Please enter the complete 6-digit code from your authenticator app.");
+      return;
+    }
+
+    setError("");
+    setVerifying(true);
+    try {
+      const res = await verifyActiveTotpChallenge(clean);
+      if (!res.ok) {
+        setError(res.error || "Invalid verification code. Please try again.");
+        return;
+      }
+
+      if (typeof supabase?.auth?.refreshSession === "function") {
+        await supabase.auth.refreshSession().catch(() => undefined);
+      }
+
+      toast.success(<LocalizedText text="Two-factor verification complete" />);
+      await onVerified();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Verification failed. Please check your authenticator app code.",
+      );
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleSignOutClick = async () => {
+    setSigningOut(true);
+    try {
+      setCode("");
+      setError("");
+      await onSignOut();
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
+  const canSubmit = code.length === 6 && !verifying && !signingOut;
+
+  return (
+    <div className="text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+        <ShieldCheck className="h-6 w-6" />
+      </div>
+
+      <h2 className="text-xl font-semibold text-foreground">
+        <LocalizedText text="Two-Factor Verification" />
+      </h2>
+
+      <p className="mt-2 text-sm text-muted-foreground">
+        <LocalizedText text="Enter the 6-digit verification code from your authenticator app" />
+        {email ? (
+          <>
+            {" "}
+            <LocalizedText text="for" />{" "}
+            <span className="font-mono font-medium text-cyan-300 break-all">{email}</span>
+          </>
+        ) : null}
+        .
+      </p>
+
+      {error && (
+        <div
+          role="alert"
+          className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-left text-xs text-rose-400"
+        >
+          <p>{error}</p>
+        </div>
+      )}
+
+      <form onSubmit={(e) => void handleSubmit(e)} className="mt-6 space-y-4">
+        <div>
+          <input
+            id="mfa-totp-input"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            autoComplete="one-time-code"
+            autoFocus
+            value={code}
+            onChange={(e) => setCode(sanitizeTotpCode(e.target.value))}
+            onPaste={(e) => {
+              const pasted = sanitizeTotpCode(e.clipboardData.getData("text"));
+              if (pasted.length > 0) {
+                e.preventDefault();
+                setCode(pasted);
+              }
+            }}
+            placeholder="••••••"
+            aria-label="6-digit two-factor authentication code"
+            className="w-full rounded-xl border border-cyan-400/30 bg-slate-900/90 py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-cyan-300 placeholder-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.15)]"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
+            canSubmit
+              ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+              : "cursor-not-allowed bg-white/15 text-muted-foreground"
+          }`}
+        >
+          <span className="inline-flex items-center justify-center gap-2">
+            {verifying ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <KeyRound className="size-4" />
+            )}
+            <LocalizedText text={verifying ? "Verifying code…" : "Verify & Continue"} />
+          </span>
+        </button>
+
+        <button
+          type="button"
+          disabled={verifying || signingOut}
+          onClick={() => void handleSignOutClick()}
+          className="inline-flex w-full min-h-10 items-center justify-center gap-2 rounded-lg border border-white/10 text-xs font-medium text-muted-foreground hover:bg-white/[0.04] hover:text-foreground disabled:opacity-40 cursor-pointer transition-colors"
+        >
+          <LogOut className="size-3.5" />
+          <LocalizedText text={signingOut ? "Signing out…" : "Sign out / Use another account"} />
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export interface TwoFactorChallengeScreenProps {
+  email?: string | undefined;
+  onVerified: () => Promise<void> | void;
+  onSignOut: () => Promise<void> | void;
+}
+
+export const TwoFactorChallengeScreen: React.FC<TwoFactorChallengeScreenProps> = ({
+  email,
+  onVerified,
+  onSignOut,
+}) => {
+  return (
+    <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
+      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-[#0B111E]/90 p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-foreground">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
+          <svg
+            className="h-7 w-7 text-cyan-300"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-30 12 12)" />
+          </svg>
+        </div>
+
+        <TwoFactorChallengeForm email={email} onVerified={onVerified} onSignOut={onSignOut} />
+
+        <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
+          <LocalizedText text="Protected by AgroSpace Two-Factor Security (TOTP)." />
+        </p>
+      </div>
+    </CosmicParallaxBg>
+  );
+};

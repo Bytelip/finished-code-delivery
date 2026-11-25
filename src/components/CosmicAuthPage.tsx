@@ -9,16 +9,16 @@ import {
   sendSignInOtp,
   signInWithEmail,
   signInWithProvider,
+  signOut,
   signUpWithEmail,
   verifyEmailOtp,
   type SocialProvider,
 } from "@/services/cloudAuth";
+import { getMfaAssuranceLevel } from "@/services/mfaAuth";
+import { TwoFactorChallengeForm } from "@/components/auth/TwoFactorChallengeScreen";
 import { toast } from "sonner";
 import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
-import {
-  MISSING_SUPABASE_ENV_MESSAGE,
-  isSupabaseConfigured,
-} from "@/integrations/supabase/client";
+import { MISSING_SUPABASE_ENV_MESSAGE, isSupabaseConfigured } from "@/integrations/supabase/client";
 
 // ==========================================
 // 1. TYPES & USER PROFILE MODEL
@@ -297,16 +297,17 @@ export interface CosmicAuthPageProps {
   initialMode?: "signin" | "signup";
 }
 
-type AuthStep = "entry" | "verify_otp" | "forgot" | "reset_sent";
+type AuthStep = "entry" | "verify_otp" | "verify_mfa" | "forgot" | "reset_sent";
 
 const inputClass =
   "w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none";
 const providerButtonClass =
   "relative flex min-h-11 w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition disabled:opacity-50 cursor-pointer";
 const primaryButtonClass = (enabled: boolean) =>
-  `w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${enabled
-    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
-    : "cursor-not-allowed bg-white/15 text-muted-foreground"
+  `w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
+    enabled
+      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+      : "cursor-not-allowed bg-white/15 text-muted-foreground"
   }`;
 
 export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
@@ -374,6 +375,13 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
   };
 
   const finishSignIn = async () => {
+    const assurance = await getMfaAssuranceLevel();
+    if (assurance.currentLevel === "aal1" && assurance.nextLevel === "aal2") {
+      setAuthError("");
+      setStep("verify_mfa");
+      return;
+    }
+
     const profile = await fetchSignedInProfile();
     if (!profile) {
       showError("Signed in, but your profile could not be loaded. Please try again.");
@@ -541,14 +549,23 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         )}
 
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
-          <svg className="h-7 w-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <svg
+            className="h-7 w-7 text-cyan-300"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
             <circle cx="12" cy="12" r="4" />
             <ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-30 12 12)" />
           </svg>
         </div>
 
         {authError && (
-          <div role="alert" className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+          <div
+            role="alert"
+            className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400"
+          >
             <p>
               <LocalizedText text={authError} />
             </p>
@@ -563,10 +580,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   key={mode}
                   type="button"
                   onClick={() => handleTabSwitch(mode)}
-                  className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${authMode === mode
-                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
-                    : "text-muted-foreground hover:text-foreground"
-                    }`}
+                  className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
+                    authMode === mode
+                      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
                   <LocalizedText text={mode === "signin" ? "Sign In" : "Create Account"} />
                 </button>
@@ -575,7 +593,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
             <div className="text-center mb-6">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                <LocalizedText text={authMode === "signin" ? "Sign in to AgroSpace" : "Create your AgroSpace account"} />
+                <LocalizedText
+                  text={
+                    authMode === "signin" ? "Sign in to AgroSpace" : "Create your AgroSpace account"
+                  }
+                />
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 <LocalizedText
@@ -595,9 +617,33 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 onClick={() => handleSocialOAuth("google")}
                 className={`${providerButtonClass} border-[#8E918F]/40 bg-[#131314] text-[#E3E3E3] hover:brightness-125`}
               >
-                <svg aria-hidden="true" className="absolute left-4 h-[18px] w-[18px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" /><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z" /><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z" /><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" /></svg>
+                <svg
+                  aria-hidden="true"
+                  className="absolute left-4 h-[18px] w-[18px]"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    fill="#4285F4"
+                    d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
+                  />
+                </svg>
                 <span>
-                  <LocalizedText text={loadingOAuth === "google" ? "Opening Google…" : "Continue with Google"} />
+                  <LocalizedText
+                    text={loadingOAuth === "google" ? "Opening Google…" : "Continue with Google"}
+                  />
                 </span>
                 {lastUsed === "google" && (
                   <span className="absolute right-3 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">
@@ -612,14 +658,24 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 onClick={() => handleSocialOAuth("microsoft")}
                 className={`${providerButtonClass} border-white/10 bg-[#1e293b]/70 text-[#E3E3E3] hover:brightness-125`}
               >
-                <svg aria-hidden="true" className="absolute left-4 h-[18px] w-[18px]" viewBox="0 0 21 21">
+                <svg
+                  aria-hidden="true"
+                  className="absolute left-4 h-[18px] w-[18px]"
+                  viewBox="0 0 21 21"
+                >
                   <path fill="#f25022" d="M1 1h9v9H1z" />
                   <path fill="#00a4ef" d="M1 11h9v9H1z" />
                   <path fill="#7fba00" d="M11 1h9v9h-9z" />
                   <path fill="#ffb900" d="M11 11h9v9h-9z" />
                 </svg>
                 <span>
-                  <LocalizedText text={loadingOAuth === "microsoft" ? "Opening Microsoft…" : "Continue with Microsoft"} />
+                  <LocalizedText
+                    text={
+                      loadingOAuth === "microsoft"
+                        ? "Opening Microsoft…"
+                        : "Continue with Microsoft"
+                    }
+                  />
                 </span>
                 {lastUsed === "microsoft" && (
                   <span className="absolute right-3 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">
@@ -687,12 +743,26 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     title={passwordToggleLabel}
                     aria-label={passwordToggleLabel}
                   >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
                       {showPassword ? (
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
                       ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
                       )}
                     </svg>
                   </button>
@@ -708,9 +778,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   >
                     <LocalizedText
                       text={
-                        useOtpSignIn
-                          ? "Use password instead"
-                          : "Sign in with 6-digit email code"
+                        useOtpSignIn ? "Use password instead" : "Sign in with 6-digit email code"
                       }
                     />
                   </button>
@@ -749,8 +817,18 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         {step === "verify_otp" && (
           <div className="text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-400 border border-cyan-400/30">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-foreground">
@@ -775,7 +853,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   onPaste={(e) => {
-                    const text = e.clipboardData.getData("text").trim().replace(/\D/g, "").slice(0, 6);
+                    const text = e.clipboardData
+                      .getData("text")
+                      .trim()
+                      .replace(/\D/g, "")
+                      .slice(0, 6);
                     if (text.length > 0) {
                       e.preventDefault();
                       setOtpCode(text);
@@ -792,7 +874,9 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 disabled={otpCode.trim().length !== 6 || isVerifyingOtp}
                 className={primaryButtonClass(otpCode.trim().length === 6 && !isVerifyingOtp)}
               >
-                <LocalizedText text={isVerifyingOtp ? "Verifying code…" : "Verify Code & Continue"} />
+                <LocalizedText
+                  text={isVerifyingOtp ? "Verifying code…" : "Verify Code & Continue"}
+                />
               </button>
 
               <div className="flex flex-col gap-2 pt-2">
@@ -841,10 +925,18 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               placeholder={emailPlaceholder}
               className={inputClass}
             />
-            <button type="submit" disabled={!isEmailValid || isSubmitting} className={primaryButtonClass(isEmailValid && !isSubmitting)}>
+            <button
+              type="submit"
+              disabled={!isEmailValid || isSubmitting}
+              className={primaryButtonClass(isEmailValid && !isSubmitting)}
+            >
               <LocalizedText text={isSubmitting ? "Sending…" : "Send reset link"} />
             </button>
-            <button type="button" onClick={backToEntry} className="w-full min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
+            <button
+              type="button"
+              onClick={backToEntry}
+              className="w-full min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+            >
               <LocalizedText text="Back to sign in" />
             </button>
           </form>
@@ -860,10 +952,26 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
               <span className="font-mono text-cyan-300 break-all">{email.trim()}</span>,{" "}
               <LocalizedText text="you'll get a link to choose a new password." />
             </p>
-            <button type="button" onClick={backToEntry} className="mt-5 w-full min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer">
+            <button
+              type="button"
+              onClick={backToEntry}
+              className="mt-5 w-full min-h-11 text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+            >
               <LocalizedText text="Back to sign in" />
             </button>
           </div>
+        )}
+
+        {step === "verify_mfa" && (
+          <TwoFactorChallengeForm
+            email={email.trim() || undefined}
+            onVerified={finishSignIn}
+            onSignOut={async () => {
+              await signOut();
+              saveStoredUser(null);
+              backToEntry();
+            }}
+          />
         )}
 
         <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
