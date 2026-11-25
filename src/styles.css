@@ -1151,3 +1151,82 @@ html[data-theme="emerald-terra"] {
     border: 1px solid #f59e0b !important;
   }
 }
+
+/* ==========================================================================
+   Supabase Studio-Inspired Dark Developer Console Theme (.studio-shell)
+   ========================================================================== */
+.studio-shell {
+  --background: #121212;
+  --foreground: #ededed;
+  --card: #1c1c1c;
+  --card-foreground: #ededed;
+  --popover: #1c1c1c;
+  --popover-foreground: #ededed;
+  --primary: #3ecf8e;
+  --primary-foreground: #121212;
+  --secondary: #232323;
+  --secondary-foreground: #ededed;
+  --muted: #212121;
+  --muted-foreground: #8b8b8b;
+  --accent: #242424;
+  --accent-foreground: #ededed;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #3ecf8e;
+  --cyan: #3ecf8e;
+  --emerald: #3ecf8e;
+  --bracket: rgba(62, 207, 142, 0.45);
+  --shadow-hud: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-hud-glow: 0 0 0 1px rgba(62, 207, 142, 0.25);
+  background-color: #121212;
+  color: #ededed;
+  font-family: var(--font-sans);
+}
+
+.studio-shell .hud-card {
+  background-color: #1c1c1c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.studio-shell .hud-card::before {
+  display: none;
+}
+
+.studio-shell .hud-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.studio-shell .hud-label {
+  font-family: var(--font-sans);
+  letter-spacing: 0.04em;
+  color: #8b8b8b;
+}
+
+.studio-dot-grid {
+  background-color: #151515;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.studio-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.studio-scrollbar::-webkit-scrollbar-track {
+  background: #141414;
+}
+
+.studio-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+}
+
+.studio-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(62, 207, 142, 0.45);
+}

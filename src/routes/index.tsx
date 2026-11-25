@@ -1,9 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Radio, Satellite, RefreshCw, UserCheck } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { DashboardSidebar, TABS } from "@/components/agro/DashboardSidebar";
-import { CommandBar } from "@/components/agro/CommandBar";
+import { Globe2, MapPin, Plug, RefreshCw, Satellite, Sliders } from "lucide-react";
 import { GlobeContainer } from "@/components/agro/GlobeContainer";
 import { ForecastAtmospherePanel } from "@/components/hud/ZoomEarthSidebar";
 import type { BasemapStyle } from "@/components/map/MapLayerSwitcher";
@@ -12,27 +9,36 @@ import { AuthGate } from "@/components/auth/AuthGate";
 import { CosmicAuthPage } from "@/components/CosmicAuthPage";
 import { UserProfileModal } from "@/components/UserProfileModal";
 import type { UserProfile } from "@/types/userProfile";
-import { toast } from "sonner";
 import {
   PlantHealthRadar,
   PowerChart,
   SoilMoistureChart,
   WaterBudgetChart,
 } from "@/components/agro/TelemetryCharts";
-import { HazardMatrixSlot } from "@/components/agro/HazardMatrixSlot";
 import { CropEngineSlot } from "@/components/agro/CropEngineSlot";
 import { FieldShiftCropAdvisor } from "@/components/agro/FieldShiftCropAdvisor";
-import { GranuleInspector } from "@/components/agro/GranuleInspector";
 import { PlantPillarList } from "@/components/agro/PlantPillarList";
-import { SeverityChip } from "@/components/agro/hud";
 import { generateTelemetry } from "@/services/mockNasaTelemetry";
 import { fetchLiveTelemetry, type LiveApiStatus } from "@/services/nasaLiveApiService";
 import { AgroDecisionCard } from "@/components/agro/AgroDecisionCard";
 import { NasaMissionBriefModal } from "@/components/NasaMissionBriefModal";
 import { FarmerAdvisoryModal } from "@/components/HazardAlertCenter";
 import { GuidedTourOverlay, TOUR_STORAGE_KEY } from "@/components/tutorial/GuidedTourOverlay";
-import { VibeCosmicBackground } from "@/components/ui/VibeCosmicBackground";
-import { SpotlightCard } from "@/components/ui/SpotlightCard";
+import {
+  ConsoleTopBar,
+  ConsoleSidebarRail,
+  ConsoleOverviewView,
+  ConsoleHazardsView,
+  ConsoleServicesView,
+  ConsoleDataExplorerView,
+  ConsoleSettingsView,
+  CommandPaletteModal,
+  ConnectEndpointModal,
+  ConsoleHelpModal,
+  CONSOLE_NAV_ITEMS,
+  mapConsoleViewToDashboardTab,
+  type ConsoleView,
+} from "@/components/console";
 import {
   computeKoppenClimateZone,
   getStoredLocation,
@@ -41,15 +47,14 @@ import {
   saveStoredLocation,
   syncUrlCoords,
 } from "@/utils/preciseLocation";
-import type {
-  AgroTelemetry,
-  DashboardTab,
-  Irrigation,
-  MapLayer,
-  Scenario,
-  Season,
+import {
+  type AgroTelemetry,
+  type Irrigation,
+  type MapLayer,
+  type Scenario,
+  type Season,
 } from "@/types/agroSpace";
-import { LocalizedText } from "@/components/i18n/LocalizedText";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -111,29 +116,72 @@ function AgroSpaceDashboard({
   onUpdateUser,
   liveTarget,
 }: AgroSpaceDashboardProps) {
-  const isMobile = useIsMobile();
-  const [collapsed, setCollapsed] = useState(true);
-  const [isPinned, setIsPinned] = useState(false);
-  const [tab, setTab] = useState<DashboardTab>("overview");
+  const [activeView, setActiveView] = useState<ConsoleView>("overview");
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
-  // Keyboard shortcut listener for Tab or H (Toggle Orbital Dock)
+  const dashboardTab = mapConsoleViewToDashboardTab(activeView);
+
+  // Global keyboard shortcuts: Ctrl/Cmd+K (Command Palette) & G -> <key> view navigation
   useEffect(() => {
+    let awaitingChord = false;
+    let chordTimer: number | undefined;
+
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "Tab" || e.key.toLowerCase() === "h") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setCollapsed((c) => !c);
+        setCommandPaletteOpen((open) => !open);
+        return;
+      }
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (awaitingChord) {
+        awaitingChord = false;
+        if (chordTimer) window.clearTimeout(chordTimer);
+        const matched = CONSOLE_NAV_ITEMS.find((item) => item.chordKey === key);
+        if (matched) {
+          e.preventDefault();
+          setActiveView(matched.id);
+        }
+        return;
+      }
+
+      if (key === "g" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        awaitingChord = true;
+        chordTimer = window.setTimeout(() => {
+          awaitingChord = false;
+        }, 1200);
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      if (chordTimer) window.clearTimeout(chordTimer);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const handleMapInteraction = useCallback(() => {
-    if (!isPinned) {
-      setCollapsed(true);
-    }
-  }, [isPinned]);
+    setMobileDrawerOpen(false);
+  }, []);
+
+  const handleRefreshTelemetry = useCallback(() => {
+    setRefreshTick((t) => t + 1);
+    toast.success("Syncing NASA POWER & GIBS streams…");
+  }, []);
 
   const [lat, setLat] = useState(12.6622);
   const [lon, setLon] = useState(77.4503);
@@ -182,10 +230,6 @@ function AgroSpaceDashboard({
       setLocation(liveTarget.lat, liveTarget.lon, liveTarget.label);
     }
   }, [liveTarget]);
-
-  useEffect(() => {
-    if (isMobile) setCollapsed(true);
-  }, [isMobile]);
 
   // Synchronize initial location from URL query (?lat=...&lon=...) or localStorage
   useEffect(() => {
@@ -275,7 +319,7 @@ function AgroSpaceDashboard({
     const timer = window.setTimeout(() => {
       fetchLiveTelemetry(
         { lat, lon, borewellDepth, season, scenario, irrigation },
-        { signal: controller.signal, activeLayer, activeView: tab, lazyLayerOnly: true },
+        { signal: controller.signal, activeLayer, activeView: dashboardTab, lazyLayerOnly: true },
       )
         .then((res) => {
           if (!active) return;
@@ -295,7 +339,17 @@ function AgroSpaceDashboard({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [lat, lon, borewellDepth, season, scenario, irrigation, activeLayer, tab]);
+  }, [
+    lat,
+    lon,
+    borewellDepth,
+    season,
+    scenario,
+    irrigation,
+    activeLayer,
+    dashboardTab,
+    refreshTick,
+  ]);
 
   const baseTelemetry = liveTelemetry ?? fallbackTelemetry;
 
@@ -353,274 +407,356 @@ function AgroSpaceDashboard({
     saveStoredLocation(fixedLat, fixedLon, label);
     syncUrlCoords(fixedLat, fixedLon);
   };
+  const handleSetConsoleLocation = (
+    nextLat: number,
+    nextLon: number,
+    meta?: {
+      name?: string | undefined;
+      subtitle?: string | undefined;
+      elevationM?: number | undefined;
+      climateZone?: string | undefined;
+    },
+  ) => {
+    setLocation(nextLat, nextLon, meta?.name);
+    if (meta?.elevationM !== undefined || meta?.climateZone) {
+      setLocationMeta((prev) => ({
+        label:
+          meta?.name ||
+          prev?.label ||
+          `Field ${Math.abs(nextLat).toFixed(4)}°${nextLat >= 0 ? "N" : "S"}, ${Math.abs(nextLon).toFixed(4)}°${nextLon >= 0 ? "E" : "W"}`,
+        zone: meta?.climateZone ?? prev?.zone ?? computeKoppenClimateZone(nextLat, nextLon),
+        elevationM: meta?.elevationM ?? prev?.elevationM ?? 500,
+      }));
+    }
+  };
+
   const activeHazards = telemetry.hazards.filter(
     (h) => h.severity === "critical" || h.severity === "warning",
   ).length;
-  const tabLabel = TABS.find((t) => t.id === tab)?.label;
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full max-w-full overflow-x-hidden">
-      {/* GitHub + Linear + DeepMind GPU-Accelerated Cosmic Background */}
-      <VibeCosmicBackground />
+    <div className="studio-shell flex min-h-[100dvh] w-full max-w-full flex-col overflow-x-hidden bg-[#121212] text-[#ededed]">
+      <h1 className="sr-only">
+        AgroSpace Nexus — Precision Agriculture & Multi-Hazard Telemetry Console
+      </h1>
 
-      <DashboardSidebar
-        isMobile={isMobile}
-        collapsed={collapsed}
-        onToggle={() => setCollapsed((c) => !c)}
-        isPinned={isPinned}
-        onTogglePin={() => setIsPinned((p) => !p)}
-        tab={tab}
-        onTab={setTab}
+      <ConsoleTopBar
+        regionLabel={telemetry.meta.regionLabel}
         lat={lat}
         lon={lon}
-        onPreset={(p) => setLocation(p.lat, p.lon, p.name)}
+        scenario={scenario}
+        isLive={Boolean(liveStatus?.isLive)}
+        isLoadingLive={isLoadingLive}
         activeHazards={activeHazards}
-        operator={operator}
-        onOpenAuth={() => (operator ? setShowSettingsModal(true) : setShowAuthModal(true))}
-        onOpenSettings={() => setShowSettingsModal(true)}
+        user={operator}
+        onToggleMobileDrawer={() => setMobileDrawerOpen((open) => !open)}
+        onSelectPreset={(preset) => setLocation(preset.lat, preset.lon, preset.name)}
+        onNavigateView={setActiveView}
+        onOpenConnect={() => setConnectModalOpen(true)}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        onOpenHelp={() => setHelpModalOpen(true)}
+        onRefreshTelemetry={handleRefreshTelemetry}
+        onOpenAccountSettings={() => {
+          if (operator) setShowSettingsModal(true);
+          else setShowAuthModal(true);
+        }}
+        onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
+        onSignOut={() => {
+          setOperator(null);
+          onSignOut?.();
+        }}
       />
 
-      <main className="min-w-0 w-full flex-1 overflow-x-hidden pb-20 md:pb-0">
-        <h1 className="sr-only">
-          {<LocalizedText text={"AgroSpace Nexus — Precision Agriculture & Multi-Hazard HUD"} />}
-        </h1>
-        <CommandBar
-          isMobile={isMobile}
-          lat={lat}
-          lon={lon}
-          borewellDepth={borewellDepth}
-          irrigation={irrigation}
-          season={season}
-          scenario={scenario}
-          locationLabel={telemetry.meta.regionLabel}
-          onLocation={setLocation}
-          onDepth={setBorewellDepth}
-          onIrrigation={setIrrigation}
-          onSeason={setSeason}
-          onScenario={setScenario}
-          profile={operator}
-          onOpenAuth={() => setShowAuthModal(true)}
-          onOpenSettings={() => setShowSettingsModal(true)}
-          onOpenMissionBrief={() => setShowMissionBriefModal(true)}
-          onNavigateHome={(hLat, hLon, hLabel) => setLocation(hLat, hLon, hLabel)}
-          onUpdateUser={(updated) => {
-            setOperator(updated);
-            onUpdateUser?.(updated);
-          }}
-          onSignOut={() => {
-            setOperator(null);
-            onSignOut?.();
-          }}
-          onToggleSidebar={() => setCollapsed((c) => !c)}
-          sidebarCollapsed={collapsed}
-          plantHealthOverall={telemetry.plantHealth.overall}
-          elevationM={telemetry.meta.elevationM}
-          onOpenTour={() => setShowTour(true)}
-          onSearchDestination={(destination) => {
-            if (destination === "soil") setTab("groundwater");
-            if (destination === "satellite") {
-              setActiveLayer("NDVI");
-              setTab("overview");
-            }
-            if (destination === "hazards") setTab("hazards");
-            if (destination === "atmosphere") setTab("atmosphere");
-          }}
+      <div className="relative flex flex-1 min-h-0">
+        <ConsoleSidebarRail
+          activeView={activeView}
+          onSelectView={setActiveView}
+          activeHazards={activeHazards}
+          isLive={Boolean(liveStatus?.isLive)}
+          mobileOpen={mobileDrawerOpen}
+          onCloseMobile={() => setMobileDrawerOpen(false)}
+          onOpenConnect={() => setConnectModalOpen(true)}
+          onRefreshTelemetry={handleRefreshTelemetry}
         />
 
-        <div
-          className="min-w-0 space-y-2.5 p-2 sm:p-3 lg:p-4"
-          style={{ paddingLeft: isMobile ? 8 : collapsed ? 80 : 256 }}
-        >
-          <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(380px,0.8fr)] xl:items-start">
-          <GlobeContainer
-            telemetry={telemetry}
-            activeLayer={activeLayer}
-            onLayer={setActiveLayer}
-            opacity={opacity}
-            onOpacity={setOpacity}
-            onPick={setLocation}
-            onInteraction={handleMapInteraction}
-            activeBasemapStyle={mapBasemap}
-            onBasemapStyleChange={setMapBasemap}
-          />
-
-          <div className="grid min-w-0 content-start gap-3 xl:max-h-[min(820px,calc(100dvh-8rem))] xl:overflow-y-auto xl:pr-1 no-scrollbar">
-            {tab === "atmosphere" && (
-              <SpotlightCard className="min-w-0 border-cyan-500/20 bg-[#071120]/85 p-0 backdrop-blur-md">
-                <ForecastAtmospherePanel
-                  coordinates={{ lat, lon }}
-                  activeLayer={mapBasemap as ZoomEarthLayerId}
-                  onLayerChange={(layer) => setMapBasemap(layer as BasemapStyle)}
-                />
-              </SpotlightCard>
+        <main className="flex flex-1 min-w-0 flex-col pl-0 md:pl-[52px]">
+          <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
+            {activeView === "overview" && (
+              <ConsoleOverviewView
+                telemetry={telemetry}
+                liveStatus={liveStatus}
+                isLoadingLive={isLoadingLive}
+                activeHazards={activeHazards}
+                onNavigateView={setActiveView}
+                onOpenConnect={() => setConnectModalOpen(true)}
+              />
             )}
 
-            {/* AI Agronomic & Climate Decision Card */}
-            <div className="antigravity-float-3 min-w-0" data-tour="crop-decision-engine">
-              <AgroDecisionCard
-                telemetry={telemetry}
-                onExportReport={() => setShowAdvisoryReportModal(true)}
-              />
-            </div>
-          </div>
-          </div>
+            {activeView === "satellite-map" && (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-white/[0.08] pb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Globe2 className="size-4 text-[#3ecf8e]" />
+                      <h2 className="text-lg font-semibold tracking-tight text-[#ededed]">
+                        Satellite Map & Orbital Layers
+                      </h2>
+                      <span className="rounded border border-white/[0.1] bg-[#1c1c1c] px-2 py-0.5 font-mono text-[10px] text-[#3ecf8e]">
+                        {activeLayer}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#8b8b8b] mt-0.5">
+                      Interactive MapLibre 3D orbital globe / flat map projection with NASA GIBS
+                      WMTS overlays ({telemetry.meta.regionLabel}).
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#1c1c1c] px-2.5 py-1.5 font-mono text-[11px] text-[#8b8b8b]">
+                      <MapPin className="size-3 text-[#3ecf8e]" />
+                      {lat.toFixed(4)}, {lon.toFixed(4)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setConnectModalOpen(true)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.1] bg-[#1c1c1c] px-3 text-xs font-medium text-[#ededed] hover:bg-white/[0.06] cursor-pointer"
+                    >
+                      <Plug className="size-3.5 text-[#3ecf8e]" />
+                      <span>Set Target</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRefreshTelemetry}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#3ecf8e] px-3 text-xs font-semibold text-[#121212] hover:bg-[#24b47e] cursor-pointer"
+                    >
+                      <RefreshCw className={isLoadingLive ? "size-3.5 animate-spin" : "size-3.5"} />
+                      <span>Sync Layer</span>
+                    </button>
+                  </div>
+                </div>
 
-          {tab === "overview" && (
-            <>
-              <div className="grid min-w-0 gap-4 md:grid-cols-2">
-                <div className="antigravity-float-2">
-                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
-                    <PowerChart data={telemetry.power} />
-                  </SpotlightCard>
-                </div>
-                <div className="antigravity-float-3">
-                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
-                    <SoilMoistureChart
-                      data={telemetry.soil}
-                      depth={telemetry.input.borewellDepth}
-                    />
-                  </SpotlightCard>
-                </div>
-                <div className="antigravity-float-1">
-                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
-                    <PlantHealthRadar health={telemetry.plantHealth} />
-                  </SpotlightCard>
-                </div>
-                <div className="antigravity-float-2">
-                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
-                    <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
-                  </SpotlightCard>
-                </div>
-              </div>
-              <div className="grid min-w-0 gap-4 md:grid-cols-2">
-                <div className="antigravity-float-3">
-                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
-                    <HazardMatrixSlot
-                      hazards={telemetry.hazards}
+                <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.85fr)] xl:items-start">
+                  <div className="min-w-0 rounded-lg border border-white/[0.08] bg-[#171717] overflow-hidden">
+                    <GlobeContainer
                       telemetry={telemetry}
-                      variant="summary"
+                      activeLayer={activeLayer}
+                      onLayer={setActiveLayer}
+                      opacity={opacity}
+                      onOpacity={setOpacity}
+                      onPick={setLocation}
+                      onInteraction={handleMapInteraction}
+                      activeBasemapStyle={mapBasemap}
+                      onBasemapStyleChange={setMapBasemap}
                     />
-                  </SpotlightCard>
-                </div>
-                <div className="antigravity-float-1">
-                  <SpotlightCard className="p-0 border-white/10 bg-transparent">
-                    <CropEngineSlot crop={telemetry.crop} />
-                  </SpotlightCard>
-                </div>
-              </div>
-              <div className="antigravity-float-2">
-                <SpotlightCard className="p-0 border-white/10 bg-transparent">
-                  <FieldShiftCropAdvisor telemetry={telemetry} />
-                </SpotlightCard>
-              </div>
-            </>
-          )}
+                  </div>
 
-          {tab === "crop-atlas" && (
-            <div className="antigravity-float-1">
-              <FieldShiftCropAdvisor telemetry={telemetry} />
-            </div>
-          )}
-
-          {tab === "plant-health" && (
-            <div className="grid min-w-0 gap-4 md:grid-cols-2">
-              <PlantHealthRadar health={telemetry.plantHealth} tall />
-              <PlantPillarList health={telemetry.plantHealth} />
-              <div className="lg:col-span-2">
-                <PowerChart data={telemetry.power} />
-              </div>
-            </div>
-          )}
-
-          {tab === "groundwater" && (
-            <div className="space-y-4">
-              <div className="grid min-w-0 gap-4 md:grid-cols-2">
-                <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
-                <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
-                <div className="lg:col-span-2">
-                  <CropEngineSlot crop={telemetry.crop} />
+                  <div className="grid min-w-0 content-start gap-4 xl:max-h-[min(820px,calc(100dvh-10rem))] xl:overflow-y-auto xl:pr-1 studio-scrollbar">
+                    <div className="min-w-0 rounded-lg border border-white/[0.08] bg-[#1c1c1c] overflow-hidden">
+                      <ForecastAtmospherePanel
+                        coordinates={{ lat, lon }}
+                        activeLayer={mapBasemap as ZoomEarthLayerId}
+                        onLayerChange={(layer) => setMapBasemap(layer as BasemapStyle)}
+                      />
+                    </div>
+                    <div className="min-w-0" data-tour="crop-decision-engine">
+                      <AgroDecisionCard
+                        telemetry={telemetry}
+                        onExportReport={() => setShowAdvisoryReportModal(true)}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="antigravity-float-2">
+            )}
+
+            {activeView === "weather-soil" && (
+              <div className="space-y-6">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-white/[0.08] pb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold tracking-tight text-[#ededed]">
+                      Weather, Soil & Crop Hydrology
+                    </h2>
+                    <p className="text-xs text-[#8b8b8b]">
+                      NASA POWER climatology, multi-depth SMAP soil moisture ({borewellDepth}m
+                      borewell reach), and crop rotation intelligence.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveView("settings")}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.1] bg-[#1c1c1c] px-3 text-xs font-medium text-[#ededed] hover:bg-white/[0.06] cursor-pointer"
+                    >
+                      <Sliders className="size-3.5 text-[#3ecf8e]" />
+                      <span>Simulation Inputs</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvisoryReportModal(true)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#3ecf8e] px-3 text-xs font-semibold text-[#121212] hover:bg-[#24b47e] cursor-pointer"
+                    >
+                      <span>Export Bulletin</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid min-w-0 gap-4 md:grid-cols-2">
+                  <PowerChart data={telemetry.power} />
+                  <SoilMoistureChart data={telemetry.soil} depth={telemetry.input.borewellDepth} />
+                  <WaterBudgetChart data={telemetry.waterBudget} crop={telemetry.crop.crop} />
+                  <PlantHealthRadar health={telemetry.plantHealth} />
+                </div>
+
+                <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                  <PlantPillarList health={telemetry.plantHealth} />
+                  <AgroDecisionCard
+                    telemetry={telemetry}
+                    onExportReport={() => setShowAdvisoryReportModal(true)}
+                  />
+                </div>
+
+                <CropEngineSlot crop={telemetry.crop} />
                 <FieldShiftCropAdvisor telemetry={telemetry} />
               </div>
-            </div>
-          )}
+            )}
 
-          {tab === "hazards" && (
-            <HazardMatrixSlot hazards={telemetry.hazards} telemetry={telemetry} variant="full" />
-          )}
+            {activeView === "hazards" && (
+              <ConsoleHazardsView
+                telemetry={telemetry}
+                isLoadingLive={isLoadingLive}
+                onRefresh={handleRefreshTelemetry}
+                onExportAdvisory={() => setShowAdvisoryReportModal(true)}
+              />
+            )}
 
-          {tab === "granules" && <GranuleInspector telemetry={telemetry} />}
+            {activeView === "data-explorer" && (
+              <ConsoleDataExplorerView
+                telemetry={telemetry}
+                liveStatus={liveStatus}
+                onRefresh={handleRefreshTelemetry}
+              />
+            )}
 
-          {/* Live Telemetry Bottom Mission Tape (Google Stitch) */}
-          <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-xs mt-6 shadow-xl">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-cyan-300 font-bold uppercase tracking-wider">
-                {<LocalizedText text={"TELEMETRY STREAM:"} />}
-              </span>
-              <span className="text-foreground">
-                {<LocalizedText text={"SENTINEL-1 C-SAR PASS: 41.2° INCLINATION"} />}
-              </span>
-              <span className="hidden md:inline text-foreground">•</span>
-              <span className="hidden md:inline text-foreground">
-                {
-                  <LocalizedText
-                    text={"LANDSAT-9 OLI-2 / TIRS-2 THERMAL CALIBRATION: NOMINAL [0.03K DELTA]"}
-                  />
-                }
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-              <span className="text-foreground font-semibold">
-                {<LocalizedText text={"NASA-LANCE AG-INTEL READY"} />}
-              </span>
-            </div>
+            {activeView === "services" && (
+              <ConsoleServicesView
+                telemetry={telemetry}
+                liveStatus={liveStatus}
+                isLoadingLive={isLoadingLive}
+                onRefresh={handleRefreshTelemetry}
+                onOpenConnect={() => setConnectModalOpen(true)}
+              />
+            )}
+
+            {activeView === "settings" && (
+              <ConsoleSettingsView
+                lat={lat}
+                lon={lon}
+                regionLabel={telemetry.meta.regionLabel}
+                elevationM={telemetry.meta.elevationM}
+                climateZone={telemetry.meta.climateZone}
+                borewellDepth={borewellDepth}
+                irrigation={irrigation}
+                season={season}
+                scenario={scenario}
+                user={operator}
+                onSetLocation={handleSetConsoleLocation}
+                onBorewellDepthChange={setBorewellDepth}
+                onIrrigationChange={setIrrigation}
+                onSeasonChange={setSeason}
+                onScenarioChange={setScenario}
+                onOpenProfileModal={() => {
+                  if (operator) setShowSettingsModal(true);
+                  else setShowAuthModal(true);
+                }}
+                onOpenMissionBrief={() => setShowMissionBriefModal(true)}
+                onOpenTour={() => setShowTour(true)}
+                onSignOut={() => {
+                  setOperator(null);
+                  onSignOut?.();
+                }}
+              />
+            )}
           </div>
 
-          {/* Observatory Mission Footer (Google Stitch) */}
-          <footer className="w-full rounded-xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-xs">
-            <div>
-              {
-                <LocalizedText
-                  text={
-                    "AGROSPACE NEXUS • NASA EARTH OBSERVATION MISSION SYSTEM • EO-OPS-CORE-V4.9"
-                  }
-                />
-              }
-            </div>
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => setTab("overview")}
-                className="hover:text-cyan-300 transition-colors cursor-pointer"
-              >
-                {<LocalizedText text={"GLOBAL OBSERVATORY"} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("crop-atlas")}
-                className="hover:text-cyan-300 transition-colors cursor-pointer"
-              >
-                {<LocalizedText text={"CROP SHIFT"} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowMissionBriefModal(true)}
-                className="hover:text-cyan-300 transition-colors cursor-pointer"
-              >
-                {<LocalizedText text={"MISSION BRIEF"} />}
-              </button>
-              <span className="text-emerald-400 font-semibold">
-                {<LocalizedText text={"• ALL ORBITAL FEEDS NOMINAL"} />}
-              </span>
+          {/* Slim Console Status Footer */}
+          <footer className="mt-auto border-t border-white/[0.08] bg-[#171717] px-4 py-3 sm:px-6 lg:px-8">
+            <div className="mx-auto flex w-full max-w-[1440px] flex-col items-start justify-between gap-2 text-[11px] font-mono text-[#8b8b8b] sm:flex-row sm:items-center">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 text-[#ededed]">
+                  <span className="size-1.5 rounded-full bg-[#3ecf8e]" />
+                  AGROSPACE NEXUS CONSOLE
+                </span>
+                <span className="text-white/20">•</span>
+                <span>NASA POWER + GIBS EO-OPS</span>
+                <span className="text-white/20">•</span>
+                <span>
+                  {lat.toFixed(4)}, {lon.toFixed(4)}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveView("overview")}
+                  className="hover:text-[#ededed] transition-colors cursor-pointer"
+                >
+                  Overview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveView("satellite-map")}
+                  className="hover:text-[#ededed] transition-colors cursor-pointer"
+                >
+                  Satellite Map
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMissionBriefModal(true)}
+                  className="inline-flex items-center gap-1 hover:text-[#3ecf8e] transition-colors cursor-pointer"
+                >
+                  <Satellite className="size-3" />
+                  <span>Mission Brief</span>
+                </button>
+              </div>
             </div>
           </footer>
-        </div>
-      </main>
+        </main>
+      </div>
 
-      {/* Cosmic Parallax Auth Modal Overlay */}
+      {/* Console Command Palette, Endpoint Connect & Shortcuts Help */}
+      <CommandPaletteModal
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onNavigateView={setActiveView}
+        onSelectPreset={(preset) => setLocation(preset.lat, preset.lon, preset.name)}
+        onSelectPlace={handleSetConsoleLocation}
+        onRefreshTelemetry={handleRefreshTelemetry}
+        onOpenConnect={() => setConnectModalOpen(true)}
+        onOpenMissionBrief={() => setShowMissionBriefModal(true)}
+      />
+
+      <ConnectEndpointModal
+        open={connectModalOpen}
+        onClose={() => setConnectModalOpen(false)}
+        lat={lat}
+        lon={lon}
+        borewellDepth={borewellDepth}
+        irrigation={irrigation}
+        season={season}
+        scenario={scenario}
+        onSetLocation={handleSetConsoleLocation}
+        onBorewellDepthChange={setBorewellDepth}
+        onIrrigationChange={setIrrigation}
+        onSeasonChange={setSeason}
+        onScenarioChange={setScenario}
+      />
+
+      <ConsoleHelpModal
+        open={helpModalOpen}
+        onClose={() => setHelpModalOpen(false)}
+        onOpenMissionBrief={() => setShowMissionBriefModal(true)}
+        onStartTour={() => setShowTour(true)}
+      />
+
+      {/* Auth Modal Overlay */}
       {showAuthModal && (
         <div className="fixed inset-0 z-[9999] overflow-y-auto">
           <CosmicAuthPage
@@ -672,7 +808,7 @@ function AgroSpaceDashboard({
         />
       )}
 
-      {/* Interactive Vision-OS Spotlight Guided Tour Overlay */}
+      {/* Interactive Spotlight Guided Tour Overlay */}
       <GuidedTourOverlay
         isOpen={showTour}
         onClose={() => setShowTour(false)}

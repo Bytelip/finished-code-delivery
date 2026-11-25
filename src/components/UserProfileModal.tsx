@@ -142,10 +142,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-cyan-500/30 bg-[#070c18]/95 text-foreground shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(6,182,212,0.2)] backdrop-blur-2xl">
-        {/* Glowing Top Frame Accent */}
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-blue-500" />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-white/[0.08] bg-[#1c1c1c] text-[#ededed] shadow-[0_24px_60px_rgba(0,0,0,0.8)]">
+        {/* Top Accent */}
+        <div className="absolute inset-x-0 top-0 h-0.5 bg-[#3ecf8e]" />
 
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4.5">
@@ -662,13 +662,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl border border-white/15 px-4 py-2 font-mono text-xs font-semibold text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+                className="rounded-lg border border-white/[0.12] bg-[#171717] px-4 py-2 font-mono text-xs font-medium text-[#ededed] hover:bg-white/[0.06] transition-colors cursor-pointer"
               >
                 {<LocalizedText text={"Cancel"} />}
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-2 font-mono text-xs font-bold text-muted-foreground shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                className="flex items-center gap-2 rounded-lg bg-[#3ecf8e] px-5 py-2 font-mono text-xs font-semibold text-[#121212] hover:bg-[#24b47e] active:scale-[0.98] transition-all cursor-pointer"
               >
                 <Save className="size-3.5" />
                 <span>{<LocalizedText text={"Save Changes"} />}</span>
