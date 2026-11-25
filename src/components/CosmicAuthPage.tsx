@@ -15,7 +15,10 @@ import {
 } from "@/services/cloudAuth";
 import { toast } from "sonner";
 import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
-import { MISSING_SUPABASE_ENV_MESSAGE, isSupabaseConfigured } from "@/integrations/supabase/client";
+import {
+  MISSING_SUPABASE_ENV_MESSAGE,
+  isSupabaseConfigured,
+} from "@/integrations/supabase/client";
 
 // ==========================================
 // 1. TYPES & USER PROFILE MODEL
@@ -301,10 +304,9 @@ const inputClass =
 const providerButtonClass =
   "relative flex min-h-11 w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition disabled:opacity-50 cursor-pointer";
 const primaryButtonClass = (enabled: boolean) =>
-  `w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
-    enabled
-      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
-      : "cursor-not-allowed bg-white/15 text-muted-foreground"
+  `w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${enabled
+    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
+    : "cursor-not-allowed bg-white/15 text-muted-foreground"
   }`;
 
 export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
@@ -561,11 +563,10 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   key={mode}
                   type="button"
                   onClick={() => handleTabSwitch(mode)}
-                  className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
-                    authMode === mode
-                      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${authMode === mode
+                    ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
                 >
                   <LocalizedText text={mode === "signin" ? "Sign In" : "Create Account"} />
                 </button>
@@ -594,7 +595,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 onClick={() => handleSocialOAuth("google")}
                 className={`${providerButtonClass} border-[#8E918F]/40 bg-[#131314] text-[#E3E3E3] hover:brightness-125`}
               >
-                <svg aria-hidden="true" className="absolute left-4 h-[18px] w-[18px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
+                <svg aria-hidden="true" className="absolute left-4 h-[18px] w-[18px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" /><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z" /><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z" /><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" /></svg>
                 <span>
                   <LocalizedText text={loadingOAuth === "google" ? "Opening Google…" : "Continue with Google"} />
                 </span>

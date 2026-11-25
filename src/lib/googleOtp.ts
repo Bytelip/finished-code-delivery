@@ -1,14 +1,13 @@
-/** Google sign-ins must also pass a 6-digit email code before the dashboard opens. */
-export function sessionNeedsEmailCode(accessToken: string | undefined, provider: string | undefined): boolean {
-  if (provider !== "google" || !accessToken) return false;
-  try {
-    const part = accessToken.split(".")[1] ?? "";
-    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/"))) as {
-      amr?: Array<{ method?: string }>;
-    };
-    return !(json.amr ?? []).some((a) => a.method === "otp");
-  } catch {
-    return true;
-  }
+/**
+ * OAuth providers (Google and Microsoft/Azure) already verify email ownership, so OAuth
+ * sessions proceed directly to the dashboard without an extra inbox OTP prompt.
+ * Manual email sign-ups and passwordless email sign-ins enforce 6-digit OTP verification in CosmicAuthPage.
+ */
+export function sessionNeedsEmailCode(
+  _accessToken: string | undefined,
+  _provider: string | undefined,
+): boolean {
+  return false;
 }
+
 export const isSixDigitCode = (v: string) => /^\d{6}$/.test(v);

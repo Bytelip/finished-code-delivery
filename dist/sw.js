@@ -1,5 +1,5 @@
 // AgroSpace Nexus — PWA Offline & Demo Cache Service Worker
-const CACHE_NAME = 'agrospace-nexus-v2';
+const CACHE_NAME = 'agrospace-nexus-v3';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json',
