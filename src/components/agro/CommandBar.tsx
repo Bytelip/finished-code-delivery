@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { OperatorProfileDropdown } from "@/components/OperatorProfileDropdown";
-import { UserProfileNavbarWidget } from "@/components/CosmicAuthPage";
 import type { UserProfile } from "@/types/userProfile";
 import {
   BOREWELL_DEPTH_RANGE,
@@ -393,14 +392,54 @@ export function CommandBar({
   const railInset = isMobile ? 0 : sidebarCollapsed ? 80 : 256;
 
   const quickSearchSuggestions = [
-    { label: "Districts & villages", detail: "Find a place by name or pincode", icon: MapPin, action: "places" as const },
-    { label: "Agricultural fields", detail: "Open field target controls", icon: Crosshair, action: "coordinates" as const },
-    { label: "Latitude & longitude", detail: "Enter an exact map location", icon: Globe2, action: "coordinates" as const },
-    { label: "Farms by coordinates", detail: "Lock a farm using geographic coordinates", icon: MapPin, action: "coordinates" as const },
-    { label: "Soil conditions & moisture", detail: "View soil moisture and groundwater", icon: Droplets, action: "soil" as const },
-    { label: "Satellite imagery & vegetation", detail: "Explore satellite layers and vegetation indices", icon: Satellite, action: "satellite" as const },
-    { label: "Agricultural hazards", detail: "View active field hazard information", icon: AlertTriangle, action: "hazards" as const },
-    { label: "Weather information", detail: "Open forecast and atmosphere telemetry", icon: CloudSun, action: "atmosphere" as const },
+    {
+      label: "Districts & villages",
+      detail: "Find a place by name or pincode",
+      icon: MapPin,
+      action: "places" as const,
+    },
+    {
+      label: "Agricultural fields",
+      detail: "Open field target controls",
+      icon: Crosshair,
+      action: "coordinates" as const,
+    },
+    {
+      label: "Latitude & longitude",
+      detail: "Enter an exact map location",
+      icon: Globe2,
+      action: "coordinates" as const,
+    },
+    {
+      label: "Farms by coordinates",
+      detail: "Lock a farm using geographic coordinates",
+      icon: MapPin,
+      action: "coordinates" as const,
+    },
+    {
+      label: "Soil conditions & moisture",
+      detail: "View soil moisture and groundwater",
+      icon: Droplets,
+      action: "soil" as const,
+    },
+    {
+      label: "Satellite imagery & vegetation",
+      detail: "Explore satellite layers and vegetation indices",
+      icon: Satellite,
+      action: "satellite" as const,
+    },
+    {
+      label: "Agricultural hazards",
+      detail: "View active field hazard information",
+      icon: AlertTriangle,
+      action: "hazards" as const,
+    },
+    {
+      label: "Weather information",
+      detail: "Open forecast and atmosphere telemetry",
+      icon: CloudSun,
+      action: "atmosphere" as const,
+    },
   ];
 
   const handleQuickSearch = (action: (typeof quickSearchSuggestions)[number]["action"]) => {
@@ -480,27 +519,24 @@ export function CommandBar({
           </div>
         </div>
 
-        <div data-tour="top-right-controls" className="flex shrink-0 items-center justify-end gap-1 whitespace-nowrap sm:gap-1.5">
+        <div
+          data-tour="top-right-controls"
+          className="flex shrink-0 items-center justify-end gap-1 whitespace-nowrap sm:gap-1.5"
+        >
           <LanguageSelector compact />
-          <ThemeSwitcher variant="compact" className="border-white/10 bg-white/[0.04] hover:bg-white/[0.08]" />
+          <ThemeSwitcher
+            variant="compact"
+            className="border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
+          />
           <div className="shrink-0">
-            {profile ? (
-              <UserProfileNavbarWidget
-                user={profile}
-                onUpdateUser={(updated) => onUpdateUser?.(updated)}
-                onLogout={() => onSignOut?.()}
-                onNavigateHome={(locStr) => onNavigateHome?.(12.6622, 77.4503, locStr)}
-              />
-            ) : (
-              <OperatorProfileDropdown
-                profile={null}
-                compact
-                onOpenAuth={onOpenAuth || (() => {})}
-                onOpenSettings={onOpenSettings || (() => {})}
-                onNavigateHome={onNavigateHome}
-                onSignOut={onSignOut || (() => {})}
-              />
-            )}
+            <OperatorProfileDropdown
+              profile={profile ?? null}
+              compact={!profile}
+              onOpenAuth={onOpenAuth || (() => {})}
+              onOpenSettings={onOpenSettings || (() => {})}
+              onNavigateHome={onNavigateHome}
+              onSignOut={onSignOut || (() => {})}
+            />
           </div>
         </div>
       </div>
@@ -508,7 +544,9 @@ export function CommandBar({
       {/* Centered location and insight search */}
       <div
         className="w-full px-3 py-3 sm:px-4"
-        style={isMobile ? undefined : { marginLeft: railInset, width: `calc(100% - ${railInset}px)` }}
+        style={
+          isMobile ? undefined : { marginLeft: railInset, width: `calc(100% - ${railInset}px)` }
+        }
       >
         <div ref={searchContainerRef} className="relative mx-auto w-full max-w-4xl">
           <div className="group flex h-12 items-center gap-2 rounded-2xl border border-cyan-400/30 bg-[#071120]/90 px-3 shadow-[0_8px_28px_rgba(0,0,0,0.3)] backdrop-blur-xl transition-all duration-200 focus-within:border-cyan-300/70 focus-within:ring-2 focus-within:ring-cyan-400/15 focus-within:shadow-[0_0_24px_rgba(34,211,238,0.22)] sm:px-4">
@@ -601,7 +639,12 @@ export function CommandBar({
                     </span>
                     <span>Enter to lock</span>
                   </div>
-                  <ul id="agrospace-place-results" role="listbox" aria-label="Place search results" className="mt-1 divide-y divide-white/5">
+                  <ul
+                    id="agrospace-place-results"
+                    role="listbox"
+                    aria-label="Place search results"
+                    className="mt-1 divide-y divide-white/5"
+                  >
                     {searchResults.map((place, idx) => {
                       const isHighlighted = idx === selectedIndex;
                       return (
@@ -624,12 +667,16 @@ export function CommandBar({
                           <MapPin className="mt-0.5 size-4 shrink-0 text-cyan-300" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-2">
-                              <span className="truncate font-semibold text-foreground">{place.name}</span>
+                              <span className="truncate font-semibold text-foreground">
+                                {place.name}
+                              </span>
                               <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-cyan-200">
                                 {place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°
                               </span>
                             </div>
-                            <div className="truncate font-mono text-xs text-muted-foreground">{place.subtitle}</div>
+                            <div className="truncate font-mono text-xs text-muted-foreground">
+                              {place.subtitle}
+                            </div>
                           </div>
                         </li>
                       );
@@ -663,7 +710,9 @@ export function CommandBar({
                       <Icon className="size-4" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-xs font-semibold text-foreground">{label}</span>
+                      <span className="block truncate text-xs font-semibold text-foreground">
+                        {label}
+                      </span>
                       <span className="block truncate text-xs text-muted-foreground">{detail}</span>
                     </span>
                   </button>
@@ -791,7 +840,6 @@ export function CommandBar({
               )}
               {<LocalizedText text={"GPS"} />}
             </Button>
-
           </div>
 
           {/* Cluster 2: Borewell Depth, Irrigation, Season, Sim Scenario */}

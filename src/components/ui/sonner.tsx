@@ -12,13 +12,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-[#1c1c1c] group-[.toaster]:text-[#ededed] group-[.toaster]:border group-[.toaster]:border-white/[0.1] group-[.toaster]:rounded-lg group-[.toaster]:shadow-[0_14px_40px_rgba(0,0,0,0.7)] font-sans text-xs",
-          description: "group-[.toast]:text-[#8b8b8b] text-xs font-sans",
+            "group toast group-[.toaster]:bg-[#0B1324]/95 group-[.toaster]:backdrop-blur-2xl group-[.toaster]:text-cyan-300 group-[.toaster]:border group-[.toaster]:border-cyan-500/30 group-[.toaster]:rounded-xl group-[.toaster]:shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(6,182,212,0.25)] font-mono text-xs",
+          description: "group-[.toast]:text-foreground text-xs font-sans",
           actionButton:
-            "group-[.toast]:bg-[#3ecf8e] group-[.toast]:text-[#121212] font-semibold hover:group-[.toast]:bg-[#24b47e]",
-          cancelButton: "group-[.toast]:bg-[#262626] group-[.toast]:text-[#ededed]",
+            "group-[.toast]:bg-cyan-500 group-[.toast]:text-muted-foreground font-semibold",
+          cancelButton: "group-[.toast]:bg-slate-800 group-[.toast]:text-foreground",
           closeButton:
-            "group-[.toast]:bg-[#242424] group-[.toast]:text-[#ededed] group-[.toast]:border group-[.toast]:border-white/[0.1] group-[.toast]:hover:bg-[#2d2d2d]",
+            "group-[.toast]:bg-white/10 group-[.toast]:text-foreground group-[.toast]:border group-[.toast]:border-white/20 group-[.toast]:hover:bg-white/20",
         },
       }}
       {...props}

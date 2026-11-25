@@ -210,7 +210,7 @@ describe("Optional TOTP Two-Factor Authentication (2FA)", () => {
       .mockResolvedValueOnce({ data: { access_token: "aal2" }, error: null });
     mfaMocks.unenroll.mockResolvedValue({ data: { id: "factor-verified-1" }, error: null });
 
-    const { TwoFactorSettingsCard } = await import("@/components/console/TwoFactorSettingsCard");
+    const { TwoFactorSettingsCard } = await import("@/components/auth/TwoFactorSettingsCard");
     render(<TwoFactorSettingsCard />);
 
     await waitFor(() => {
@@ -350,6 +350,32 @@ describe("Optional TOTP Two-Factor Authentication (2FA)", () => {
 
     await waitFor(() => {
       expect(authClientMocks.signOut).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("renders TwoFactorSettingsCard inside the restored UserProfileModal Security & 2FA tab", async () => {
+    mockSupabaseClient();
+    mfaMocks.listFactors.mockResolvedValue({ data: { all: [], totp: [] }, error: null });
+
+    const { UserProfileModal } = await import("@/components/UserProfileModal");
+    const { createInitialProfile } = await import("@/types/userProfile");
+
+    render(
+      <UserProfileModal
+        profile={createInitialProfile("farmer@agrospace.io", "Google", "Farmer Asha")}
+        currentLat={13.1367}
+        currentLon={78.1292}
+        onSave={vi.fn()}
+        onSignOut={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Security & 2FA/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Two-Factor Authentication \(2FA\)/i)).toBeDefined();
+      expect(screen.getByRole("button", { name: /Enable 2FA/i })).toBeDefined();
     });
   });
 });
