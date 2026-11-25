@@ -12,7 +12,10 @@ export const Route = createFileRoute("/reset-password")({
       { title: "Choose a New Password — AgroSpace Nexus" },
       { name: "description", content: "Set a new password for your AgroSpace Nexus account." },
       { property: "og:title", content: "Choose a New Password — AgroSpace Nexus" },
-      { property: "og:description", content: "Set a new password for your AgroSpace Nexus account." },
+      {
+        property: "og:description",
+        content: "Set a new password for your AgroSpace Nexus account.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -39,7 +42,8 @@ function ResetPasswordRoute() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const valid = password.length >= MIN_PASSWORD_LENGTH && password.length <= 72 && password === confirm;
+  const valid =
+    password.length >= MIN_PASSWORD_LENGTH && password.length <= 72 && password === confirm;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,23 +59,23 @@ function ResetPasswordRoute() {
   };
 
   const inputClass =
-    "w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none";
+    "w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none";
 
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative my-4 w-[calc(100%-1.5rem)] max-w-md rounded-xl border border-white/15 bg-[#0B111E]/90 p-5 sm:mx-auto sm:p-8 backdrop-blur-2xl text-foreground">
+      <div className="relative my-4 w-[calc(100%-1.5rem)] max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] p-5 sm:mx-auto sm:p-8 backdrop-blur-2xl text-[var(--text-primary)] shadow-[var(--shadow-hud)]">
         <h1 className="text-center text-2xl font-semibold">
           <LocalizedText text="Choose a new password" />
         </h1>
         {!ready && linkChecked ? (
-          <div className="mt-4 text-center text-sm text-muted-foreground">
+          <div className="mt-4 text-center text-sm text-[var(--text-muted)]">
             <p>
               <LocalizedText text="This reset link is invalid or has expired. Request a new one from the sign-in page." />
             </p>
             <button
               type="button"
               onClick={() => navigate({ to: "/login" })}
-              className="mt-4 min-h-11 w-full rounded-xl border border-white/12 text-cyan-300 cursor-pointer"
+              className="mt-4 min-h-11 w-full rounded-xl border border-[var(--border-subtle)] text-[var(--accent)] hover:bg-[var(--accent-surface)] cursor-pointer transition-colors"
             >
               <LocalizedText text="Back to sign in" />
             </button>
@@ -79,7 +83,10 @@ function ResetPasswordRoute() {
         ) : (
           <form onSubmit={submit} className="mt-5 space-y-3">
             {error && (
-              <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+              <p
+                role="alert"
+                className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-[var(--status-danger)]"
+              >
                 <LocalizedText text={error} />
               </p>
             )}
@@ -112,8 +119,8 @@ function ResetPasswordRoute() {
               disabled={!valid || saving || !ready}
               className={`w-full rounded-xl py-3 text-sm font-semibold transition-all ${
                 valid && !saving && ready
-                  ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 cursor-pointer"
-                  : "cursor-not-allowed bg-white/15 text-muted-foreground"
+                  ? "bg-[var(--accent)] text-[var(--primary-foreground)] hover:brightness-110 cursor-pointer"
+                  : "cursor-not-allowed bg-[var(--secondary)] text-[var(--text-muted)]"
               }`}
             >
               <LocalizedText text={saving ? "Saving…" : "Save new password"} />

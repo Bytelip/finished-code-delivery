@@ -77,8 +77,8 @@ function CoordInput({
     setDraft(String(c));
   };
   return (
-    <label className="flex items-center gap-1.5 rounded-md border border-border/40 bg-card/60 px-2 py-1 shadow-inner focus-within:border-cyan/70 focus-within:shadow-[0_0_10px_rgba(0,240,255,0.25)] transition-all">
-      <span className="hud-label text-xs text-cyan-300 font-bold">{label}</span>
+    <label className="flex items-center gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2 py-1 shadow-inner focus-within:border-[var(--accent)] transition-all">
+      <span className="hud-label text-xs text-[var(--accent)] font-bold">{label}</span>
       <Input
         inputMode="decimal"
         aria-label={label === "Lat" ? "Latitude" : "Longitude"}
@@ -597,7 +597,7 @@ export function CommandBar({
                 }}
                 aria-label="Clear search"
                 title="Clear search"
-                className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-cyan-200"
+                className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-black/5 dark:hover:bg-white/5 hover:text-[var(--accent)]"
               >
                 <X className="size-3.5" />
               </button>
@@ -650,8 +650,8 @@ export function CommandBar({
               className={cn(
                 "grid size-7 shrink-0 place-items-center rounded-lg border transition-colors cursor-pointer",
                 isParamsDrawerOpen
-                  ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
-                  : "border-transparent text-muted-foreground hover:border-cyan-400/30 hover:bg-cyan-500/10 hover:text-cyan-200",
+                  ? "border-[var(--accent)]/50 bg-[var(--accent-surface)] text-[var(--accent)]"
+                  : "border-transparent text-[var(--text-muted)] hover:border-[var(--accent)]/35 hover:bg-[var(--accent-surface)] hover:text-[var(--accent)]",
               )}
             >
               <SlidersHorizontal className="size-3.5" />
@@ -680,8 +680,8 @@ export function CommandBar({
             >
               {searchResults.length > 0 && dropdownOpen && (
                 <div className="mb-2">
-                  <div className="flex items-center justify-between border-b border-white/10 px-2 py-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
-                    <span className="flex items-center gap-2 text-cyan-200">
+                  <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-2 py-2 font-mono text-xs uppercase tracking-wider text-[var(--text-muted)]">
+                    <span className="flex items-center gap-2 text-[var(--accent)]">
                       <Globe2 className="size-4" /> Places and coordinate matches
                     </span>
                     <span>Enter to lock</span>
@@ -690,7 +690,7 @@ export function CommandBar({
                     id="agrospace-place-results"
                     role="listbox"
                     aria-label="Place search results"
-                    className="mt-1 divide-y divide-white/5"
+                    className="mt-1 divide-y divide-[var(--border-subtle)]"
                   >
                     {searchResults.map((place, idx) => {
                       const isHighlighted = idx === selectedIndex;
@@ -707,21 +707,21 @@ export function CommandBar({
                           className={cn(
                             "flex cursor-pointer items-start gap-3 rounded-xl border border-transparent p-2.5 text-xs transition-all",
                             isHighlighted
-                              ? "border-cyan-400/30 bg-cyan-500/10 text-cyan-100"
-                              : "hover:bg-white/[0.04]",
+                              ? "border-[var(--accent)]/40 bg-[var(--accent-surface)] text-[var(--text-primary)]"
+                              : "hover:bg-black/5 dark:hover:bg-white/[0.04]",
                           )}
                         >
-                          <MapPin className="mt-0.5 size-4 shrink-0 text-cyan-300" />
+                          <MapPin className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-2">
-                              <span className="truncate font-semibold text-foreground">
+                              <span className="truncate font-semibold text-[var(--text-primary)]">
                                 {place.name}
                               </span>
-                              <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-cyan-200">
+                              <span className="shrink-0 font-mono text-xs font-bold tabular-nums text-[var(--accent)]">
                                 {place.lat.toFixed(4)}°, {place.lon.toFixed(4)}°
                               </span>
                             </div>
-                            <div className="truncate font-mono text-xs text-muted-foreground">
+                            <div className="truncate font-mono text-xs text-[var(--text-muted)]">
                               {place.subtitle}
                             </div>
                           </div>
@@ -733,15 +733,17 @@ export function CommandBar({
               )}
 
               {searching && searchQuery.trim().length >= 2 && (
-                <div className="px-2 py-2 font-mono text-xs text-cyan-200">Searching places…</div>
+                <div className="px-2 py-2 font-mono text-xs text-[var(--accent)]">
+                  Searching places…
+                </div>
               )}
               {!searching && searchQuery.trim().length >= 2 && searchResults.length === 0 && (
-                <div className="px-2 py-2 font-mono text-xs text-muted-foreground">
+                <div className="px-2 py-2 font-mono text-xs text-[var(--text-muted)]">
                   No place matches yet. Explore a dashboard section below or try coordinates.
                 </div>
               )}
 
-              <div className="px-2 pb-1 pt-2 font-mono text-xs font-semibold uppercase tracking-wider text-cyan-200">
+              <div className="px-2 pb-1 pt-2 font-mono text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
                 {searchQuery.trim().length < 2 ? "Search suggestions" : "Explore AgroSpace"}
               </div>
               <div className="grid gap-1 sm:grid-cols-2">
@@ -751,16 +753,18 @@ export function CommandBar({
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleQuickSearch(action)}
-                    className="flex min-w-0 items-center gap-3 rounded-xl border border-transparent px-2.5 py-2 text-left transition-colors hover:border-cyan-400/20 hover:bg-cyan-500/[0.07]"
+                    className="flex min-w-0 items-center gap-3 rounded-xl border border-transparent px-2.5 py-2 text-left transition-colors hover:border-[var(--accent)]/25 hover:bg-[var(--accent-surface)]"
                   >
-                    <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-cyan-400/20 bg-cyan-500/[0.08] text-cyan-300">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-[var(--accent)]/25 bg-[var(--accent-surface)] text-[var(--accent)]">
                       <Icon className="size-4" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-xs font-semibold text-foreground">
+                      <span className="block truncate text-xs font-semibold text-[var(--text-primary)]">
                         {label}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+                      <span className="block truncate text-xs text-[var(--text-muted)]">
+                        {detail}
+                      </span>
                     </span>
                   </button>
                 ))}
@@ -828,17 +832,17 @@ export function CommandBar({
             : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0",
         )}
       >
-        <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
+        <div className="flex items-center justify-between pb-2 mb-3 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal className="size-4 text-cyan-300" />
-            <span className="font-mono text-xs font-bold text-cyan-300 tracking-wider uppercase">
+            <SlidersHorizontal className="size-4 text-[var(--accent)]" />
+            <span className="font-mono text-xs font-bold text-[var(--accent)] tracking-wider uppercase">
               {<LocalizedText text={"Field Target & Simulation Parameters"} />}
             </span>
           </div>
           <button
             type="button"
             onClick={() => setIsParamsDrawerOpen(false)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20 text-foreground font-mono text-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[var(--secondary)] hover:bg-[var(--accent-surface)] text-[var(--text-primary)] font-mono text-xs transition-colors cursor-pointer"
             title="Close Parameters Drawer"
           >
             <X className="size-3.5" /> {t("done", "Done")}
@@ -854,7 +858,7 @@ export function CommandBar({
                   setIsParamsDrawerOpen(false);
                   onOpenMissionBrief();
                 }}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 font-mono text-xs text-cyan-200 hover:bg-cyan-500/20"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--accent)]/35 bg-[var(--accent-surface)] px-3 font-mono text-xs text-[var(--accent)] hover:brightness-110 cursor-pointer"
               >
                 <Rocket className="size-3.5" /> Mission Brief
               </button>
@@ -866,7 +870,7 @@ export function CommandBar({
                   setIsParamsDrawerOpen(false);
                   onOpenTour();
                 }}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 font-mono text-xs text-cyan-200 hover:bg-cyan-500/20"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--accent)]/35 bg-[var(--accent-surface)] px-3 font-mono text-xs text-[var(--accent)] hover:brightness-110 cursor-pointer"
               >
                 <GraduationCap className="size-3.5" /> Guided Tour
               </button>
@@ -929,9 +933,9 @@ export function CommandBar({
               title="Acquire multi-sample high-precision GPS lock"
             >
               {locating ? (
-                <Loader2 className="size-3 animate-spin mr-1 text-cyan-300" />
+                <Loader2 className="size-3 animate-spin mr-1 text-[var(--accent)]" />
               ) : (
-                <Crosshair className="size-3 mr-1 text-cyan-300 drop-shadow-[0_0_6px_#00f0ff]" />
+                <Crosshair className="size-3 mr-1 text-[var(--accent)]" />
               )}
               {<LocalizedText text={"GPS"} />}
             </Button>
@@ -946,7 +950,7 @@ export function CommandBar({
               title="Copy shareable link for current field coordinates"
             >
               {copiedShareLink ? (
-                <Check className="size-3 mr-1 text-emerald-400" />
+                <Check className="size-3 mr-1 text-[var(--status-ok)]" />
               ) : (
                 <Share2 className="size-3 mr-1 text-[var(--accent)]" />
               )}
@@ -967,7 +971,7 @@ export function CommandBar({
                 value={[borewellDepth]}
                 onValueChange={([v]) => v !== undefined && onDepth(v)}
               />
-              <span className="w-10 text-right font-mono text-xs font-bold tabular-nums text-cyan-300 drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
+              <span className="w-10 text-right font-mono text-xs font-bold tabular-nums text-[var(--accent)]">
                 {borewellDepth}
                 {<LocalizedText text={"m"} />}
               </span>

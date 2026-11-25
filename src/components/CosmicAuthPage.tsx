@@ -715,11 +715,11 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             </div>
 
             <div className="my-5 flex items-center gap-4">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-medium text-muted-foreground">
+              <div className="h-px flex-1 bg-[var(--border-subtle)]" />
+              <span className="text-xs font-medium text-[var(--text-muted)]">
                 <LocalizedText text="Or" />
               </span>
-              <div className="h-px flex-1 bg-white/10" />
+              <div className="h-px flex-1 bg-[var(--border-subtle)]" />
             </div>
 
             <form onSubmit={handleEmailPasswordSubmit} className="space-y-3">
@@ -768,7 +768,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     type="button"
                     tabIndex={-1}
                     onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 p-1 text-muted-foreground hover:text-cyan-300 transition-colors cursor-pointer"
+                    className="absolute right-3 p-1 text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
                     title={passwordToggleLabel}
                     aria-label={passwordToggleLabel}
                   >
@@ -863,9 +863,12 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             <h2 className="text-xl font-semibold text-foreground">
               <LocalizedText text="Verify Your Email" />
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-[var(--text-muted)]">
               <LocalizedText text="We sent a 6-digit verification code to" />{" "}
-              <span className="font-mono font-medium text-cyan-300 break-all">{email.trim()}</span>.{" "}
+              <span className="font-mono font-medium text-[var(--accent)] break-all">
+                {email.trim()}
+              </span>
+              .{" "}
               <LocalizedText text="Enter the code to verify ownership and access your dashboard." />
             </p>
 
@@ -894,7 +897,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   type="button"
                   onClick={handleResend}
                   disabled={resendCooldown > 0 || isSubmitting}
-                  className="min-h-10 rounded-lg border border-white/10 text-xs font-medium text-cyan-300 hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  className="min-h-10 rounded-lg border border-[var(--border-subtle)] text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent-surface)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
                 >
                   {resendCooldown > 0 ? (
                     `Resend code in ${resendCooldown}s`

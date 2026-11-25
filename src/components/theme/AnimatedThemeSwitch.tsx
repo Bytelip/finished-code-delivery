@@ -9,10 +9,17 @@ export interface AnimatedThemeSwitchProps {
   className?: string;
 }
 
+interface ViewTransitionLike {
+  ready: Promise<void>;
+  finished?: Promise<void>;
+  skipTransition?: () => void;
+}
+
 export const AnimatedThemeSwitch: React.FC<AnimatedThemeSwitchProps> = ({ className }) => {
   const { mode, toggleMode } = useTheme();
   const isDark = mode === "dark";
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const activeTransitionRef = useRef<ViewTransitionLike | null>(null);
 
   const handleToggle = () => {
     const prefersReducedMotion =
@@ -23,13 +30,23 @@ export const AnimatedThemeSwitch: React.FC<AnimatedThemeSwitchProps> = ({ classN
     const docWithTransition =
       typeof document !== "undefined"
         ? (document as Document & {
-            startViewTransition?: (cb: () => void) => { ready: Promise<void> };
+            startViewTransition?: (cb: () => void) => ViewTransitionLike;
           })
         : null;
 
     if (!docWithTransition?.startViewTransition || prefersReducedMotion || !buttonRef.current) {
       toggleMode();
       return;
+    }
+
+    // Cancel any overlapping ripple cleanly so rapid double-clicks never throw or flicker
+    if (activeTransitionRef.current) {
+      try {
+        activeTransitionRef.current.skipTransition?.();
+      } catch {
+        // ignore if already finished
+      }
+      activeTransitionRef.current = null;
     }
 
     const rect = buttonRef.current.getBoundingClientRect();
@@ -40,17 +57,42 @@ export const AnimatedThemeSwitch: React.FC<AnimatedThemeSwitchProps> = ({ classN
       Math.max(y, window.innerHeight - y),
     );
 
+    const root = document.documentElement;
+    // Pause CSS transitions during snapshot capture so ::view-transition-new(root) captures final theme colors immediately
+    root.classList.add("theme-transitioning");
+    let fallbackTimer: number | undefined;
+
     try {
       const transition = docWithTransition.startViewTransition(() => {
         flushSync(() => {
           toggleMode();
         });
       });
+      activeTransitionRef.current = transition;
+
+      if (typeof window !== "undefined") {
+        fallbackTimer = window.setTimeout(() => {
+          root.classList.remove("theme-transitioning");
+          if (activeTransitionRef.current === transition) {
+            activeTransitionRef.current = null;
+          }
+        }, 650);
+      }
+
+      const cleanup = () => {
+        if (fallbackTimer !== undefined && typeof window !== "undefined") {
+          window.clearTimeout(fallbackTimer);
+        }
+        root.classList.remove("theme-transitioning");
+        if (activeTransitionRef.current === transition) {
+          activeTransitionRef.current = null;
+        }
+      };
 
       void transition.ready
         .then(() => {
           if (typeof document.documentElement.animate === "function") {
-            document.documentElement.animate(
+            const anim = document.documentElement.animate(
               {
                 clipPath: [
                   `circle(0px at ${x}px ${y}px)`,
@@ -63,10 +105,29 @@ export const AnimatedThemeSwitch: React.FC<AnimatedThemeSwitchProps> = ({ classN
                 pseudoElement: "::view-transition-new(root)",
               },
             );
+            if (
+              !transition.finished &&
+              anim &&
+              typeof (anim as Animation).finished?.then === "function"
+            ) {
+              void (anim as Animation).finished.then(cleanup, cleanup);
+            } else if (!transition.finished) {
+              cleanup();
+            }
+          } else if (!transition.finished) {
+            cleanup();
           }
         })
-        .catch(() => undefined);
+        .catch(cleanup);
+
+      if (transition.finished && typeof transition.finished.then === "function") {
+        void transition.finished.then(cleanup, cleanup);
+      }
     } catch {
+      root.classList.remove("theme-transitioning");
+      if (fallbackTimer !== undefined && typeof window !== "undefined") {
+        window.clearTimeout(fallbackTimer);
+      }
       toggleMode();
     }
   };

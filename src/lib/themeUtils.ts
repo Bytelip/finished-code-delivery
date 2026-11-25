@@ -337,8 +337,19 @@ export function deriveThemeCssVars(
   const preset = PRESET_MODE_PALETTES[baseTheme][mode];
 
   const effectiveAccent = config.accent ?? preset.accent;
-  const effectiveCanvas = config.canvas ?? preset.canvas;
-  const effectiveSurface = config.surface ?? preset.surface;
+
+  // Mode polarity guard: only apply a custom canvas/surface override if its luminance aligns
+  // with the active Dark (< 0.45) or Light (>= 0.45) mode so toggling Light <-> Dark never sticks.
+  const canvasLum = config.canvas ? relativeLuminance(config.canvas) : null;
+  const customCanvasApplies =
+    canvasLum !== null && (mode === "dark" ? canvasLum < 0.45 : canvasLum >= 0.45);
+  const effectiveCanvas = customCanvasApplies && config.canvas ? config.canvas : preset.canvas;
+
+  const surfaceLumOverride = config.surface ? relativeLuminance(config.surface) : null;
+  const customSurfaceApplies =
+    surfaceLumOverride !== null &&
+    (mode === "dark" ? surfaceLumOverride < 0.45 : surfaceLumOverride >= 0.45);
+  const effectiveSurface = customSurfaceApplies && config.surface ? config.surface : preset.surface;
 
   const primaryFg = pickReadableForeground(effectiveAccent);
   const surfaceLum = relativeLuminance(effectiveSurface);
@@ -346,7 +357,7 @@ export function deriveThemeCssVars(
 
   const baseTextCandidate =
     config.textOverride ??
-    (config.surface || config.canvas
+    (customSurfaceApplies || customCanvasApplies
       ? surfaceIsDark
         ? "#F1F5F9"
         : "#0F172A"
@@ -381,18 +392,20 @@ export function deriveThemeCssVars(
     vars["--input"] = vars["--border-subtle"];
   }
 
-  if (config.canvas) {
+  if (customCanvasApplies && config.canvas) {
     vars["--bg-canvas"] = effectiveCanvas;
     vars["--background"] = effectiveCanvas;
     vars["--bg-primary"] = effectiveCanvas;
   }
 
-  if (
-    config.surface ||
-    Math.abs(config.glassOpacity - DEFAULT_CUSTOM_THEME_CONFIG.glassOpacity) > 0.005
-  ) {
-    vars["--bg-surface"] = effectiveSurface;
-    vars["--popover"] = effectiveSurface;
+  const glassOpacityModified =
+    Math.abs(config.glassOpacity - DEFAULT_CUSTOM_THEME_CONFIG.glassOpacity) > 0.005;
+
+  if (customSurfaceApplies || glassOpacityModified) {
+    if (customSurfaceApplies) {
+      vars["--bg-surface"] = effectiveSurface;
+      vars["--popover"] = effectiveSurface;
+    }
     const glass = rgbaFromHex(effectiveSurface, config.glassOpacity);
     vars["--bg-glass"] = glass;
     vars["--card"] = glass;
@@ -400,7 +413,7 @@ export function deriveThemeCssVars(
     vars["--sidebar"] = glass;
   }
 
-  if (config.textOverride || config.surface || config.canvas) {
+  if (config.textOverride || customSurfaceApplies || customCanvasApplies) {
     vars["--text-primary"] = guardedText.hex;
     vars["--foreground"] = guardedText.hex;
     vars["--card-foreground"] = guardedText.hex;

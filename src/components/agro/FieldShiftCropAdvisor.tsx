@@ -877,7 +877,7 @@ export function FieldShiftCropAdvisor({
               <select
                 value={targetCropId}
                 onChange={(e) => setTargetCropId(e.target.value)}
-                className="w-full bg-[#081224] border border-cyan-400/50 rounded-md px-2.5 py-1.5 font-mono text-xs font-semibold text-cyan-300 focus:outline-none focus:border-cyan"
+                className="w-full bg-[var(--bg-surface)] border border-[var(--accent)]/50 rounded-md px-2.5 py-1.5 font-mono text-xs font-semibold text-[var(--accent)] focus:outline-none focus:border-[var(--accent)]"
               >
                 {filteredCrops.slice(0, 15).map((c) => (
                   <option key={c.id} value={c.id}>
@@ -895,16 +895,16 @@ export function FieldShiftCropAdvisor({
             </div>
 
             {/* Water Savings Metric */}
-            <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-500/40 bg-emerald-950/20 p-3 flex flex-col justify-between">
-              <div className="text-xs font-mono text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                <TrendingUp className="size-3 shrink-0 text-emerald-400" />{" "}
+            <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 flex flex-col justify-between">
+              <div className="text-xs font-mono text-[var(--status-ok)] uppercase tracking-wider flex items-center gap-1">
+                <TrendingUp className="size-3 shrink-0 text-[var(--status-ok)]" />{" "}
                 {<LocalizedText text={" Water-Use Efficiency"} />}
               </div>
               <div className="mt-1">
-                <div className="font-mono text-lg sm:text-2xl font-extrabold tabular-nums text-emerald-400 drop-shadow-[0_0_10px_rgba(0,255,157,0.4)]">
+                <div className="font-mono text-lg sm:text-2xl font-extrabold tabular-nums text-[var(--status-ok)]">
                   +{Math.round(waterSavingsPct)}%
                 </div>
-                <div className="text-xs font-mono text-emerald-400 break-words">
+                <div className="text-xs font-mono text-[var(--status-ok)] break-words">
                   {<LocalizedText text={"Saves "} />}
                   {Math.round(waterSavingsMm)} {<LocalizedText text={" mm groundwater/ha"} />}
                 </div>
@@ -912,16 +912,16 @@ export function FieldShiftCropAdvisor({
             </div>
 
             {/* Capital / Upkeep Safety Metric */}
-            <div className="min-w-0 overflow-hidden rounded-lg border border-cyan-500/40 bg-cyan-950/20 p-3 flex flex-col justify-between">
-              <div className="text-xs font-mono text-cyan-300 uppercase tracking-wider flex items-center gap-1">
-                <ShieldCheck className="size-3 shrink-0 text-cyan-300" />{" "}
+            <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--accent)]/40 bg-[var(--accent-surface)] p-3 flex flex-col justify-between">
+              <div className="text-xs font-mono text-[var(--accent)] uppercase tracking-wider flex items-center gap-1">
+                <ShieldCheck className="size-3 shrink-0 text-[var(--accent)]" />{" "}
                 {<LocalizedText text={" Capital & Debt Safety"} />}
               </div>
               <div className="mt-1">
-                <div className="font-mono text-lg sm:text-2xl font-extrabold tabular-nums text-cyan-300 drop-shadow-[0_0_10px_rgba(0,240,255,0.4)]">
+                <div className="font-mono text-lg sm:text-2xl font-extrabold tabular-nums text-[var(--accent)]">
                   +{Math.round(capitalSafetyGain > 0 ? capitalSafetyGain : 35)}%
                 </div>
-                <div className="text-xs font-mono text-cyan-300">
+                <div className="text-xs font-mono text-[var(--accent)]">
                   {<LocalizedText text={"Reduced fertilizer/pumping risks"} />}
                 </div>
               </div>
@@ -930,7 +930,7 @@ export function FieldShiftCropAdvisor({
         </div>
 
         {/* ---------------- SMART 3-SEASON CROP ROTATION STRIP (KHARIF -> RABI -> ZAID) ---------------- */}
-        <div className="mt-6 rounded-lg border border-border/50 bg-[#061021]/80 p-4 backdrop-blur-md">
+        <div className="mt-6 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] p-4 backdrop-blur-md">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3">
             <div className="flex items-center gap-2">
               <Sprout className="size-4 text-emerald-400" />

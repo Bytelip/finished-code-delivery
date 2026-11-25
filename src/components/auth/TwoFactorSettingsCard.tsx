@@ -178,7 +178,7 @@ export const TwoFactorSettingsCard: React.FC = () => {
     <>
       <section
         aria-label="Two-Factor Authentication Security"
-        className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3"
+        className="rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.03] p-4 space-y-3"
       >
         <div className="flex flex-wrap items-start justify-between gap-2.5">
           <div className="flex items-start gap-2.5">
@@ -186,8 +186,8 @@ export const TwoFactorSettingsCard: React.FC = () => {
               className={cn(
                 "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border",
                 isEnabled
-                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-400"
-                  : "border-white/15 bg-white/[0.04] text-cyan-300",
+                  ? "border-emerald-500/40 bg-emerald-500/15 text-[var(--status-ok)]"
+                  : "border-[var(--border-subtle)] bg-[var(--accent-surface)] text-[var(--accent)]",
               )}
             >
               <KeyRound className="size-4" />
@@ -229,7 +229,7 @@ export const TwoFactorSettingsCard: React.FC = () => {
 
         {isEnabled && activeFactor ? (
           <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2.5 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border-subtle)] bg-black/5 dark:bg-black/30 px-3 py-2.5 text-xs">
               <div className="flex items-center gap-2.5 min-w-0">
                 <Smartphone className="size-4 shrink-0 text-emerald-400" />
                 <div className="min-w-0">
@@ -261,15 +261,15 @@ export const TwoFactorSettingsCard: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/30 px-3 py-2.5 text-xs">
-            <span className="text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-black/5 dark:bg-black/30 px-3 py-2.5 text-xs">
+            <span className="text-[var(--text-muted)]">
               <LocalizedText text="Use Google Authenticator, 1Password, Microsoft Authenticator, or Authy." />
             </span>
             <button
               type="button"
               disabled={loading}
               onClick={() => void handleOpenEnroll()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-400 to-blue-500 px-3.5 font-mono text-xs font-bold text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3.5 font-mono text-xs font-bold text-[var(--primary-foreground)] shadow-sm hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer shrink-0"
             >
               <ShieldCheck className="size-3.5" />
               <span>Enable 2FA</span>
@@ -292,16 +292,16 @@ export const TwoFactorSettingsCard: React.FC = () => {
               className="w-full max-w-[calc(100vw-1.5rem)] sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] overflow-x-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-3.5">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-cyan-300" />
+                  <ShieldCheck className="size-4 text-[var(--accent)]" />
                   <h3 className="text-sm font-semibold">Set Up Authenticator App</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => void handleCloseEnroll()}
                   aria-label="Close 2FA setup"
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground cursor-pointer"
+                  className="rounded-lg p-1 text-[var(--text-muted)] hover:bg-black/5 dark:hover:bg-white/10 hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   <X className="size-4" />
                 </button>
@@ -389,18 +389,18 @@ export const TwoFactorSettingsCard: React.FC = () => {
                           />
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+                        <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
                           <button
                             type="button"
                             onClick={() => void handleCloseEnroll()}
-                            className="h-8 rounded-lg border border-white/15 bg-white/[0.04] px-3 font-mono font-medium text-foreground hover:bg-white/10 cursor-pointer"
+                            className="h-8 rounded-lg border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.04] px-3 font-mono font-medium text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
                           >
                             Cancel
                           </button>
                           <button
                             type="submit"
                             disabled={totpCode.length !== 6 || verifying}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-400 to-blue-500 px-4 font-mono font-bold text-slate-950 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 font-mono font-bold text-[var(--primary-foreground)] hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           >
                             {verifying && <Loader2 className="size-3.5 animate-spin" />}
                             <span>{verifying ? "Verifying…" : "Verify & Enable"}</span>
@@ -429,9 +429,9 @@ export const TwoFactorSettingsCard: React.FC = () => {
               className="w-full max-w-sm rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-3.5">
                 <div className="flex items-center gap-2">
-                  <ShieldAlert className="size-4 text-rose-400" />
+                  <ShieldAlert className="size-4 text-[var(--status-danger)]" />
                   <h3 className="text-sm font-semibold">Disable Two-Factor Authentication</h3>
                 </div>
                 <button
@@ -439,7 +439,7 @@ export const TwoFactorSettingsCard: React.FC = () => {
                   disabled={disabling}
                   onClick={() => setDisableTarget(null)}
                   aria-label="Close confirmation"
-                  className="rounded-lg p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground cursor-pointer"
+                  className="rounded-lg p-1 text-[var(--text-muted)] hover:bg-black/5 dark:hover:bg-white/10 hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   <X className="size-4" />
                 </button>
@@ -463,12 +463,12 @@ export const TwoFactorSettingsCard: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+                <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
                   <button
                     type="button"
                     disabled={disabling}
                     onClick={() => setDisableTarget(null)}
-                    className="h-8 rounded-lg border border-white/15 bg-white/[0.04] px-3 font-mono font-medium text-foreground hover:bg-white/10 cursor-pointer"
+                    className="h-8 rounded-lg border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.04] px-3 font-mono font-medium text-[var(--text-primary)] hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
                   >
                     Cancel
                   </button>

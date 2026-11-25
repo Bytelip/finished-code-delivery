@@ -1,4 +1,13 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   applyCustomThemeCssVars,
   clearCustomThemeCssVars,
@@ -93,10 +102,13 @@ export const THEME_CONFIGS: ThemeConfig[] = [
 
 const VALID_THEME_IDS: ReadonlyArray<ThemeId> = THEME_CONFIGS.map((t) => t.id);
 
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export function applyThemeToDocument(themeId: ThemeId, mode: ThemeMode): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   root.setAttribute("data-theme", themeId);
+  root.setAttribute("data-mode", mode);
   if (mode === "light") {
     root.classList.remove("dark");
     root.classList.add("light");
@@ -165,8 +177,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [activeCustomThemeId, setActiveCustomThemeId] = useState<string | null>(null);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
 
-  // Hydrate persisted preset, mode & custom theme overrides cleanly on client mount
-  useEffect(() => {
+  // Refs guarantee synchronous reads inside flushSync / rapid ViewTransition double-clicks
+  const themeRef = useRef<ThemeId>(theme);
+  const modeRef = useRef<ThemeMode>(mode);
+  const customConfigRef = useRef<CustomThemeConfig>(customConfig);
+  themeRef.current = theme;
+  modeRef.current = mode;
+  customConfigRef.current = customConfig;
+
+  // Hydrate persisted preset, mode & custom theme overrides before paint on client mount
+  useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") return;
     let initialTheme: ThemeId = "orbital-emerald";
     let initialMode: ThemeMode = "dark";
@@ -213,6 +233,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Ignore storage errors
     }
 
+    themeRef.current = initialTheme;
+    modeRef.current = initialMode;
+    customConfigRef.current = initialCustom;
+
     setThemeState(initialTheme);
     setModeState(initialMode);
     setCustomConfig(initialCustom);
@@ -243,52 +267,55 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = useCallback(
     (id: ThemeId) => {
+      themeRef.current = id;
       setThemeState(id);
       setActiveCustomThemeId(null);
       safeWriteStorage(THEME_STORAGE_KEY, id);
       safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
-      syncCustomToDom(id, mode, customConfig);
+      syncCustomToDom(id, modeRef.current, customConfigRef.current);
     },
-    [mode, customConfig, syncCustomToDom],
+    [syncCustomToDom],
   );
 
   const setMode = useCallback(
     (nextMode: ThemeMode) => {
+      modeRef.current = nextMode;
       setModeState(nextMode);
       safeWriteStorage(MODE_STORAGE_KEY, nextMode);
-      syncCustomToDom(theme, nextMode, customConfig);
+      syncCustomToDom(themeRef.current, nextMode, customConfigRef.current);
     },
-    [theme, customConfig, syncCustomToDom],
+    [syncCustomToDom],
   );
 
   const toggleMode = useCallback(() => {
-    const nextMode: ThemeMode = mode === "dark" ? "light" : "dark";
+    const nextMode: ThemeMode = modeRef.current === "dark" ? "light" : "dark";
+    modeRef.current = nextMode;
     setModeState(nextMode);
     safeWriteStorage(MODE_STORAGE_KEY, nextMode);
-    syncCustomToDom(theme, nextMode, customConfig);
-  }, [mode, theme, customConfig, syncCustomToDom]);
+    syncCustomToDom(themeRef.current, nextMode, customConfigRef.current);
+  }, [syncCustomToDom]);
 
   const updateCustomConfig = useCallback(
     (patch: Partial<CustomThemeConfig>) => {
-      setCustomConfig((prev) => {
-        const merged = sanitizeCustomThemeConfig({ ...prev, ...patch });
-        setActiveCustomThemeId(null);
-        safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
-        syncCustomToDom(theme, mode, merged);
-        return merged;
-      });
+      const merged = sanitizeCustomThemeConfig({ ...customConfigRef.current, ...patch });
+      customConfigRef.current = merged;
+      setCustomConfig(merged);
+      setActiveCustomThemeId(null);
+      safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
+      syncCustomToDom(themeRef.current, modeRef.current, merged);
     },
-    [theme, mode, syncCustomToDom],
+    [syncCustomToDom],
   );
 
   const resetCustomConfig = useCallback(() => {
+    customConfigRef.current = DEFAULT_CUSTOM_THEME_CONFIG;
     setCustomConfig(DEFAULT_CUSTOM_THEME_CONFIG);
     setActiveCustomThemeId(null);
     safeWriteStorage(CUSTOM_DRAFT_STORAGE_KEY, null);
     safeWriteStorage(CUSTOM_ACTIVE_ID_STORAGE_KEY, null);
     clearCustomThemeCssVars();
-    applyThemeToDocument(theme, mode);
-  }, [theme, mode]);
+    applyThemeToDocument(themeRef.current, modeRef.current);
+  }, []);
 
   const saveCustomTheme = useCallback(
     (name: string): SavedCustomTheme => {

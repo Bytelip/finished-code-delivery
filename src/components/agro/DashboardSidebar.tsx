@@ -102,17 +102,17 @@ export function DashboardSidebar({
       {/* Station Brand Header & Pin Control */}
       <div
         className={cn(
-          "relative flex h-14 items-center justify-between border-b border-white/[0.08] px-2.5 overflow-hidden shrink-0",
+          "relative flex h-14 items-center justify-between border-b border-[var(--border-subtle)] px-2.5 overflow-hidden shrink-0",
           isMobile && "hidden",
         )}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-surface)] via-transparent to-transparent pointer-events-none" />
 
         <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
             onClick={onToggle}
-            className="relative grid size-9 shrink-0 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.35)] hover:bg-cyan-500/25 transition-all cursor-pointer"
+            className="relative grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--accent)]/50 bg-[var(--accent-surface)] text-[var(--accent)] shadow-sm hover:brightness-110 transition-all cursor-pointer"
             title={collapsed ? "Expand Orbital Dock (Tab / H)" : "Collapse Orbital Dock (Tab / H)"}
             aria-expanded={!collapsed}
             aria-controls="dashboard-sections-nav"
@@ -208,22 +208,20 @@ export function DashboardSidebar({
                   isMobile &&
                     "h-full min-h-0 flex-col justify-center gap-1 rounded-xl px-1 py-1 text-center",
                   active
-                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/40 shadow-[0_0_15px_rgba(0,240,255,0.2)]"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground border border-transparent",
+                    ? "bg-[var(--accent-surface)] text-[var(--accent)] border border-[var(--accent)]/40 shadow-sm"
+                    : "text-[var(--text-muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[var(--text-primary)] border border-transparent",
                   !isMobile && collapsed && "justify-center px-0",
                 )}
               >
                 {active && (
-                  <span className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-cyan-400 shadow-[0_0_10px_#00f0ff]" />
+                  <span className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-[var(--accent)]" />
                 )}
                 <Icon
                   className={cn(
                     isMobile
                       ? "size-4 shrink-0"
                       : "size-4 shrink-0 transition-transform duration-200 group-hover:scale-110",
-                    active
-                      ? "text-cyan-300 drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]"
-                      : "text-muted-foreground",
+                    active ? "text-[var(--accent)]" : "text-[var(--text-muted)]",
                   )}
                 />
 
@@ -255,7 +253,7 @@ export function DashboardSidebar({
 
               {/* Collapsed Instant Tooltip */}
               {collapsed && !isMobile && (
-                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 z-50 rounded-lg bg-[#0b0f19]/95 border border-cyan-500/30 px-2.5 py-1 text-xs font-mono text-cyan-300 shadow-2xl backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 z-50 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-1 text-xs font-mono text-[var(--accent)] shadow-[var(--shadow-hud)] backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   {displayLabel}
                   {id === "hazards" && activeHazards > 0 && ` (${activeHazards} active)`}
                 </div>
@@ -268,16 +266,16 @@ export function DashboardSidebar({
       {/* Preset Target Waypoints */}
       <div
         className={cn(
-          "flex flex-col gap-1 border-t border-white/[0.08] p-2 flex-1 overflow-y-auto no-scrollbar",
+          "flex flex-col gap-1 border-t border-[var(--border-subtle)] p-2 flex-1 overflow-y-auto no-scrollbar",
           isMobile && "hidden",
         )}
       >
         {!collapsed && (
           <div className="flex items-center justify-between px-2 pb-1 pt-1 shrink-0">
-            <span className="hud-label tracking-widest text-xs text-muted-foreground font-bold">
+            <span className="hud-label tracking-widest text-xs text-[var(--text-muted)] font-bold">
               {t("target_waypoints", "TARGET WAYPOINTS")}
             </span>
-            <span className="font-mono text-xs text-emerald-400">
+            <span className="font-mono text-xs text-[var(--status-ok)]">
               {<LocalizedText text={"RADAR LOCK"} />}
             </span>
           </div>
@@ -330,7 +328,7 @@ export function DashboardSidebar({
 
               {/* Collapsed Instant Tooltip */}
               {collapsed && (
-                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 z-50 rounded-lg bg-[#0b0f19]/95 border border-emerald-500/40 px-2.5 py-1 text-xs font-mono text-emerald-400 shadow-2xl backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 z-50 rounded-lg bg-[var(--bg-surface)] border border-emerald-500/40 px-2.5 py-1 text-xs font-mono text-[var(--status-ok)] shadow-[var(--shadow-hud)] backdrop-blur-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   {p.name} [{p.lat.toFixed(2)}°, {p.lon.toFixed(2)}°]
                 </div>
               )}
@@ -344,7 +342,7 @@ export function DashboardSidebar({
         type="button"
         onClick={onToggle}
         className={cn(
-          "mt-auto flex h-11 items-center justify-between border-t border-white/[0.08] px-3 text-xs font-mono text-muted-foreground transition-colors hover:text-cyan-300 hover:bg-cyan-500/10 cursor-pointer shrink-0",
+          "mt-auto flex h-11 items-center justify-between border-t border-[var(--border-subtle)] px-3 text-xs font-mono text-[var(--text-muted)] transition-colors hover:text-[var(--accent)] hover:bg-[var(--accent-surface)] cursor-pointer shrink-0",
           isMobile && "hidden",
         )}
         aria-label={
@@ -355,9 +353,9 @@ export function DashboardSidebar({
       >
         <div className="flex items-center gap-2">
           {collapsed ? (
-            <ChevronsRight className="size-4 text-cyan-300" />
+            <ChevronsRight className="size-4 text-[var(--accent)]" />
           ) : (
-            <ChevronsLeft className="size-4 text-cyan-300" />
+            <ChevronsLeft className="size-4 text-[var(--accent)]" />
           )}
           {!collapsed && (
             <span className="hud-label text-xs">{t("collapse_dock", "Collapse Dock")}</span>

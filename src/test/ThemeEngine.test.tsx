@@ -289,4 +289,97 @@ describe("Premium 4-Theme System & Animated Light/Dark Switch", () => {
       screen.queryByRole("dialog", { name: /Customizable Theme Studio/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("switches Light <-> Dark cleanly on custom dark canvas themes, syncs data-mode, and cancels rapid double-click transitions safely", async () => {
+    const skipTransitionMock = vi.fn();
+    const startViewTransitionMock = vi.fn((cb: () => void) => {
+      cb();
+      return {
+        ready: Promise.resolve(),
+        finished: Promise.resolve(),
+        skipTransition: skipTransitionMock,
+      };
+    });
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      writable: true,
+      value: startViewTransitionMock,
+    });
+    Object.defineProperty(document.documentElement, "animate", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+    vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    function Harness() {
+      const { mode, updateCustomConfig } = useTheme();
+      return (
+        <div>
+          <span data-testid="mode-readout">{mode}</span>
+          <AnimatedThemeSwitch />
+          <button
+            type="button"
+            onClick={() =>
+              updateCustomConfig({
+                accent: "#84CC16",
+                canvas: "#11161D",
+                surface: "#171C24",
+                glassOpacity: 0.64,
+              })
+            }
+          >
+            Apply Dark Custom
+          </button>
+        </div>
+      );
+    }
+
+    render(
+      <ThemeProvider>
+        <Harness />
+      </ThemeProvider>,
+    );
+
+    // 1. Apply custom dark canvas & surface in Dark mode
+    fireEvent.click(screen.getByText("Apply Dark Custom"));
+    expect(document.documentElement.style.getPropertyValue("--bg-canvas")).toBe("#11161D");
+    expect(document.documentElement.style.getPropertyValue("--bg-surface")).toBe("#171C24");
+    expect(document.documentElement.getAttribute("data-mode")).toBe("dark");
+
+    // 2. Switch Dark -> Light: custom dark surface/canvas must NOT lock Light mode into dark colors
+    const switchBtn = screen.getByRole("switch");
+    fireEvent.click(switchBtn);
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+    expect(document.documentElement.getAttribute("data-mode")).toBe("light");
+    expect(document.documentElement.style.getPropertyValue("--bg-canvas")).toBe("");
+    expect(document.documentElement.style.getPropertyValue("--bg-surface")).toBe("");
+    expect(document.documentElement.style.getPropertyValue("--bg-glass")).toBe(
+      "rgba(255, 255, 255, 0.64)",
+    );
+    expect(document.documentElement.style.getPropertyValue("--accent")).toBe("#84CC16");
+    expect(localStorage.getItem(MODE_STORAGE_KEY)).toBe("light");
+
+    // 3. Rapidly switch Light -> Dark -> Light back-to-back without stale closure or two-click bug
+    fireEvent.click(switchBtn);
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    expect(document.documentElement.getAttribute("data-mode")).toBe("dark");
+    expect(document.documentElement.style.getPropertyValue("--bg-canvas")).toBe("#11161D");
+
+    fireEvent.click(switchBtn);
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+    expect(document.documentElement.getAttribute("data-mode")).toBe("light");
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("theme-transitioning")).toBe(false);
+    });
+  });
 });

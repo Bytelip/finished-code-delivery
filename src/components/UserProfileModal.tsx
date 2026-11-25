@@ -560,12 +560,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </p>
 
                 {/* Cyclone Alert Toggle */}
-                <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors cursor-pointer">
+                <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.03] p-3.5 hover:bg-black/10 dark:hover:bg-white/[0.06] transition-colors cursor-pointer">
                   <div className="space-y-0.5">
-                    <div className="font-mono text-xs font-semibold text-rose-400 flex items-center gap-1.5">
+                    <div className="font-mono text-xs font-semibold text-[var(--status-danger)] flex items-center gap-1.5">
                       <span>🌀</span> {<LocalizedText text={" Severe Cyclone Track Alerts"} />}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-[var(--text-muted)]">
                       {
                         <LocalizedText
                           text={
@@ -579,17 +579,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     type="checkbox"
                     checked={cycloneAlerts}
                     onChange={(e) => setCycloneAlerts(e.target.checked)}
-                    className="size-4 accent-cyan-400 cursor-pointer"
+                    className="size-4 accent-[var(--accent)] cursor-pointer"
                   />
                 </label>
 
                 {/* USGS Quake Toggle */}
-                <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors cursor-pointer">
+                <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.03] p-3.5 hover:bg-black/10 dark:hover:bg-white/[0.06] transition-colors cursor-pointer">
                   <div className="space-y-0.5">
-                    <div className="font-mono text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <div className="font-mono text-xs font-semibold text-[var(--status-ok)] flex items-center gap-1.5">
                       <span>⚡</span> {<LocalizedText text={" USGS Seismic Epicenter Alerts"} />}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-[var(--text-muted)]">
                       {
                         <LocalizedText
                           text={
@@ -603,18 +603,18 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     type="checkbox"
                     checked={usgsQuakeAlerts}
                     onChange={(e) => setUsgsQuakeAlerts(e.target.checked)}
-                    className="size-4 accent-cyan-400 cursor-pointer"
+                    className="size-4 accent-[var(--accent)] cursor-pointer"
                   />
                 </label>
 
                 {/* Drought Alert Toggle */}
-                <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors cursor-pointer">
+                <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.03] p-3.5 hover:bg-black/10 dark:hover:bg-white/[0.06] transition-colors cursor-pointer">
                   <div className="space-y-0.5">
-                    <div className="font-mono text-xs font-semibold text-amber-400 flex items-center gap-1.5">
+                    <div className="font-mono text-xs font-semibold text-[var(--status-warn)] flex items-center gap-1.5">
                       <span>☀️</span>{" "}
                       {<LocalizedText text={" Severe Crop Drought & Water Stress"} />}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-[var(--text-muted)]">
                       {
                         <LocalizedText
                           text={
@@ -628,17 +628,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     type="checkbox"
                     checked={droughtAlerts}
                     onChange={(e) => setDroughtAlerts(e.target.checked)}
-                    className="size-4 accent-cyan-400 cursor-pointer"
+                    className="size-4 accent-[var(--accent)] cursor-pointer"
                   />
                 </label>
 
                 {/* Email Dispatch Toggle */}
-                <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors cursor-pointer">
+                <label className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.03] p-3.5 hover:bg-black/10 dark:hover:bg-white/[0.06] transition-colors cursor-pointer">
                   <div className="space-y-0.5">
-                    <div className="font-mono text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
+                    <div className="font-mono text-xs font-semibold text-[var(--accent)] flex items-center gap-1.5">
                       <span>✉️</span> {<LocalizedText text={" Emergency Email Dispatch"} />}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-[var(--text-muted)]">
                       {<LocalizedText text={"Forward critical agricultural hazard alerts to "} />}
                       {profile.email}.
                     </div>
@@ -680,24 +680,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
-                  <div className="font-mono text-xs font-semibold text-foreground">
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.02] p-4 space-y-2">
+                  <div className="font-mono text-xs font-semibold text-[var(--text-primary)]">
                     {<LocalizedText text={"Session Security Information"} />}
                   </div>
-                  <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="text-xs text-[var(--text-muted)] space-y-1">
                     <div>
                       {<LocalizedText text={"Operator ID: "} />}
-                      <span className="font-mono text-cyan-300">{profile.id}</span>
+                      <span className="font-mono text-[var(--accent)]">{profile.id}</span>
                     </div>
                     <div>
                       {<LocalizedText text={"Verified On:"} />}{" "}
-                      <span className="font-mono text-foreground">
+                      <span className="font-mono text-[var(--text-primary)]">
                         {profile.verifiedAt ? new Date(profile.verifiedAt).toLocaleString() : "—"}
                       </span>
                     </div>
                     <div>
                       {<LocalizedText text={"Encryption:"} />}{" "}
-                      <span className="font-mono text-emerald-400">
+                      <span className="font-mono text-[var(--status-ok)]">
                         {<LocalizedText text={"AES-256 GCM (Client-Side Storage)"} />}
                       </span>
                     </div>
@@ -705,7 +705,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </div>
 
                 {/* Sign Out Action */}
-                <div className="pt-2 border-t border-white/10">
+                <div className="pt-2 border-t border-[var(--border-subtle)]">
                   <button
                     type="button"
                     onClick={() => {

@@ -271,22 +271,22 @@ export function AgroDecisionCard({
           />
 
           {/* Card Header */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg border border-cyan-400/40 bg-cyan-500/15 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+              <div className="flex size-7 items-center justify-center rounded-lg border border-[var(--accent)]/40 bg-[var(--accent-surface)] text-[var(--accent)]">
                 <Sparkles className="size-4 animate-pulse" />
               </div>
               <div>
-                <h3 className="font-mono text-sm font-semibold normal-case tracking-normal text-cyan-300">
+                <h3 className="font-mono text-sm font-semibold normal-case tracking-normal text-[var(--accent)]">
                   {<LocalizedText text={"AI Agronomic & Climate Decision Engine"} />}
                 </h3>
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="font-mono text-xs text-[var(--text-muted)]">
                   {<LocalizedText text={"NASA POWER · SMAP L4 · ECOSTRESS ESI"} />}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-xs">
+              <span className="px-2 py-0.5 rounded-md bg-[var(--accent-surface)] border border-[var(--accent)]/30 text-[var(--accent)] font-mono text-xs">
                 {<LocalizedText text={"600 CROPS v6.0"} />}
               </span>
             </div>
@@ -518,9 +518,9 @@ export function AgroDecisionCard({
             type="button"
             size="sm"
             onClick={onExportReport}
-            className="w-full h-8 text-xs font-semibold rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.25)] transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-auto"
+            className="w-full h-8 text-xs font-semibold rounded-lg bg-[var(--accent-surface)] hover:brightness-110 text-[var(--accent)] border border-[var(--accent)]/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-auto"
           >
-            <FileText className="size-3.5 text-cyan-300" />
+            <FileText className="size-3.5 text-[var(--accent)]" />
             <span>{<LocalizedText text={"📄 Export NASA Field Report"} />}</span>
           </Button>
         </div>
