@@ -58,11 +58,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   }, [error]);
 
   const errorMessage =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "";
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -166,11 +162,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+const THEME_BOOT_SCRIPT = `(function(){try{var r=document.documentElement;var m=localStorage.getItem('agrospace-mode');var t=localStorage.getItem('agrospace-theme');var vt=['orbital-emerald','solar-harvest','midnight-nebula','arctic-telemetry'];var th=vt.indexOf(t)!==-1?t:'orbital-emerald';var md=m==='light'||m==='dark'?m:'dark';r.setAttribute('data-theme',th);if(md==='light'){r.classList.remove('dark');r.classList.add('light');r.style.colorScheme='light';}else{r.classList.add('dark');r.classList.remove('light');r.style.colorScheme='dark';}}catch(e){}})();`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>
         {children}

@@ -261,7 +261,7 @@ export function AgroDecisionCard({
         {/* ========================================================================= */}
         {/* CARD A: AI AGRONOMIC DECISION ENGINE (Col-span 4)                         */}
         {/* ========================================================================= */}
-        <div className="@5xl:col-span-4 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-4 @2xl:p-5 shadow-2xl flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
+        <div className="@5xl:col-span-4 rounded-xl bg-[var(--bg-glass)] border border-[var(--border-subtle)] p-4 @2xl:p-5 shadow-[var(--shadow-hud)] flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
           <BorderBeam
             size={240}
             duration={14}
@@ -293,7 +293,7 @@ export function AgroDecisionCard({
           </div>
 
           {/* Radial Gauge & Composite Scoring */}
-          <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-[#060913]/70 border border-white/5">
+          <div className="flex flex-col items-center justify-center p-4 rounded-xl bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)]">
             <div className="relative size-36 flex items-center justify-center">
               <svg className="size-full -rotate-90" viewBox="0 0 120 120">
                 <circle
@@ -346,54 +346,63 @@ export function AgroDecisionCard({
 
           {/* Sub-Metrics Micro Meters */}
           <div className="flex flex-col gap-2">
-            <div className="p-2.5 rounded-lg bg-[#0e1424]/70 border border-white/5 flex flex-col gap-1">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs">
                 <span className="text-muted-foreground">
                   {<LocalizedText text={"N-P-K NUTRIENT BALANCE INDEX"} />}
                 </span>
-                <span className="text-cyan-300 font-bold">
+                <span className="text-[var(--accent)] font-bold">
                   {<LocalizedText text={"OPTIMAL (91.4%)"} />}
                 </span>
               </div>
               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-cyan-400 h-full rounded-full" style={{ width: "91.4%" }} />
+                <div
+                  className="bg-[var(--accent)] h-full rounded-full"
+                  style={{ width: "91.4%" }}
+                />
               </div>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-[#0e1424]/70 border border-white/5 flex flex-col gap-1">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs">
                 <span className="text-muted-foreground">
                   {<LocalizedText text={"IRRIGATION WATER OPTIMIZATION"} />}
                 </span>
-                <span className="text-emerald-400 font-bold">
+                <span className="text-[var(--status-ok)] font-bold">
                   {<LocalizedText text={"94.2% RATIO"} />}
                 </span>
               </div>
               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-400 h-full rounded-full" style={{ width: "94.2%" }} />
+                <div
+                  className="bg-[var(--status-ok)] h-full rounded-full"
+                  style={{ width: "94.2%" }}
+                />
               </div>
             </div>
 
-            <div className="p-2.5 rounded-lg bg-[#0e1424]/70 border border-white/5 flex flex-col gap-1">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex flex-col gap-1">
               <div className="flex justify-between font-mono text-xs">
                 <span className="text-muted-foreground">
                   {<LocalizedText text={"FROST RISK INVERSION (7-DAY)"} />}
                 </span>
-                <span className="text-amber-400 font-bold">
+                <span className="text-[var(--status-warn)] font-bold">
                   {<LocalizedText text={"LOW (2.0%)"} />}
                 </span>
               </div>
               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-amber-400 h-full rounded-full" style={{ width: "2%" }} />
+                <div
+                  className="bg-[var(--status-warn)] h-full rounded-full"
+                  style={{ width: "2%" }}
+                />
               </div>
             </div>
           </div>
 
           {/* 4 Satellite Metric Tiles (Zero-Undefined Guarantee) */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="p-2 rounded-lg border border-white/10 bg-[#060913]/60">
+            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75">
               <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                <Sprout className="size-3 text-emerald-400" />
+                <Sprout className="size-3 text-[var(--status-ok)]" />
                 <span>{<LocalizedText text={"NDVI Vigor"} />}</span>
               </div>
               <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
@@ -402,14 +411,14 @@ export function AgroDecisionCard({
                   {<LocalizedText text={"index"} />}
                 </span>
               </div>
-              <div className="text-xs text-emerald-400 truncate">
+              <div className="text-xs text-[var(--status-ok)] truncate">
                 {<LocalizedText text={"MODIS Terra 250m"} />}
               </div>
             </div>
 
-            <div className="p-2 rounded-lg border border-white/10 bg-[#060913]/60">
+            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75">
               <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                <Droplets className="size-3 text-cyan-300" />
+                <Droplets className="size-3 text-[var(--accent)]" />
                 <span>{<LocalizedText text={"Root Moisture"} />}</span>
               </div>
               <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
@@ -418,14 +427,14 @@ export function AgroDecisionCard({
                   {<LocalizedText text={"vol"} />}
                 </span>
               </div>
-              <div className="text-xs text-cyan-300 truncate">
+              <div className="text-xs text-[var(--accent)] truncate">
                 {<LocalizedText text={"SMAP L4 Polar"} />}
               </div>
             </div>
 
-            <div className="p-2 rounded-lg border border-white/10 bg-[#060913]/60">
+            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75">
               <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                <Sun className="size-3 text-amber-400" />
+                <Sun className="size-3 text-[var(--status-warn)]" />
                 <span>{<LocalizedText text={"Evapo ESI"} />}</span>
               </div>
               <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
@@ -434,14 +443,14 @@ export function AgroDecisionCard({
                   {<LocalizedText text={"ratio"} />}
                 </span>
               </div>
-              <div className="text-xs text-amber-400 truncate">
+              <div className="text-xs text-[var(--status-warn)] truncate">
                 {<LocalizedText text={"ISS ECOSTRESS 70m"} />}
               </div>
             </div>
 
-            <div className="p-2 rounded-lg border border-white/10 bg-[#060913]/60">
+            <div className="p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]/75">
               <div className="flex items-center gap-1 text-muted-foreground font-mono text-xs">
-                <CloudRain className="size-3 text-cyan-300" />
+                <CloudRain className="size-3 text-[var(--accent)]" />
                 <span>{<LocalizedText text={"Rainfall"} />}</span>
               </div>
               <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
@@ -450,14 +459,14 @@ export function AgroDecisionCard({
                   {<LocalizedText text={"mm/mo"} />}
                 </span>
               </div>
-              <div className="text-xs text-cyan-300 truncate">
+              <div className="text-xs text-[var(--accent)] truncate">
                 {<LocalizedText text={"GPM IMERG Core"} />}
               </div>
             </div>
           </div>
 
           {/* Actionable Farmer Advisory Stream */}
-          <div className="p-3 rounded-xl bg-[#060913]/80 border border-cyan-500/20 flex flex-col gap-1.5">
+          <div className="p-3 rounded-xl bg-[var(--bg-surface)]/85 border border-[var(--border-subtle)] flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-cyan-300 font-mono text-xs font-bold">
                 <Bot className="size-3.5 text-cyan-300" />
@@ -519,7 +528,7 @@ export function AgroDecisionCard({
         {/* ========================================================================= */}
         {/* CARD B: FIELD SHIFT: TOP 5 CROPS LEADERBOARD (Col-span 5)                 */}
         {/* ========================================================================= */}
-        <div className="@5xl:col-span-5 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-4 @2xl:p-5 shadow-2xl flex flex-col gap-3.5 backdrop-blur-2xl relative overflow-hidden">
+        <div className="@5xl:col-span-5 rounded-xl bg-[var(--bg-glass)] border border-[var(--border-subtle)] p-4 @2xl:p-5 shadow-[var(--shadow-hud)] flex flex-col gap-3.5 backdrop-blur-2xl relative overflow-hidden">
           <BorderBeam
             size={220}
             duration={16}
@@ -610,8 +619,8 @@ export function AgroDecisionCard({
                   className={cn(
                     "relative rounded-xl border p-3 flex flex-col gap-2 transition-all backdrop-blur-xl",
                     isSelected
-                      ? "border-cyan-400/80 bg-[#10192e] shadow-[0_0_20px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/60"
-                      : "border-white/10 bg-[#0e1424]/70 hover:bg-[#131c33] hover:border-cyan-500/30",
+                      ? "border-[var(--accent)] bg-[var(--accent-surface)] ring-1 ring-[var(--accent)]"
+                      : "border-[var(--border-subtle)] bg-[var(--bg-surface)]/80 hover:border-[var(--accent)]/50",
                   )}
                 >
                   {isTop && (
@@ -792,7 +801,7 @@ export function AgroDecisionCard({
         {/* ========================================================================= */}
         {/* CARD C: 4-DAY METEOROLOGICAL & SPECTRAL FORECAST STRIP (Col-span 3)        */}
         {/* ========================================================================= */}
-        <div className="@5xl:col-span-3 rounded-xl bg-[#0b0f19]/90 border border-white/10 p-4 @2xl:p-5 shadow-2xl flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
+        <div className="@5xl:col-span-3 rounded-xl bg-[var(--bg-glass)] border border-[var(--border-subtle)] p-4 @2xl:p-5 shadow-[var(--shadow-hud)] flex flex-col gap-4 backdrop-blur-2xl relative overflow-hidden">
           <BorderBeam
             size={200}
             duration={18}
@@ -824,9 +833,9 @@ export function AgroDecisionCard({
           {/* 4-Day Forecast Cards (D0, D+1, D+2, D+3) */}
           <div className="flex flex-col gap-2.5">
             {/* Day 1 (Today) */}
-            <div className="p-2.5 rounded-xl bg-[#0e1424]/80 border border-white/5 flex items-center justify-between">
+            <div className="p-2.5 rounded-xl bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-[#060913] flex items-center justify-center text-amber-400 border border-white/5">
+                <div className="size-8 rounded-lg bg-[var(--bg-canvas)] flex items-center justify-center text-[var(--status-warn)] border border-[var(--border-subtle)]">
                   <Sun className="size-4" />
                 </div>
                 <div className="flex flex-col">
@@ -849,9 +858,9 @@ export function AgroDecisionCard({
             </div>
 
             {/* Day 2 (Convective Front) */}
-            <div className="p-2.5 rounded-xl bg-[#0e1424]/80 border border-white/5 flex items-center justify-between">
+            <div className="p-2.5 rounded-xl bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-[#060913] flex items-center justify-center text-cyan-300 border border-white/5">
+                <div className="size-8 rounded-lg bg-[var(--bg-canvas)] flex items-center justify-center text-[var(--accent)] border border-[var(--border-subtle)]">
                   <CloudRain className="size-4" />
                 </div>
                 <div className="flex flex-col">
@@ -874,9 +883,9 @@ export function AgroDecisionCard({
             </div>
 
             {/* Day 3 */}
-            <div className="p-2.5 rounded-xl bg-[#0e1424]/80 border border-white/5 flex items-center justify-between">
+            <div className="p-2.5 rounded-xl bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-[#060913] flex items-center justify-center text-amber-400 border border-white/5">
+                <div className="size-8 rounded-lg bg-[var(--bg-canvas)] flex items-center justify-center text-[var(--status-warn)] border border-[var(--border-subtle)]">
                   <CloudSun className="size-4" />
                 </div>
                 <div className="flex flex-col">
@@ -899,9 +908,9 @@ export function AgroDecisionCard({
             </div>
 
             {/* Day 4 */}
-            <div className="p-2.5 rounded-xl bg-[#0e1424]/80 border border-white/5 flex items-center justify-between">
+            <div className="p-2.5 rounded-xl bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-[#060913] flex items-center justify-center text-amber-400 border border-white/5">
+                <div className="size-8 rounded-lg bg-[var(--bg-canvas)] flex items-center justify-center text-[var(--status-warn)] border border-[var(--border-subtle)]">
                   <Sun className="size-4" />
                 </div>
                 <div className="flex flex-col">
@@ -925,7 +934,7 @@ export function AgroDecisionCard({
           </div>
 
           {/* Telemetry Solar Irradiation Module (DNI Sparkline) */}
-          <div className="p-3 rounded-xl bg-[#060913]/90 border border-amber-500/20 flex flex-col gap-2 mt-auto">
+          <div className="p-3 rounded-xl bg-[var(--bg-surface)]/85 border border-[var(--border-subtle)] flex flex-col gap-2 mt-auto">
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs text-muted-foreground uppercase">
                 {<LocalizedText text={"DIRECT NORMAL IRRAD (DNI)"} />}
@@ -970,7 +979,7 @@ export function AgroDecisionCard({
       {/* ========================================================================= */}
       <Dialog open={!!modalCrop} onOpenChange={(open) => !open && setModalCrop(null)}>
         {modalCrop && (
-          <DialogContent className="max-w-2xl bg-[#0b101c]/95 border border-cyan-500/40 backdrop-blur-2xl text-foreground p-6 rounded-xl shadow-[0_25px_60px_rgba(0,0,0,0.85)]">
+          <DialogContent className="max-w-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] backdrop-blur-2xl text-[var(--text-primary)] p-6 rounded-xl shadow-[var(--shadow-hud)]">
             <DialogHeader className="border-b border-white/10 pb-4">
               <div className="flex items-center gap-2 text-cyan-300 font-mono text-xs uppercase tracking-wider">
                 <Scale className="size-4 text-cyan-300" />

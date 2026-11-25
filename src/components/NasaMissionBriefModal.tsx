@@ -35,9 +35,9 @@ export function NasaMissionBriefModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl border border-cyan-500/40 bg-[#060D1A]/95 text-foreground shadow-[0_0_50px_rgba(6,182,212,0.25)] overflow-hidden"
+        className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Neon Lightline */}

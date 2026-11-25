@@ -121,7 +121,7 @@ export const TwoFactorChallengeForm: React.FC<TwoFactorChallengeFormProps> = ({
             }}
             placeholder="••••••"
             aria-label="6-digit two-factor authentication code"
-            className="w-full rounded-xl border border-cyan-400/30 bg-slate-900/90 py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-cyan-300 placeholder-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.15)]"
+            className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)]"
           />
         </div>
 
@@ -130,8 +130,8 @@ export const TwoFactorChallengeForm: React.FC<TwoFactorChallengeFormProps> = ({
           disabled={!canSubmit}
           className={`w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
             canSubmit
-              ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
-              : "cursor-not-allowed bg-white/15 text-muted-foreground"
+              ? "bg-[var(--accent)] text-[var(--primary-foreground)] shadow-[0_0_20px_var(--accent-glow)] hover:brightness-110"
+              : "cursor-not-allowed bg-[var(--secondary)] text-[var(--text-muted)]"
           }`}
         >
           <span className="inline-flex items-center justify-center gap-2">
@@ -171,10 +171,10 @@ export const TwoFactorChallengeScreen: React.FC<TwoFactorChallengeScreenProps> =
 }) => {
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-[#0B111E]/90 p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-foreground">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
+      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[var(--shadow-hud)] text-[var(--text-primary)]">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--accent)]/35 bg-[var(--accent-surface)] shadow-[0_0_20px_var(--accent-glow)]">
           <svg
-            className="h-7 w-7 text-cyan-300"
+            className="h-7 w-7 text-[var(--accent)]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

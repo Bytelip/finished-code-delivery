@@ -94,8 +94,8 @@ export function DashboardSidebar({
         isMobile
           ? "fixed inset-x-0 bottom-0 top-auto z-50 flex h-16 w-full flex-row items-center rounded-t-2xl border-x-0 border-b-0"
           : "fixed left-3 top-16 bottom-4 z-30 flex shrink-0 flex-col rounded-xl",
-        "bg-[#070D19]/88 backdrop-blur-2xl border border-white/10",
-        "shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)]",
+        "bg-[var(--bg-glass)] backdrop-blur-2xl border border-[var(--border-subtle)]",
+        "shadow-[var(--shadow-hud)]",
         "overflow-hidden select-none",
       )}
     >
@@ -176,7 +176,9 @@ export function DashboardSidebar({
         id="dashboard-sections-nav"
         className={cn(
           "flex gap-2.5 p-2.5 overflow-y-auto no-scrollbar shrink-0",
-          isMobile ? "h-full w-full flex-row items-stretch justify-around gap-1 overflow-hidden px-2 py-1.5" : "flex-col",
+          isMobile
+            ? "h-full w-full flex-row items-stretch justify-around gap-1 overflow-hidden px-2 py-1.5"
+            : "flex-col",
         )}
         aria-label="Dashboard sections"
       >
@@ -203,7 +205,8 @@ export function DashboardSidebar({
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex min-h-10 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-xs font-medium transition-all duration-150 cursor-pointer",
-                  isMobile && "h-full min-h-0 flex-col justify-center gap-1 rounded-xl px-1 py-1 text-center",
+                  isMobile &&
+                    "h-full min-h-0 flex-col justify-center gap-1 rounded-xl px-1 py-1 text-center",
                   active
                     ? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/40 shadow-[0_0_15px_rgba(0,240,255,0.2)]"
                     : "text-muted-foreground hover:bg-white/5 hover:text-foreground border border-transparent",
@@ -215,7 +218,9 @@ export function DashboardSidebar({
                 )}
                 <Icon
                   className={cn(
-                    isMobile ? "size-4 shrink-0" : "size-4 shrink-0 transition-transform duration-200 group-hover:scale-110",
+                    isMobile
+                      ? "size-4 shrink-0"
+                      : "size-4 shrink-0 transition-transform duration-200 group-hover:scale-110",
                     active
                       ? "text-cyan-300 drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]"
                       : "text-muted-foreground",
@@ -231,7 +236,10 @@ export function DashboardSidebar({
                 )}
 
                 {id === "hazards" && activeHazards > 0 && isMobile && (
-                  <span className="absolute right-[calc(50%-1.1rem)] top-1 size-2 rounded-full bg-crimson shadow-[0_0_8px_#ff2e56]" aria-label={`${activeHazards} active hazards`} />
+                  <span
+                    className="absolute right-[calc(50%-1.1rem)] top-1 size-2 rounded-full bg-crimson shadow-[0_0_8px_#ff2e56]"
+                    aria-label={`${activeHazards} active hazards`}
+                  />
                 )}
                 {id === "hazards" && activeHazards > 0 && !isMobile && (
                   <span

@@ -288,7 +288,7 @@ export const TwoFactorSettingsCard: React.FC = () => {
             aria-label="Set Up Two-Factor Authentication"
           >
             <div
-              className="w-full max-w-md rounded-xl border border-cyan-500/30 bg-[#070c18] text-foreground shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(6,182,212,0.2)] overflow-hidden"
+              className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5">
@@ -440,7 +440,7 @@ export const TwoFactorSettingsCard: React.FC = () => {
             aria-label="Disable Two-Factor Authentication"
           >
             <div
-              className="w-full max-w-sm rounded-xl border border-cyan-500/30 bg-[#070c18] text-foreground shadow-[0_0_60px_rgba(0,0,0,0.9)] overflow-hidden"
+              className="w-full max-w-sm rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5">

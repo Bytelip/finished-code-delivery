@@ -19,6 +19,9 @@ import { TwoFactorChallengeForm } from "@/components/auth/TwoFactorChallengeScre
 import { toast } from "sonner";
 import { LocalizedText, useLocalizedValue } from "@/components/i18n/LocalizedText";
 import { MISSING_SUPABASE_ENV_MESSAGE, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { useTheme } from "@/context/ThemeContext";
+import { AnimatedThemeSwitch } from "@/components/theme/AnimatedThemeSwitch";
+import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 
 // ==========================================
 // 1. TYPES & USER PROFILE MODEL
@@ -155,6 +158,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
   className = "",
   children,
 }) => {
+  const { isDark } = useTheme();
   const [smallStars, setSmallStars] = useState<string>("");
   const [mediumStars, setMediumStars] = useState<string>("");
   const [bigStars, setBigStars] = useState<string>("");
@@ -187,7 +191,11 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
           position: relative;
           width: 100%;
           min-height: 100dvh;
-          background: radial-gradient(ellipse at bottom, #0d1d31 0%, #03060c 100%);
+          background: ${
+            isDark
+              ? "radial-gradient(ellipse at bottom, #0d1d31 0%, var(--bg-canvas) 100%)"
+              : "linear-gradient(180deg, #e0f2fe 0%, var(--bg-canvas) 62%, #dbeafe 100%)"
+          };
           overflow: hidden;
           display: flex;
           flex-direction: column;
@@ -202,6 +210,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
           position: absolute;
           top: 0;
           left: 0;
+          opacity: ${isDark ? "1" : "0"};
         }
         .cosmic-stars-medium {
           width: 2px;
@@ -211,6 +220,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
           position: absolute;
           top: 0;
           left: 0;
+          opacity: ${isDark ? "1" : "0"};
         }
         .cosmic-stars-large {
           width: 3px;
@@ -221,6 +231,7 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
           position: absolute;
           top: 0;
           left: 0;
+          opacity: ${isDark ? "1" : "0"};
         }
         @keyframes animStar {
           from { transform: translateY(0px); }
@@ -235,8 +246,11 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
           height: 620px;
           border-radius: 50%;
           background: transparent;
-          box-shadow: 0 -45px 140px rgba(14, 165, 233, 0.4),
-                      inset 0 25px 90px rgba(56, 189, 248, 0.5);
+          box-shadow: ${
+            isDark
+              ? "0 -45px 140px rgba(14, 165, 233, 0.4), inset 0 25px 90px rgba(56, 189, 248, 0.5)"
+              : "0 -35px 120px var(--accent-glow), inset 0 20px 60px rgba(56, 189, 248, 0.25)"
+          };
           pointer-events: none;
           z-index: 1;
         }
@@ -247,7 +261,11 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
           transform: translateX(-50%);
           width: 65%;
           height: 95px;
-          background: radial-gradient(ellipse at center, rgba(125, 211, 252, 0.65) 0%, transparent 75%);
+          background: ${
+            isDark
+              ? "radial-gradient(ellipse at center, rgba(125, 211, 252, 0.65) 0%, transparent 75%)"
+              : "radial-gradient(ellipse at center, rgba(56, 189, 248, 0.35) 0%, transparent 75%)"
+          };
           filter: blur(22px);
         }
         #earth {
@@ -258,12 +276,22 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
           width: 190vw;
           height: 650px;
           border-radius: 50%;
-          background: radial-gradient(circle at 50% 0%, #0b2548 0%, #02040a 68%);
-          border-top: 2px solid rgba(186, 230, 253, 0.75);
+          background: ${
+            isDark
+              ? "radial-gradient(circle at 50% 0%, #0b2548 0%, #02040a 68%)"
+              : "radial-gradient(circle at 50% 0%, #bae6fd 0%, #e0f2fe 68%)"
+          };
+          border-top: ${isDark ? "2px solid rgba(186, 230, 253, 0.75)" : "2px solid rgba(2, 132, 199, 0.35)"};
           z-index: 2;
           pointer-events: none;
         }
       `}</style>
+
+      {/* Top-right Theme Picker & Animated Light/Dark Switch */}
+      <div className="fixed right-4 top-4 z-50 flex items-center gap-2">
+        <ThemeSwitcher variant="compact" />
+        <AnimatedThemeSwitch />
+      </div>
 
       <div id="stars" style={{ boxShadow: smallStars }} className="cosmic-stars" />
       <div id="stars2" style={{ boxShadow: mediumStars }} className="cosmic-stars-medium" />
@@ -275,8 +303,8 @@ export const CosmicParallaxBg: React.FC<CosmicParallaxBgProps> = ({
       <div id="earth" />
 
       {head && (
-        <div className="relative z-10 mb-4 text-center pointer-events-none">
-          <div className="text-xs font-mono uppercase tracking-[0.35em] text-cyan-300">
+        <div className="relative z-10 mb-4 text-center pointer-events-none pt-8 sm:pt-0">
+          <div className="text-xs font-mono font-semibold uppercase tracking-[0.35em] text-[var(--accent)]">
             {textParts.join(" • ")}
           </div>
         </div>
@@ -300,14 +328,14 @@ export interface CosmicAuthPageProps {
 type AuthStep = "entry" | "verify_otp" | "verify_mfa" | "forgot" | "reset_sent";
 
 const inputClass =
-  "w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder-slate-400 focus:border-cyan-400 focus:outline-none";
+  "w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none";
 const providerButtonClass =
   "relative flex min-h-11 w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition disabled:opacity-50 cursor-pointer";
 const primaryButtonClass = (enabled: boolean) =>
   `w-full rounded-xl py-3 text-sm font-semibold transition-all cursor-pointer ${
     enabled
-      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:brightness-110"
-      : "cursor-not-allowed bg-white/15 text-muted-foreground"
+      ? "bg-[var(--accent)] text-[var(--primary-foreground)] shadow-[0_0_20px_var(--accent-glow)] hover:brightness-110"
+      : "cursor-not-allowed bg-[var(--secondary)] text-[var(--text-muted)]"
   }`;
 
 export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
@@ -536,21 +564,21 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
   return (
     <CosmicParallaxBg head="AGROSPACE NEXUS" text="ORBITAL TELEMETRY, EARTH INTELLIGENCE">
-      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-[#0B111E]/90 p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.8),0_0_40px_rgba(56,189,248,0.16)] text-foreground">
+      <div className="relative my-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-glass)] p-4 sm:mx-auto sm:p-8 backdrop-blur-2xl shadow-[var(--shadow-hud)] text-[var(--text-primary)]">
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-white/10 hover:text-foreground cursor-pointer"
+            className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-black/5 dark:hover:bg-white/10 hover:text-[var(--text-primary)] cursor-pointer"
           >
             ✕
           </button>
         )}
 
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-cyan-400/30 bg-gradient-to-b from-cyan-500/20 to-blue-600/10 shadow-[0_0_25px_rgba(34,211,238,0.25)]">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--accent)]/35 bg-[var(--accent-surface)] shadow-[0_0_20px_var(--accent-glow)]">
           <svg
-            className="h-7 w-7 text-cyan-300"
+            className="h-7 w-7 text-[var(--accent)]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -564,7 +592,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
         {authError && (
           <div
             role="alert"
-            className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400"
+            className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-[var(--status-danger)]"
           >
             <p>
               <LocalizedText text={authError} />
@@ -574,7 +602,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
 
         {step === "entry" && (
           <>
-            <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-900/90 p-1 border border-white/10">
+            <div className="mb-5 grid grid-cols-2 rounded-xl bg-[var(--secondary)] p-1 border border-[var(--border-subtle)]">
               {(["signin", "signup"] as const).map((mode) => (
                 <button
                   key={mode}
@@ -582,8 +610,8 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   onClick={() => handleTabSwitch(mode)}
                   className={`rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer ${
                     authMode === mode
-                      ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.35)]"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-[var(--accent)] text-[var(--primary-foreground)] shadow-sm"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <LocalizedText text={mode === "signin" ? "Sign In" : "Create Account"} />
@@ -592,14 +620,14 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
             </div>
 
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
                 <LocalizedText
                   text={
                     authMode === "signin" ? "Sign in to AgroSpace" : "Create your AgroSpace account"
                   }
                 />
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
                 <LocalizedText
                   text={
                     authMode === "signin"
@@ -615,7 +643,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 type="button"
                 disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("google")}
-                className={`${providerButtonClass} border-[#8E918F]/40 bg-[#131314] text-[#E3E3E3] hover:brightness-125`}
+                className={`${providerButtonClass} border-slate-300 bg-white text-slate-900 hover:bg-slate-50 dark:border-[#8E918F]/40 dark:bg-[#131314] dark:text-[#E3E3E3] dark:hover:brightness-125`}
               >
                 <svg
                   aria-hidden="true"
@@ -646,7 +674,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   />
                 </span>
                 {lastUsed === "google" && (
-                  <span className="absolute right-3 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">
+                  <span className="absolute right-3 rounded bg-[var(--accent-surface)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
                     Last Used
                   </span>
                 )}
@@ -656,7 +684,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                 type="button"
                 disabled={loadingOAuth !== null}
                 onClick={() => handleSocialOAuth("microsoft")}
-                className={`${providerButtonClass} border-white/10 bg-[#1e293b]/70 text-[#E3E3E3] hover:brightness-125`}
+                className={`${providerButtonClass} border-slate-300 bg-slate-50 text-slate-900 hover:bg-slate-100 dark:border-white/10 dark:bg-[#1e293b]/70 dark:text-[#E3E3E3] dark:hover:brightness-125`}
               >
                 <svg
                   aria-hidden="true"
@@ -678,7 +706,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                   />
                 </span>
                 {lastUsed === "microsoft" && (
-                  <span className="absolute right-3 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">
+                  <span className="absolute right-3 rounded bg-[var(--accent-surface)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
                     Last Used
                   </span>
                 )}
@@ -864,7 +892,7 @@ export const CosmicAuthPage: React.FC<CosmicAuthPageProps> = ({
                     }
                   }}
                   placeholder="••••••"
-                  className="w-full rounded-xl border border-cyan-400/30 bg-slate-900/90 py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-cyan-300 placeholder-slate-600 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30 shadow-[0_0_20px_rgba(34,211,238,0.15)]"
+                  className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-3 text-center font-mono text-2xl font-bold tracking-[0.5em] text-[var(--accent)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)]"
                   aria-label="6-digit verification code"
                 />
               </div>

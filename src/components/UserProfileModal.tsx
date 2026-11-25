@@ -22,6 +22,7 @@ import {
 } from "@/types/userProfile";
 import { MAP_LAYERS, type MapLayer } from "@/types/agroSpace";
 import { ThemeSettingsCard } from "@/components/theme/ThemeSwitcher";
+import { AnimatedThemeSwitch } from "@/components/theme/AnimatedThemeSwitch";
 import { TwoFactorSettingsCard } from "@/components/auth/TwoFactorSettingsCard";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 
@@ -53,9 +54,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
   onNavigateHome,
 }) => {
-  const [activeTab, setActiveTab] = useState<"profile" | "mission" | "notifications" | "security">(
-    "profile",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "mission" | "appearance" | "notifications" | "security"
+  >("profile");
 
   // Editable Profile States
   const [fullName, setFullName] = useState(profile.fullName ?? profile.name ?? "");
@@ -143,8 +144,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-cyan-500/30 bg-[#070c18]/95 text-foreground shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(6,182,212,0.2)] backdrop-blur-2xl">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-hud)] backdrop-blur-2xl">
         {/* Glowing Top Frame Accent */}
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-blue-500" />
 
@@ -186,14 +187,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-white/10 px-6 bg-black/30">
+        <div className="flex overflow-x-auto border-b border-[var(--border-subtle)] px-6 bg-black/5 dark:bg-black/30">
           <button
             type="button"
             onClick={() => setActiveTab("profile")}
-            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer shrink-0 ${
               activeTab === "profile"
-                ? "border-cyan-400 text-cyan-300 bg-cyan-500/10"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-surface)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             }`}
           >
             <User className="size-3.5" />
@@ -203,10 +204,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("mission")}
-            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer shrink-0 ${
               activeTab === "mission"
-                ? "border-cyan-400 text-cyan-300 bg-cyan-500/10"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-surface)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             }`}
           >
             <Compass className="size-3.5" />
@@ -215,11 +216,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveTab("appearance")}
+            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+              activeTab === "appearance"
+                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-surface)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Sparkles className="size-3.5" />
+            <span>{<LocalizedText text={"Appearance"} />}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("notifications")}
-            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer shrink-0 ${
               activeTab === "notifications"
-                ? "border-cyan-400 text-cyan-300 bg-cyan-500/10"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-surface)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             }`}
           >
             <Bell className="size-3.5" />
@@ -229,10 +243,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab("security")}
-            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 border-b-2 px-3 py-3 font-mono text-xs font-semibold transition-all cursor-pointer shrink-0 ${
               activeTab === "security"
-                ? "border-cyan-400 text-cyan-300 bg-cyan-500/10"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-surface)]"
+                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             }`}
           >
             <Key className="size-3.5" />
@@ -472,9 +486,46 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </div>
 
                 {/* Display & Theme Appearance */}
-                <div className="pt-4 border-t border-white/10">
+                <div className="pt-4 border-t border-[var(--border-subtle)] space-y-4">
+                  <div className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.03] px-3.5 py-2.5">
+                    <div>
+                      <div className="text-xs font-semibold text-[var(--text-primary)]">
+                        {<LocalizedText text={"Color Mode (Dark / Light)"} />}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-muted)]">
+                        {
+                          <LocalizedText
+                            text={"Toggle orbital dark or high-contrast daylight mode."}
+                          />
+                        }
+                      </div>
+                    </div>
+                    <AnimatedThemeSwitch />
+                  </div>
                   <ThemeSettingsCard />
                 </div>
+              </div>
+            )}
+
+            {/* ---------------- TAB 2B: APPEARANCE & THEME ---------------- */}
+            {activeTab === "appearance" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-black/5 dark:bg-white/[0.03] px-4 py-3">
+                  <div>
+                    <div className="text-xs font-semibold text-[var(--text-primary)]">
+                      {<LocalizedText text={"Dark / Light Display Mode"} />}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      {
+                        <LocalizedText
+                          text={"Switch cleanly with full-page circular transition."}
+                        />
+                      }
+                    </div>
+                  </div>
+                  <AnimatedThemeSwitch />
+                </div>
+                <ThemeSettingsCard />
               </div>
             )}
 

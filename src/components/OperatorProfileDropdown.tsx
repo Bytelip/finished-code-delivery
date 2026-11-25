@@ -59,9 +59,11 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
         onClick={onOpenAuth}
         aria-label="Sign in to AgroSpace"
         title="Sign in to AgroSpace"
-        className={compact
-          ? `grid size-8 place-items-center rounded-full border border-cyan-400/40 bg-cyan-500/15 font-mono text-xs font-bold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:border-cyan-400 hover:bg-cyan-500/25 transition-all cursor-pointer ${className}`
-          : `flex items-center gap-2.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-600/10 px-3.5 py-2 font-mono text-xs font-semibold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:border-cyan-400 hover:bg-cyan-500/25 transition-all cursor-pointer ${className}`}
+        className={
+          compact
+            ? `grid size-8 place-items-center rounded-full border border-cyan-400/40 bg-cyan-500/15 font-mono text-xs font-bold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:border-cyan-400 hover:bg-cyan-500/25 transition-all cursor-pointer ${className}`
+            : `flex items-center gap-2.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-500/15 to-blue-600/10 px-3.5 py-2 font-mono text-xs font-semibold text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:border-cyan-400 hover:bg-cyan-500/25 transition-all cursor-pointer ${className}`
+        }
       >
         {compact ? (
           <span>NG</span>
@@ -87,7 +89,7 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-[#080f1e]/85 p-1.5 pr-3 text-left shadow-[0_0_20px_rgba(0,0,0,0.6)] backdrop-blur-xl hover:border-cyan-400/50 hover:bg-white/[0.08] transition-all cursor-pointer"
+        className="flex items-center gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1.5 pr-3 text-left shadow-sm backdrop-blur-xl hover:border-[var(--accent)] transition-all cursor-pointer"
         aria-label="Operator Profile Quick Menu"
         aria-expanded={isOpen}
       >
@@ -131,7 +133,7 @@ export const OperatorProfileDropdown: React.FC<OperatorProfileDropdownProps> = (
 
       {/* Glassmorphic Dropdown Quick-Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full z-[1000] mt-2 w-72 sm:w-80 overflow-hidden rounded-xl border border-cyan-500/30 bg-[#070c18]/95 p-2 shadow-[0_12px_45px_rgba(0,0,0,0.85),0_0_25px_rgba(6,182,212,0.2)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2 duration-150 text-foreground">
+        <div className="absolute right-0 top-full z-[1000] mt-2 w-72 sm:w-80 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 shadow-[var(--shadow-hud)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2 duration-150 text-[var(--text-primary)]">
           {/* Top User Identity Card */}
           <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
             <div className="flex items-center gap-3">

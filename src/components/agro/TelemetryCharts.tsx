@@ -22,29 +22,32 @@ import { HudCard } from "@/components/agro/hud";
 import type { AgroTelemetry } from "@/types/agroSpace";
 import { LocalizedText } from "@/components/i18n/LocalizedText";
 
-const tick = { fill: "oklch(0.68 0.035 235)", fontSize: 12, fontFamily: "var(--font-mono)" };
+const tick = { fill: "var(--text-muted)", fontSize: 12, fontFamily: "var(--font-mono)" };
 const tooltipProps = {
   contentStyle: {
-    background: "oklch(0.12 0.025 260 / 0.95)",
-    border: "1px solid oklch(0.79 0.17 210 / 0.45)",
+    background: "var(--bg-surface)",
+    border: "1px solid var(--border-subtle)",
     borderRadius: 8,
-    boxShadow: "0 0 20px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 240, 255, 0.2)",
+    boxShadow: "var(--shadow-hud)",
     backdropFilter: "blur(12px)",
     fontFamily: "var(--font-mono)",
     fontSize: 12,
-    color: "oklch(0.96 0.012 210)",
+    color: "var(--text-primary)",
     padding: "8px 12px",
   },
-  labelStyle: { color: "var(--cyan)", fontWeight: "bold", marginBottom: "4px" },
-  cursor: { stroke: "var(--cyan)", strokeOpacity: 0.4, fill: "var(--cyan)", fillOpacity: 0.08 },
+  labelStyle: { color: "var(--accent)", fontWeight: "bold", marginBottom: "4px" },
+  cursor: { stroke: "var(--accent)", strokeOpacity: 0.4, fill: "var(--accent)", fillOpacity: 0.08 },
 };
 const legendProps = {
-  wrapperStyle: { fontSize: 12, fontFamily: "var(--font-mono)", paddingTop: 8 },
+  wrapperStyle: {
+    fontSize: 12,
+    fontFamily: "var(--font-mono)",
+    paddingTop: 8,
+    color: "var(--text-muted)",
+  },
   iconSize: 8,
 };
-const grid = (
-  <CartesianGrid stroke="oklch(0.79 0.17 210 / 0.12)" strokeDasharray="3 4" vertical={false} />
-);
+const grid = <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 4" vertical={false} />;
 
 function LocalizedChartTick({
   x = 0,
@@ -63,7 +66,7 @@ function LocalizedChartTick({
       y={y}
       textAnchor={textAnchor}
       dominantBaseline="central"
-      fill="oklch(0.68 0.035 235)"
+      fill="var(--text-muted)"
       fontSize={12}
       fontFamily="var(--font-mono)"
     >

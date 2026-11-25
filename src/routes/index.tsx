@@ -446,7 +446,7 @@ function AgroSpaceDashboard({
 
             <div className="grid min-w-0 content-start gap-3 xl:max-h-[min(820px,calc(100dvh-8rem))] xl:overflow-y-auto xl:pr-1 no-scrollbar">
               {tab === "atmosphere" && (
-                <SpotlightCard className="min-w-0 border-cyan-500/20 bg-[#071120]/85 p-0 backdrop-blur-md">
+                <SpotlightCard className="min-w-0 border-[var(--border-subtle)] bg-[var(--bg-glass)] p-0 backdrop-blur-md">
                   <ForecastAtmospherePanel
                     coordinates={{ lat, lon }}
                     activeLayer={mapBasemap as ZoomEarthLayerId}
@@ -553,17 +553,17 @@ function AgroSpaceDashboard({
 
           {tab === "granules" && <GranuleInspector telemetry={telemetry} />}
 
-          {/* Live Telemetry Bottom Mission Tape (Google Stitch) */}
-          <div className="w-full rounded-xl bg-[#0b0f19]/75 border border-white/10 backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-muted-foreground font-mono text-xs mt-6 shadow-xl">
+          {/* Live Telemetry Bottom Mission Tape */}
+          <div className="w-full rounded-xl bg-[var(--bg-glass)] border border-[var(--border-subtle)] backdrop-blur-md p-3 flex flex-wrap items-center justify-between gap-3 text-[var(--text-muted)] font-mono text-xs mt-6 shadow-[var(--shadow-hud)]">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-cyan-300 font-bold uppercase tracking-wider">
+              <span className="text-[var(--accent)] font-bold uppercase tracking-wider">
                 {<LocalizedText text={"TELEMETRY STREAM:"} />}
               </span>
-              <span className="text-foreground">
+              <span className="text-[var(--text-primary)]">
                 {<LocalizedText text={"SENTINEL-1 C-SAR PASS: 41.2° INCLINATION"} />}
               </span>
-              <span className="hidden md:inline text-foreground">•</span>
-              <span className="hidden md:inline text-foreground">
+              <span className="hidden md:inline text-[var(--text-muted)]">•</span>
+              <span className="hidden md:inline text-[var(--text-primary)]">
                 {
                   <LocalizedText
                     text={"LANDSAT-9 OLI-2 / TIRS-2 THERMAL CALIBRATION: NOMINAL [0.03K DELTA]"}
@@ -572,15 +572,15 @@ function AgroSpaceDashboard({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]" />
-              <span className="text-foreground font-semibold">
+              <span className="size-2 rounded-full bg-[var(--status-ok)] animate-pulse" />
+              <span className="text-[var(--text-primary)] font-semibold">
                 {<LocalizedText text={"NASA-LANCE AG-INTEL READY"} />}
               </span>
             </div>
           </div>
 
-          {/* Observatory Mission Footer (Google Stitch) */}
-          <footer className="w-full rounded-xl bg-[#0b0f19]/80 border border-white/5 backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-muted-foreground font-mono text-xs">
+          {/* Observatory Mission Footer */}
+          <footer className="w-full rounded-xl bg-[var(--bg-glass)] border border-[var(--border-subtle)] backdrop-blur-xl p-4 mt-3 flex flex-col md:flex-row items-center justify-between gap-3 text-[var(--text-muted)] font-mono text-xs shadow-[var(--shadow-hud)]">
             <div>
               {
                 <LocalizedText
@@ -590,29 +590,29 @@ function AgroSpaceDashboard({
                 />
               }
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <button
                 type="button"
                 onClick={() => setTab("overview")}
-                className="hover:text-cyan-300 transition-colors cursor-pointer"
+                className="hover:text-[var(--accent)] transition-colors cursor-pointer"
               >
                 {<LocalizedText text={"GLOBAL OBSERVATORY"} />}
               </button>
               <button
                 type="button"
                 onClick={() => setTab("crop-atlas")}
-                className="hover:text-cyan-300 transition-colors cursor-pointer"
+                className="hover:text-[var(--accent)] transition-colors cursor-pointer"
               >
                 {<LocalizedText text={"CROP SHIFT"} />}
               </button>
               <button
                 type="button"
                 onClick={() => setShowMissionBriefModal(true)}
-                className="hover:text-cyan-300 transition-colors cursor-pointer"
+                className="hover:text-[var(--accent)] transition-colors cursor-pointer"
               >
                 {<LocalizedText text={"MISSION BRIEF"} />}
               </button>
-              <span className="text-emerald-400 font-semibold">
+              <span className="text-[var(--status-ok)] font-semibold">
                 {<LocalizedText text={"• ALL ORBITAL FEEDS NOMINAL"} />}
               </span>
             </div>

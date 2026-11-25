@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { useTheme } from "@/context/ThemeContext";
 
 interface Star {
   x: number;
@@ -27,6 +28,7 @@ interface Meteor {
  * 3. 32px architectural perspective grid with radial vignette mask
  */
 export function VibeCosmicBackground() {
+  const { isDark, currentConfig } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -205,33 +207,46 @@ export function VibeCosmicBackground() {
     };
   }, []);
 
+  const accentHex = isDark ? currentConfig.dark.accent : currentConfig.light.accent;
+
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#060911]"
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[var(--bg-canvas)] transition-colors duration-300"
     >
-      {/* 1. Ambient GitHub Copilot-Style Aurora & Orbital Halo Mesh */}
+      {/* 1. Ambient Aurora & Orbital Halo Mesh */}
       <div
-        className="absolute inset-0 opacity-80"
+        className={isDark ? "absolute inset-0 opacity-80" : "absolute inset-0 opacity-55"}
         style={{
           animation: "auroraShift 18s ease-in-out infinite alternate",
-          background: `
-            radial-gradient(circle at 50% 12%, rgba(79, 70, 229, 0.14) 0%, transparent 60%),
-            radial-gradient(circle at 18% 42%, rgba(6, 182, 212, 0.16) 0%, transparent 52%),
-            radial-gradient(circle at 82% 58%, rgba(16, 185, 129, 0.12) 0%, transparent 50%),
-            radial-gradient(circle at 48% 85%, rgba(14, 165, 233, 0.08) 0%, transparent 55%)
-          `,
+          background: isDark
+            ? `
+              radial-gradient(circle at 50% 12%, color-mix(in srgb, ${accentHex} 16%, transparent) 0%, transparent 60%),
+              radial-gradient(circle at 18% 42%, rgba(6, 182, 212, 0.12) 0%, transparent 52%),
+              radial-gradient(circle at 82% 58%, rgba(16, 185, 129, 0.10) 0%, transparent 50%),
+              radial-gradient(circle at 48% 85%, rgba(14, 165, 233, 0.08) 0%, transparent 55%)
+            `
+            : `
+              radial-gradient(circle at 50% 0%, color-mix(in srgb, ${accentHex} 14%, transparent) 0%, transparent 58%),
+              radial-gradient(circle at 85% 22%, rgba(251, 191, 36, 0.12) 0%, transparent 45%),
+              radial-gradient(circle at 15% 60%, color-mix(in srgb, ${accentHex} 9%, transparent) 0%, transparent 50%)
+            `,
         }}
       />
 
       {/* 2. Architectural 32px Perspective Grid with Vignette Mask */}
       <div
-        className="absolute inset-0 opacity-55"
+        className={isDark ? "absolute inset-0 opacity-55" : "absolute inset-0 opacity-35"}
         style={{
-          backgroundImage: `
-            linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px)
-          `,
+          backgroundImage: isDark
+            ? `
+              linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px)
+            `
+            : `
+              linear-gradient(to right, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(15, 23, 42, 0.05) 1px, transparent 1px)
+            `,
           backgroundSize: "32px 32px",
           maskImage: "radial-gradient(ellipse 75% 60% at 50% 40%, #000 60%, transparent 100%)",
           WebkitMaskImage:
@@ -239,8 +254,11 @@ export function VibeCosmicBackground() {
         }}
       />
 
-      {/* 3. 60fps HTML5 Canvas: Twinkling Stars & Shooting Meteors */}
-      <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full" />
+      {/* 3. 60fps HTML5 Canvas: Twinkling Stars & Shooting Meteors (Dark mode only) */}
+      <canvas
+        ref={canvasRef}
+        className={isDark ? "absolute inset-0 block h-full w-full" : "hidden"}
+      />
     </div>
   );
 }

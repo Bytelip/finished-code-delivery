@@ -37,8 +37,8 @@ export function LanguageSelector({
         className={cn(
           "h-8 px-2 rounded-full border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm",
           open
-            ? "bg-cyan-500/20 border-cyan-400/60 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.3)]"
-            : "bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-cyan-300 hover:border-cyan-400/40",
+            ? "bg-[var(--accent-surface)] border-[var(--accent)] text-[var(--accent)]"
+            : "bg-[var(--bg-surface)] hover:bg-[var(--bg-glass)] border-[var(--border-subtle)] text-[var(--accent)] hover:border-[var(--accent)]",
         )}
         title={t("language", "Select Language")}
         aria-label={t("language", "Select Language")}
@@ -46,18 +46,22 @@ export function LanguageSelector({
         aria-haspopup="listbox"
       >
         {!compact && <Globe className="size-3.5 text-cyan-300 shrink-0 animate-pulse" />}
-        <span className="font-semibold">{compact ? currentLang.code.toUpperCase() : currentLang.nativeName}</span>
-        {!compact && <ChevronDown
-          className={cn(
-            "size-3 text-cyan-300 transition-transform duration-200",
-            open && "rotate-180",
-          )}
-        />}
+        <span className="font-semibold">
+          {compact ? currentLang.code.toUpperCase() : currentLang.nativeName}
+        </span>
+        {!compact && (
+          <ChevronDown
+            className={cn(
+              "size-3 text-cyan-300 transition-transform duration-200",
+              open && "rotate-180",
+            )}
+          />
+        )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 z-[200] w-52 max-h-80 overflow-y-auto rounded-xl border border-cyan-500/30 bg-[#070D19]/95 backdrop-blur-2xl p-1 shadow-[0_16px_45px_rgba(0,0,0,0.9)] divide-y divide-white/5">
-          <div className="px-2.5 py-1.5 text-xs font-mono text-cyan-300 font-semibold tracking-wider uppercase flex items-center justify-between">
+        <div className="absolute right-0 top-full mt-1.5 z-[200] w-52 max-h-80 overflow-y-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] backdrop-blur-2xl p-1 shadow-[var(--shadow-hud)] divide-y divide-[var(--border-subtle)]">
+          <div className="px-2.5 py-1.5 text-xs font-mono text-[var(--accent)] font-semibold tracking-wider uppercase flex items-center justify-between">
             <span>{<LocalizedText text={"🌐 Select Language"} />}</span>
             <span className="text-xs text-muted-foreground">
               {<LocalizedText text={"13 Native Scripts"} />}

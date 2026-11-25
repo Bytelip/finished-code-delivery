@@ -18,6 +18,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
+import { AnimatedThemeSwitch } from "@/components/theme/AnimatedThemeSwitch";
 import { LanguageSelector } from "@/components/i18n/LanguageSelector";
 import { useLanguage } from "@/context/LanguageContext";
 import { toast } from "sonner";
@@ -499,20 +500,20 @@ export function CommandBar({
       )}
 
       {/* ---------------- SINGLE-ROW GLASS HEADER ---------------- */}
-      <div className="sticky top-0 z-40 flex h-14 w-full max-w-full flex-nowrap items-center justify-between gap-2 border-b border-white/[0.08] bg-[#050B14]/95 px-3 backdrop-blur-2xl">
+      <div className="sticky top-0 z-40 flex h-14 w-full max-w-full flex-nowrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-glass)] px-3 backdrop-blur-2xl">
         <div className="flex min-w-0 shrink items-center gap-2 whitespace-nowrap">
-          <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-cyan-400/50 bg-cyan-500/15 text-cyan-300 shadow-[0_0_14px_rgba(0,240,255,0.25)]">
+          <div className="grid size-8 shrink-0 place-items-center rounded-xl border border-[var(--accent)]/40 bg-[var(--accent-surface)] text-[var(--accent)] shadow-sm">
             <Satellite className="size-4 animate-pulse" />
           </div>
           <div className="flex min-w-0 flex-col leading-none sm:flex-row sm:items-center sm:gap-2">
-            <span className="truncate font-display text-sm font-bold tracking-tight text-foreground sm:text-base">
+            <span className="truncate font-display text-sm font-bold tracking-tight text-[var(--text-primary)] sm:text-base">
               AgroSpace
             </span>
             <div className="mt-0.5 flex items-center gap-1.5 sm:mt-0">
-              <span className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+              <span className="font-mono text-xs font-semibold uppercase tracking-widest text-[var(--status-ok)]">
                 Nexus
               </span>
-              <span className="shrink-0 rounded-full border border-cyan-400/30 bg-cyan-500/15 px-1.5 font-mono text-xs font-semibold leading-4 text-cyan-300">
+              <span className="shrink-0 rounded-full border border-[var(--accent)]/35 bg-[var(--accent-surface)] px-1.5 font-mono text-xs font-semibold leading-4 text-[var(--accent)]">
                 v2.4
               </span>
             </div>
@@ -521,13 +522,11 @@ export function CommandBar({
 
         <div
           data-tour="top-right-controls"
-          className="flex shrink-0 items-center justify-end gap-1 whitespace-nowrap sm:gap-1.5"
+          className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap"
         >
           <LanguageSelector compact />
-          <ThemeSwitcher
-            variant="compact"
-            className="border-white/10 bg-white/[0.04] hover:bg-white/[0.08]"
-          />
+          <ThemeSwitcher variant="compact" />
+          <AnimatedThemeSwitch />
           <div className="shrink-0">
             <OperatorProfileDropdown
               profile={profile ?? null}
@@ -549,8 +548,8 @@ export function CommandBar({
         }
       >
         <div ref={searchContainerRef} className="relative mx-auto w-full max-w-4xl">
-          <div className="group flex h-12 items-center gap-2 rounded-2xl border border-cyan-400/30 bg-[#071120]/90 px-3 shadow-[0_8px_28px_rgba(0,0,0,0.3)] backdrop-blur-xl transition-all duration-200 focus-within:border-cyan-300/70 focus-within:ring-2 focus-within:ring-cyan-400/15 focus-within:shadow-[0_0_24px_rgba(34,211,238,0.22)] sm:px-4">
-            <span className="grid size-8 shrink-0 place-items-center text-cyan-300">
+          <div className="group flex h-12 items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 shadow-[var(--shadow-hud)] backdrop-blur-xl transition-all duration-200 focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent-glow)] sm:px-4">
+            <span className="grid size-8 shrink-0 place-items-center text-[var(--accent)]">
               {searching ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
@@ -629,7 +628,7 @@ export function CommandBar({
               id="agrospace-search-suggestions"
               role="region"
               aria-label="Search suggestions"
-              className="absolute left-0 right-0 top-full z-[1000] mt-2 max-h-[min(70dvh,30rem)] overflow-y-auto rounded-2xl border border-cyan-400/25 bg-[#071120]/[0.98] p-2 shadow-[0_18px_55px_rgba(0,0,0,0.72),0_0_25px_rgba(34,211,238,0.12)] backdrop-blur-2xl sm:p-3"
+              className="absolute left-0 right-0 top-full z-[1000] mt-2 max-h-[min(70dvh,30rem)] overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 shadow-[var(--shadow-hud)] backdrop-blur-2xl sm:p-3"
             >
               {searchResults.length > 0 && dropdownOpen && (
                 <div className="mb-2">
@@ -727,7 +726,7 @@ export function CommandBar({
       <div
         ref={paramsDrawerRef}
         className={cn(
-          "transition-all duration-300 z-50 absolute top-[8.25rem] left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-xl bg-[#070D19]/95 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_24px_70px_rgba(0,0,0,0.9)] p-4",
+          "transition-all duration-300 z-50 absolute top-[8.25rem] left-1/2 -translate-x-1/2 w-[94%] max-w-4xl rounded-xl bg-[var(--bg-surface)] backdrop-blur-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-hud)] p-4",
           isParamsDrawerOpen
             ? "opacity-100 scale-100 pointer-events-auto visible"
             : "opacity-0 scale-95 pointer-events-none invisible max-h-0 overflow-hidden p-0 border-0",
@@ -870,7 +869,7 @@ export function CommandBar({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
+                <SelectContent className="border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] backdrop-blur-xl">
                   {IRRIGATION_TYPES.map((i) => (
                     <SelectItem key={i} value={i} className="text-xs font-mono">
                       {i}
@@ -921,7 +920,7 @@ export function CommandBar({
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-border/80 bg-[#080d1a]/95 backdrop-blur-xl">
+                <SelectContent className="border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-primary)] backdrop-blur-xl">
                   {SCENARIOS.map((s) => (
                     <SelectItem key={s} value={s} className="text-xs font-mono">
                       {s}
